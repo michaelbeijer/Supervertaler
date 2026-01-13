@@ -666,6 +666,34 @@ google_api_key=AI...
 
 ## 🔄 Recent Development History
 
+### January 13, 2026 - 📝 Update Checker Investigation (Work in Progress)
+
+**Goal:** Add a Help → “🔄 Check for Updates…” action that tells users whether they’re on the latest release.
+
+**Implementation Attempt (PyQt6/QtNetwork):**
+- Implemented an async update-check flow against GitHub:
+  - API: `https://api.github.com/repos/michaelbeijer/Supervertaler/releases/latest`
+  - Fallback: `https://github.com/michaelbeijer/Supervertaler/releases/latest`
+- Hardened against common Qt pitfalls:
+  - Avoided `QProgressDialog` auto-close/auto-reset surprises
+  - Added request-id guarding to ignore stale replies
+  - Prevented double-cleanup (double `finish()` calls)
+  - Added logging for network/SSL errors
+
+**What we observed on the developer machine:**
+- QtNetwork consistently returns `Unknown error` (no usable error string) for both API and fallback URLs.
+- The dialog could hang far longer than intended due to overlapping timeout/fallback paths.
+- This appears to be an environment-dependent Qt SSL/TLS backend issue (Windows).
+
+**Temporary Decision (to avoid UX pain):**
+- `Help → Check for Updates…` currently just opens the GitHub Releases page:
+  - `https://github.com/michaelbeijer/Supervertaler/releases/latest`
+- This avoids hangs/crashes while we revisit a robust implementation later.
+
+**Future direction (when revisiting):**
+- Prefer a Python HTTPS-based check (`urllib`/`requests`) in a worker thread, or a tiny lightweight update endpoint.
+- If keeping QtNetwork, validate Qt SSL backend availability and provide clear guidance when SSL is missing.
+
 ### January 13, 2026 - ✅ FIXED: Ctrl+Return Not Working in Source Cell
 
 **Issue:** Ctrl+Enter (main keyboard Return key) does not trigger `confirm_selected_or_next()` when cursor is in source cell (`ReadOnlyGridTextEditor`).

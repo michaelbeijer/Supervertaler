@@ -35094,11 +35094,38 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
 
     def check_for_updates(self):
         """Check GitHub for the latest Supervertaler release and report whether the user is up to date."""
+        # Temporary simplified behavior: QtNetwork HTTPS update checks can fail/hang on some Windows
+        # environments (seen as QNetworkReply "Unknown error"). Until this is revisited, open the
+        # GitHub releases page directly.
+        try:
+            self._open_url("https://github.com/michaelbeijer/Supervertaler/releases/latest")
+        except Exception as e:
+            QMessageBox.warning(self, "Check for Updates", f"Could not open releases page: {e}")
+        return
+
         if getattr(self, "_update_check_in_progress", False):
             QMessageBox.information(self, "Check for Updates", "An update check is already in progress.")
             return
 
         self._update_check_in_progress = True
+        self._update_check_user_canceled = False
+        self._update_check_last_stage = "start"
+        self._update_check_any_message_shown = False
+        self._update_check_python_fallback_started = False
+
+        def _log_update(msg: str):
+            # Always emit something to the terminal in dev mode.
+            try:
+                print(f"[UPDATE] {msg}", flush=True)
+            except Exception:
+                pass
+            # Also use the app log if available.
+            try:
+                self.log(f"[Update] {msg}")
+            except Exception:
+                pass
+
+        _log_update("Checking for updates...")
 
         progress = QProgressDialog("Checking for updates...", "Cancel", 0, 0, self)
         progress.setWindowTitle("Check for Updates")
@@ -35108,6 +35135,11 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         progress.setAutoClose(False)
         progress.setAutoReset(False)
         progress.show()
+
+        try:
+            progress.destroyed.connect(lambda *_: _log_update("Progress dialog destroyed"))
+        except Exception:
+            pass
 
         # Keep references so Qt objects aren't GC'd mid-request
         self._update_check_progress = progress
@@ -35124,6 +35156,12 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         self._update_check_request_id = int(getattr(self, "_update_check_request_id", 0)) + 1
         active_request_id = self._update_check_request_id
 
+        def is_active_request() -> bool:
+            try:
+                return bool(getattr(self, "_update_check_in_progress", False)) and int(getattr(self, "_update_check_request_id", 0)) == active_request_id
+            except Exception:
+                return False
+
         def abort_current_reply():
             try:
                 r = getattr(self, "_update_check_reply", None)
@@ -35136,6 +35174,9 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             """Start either the API or fallback request."""
             if kind not in {"api", "fallback"}:
                 kind = "api"
+
+            self._update_check_last_stage = f"request:{kind}"
+            _log_update(f"Starting {kind} request")
 
             abort_current_reply()
 
@@ -35162,6 +35203,16 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             r.setProperty("sv_update_check_request_id", active_request_id)
             self._update_check_reply = r
 
+            # Helpful when QtNetwork TLS is misconfigured on Windows.
+            try:
+                r.sslErrors.connect(
+                    lambda errs, rr=r: _log_update(
+                        "SSL errors: " + "; ".join(getattr(e, "errorString", lambda: str(e))() for e in errs)
+                    )
+                )
+            except Exception:
+                pass
+
             # Restart timeout for each attempt
             try:
                 if hasattr(self, "_update_check_timer") and self._update_check_timer:
@@ -35184,7 +35235,27 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                 except Exception:
                     pass
             finally:
+                # If we got here without showing *any* result/error dialog and the user didn't cancel,
+                # surface a minimal explanation so it never feels like a no-op.
+                try:
+                    unexpected = (not bool(getattr(self, "_update_check_user_canceled", False))) and (not bool(getattr(self, "_update_check_any_message_shown", False)))
+                    if unexpected:
+                        stage = str(getattr(self, "_update_check_last_stage", "(unknown)"))
+                        QMessageBox.warning(
+                            self,
+                            "Check for Updates",
+                            "The update check ended unexpectedly.\n\n"
+                            f"Stage: {stage}\n\n"
+                            "This is usually caused by a network/SSL issue or a blocked request.",
+                        )
+                except Exception:
+                    pass
+
                 self._update_check_in_progress = False
+                try:
+                    self._update_check_user_canceled = False
+                except Exception:
+                    pass
                 try:
                     if hasattr(self, "_update_check_reply") and self._update_check_reply:
                         self._update_check_reply.deleteLater()
@@ -35195,11 +35266,26 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                 self._update_check_progress = None
 
                 try:
+                    self._update_check_python_fallback_started = False
+                except Exception:
+                    pass
+
+                try:
                     self._update_check_fallback_attempted = False
                 except Exception:
                     pass
 
+                try:
+                    self._update_check_last_stage = "finished"
+                except Exception:
+                    pass
+
         def show_offline_error(details: str):
+            try:
+                self._update_check_any_message_shown = True
+                self._update_check_last_stage = "offline_error"
+            except Exception:
+                pass
             msg = (
                 "Could not check for updates (offline or GitHub is unavailable).\n\n"
                 f"Details: {details}\n\n"
@@ -35215,10 +35301,86 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             if choice == QMessageBox.StandardButton.Yes:
                 self._open_url("https://github.com/michaelbeijer/Supervertaler/releases")
 
+        def start_python_fallback(reason: str = ""):
+            """Fallback that uses Python's HTTPS stack (urllib) instead of QtNetwork."""
+            try:
+                if bool(getattr(self, "_update_check_python_fallback_started", False)):
+                    _log_update("Python fallback already started; ignoring")
+                    return
+                self._update_check_python_fallback_started = True
+            except Exception:
+                pass
+
+            # Stop Qt timeout timer now that we're using Python's stack.
+            try:
+                if hasattr(self, "_update_check_timer") and self._update_check_timer:
+                    self._update_check_timer.stop()
+            except Exception:
+                pass
+
+            # Abort any in-flight Qt request to avoid late signals.
+            abort_current_reply()
+
+            try:
+                self._update_check_last_stage = "python_fallback"
+            except Exception:
+                pass
+
+            reason = (reason or "").strip()
+            if reason:
+                _log_update(f"Trying Python fallback ({reason})")
+            else:
+                _log_update("Trying Python fallback")
+
+            try:
+                progress.setLabelText("Checking for updates (Python fallback)...")
+            except Exception:
+                pass
+
+            import threading
+
+            def worker():
+                try:
+                    info = self._fetch_latest_release_info_from_github(timeout_seconds=6)
+                    version = (info.get("version") or "") if isinstance(info, dict) else ""
+                    url = (info.get("url") or "") if isinstance(info, dict) else ""
+
+                    def on_ok():
+                        if not is_active_request():
+                            return
+                        if bool(getattr(self, "_update_check_user_canceled", False)):
+                            finish()
+                            return
+                        handle_latest(version, url)
+                        finish()
+
+                    QTimer.singleShot(0, on_ok)
+                except Exception as e:
+
+                    def on_err():
+                        if not is_active_request():
+                            return
+                        if bool(getattr(self, "_update_check_user_canceled", False)):
+                            finish()
+                            return
+                        show_offline_error(str(e))
+                        finish()
+
+                    QTimer.singleShot(0, on_err)
+
+            threading.Thread(target=worker, daemon=True).start()
+
         def on_timeout():
             # Ignore stale timers from previous attempts.
             try:
                 if int(getattr(self, "_update_check_request_id", 0)) != active_request_id:
+                    return
+            except Exception:
+                return
+
+            # If Python fallback is already running, don't start anything else.
+            try:
+                if bool(getattr(self, "_update_check_python_fallback_started", False)):
                     return
             except Exception:
                 return
@@ -35240,8 +35402,12 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             try:
                 abort_current_reply()
             finally:
-                show_offline_error(f"Timed out after {timeout_ms // 1000}s")
-                finish()
+                try:
+                    self._update_check_last_stage = "timeout"
+                except Exception:
+                    pass
+                # Try Python fallback first; if it fails it will show the offline dialog.
+                start_python_fallback(f"timeout after {timeout_ms // 1000}s")
 
         timeout_timer = QTimer(self)
         timeout_timer.setSingleShot(True)
@@ -35250,12 +35416,26 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         self._update_check_timer = timeout_timer
 
         def on_cancel():
+            try:
+                self._update_check_user_canceled = True
+            except Exception:
+                pass
+            try:
+                self._update_check_last_stage = "canceled"
+            except Exception:
+                pass
+            _log_update("User canceled update check")
             abort_current_reply()
             finish()
 
         progress.canceled.connect(on_cancel)
 
         def handle_latest(latest_version_text: str, latest_url: str):
+            try:
+                self._update_check_any_message_shown = True
+                self._update_check_last_stage = "result"
+            except Exception:
+                pass
             latest_version_text = (latest_version_text or "").strip()
             latest_url = (latest_url or "").strip() or "https://github.com/michaelbeijer/Supervertaler/releases"
 
@@ -35303,6 +35483,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                 )
 
         def on_finished(reply_obj):
+            should_finish = True
             # Stale reply (e.g., API reply finishing after we already started fallback).
             try:
                 rid = reply_obj.property("sv_update_check_request_id")
@@ -35337,20 +35518,31 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                 # If aborted/cancelled/errored, show a useful message
                 if reply_obj.error():
                     err = reply_obj.errorString() or "Network error"
-                    # Only treat real user cancel/abort as silent.
+                    try:
+                        err_code = int(reply_obj.error())
+                    except Exception:
+                        err_code = -1
+                    # Only treat real user cancel/abort as silent. Unexpected aborts should be surfaced.
                     if reply_obj.error() == QNetworkReply.NetworkError.OperationCanceledError:
-                        finish()
+                        _log_update("Network request aborted (OperationCanceledError)")
+                        if not bool(getattr(self, "_update_check_user_canceled", False)):
+                            show_offline_error("Update check was aborted unexpectedly.")
                         return
+
+                    _log_update(f"Network error ({kind}) [{err_code}]: {err}")
 
                     # API can be blocked on some networks; fall back to github.com
                     if kind == "api" and not getattr(self, "_update_check_fallback_attempted", False):
                         self._update_check_fallback_attempted = True
                         # Do not finish here; the fallback attempt becomes the active request.
                         start_request("fallback")
+                        should_finish = False
                         return
 
-                    show_offline_error(err)
-                    finish()
+                    # QtNetwork HTTPS can fail on some systems (often reported as "Unknown error").
+                    # Try Python's HTTPS stack before giving up.
+                    start_python_fallback(f"qt_network_error {err_code}")
+                    should_finish = False
                     return
 
                 if kind == "fallback":
@@ -35386,7 +35578,6 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                             latest_version_text = m.group(1)
 
                     handle_latest(latest_version_text, latest_url_text)
-                    finish()
                     return
 
                 # API JSON path
@@ -35399,9 +35590,11 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
 
                 handle_latest(latest_version_text, latest_url)
             except Exception as e:
+                _log_update(f"Exception while parsing update info: {e}")
                 show_offline_error(str(e))
             finally:
-                finish()
+                if should_finish:
+                    finish()
 
         start_request("api")
 
