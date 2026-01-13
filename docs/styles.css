@@ -142,6 +142,11 @@ body {
     align-items: center;
 }
 
+.nav-menu li {
+    display: flex;
+    align-items: center;
+}
+
 .nav-menu a {
     color: var(--text-secondary);
     text-decoration: none;
@@ -156,7 +161,13 @@ body {
 .nav-menu a.nav-discussions {
     background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%);
     color: white;
-    padding: 0.5rem 1rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 36px;
+    line-height: 1;
+    white-space: nowrap;
+    padding: 0 1rem;
     border-radius: 0.5rem;
     font-weight: 600;
     transition: all 0.3s ease;
@@ -170,6 +181,10 @@ body {
 
 /* Navbar version + icon buttons */
 .nav-menu a.nav-version {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 36px;
     font-weight: 700;
     font-size: 0.9rem;
     color: var(--text-secondary);
