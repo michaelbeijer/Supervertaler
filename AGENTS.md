@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** January 12, 2026 | **Version:** v1.9.99
+> **Last Updated:** January 13, 2026 | **Version:** v1.9.100
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.99 (January 2026) |
+| **Version** | v1.9.100 (January 2026) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -665,6 +665,41 @@ google_api_key=AI...
 ---
 
 ## 🔄 Recent Development History
+
+### January 13, 2026 - ✅ FIXED: Ctrl+Return Not Working in Source Cell
+
+**Issue:** Ctrl+Enter (main keyboard Return key) does not trigger `confirm_selected_or_next()` when cursor is in source cell (`ReadOnlyGridTextEditor`).
+
+**Key Finding:** Ctrl+Enter on **numpad** (Key_Enter) WORKS, but main keyboard Return (Key_Return) does NOT.
+
+**What We Observed:**
+1. ✅ Global QShortcut IS registered: `key=Ctrl+Enter, enabled=True, context=ApplicationShortcut`
+2. ❌ Widget's `keyPressEvent()` is NEVER called for main keyboard Return
+3. ❌ Widget's `event()` override is NEVER called for main keyboard Return
+4. ❌ Debug print statements produce NO output when pressing Ctrl+Return
+
+**Likely Root Cause:**
+On Windows/Qt, `Ctrl+Return` (Key_Return) can be swallowed before it reaches the cell widget, and the `QShortcut(QKeySequence("Ctrl+Return"))` path appears to effectively only catch numpad Enter (Key_Enter) in this scenario.
+
+**Suspected Areas:**
+- QTableWidget default key handling (line 18352: `setEditTriggers(DoubleClicked)`)
+- Possible event filter on table or viewport
+- Qt's internal focus/key event routing for QTextEdit inside QTableWidget cells
+- Possible conflict with recent "Auto Resize Rows" feature
+
+**Fix Implemented:**
+- Added an application-level event filter that catches `Ctrl+Return` and `Ctrl+Enter` *before* Qt/table routing can swallow it, but only when focus is inside the grid.
+- The filter calls `confirm_selected_or_next()` and returns `True` to stop further handling.
+- Expanded the same handling so it also works when focus is in the **Filter Source** / **Filter Target** boxes.
+
+**Implementation Notes:**
+- `Supervertaler.py`: new `_CtrlReturnEventFilter(QObject)` near the grid editor classes.
+- `Supervertaler.py`: installed via `QApplication.instance().installEventFilter(...)` in `setup_global_shortcuts()`.
+- Kept `QShortcut` binding for `editor_save_and_next`, but the event filter ensures main-keyboard Return also works.
+
+**Workaround (no longer needed):** Previously: use numpad Enter key instead of main keyboard Return.
+
+---
 
 ### January 12, 2026 - Version 1.9.99: Compare Panel Shortcuts + Sound Effects
 
@@ -2819,4 +2854,4 @@ An intelligent proofreading system that uses LLMs to verify translation quality.
 ---
 
 *This file replaces the previous CLAUDE.md and PROJECT_CONTEXT.md files.*
-*Last updated: January 12, 2026 - v1.9.99*
+*Last updated: January 13, 2026 - v1.9.100*

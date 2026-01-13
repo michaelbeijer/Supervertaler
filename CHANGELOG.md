@@ -2,11 +2,21 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.99 (January 12, 2026)
+**Current Version:** v1.9.100 (January 13, 2026)
 **Framework:** PyQt6
 **Status:** Active Development
 
 **Note:** For historical information about legacy versions (Tkinter Edition, Classic Edition), see [legacy_versions/LEGACY_VERSIONS.md](legacy_versions/LEGACY_VERSIONS.md).
+
+---
+
+## ⌨️ Ctrl+Return Works Everywhere (v1.9.100) - January 13, 2026
+
+**Bug Fix: Ctrl+Enter/Ctrl+Return confirmation now reliable**
+
+- Fixed a Windows/Qt routing quirk where `Ctrl+Return` (main keyboard Return) could be swallowed before it reached the grid editor widgets and/or the global `QShortcut`.
+- Implemented an application-level event filter that intercepts `Ctrl+Return` and `Ctrl+Enter` and triggers `confirm_selected_or_next()` when focus is in the editor grid context.
+- Expanded the same behavior to also work when focus is in the **Filter Source** / **Filter Target** boxes.
 
 ---
 

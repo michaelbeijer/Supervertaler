@@ -3,8 +3,8 @@ Supervertaler
 =============
 The Ultimate Translation Workbench.
 Modern PyQt6 interface with specialised modules to handle any problem.
-Version: 1.9.99 (Compare Panel shortcuts + sound effects)
-Release Date: January 12, 2026
+Version: 1.9.100 (Ctrl+Return fixes + glossary/spellcheck improvements)
+Release Date: January 13, 2026
 Framework: PyQt6
 
 This is the modern edition of Supervertaler using PyQt6 framework.
@@ -34,9 +34,9 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.99"
+__version__ = "1.9.100"
 __phase__ = "0.9"
-__release_date__ = "2026-01-12"
+__release_date__ = "2026-01-13"
 __edition__ = "Qt"
 
 import sys
@@ -852,6 +852,57 @@ class Project:
 # CUSTOM DELEGATES AND EDITORS
 # ============================================================================
 
+
+class _CtrlReturnEventFilter(QObject):
+    """App-level event filter to catch Ctrl+Return/Ctrl+Enter for grid confirm.
+
+    This is a workaround for cases where the main keyboard Return key (Key_Return)
+    is swallowed before it reaches the source cell editor or QShortcut.
+    """
+
+    def __init__(self, main_window):
+        super().__init__(main_window)
+        self._main_window = main_window
+
+    def eventFilter(self, obj, event):
+        from PyQt6.QtCore import QEvent
+        from PyQt6.QtWidgets import QApplication
+
+        if event.type() != QEvent.Type.KeyPress:
+            return False
+
+        # Only handle Ctrl+Return/Ctrl+Enter (ignore Shift/Alt variants)
+        mods = event.modifiers()
+        if not (mods & Qt.KeyboardModifier.ControlModifier):
+            return False
+        if mods & (Qt.KeyboardModifier.ShiftModifier | Qt.KeyboardModifier.AltModifier):
+            return False
+        if event.key() not in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+            return False
+
+        mw = self._main_window
+        if not mw or not mw.isActiveWindow():
+            return False
+
+        table = getattr(mw, 'table', None)
+        if table is None:
+            return False
+
+        focus = QApplication.focusWidget()
+        if focus is None:
+            return False
+
+        # Allow triggering when focus is in the grid itself OR in the grid's filter boxes.
+        # This keeps the shortcut useful while typing filters (e.g. "Filter Source" box).
+        source_filter = getattr(mw, 'source_filter', None)
+        target_filter = getattr(mw, 'target_filter', None)
+        if focus in (source_filter, target_filter) or focus is table or focus is table.viewport() or table.isAncestorOf(focus) or isinstance(focus, (ReadOnlyGridTextEditor, EditableGridTextEditor)):
+            if hasattr(mw, 'confirm_selected_or_next'):
+                mw.confirm_selected_or_next()
+                return True
+
+        return False
+
 class GridTableEventFilter:
     """Mixin to pass keyboard shortcuts from editor to table"""
     pass
@@ -1244,12 +1295,14 @@ class ReadOnlyGridTextEditor(QTextEdit):
                         return
         
         # Ctrl+Enter: Confirm & Next (same behavior as in target cell)
-        if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter) and event.modifiers() == Qt.KeyboardModifier.ControlModifier:
-            main_window = self._get_main_window()
-            if main_window and hasattr(main_window, 'confirm_selected_or_next'):
-                main_window.confirm_selected_or_next()
-            event.accept()
-            return
+        if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+            mods = event.modifiers()
+            if (mods & Qt.KeyboardModifier.ControlModifier) and not (mods & (Qt.KeyboardModifier.ShiftModifier | Qt.KeyboardModifier.AltModifier)):
+                main_window = self._get_main_window()
+                if main_window and hasattr(main_window, 'confirm_selected_or_next'):
+                    main_window.confirm_selected_or_next()
+                    event.accept()
+                    return
         
         # Tab key: Cycle to target cell (column 3) in same row
         if event.key() == Qt.Key.Key_Tab and event.modifiers() == Qt.KeyboardModifier.NoModifier:
@@ -5542,7 +5595,16 @@ class SupervertalerQt(QMainWindow):
         # Ctrl+Enter - Confirm segment(s) and go to next unconfirmed
         # If multiple segments selected: confirm all selected
         # If single segment: confirm and go to next unconfirmed
-        create_shortcut("editor_save_and_next", "Ctrl+Return", self.confirm_selected_or_next)
+        ctrl_enter_shortcut = create_shortcut("editor_save_and_next", "Ctrl+Return", self.confirm_selected_or_next)
+        # CRITICAL: Use ApplicationShortcut context so it works even when focus is in QTextEdit widgets
+        ctrl_enter_shortcut.setContext(Qt.ShortcutContext.ApplicationShortcut)
+
+        # Workaround: ensure Ctrl+Return (main keyboard) is caught even if swallowed before QShortcut
+        # (Observed: Ctrl+Enter on numpad works, Ctrl+Return does not when focus is in source cell.)
+        if not hasattr(self, '_ctrl_return_event_filter'):
+            from PyQt6.QtWidgets import QApplication
+            self._ctrl_return_event_filter = _CtrlReturnEventFilter(self)
+            QApplication.instance().installEventFilter(self._ctrl_return_event_filter)
         
         # Ctrl+Shift+Enter - Always confirm all selected segments
         create_shortcut("editor_confirm_selected", "Ctrl+Shift+Return", self.confirm_selected_segments)
