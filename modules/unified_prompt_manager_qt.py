@@ -435,7 +435,7 @@ class UnifiedPromptManagerQt:
     """
     Unified Prompt Manager - Single-tab interface with:
     - Tree view with nested folders
-    - Favorites and Quick Run menu
+    - Favorites and QuickMenu
     - Multi-attach capability
     - Active prompt configuration panel
     """
@@ -1461,6 +1461,22 @@ class UnifiedPromptManagerQt:
         metadata_layout.addWidget(self.editor_desc_input, 3)
         
         layout.addLayout(metadata_layout)
+
+        # QuickMenu fields
+        quickmenu_layout = QHBoxLayout()
+
+        quickmenu_layout.addWidget(QLabel("QuickMenu label:"))
+        self.editor_quickmenu_label_input = QLineEdit()
+        self.editor_quickmenu_label_input.setPlaceholderText("Label shown in QuickMenu")
+        quickmenu_layout.addWidget(self.editor_quickmenu_label_input, 2)
+
+        self.editor_quickmenu_in_grid_cb = QCheckBox("Show in Grid right-click QuickMenu")
+        quickmenu_layout.addWidget(self.editor_quickmenu_in_grid_cb, 2)
+
+        self.editor_quickmenu_in_quickmenu_cb = QCheckBox("Show in QuickMenu")
+        quickmenu_layout.addWidget(self.editor_quickmenu_in_quickmenu_cb, 1)
+
+        layout.addLayout(quickmenu_layout)
         
         # Content editor
         self.editor_content = QPlainTextEdit()
@@ -1510,8 +1526,8 @@ class UnifiedPromptManagerQt:
             item.setFlags(item.flags() | Qt.ItemFlag.ItemIsDragEnabled)
             favorites_root.addChild(item)
         
-        # Quick Run section
-        quick_run_root = QTreeWidgetItem(["🚀 Quick Run Menu"])
+        # QuickMenu section (legacy kind name: quick_run)
+        quick_run_root = QTreeWidgetItem(["⚡ QuickMenu"])
         # Special node: not draggable/droppable
         quick_run_root.setData(0, Qt.ItemDataRole.UserRole, {'type': 'special', 'kind': 'quick_run'})
         quick_run_root.setExpanded(False)
@@ -1520,10 +1536,10 @@ class UnifiedPromptManagerQt:
         quick_run_root.setFont(0, font)
         self.tree_widget.addTopLevelItem(quick_run_root)
         
-        quick_run = self.library.get_quick_run_prompts()
-        self.log_message(f"🔍 DEBUG: Quick Run count: {len(quick_run)}")
-        for path, name in quick_run:
-            item = QTreeWidgetItem([name])
+        quickmenu_items = self.library.get_quickmenu_prompts() if hasattr(self.library, 'get_quickmenu_prompts') else self.library.get_quick_run_prompts()
+        self.log_message(f"🔍 DEBUG: QuickMenu count: {len(quickmenu_items)}")
+        for path, label in quickmenu_items:
+            item = QTreeWidgetItem([label])
             item.setData(0, Qt.ItemDataRole.UserRole, {'type': 'prompt', 'path': path})
             # Quick Run entries are shortcuts, but allow dragging to move the actual prompt file.
             item.setFlags(item.flags() | Qt.ItemFlag.ItemIsDragEnabled)
@@ -1930,10 +1946,15 @@ class UnifiedPromptManagerQt:
                     prompt_item.setFlags(prompt_item.flags() | Qt.ItemFlag.ItemIsDragEnabled)
                     
                     # Visual indicators
+                    indicators = []
                     if prompt_data.get('favorite'):
-                        prompt_item.setText(0, f"⭐ {name}")
-                    if prompt_data.get('quick_run'):
-                        prompt_item.setText(0, f"🚀 {name}")
+                        indicators.append("⭐")
+                    if prompt_data.get('quickmenu_quickmenu', prompt_data.get('quick_run', False)):
+                        indicators.append("⚡")
+                    if prompt_data.get('quickmenu_grid', False):
+                        indicators.append("🖱️")
+                    if indicators:
+                        prompt_item.setText(0, f"{' '.join(indicators)} {name}")
                     
                     if parent_item:
                         parent_item.addChild(prompt_item)
@@ -1995,12 +2016,19 @@ class UnifiedPromptManagerQt:
                 action_fav = menu.addAction("☆ Add to Favorites")
             action_fav.triggered.connect(lambda: self._toggle_favorite(path))
             
-            # Toggle quick run
-            if prompt_data.get('quick_run'):
-                action_qr = menu.addAction("Remove from Quick Run")
+            # Toggle QuickMenu (legacy: quick_run)
+            if prompt_data.get('quickmenu_quickmenu', prompt_data.get('quick_run', False)):
+                action_qr = menu.addAction("⚡ Remove from QuickMenu")
             else:
-                action_qr = menu.addAction("Add to Quick Run")
+                action_qr = menu.addAction("⚡ Add to QuickMenu")
             action_qr.triggered.connect(lambda: self._toggle_quick_run(path))
+
+            # Toggle Grid right-click QuickMenu
+            if prompt_data.get('quickmenu_grid', False):
+                action_grid = menu.addAction("🖱️ Remove from Grid QuickMenu")
+            else:
+                action_grid = menu.addAction("🖱️ Add to Grid QuickMenu")
+            action_grid.triggered.connect(lambda: self._toggle_quickmenu_grid(path))
             
             menu.addSeparator()
             
@@ -2034,6 +2062,12 @@ class UnifiedPromptManagerQt:
         self.editor_name_label.setText(f"Editing: {prompt_data.get('name', 'Unnamed')}")
         self.editor_name_input.setText(prompt_data.get('name', ''))
         self.editor_desc_input.setText(prompt_data.get('description', ''))
+        if hasattr(self, 'editor_quickmenu_label_input'):
+            self.editor_quickmenu_label_input.setText(prompt_data.get('quickmenu_label', '') or prompt_data.get('name', ''))
+        if hasattr(self, 'editor_quickmenu_in_grid_cb'):
+            self.editor_quickmenu_in_grid_cb.setChecked(bool(prompt_data.get('quickmenu_grid', False)))
+        if hasattr(self, 'editor_quickmenu_in_quickmenu_cb'):
+            self.editor_quickmenu_in_quickmenu_cb.setChecked(bool(prompt_data.get('quickmenu_quickmenu', prompt_data.get('quick_run', False))))
         self.editor_content.setPlainText(prompt_data.get('content', ''))
         
         # Store current path for saving
@@ -2049,6 +2083,16 @@ class UnifiedPromptManagerQt:
         name = self.editor_name_input.text().strip()
         description = self.editor_desc_input.text().strip()
         content = self.editor_content.toPlainText().strip()
+
+        quickmenu_label = ''
+        quickmenu_grid = False
+        quickmenu_quickmenu = False
+        if hasattr(self, 'editor_quickmenu_label_input'):
+            quickmenu_label = self.editor_quickmenu_label_input.text().strip()
+        if hasattr(self, 'editor_quickmenu_in_grid_cb'):
+            quickmenu_grid = bool(self.editor_quickmenu_in_grid_cb.isChecked())
+        if hasattr(self, 'editor_quickmenu_in_quickmenu_cb'):
+            quickmenu_quickmenu = bool(self.editor_quickmenu_in_quickmenu_cb.isChecked())
 
         if not name or not content:
             QMessageBox.warning(self.main_widget, "Error", "Name and content are required")
@@ -2073,6 +2117,11 @@ class UnifiedPromptManagerQt:
             prompt_data['name'] = name
             prompt_data['description'] = description
             prompt_data['content'] = content
+            prompt_data['quickmenu_label'] = quickmenu_label or name
+            prompt_data['quickmenu_grid'] = quickmenu_grid
+            prompt_data['quickmenu_quickmenu'] = quickmenu_quickmenu
+            # Keep legacy field in sync
+            prompt_data['quick_run'] = quickmenu_quickmenu
 
             if self.library.save_prompt(path, prompt_data):
                 QMessageBox.information(self.main_widget, "Saved", "Prompt updated successfully!")
@@ -2093,7 +2142,12 @@ class UnifiedPromptManagerQt:
                 'version': '1.0',
                 'task_type': 'Translation',
                 'favorite': False,
-                'quick_run': False,
+                # QuickMenu
+                'quickmenu_label': quickmenu_label or name,
+                'quickmenu_grid': quickmenu_grid,
+                'quickmenu_quickmenu': quickmenu_quickmenu,
+                # Legacy
+                'quick_run': quickmenu_quickmenu,
                 'folder': folder,
                 'tags': [],
                 'created': datetime.now().strftime('%Y-%m-%d'),
@@ -2289,8 +2343,13 @@ class UnifiedPromptManagerQt:
             self._refresh_tree()
     
     def _toggle_quick_run(self, relative_path: str):
-        """Toggle quick run status"""
+        """Toggle QuickMenu (future app menu) status (legacy name: quick_run)."""
         if self.library.toggle_quick_run(relative_path):
+            self._refresh_tree()
+
+    def _toggle_quickmenu_grid(self, relative_path: str):
+        """Toggle whether this prompt appears in the Grid right-click QuickMenu."""
+        if self.library.toggle_quickmenu_grid(relative_path):
             self._refresh_tree()
     
     def _new_prompt(self):

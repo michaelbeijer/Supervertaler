@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** January 13, 2026 | **Version:** v1.9.101
+> **Last Updated:** January 14, 2026 | **Version:** v1.9.102
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.101 (January 2026) |
+| **Version** | v1.9.102 (January 2026) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -666,6 +666,18 @@ google_api_key=AI...
 
 ## 🔄 Recent Development History
 
+### January 14, 2026 - ⚡ QuickMenu (Prompt actions in Grid)
+
+- Renamed main tab label: "📝 Project editor" → "📝 Grid"
+- Introduced "QuickMenu" prompt metadata (replacing "Quick run menu" terminology):
+  - `quickmenu_label` (menu display label)
+  - `quickmenu_grid` (show in Grid right-click QuickMenu)
+  - `quickmenu_quickmenu` (show in future app-level QuickMenu; legacy-synced with `quick_run`)
+- Prompt Manager UI now exposes QuickMenu label + both inclusion toggles
+- Grid right-click menus (Source + Target) now include a "⚡ QuickMenu" submenu:
+  - Run selected prompt and show response dialog
+  - Run selected prompt and replace selection/target
+
 ### January 13, 2026 - 📝 Update Checker Investigation (Work in Progress)
 
 **Goal:** Add a Help → “🔄 Check for Updates…” action that tells users whether they’re on the latest release.
@@ -693,6 +705,86 @@ google_api_key=AI...
 **Future direction (when revisiting):**
 - Prefer a Python HTTPS-based check (`urllib`/`requests`) in a worker thread, or a tiny lightweight update endpoint.
 - If keeping QtNetwork, validate Qt SSL backend availability and provide clear guidance when SSL is missing.
+
+### January 13, 2026 - 🌐 New Website Planning: `michaelbeijer.co.uk` (NEW repo)
+
+**Context / Goal:**
+Build a new professional personal website for Michael Beijer (Dutch/English patent + technical translator & terminologist). Current site is MediaWiki-based at `https://michaelbeijer.co.uk/`; the goal is to replace it with a modern static site once complete.
+
+**Brand / Domain strategy (agreed):**
+- Keep the *personal* brand on `michaelbeijer.co.uk` (and keep email on that domain: `info@michaelbeijer.co.uk`).
+- Keep product/project brands on their own domains:
+  - `https://supervertaler.com` (CAT tool)
+  - `https://beijerterm.com` (open-source multilingual terminology database)
+- Optional: `beijer.uk` can exist as a vanity domain and 301-redirect to `michaelbeijer.co.uk` (recommended rather than migrating the main domain).
+
+**Aesthetic / Inspiration:**
+- The user wants a crisp, black-and-white, content-first aesthetic similar to Pagefind docs:
+  - Reference: `https://pagefind.app/docs/multilingual/`
+- Strongly avoid garish colors; typography + whitespace + hairline borders.
+
+**Key identity & contact details (provided by user):**
+- Michael Beijer — Dutch/English translator & terminologist — Hastings, United Kingdom
+- Tel: `+44 7475 771720`
+- Email: `info@michaelbeijer.co.uk`
+- Websites:
+  - Main: `michaelbeijer.co.uk`
+  - Terminology DB: `beijerterm.com`
+  - CAT tool: `supervertaler.com`
+- Profiles:
+  - ProZ: profile + testimonials source (Feedback Card): `https://www.proz.com/feedback-card/652138`
+  - LinkedIn: `michaelbeijer`
+
+**Single-page vs multi-page decision:**
+- Recommended: a minimal multi-page site (still “docs-like” and simple), because Michael has multiple distinct offerings (patents/translation, copywriting, CAT consulting) + products (Supervertaler, Beijerterm).
+
+**Information Architecture (proposed):**
+- Home (positioning + proof + CTA)
+- Patents (primary specialization: process, QA, confidentiality, what clients should send)
+- Services (technical translation, editing/proofreading, copywriting, CAT/terminology consulting)
+- Work (case studies)
+- Testimonials (ProZ + selected quotes)
+- Tools (side projects): Supervertaler, Beijerterm
+- Blog (wanted; current blog exists at `https://michaelbeijer.co.uk/blog`)
+- Contact (email-first CTA)
+
+**CTA (agreed):**
+- Primary CTA is email (not booking link): “Email me” with a short checklist (word count, deadline, source format, subject/domain).
+
+**Case studies + testimonials: how to combine (agreed approach):**
+- Use “Proof” as an umbrella concept:
+  - *Case studies* = structured “problem → approach → outcome” writeups.
+  - *Testimonials* = short curated quotes (primarily from ProZ) + link back to ProZ.
+- Patents often involve NDAs; case studies should generally be anonymized:
+  - No client names/logos unless explicit permission.
+  - Avoid application/publication identifiers unless already public and acceptable.
+  - Keep focus on domain, constraints, workflow, QA strategy, measurable outcomes.
+
+**ProZ testimonials handling (important):**
+- Do NOT auto-scrape ProZ.
+- Curate a small selection manually (short excerpts) and include a prominent link to the ProZ feedback card.
+- Store testimonials as local data (YAML/JSON) so they can be reused on Home + Testimonials pages.
+
+**Recommended tech stack for the new repo:**
+- Astro (static site generation, component-based)
+- Tailwind CSS (consistent type/spacing, minimal custom CSS)
+- Markdown/MDX for Blog + Case studies
+- Optional later: Pagefind for fully static site search (fits the desired “docs” vibe)
+
+**Repo plan:**
+- New GitHub repo name: `michaelbeijer.co.uk`.
+- During development, the site can be “parked” locally/in a separate folder; once finished, point `michaelbeijer.co.uk` DNS to GitHub Pages (or another static host).
+- Prefer keeping this separate from the Supervertaler repo and separate from the `beijerterm/` submodule.
+
+**Design rules-of-thumb (to match the desired vibe):**
+- Grayscale palette; at most one subtle accent for links.
+- Narrow reading column (target ~70–80 characters) + generous whitespace.
+- Hairline borders instead of heavy cards/shadows.
+- Minimal nav, fast scanning; let headings + spacing do the work.
+
+**Open questions (next agent can confirm if needed):**
+- Initial blog migration: import which posts from the current MediaWiki blog, and in what format (manual copy vs export).
+- Whether any named clients/published patents can be referenced explicitly (if yes, add a “Selected clients / published work” section).
 
 ### January 13, 2026 - ✅ FIXED: Ctrl+Return Not Working in Source Cell
 
@@ -2882,4 +2974,4 @@ An intelligent proofreading system that uses LLMs to verify translation quality.
 ---
 
 *This file replaces the previous CLAUDE.md and PROJECT_CONTEXT.md files.*
-*Last updated: January 13, 2026 - v1.9.101*
+*Last updated: January 14, 2026 - v1.9.102*

@@ -3,7 +3,7 @@ Supervertaler
 =============
 The Ultimate Translation Workbench.
 Modern PyQt6 interface with specialised modules to handle any problem.
-Version: 1.9.101 (Prompt Library UX + update check improvements)
+Version: 1.9.102 (QuickMenu + Grid context actions)
 Release Date: January 13, 2026
 Framework: PyQt6
 
@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.101"
+__version__ = "1.9.102"
 __phase__ = "0.9"
 __release_date__ = "2026-01-13"
 __edition__ = "Qt"
@@ -2026,6 +2026,37 @@ class ReadOnlyGridTextEditor(QTextEdit):
             superlookup_action.triggered.connect(self._handle_superlookup_search)
             menu.addAction(superlookup_action)
             menu.addSeparator()
+
+        # QuickMenu (prompt-based actions)
+        try:
+            main_window = self._get_main_window()
+            quickmenu_items = []
+            if main_window and hasattr(main_window, 'prompt_manager_qt') and main_window.prompt_manager_qt:
+                lib = getattr(main_window.prompt_manager_qt, 'library', None)
+                if lib and hasattr(lib, 'get_quickmenu_grid_prompts'):
+                    quickmenu_items = lib.get_quickmenu_grid_prompts() or []
+
+            if quickmenu_items:
+                qm_menu = menu.addMenu("⚡ QuickMenu")
+                for rel_path, label in sorted(quickmenu_items, key=lambda x: (x[1] or x[0]).lower()):
+                    prompt_menu = qm_menu.addMenu(label or rel_path)
+
+                    run_show = QAction("▶ Run (show response)…", self)
+                    run_show.triggered.connect(
+                        lambda checked=False, p=rel_path: main_window.run_grid_quickmenu_prompt(p, origin_widget=self, behavior="show")
+                    )
+                    prompt_menu.addAction(run_show)
+
+                    run_replace = QAction("↺ Run and replace target selection", self)
+                    run_replace.triggered.connect(
+                        lambda checked=False, p=rel_path: main_window.run_grid_quickmenu_prompt(p, origin_widget=self, behavior="replace")
+                    )
+                    prompt_menu.addAction(run_replace)
+
+                menu.addSeparator()
+        except Exception:
+            # Never break the normal context menu due to QuickMenu errors
+            pass
         
         # Add to glossary action (with dialog)
         add_to_tb_action = QAction("📖 Add to Glossary (Ctrl+E)", self)
@@ -2558,6 +2589,40 @@ class EditableGridTextEditor(QTextEdit):
             superlookup_action.triggered.connect(self._handle_superlookup_search)
             menu.addAction(superlookup_action)
             menu.addSeparator()
+
+        # QuickMenu (prompt-based actions)
+        try:
+            main_window = self.table.parent() if self.table else None
+            while main_window and not hasattr(main_window, 'run_grid_quickmenu_prompt'):
+                main_window = main_window.parent()
+
+            quickmenu_items = []
+            if main_window and hasattr(main_window, 'prompt_manager_qt') and main_window.prompt_manager_qt:
+                lib = getattr(main_window.prompt_manager_qt, 'library', None)
+                if lib and hasattr(lib, 'get_quickmenu_grid_prompts'):
+                    quickmenu_items = lib.get_quickmenu_grid_prompts() or []
+
+            if quickmenu_items:
+                qm_menu = menu.addMenu("⚡ QuickMenu")
+                for rel_path, label in sorted(quickmenu_items, key=lambda x: (x[1] or x[0]).lower()):
+                    prompt_menu = qm_menu.addMenu(label or rel_path)
+
+                    run_show = QAction("▶ Run (show response)…", self)
+                    run_show.triggered.connect(
+                        lambda checked=False, p=rel_path: main_window.run_grid_quickmenu_prompt(p, origin_widget=self, behavior="show")
+                    )
+                    prompt_menu.addAction(run_show)
+
+                    run_replace = QAction("↺ Run and replace selection", self)
+                    run_replace.triggered.connect(
+                        lambda checked=False, p=rel_path: main_window.run_grid_quickmenu_prompt(p, origin_widget=self, behavior="replace")
+                    )
+                    prompt_menu.addAction(run_replace)
+
+                menu.addSeparator()
+        except Exception:
+            # Never break the normal context menu due to QuickMenu errors
+            pass
         
         # Add to termbase action (with dialog)
         add_to_tb_action = QAction("📖 Add to Glossary (Ctrl+E)", self)
@@ -6253,7 +6318,7 @@ class SupervertalerQt(QMainWindow):
         # Superlookup
         superlookup_action = QAction("🔍 &Superlookup...", self)
         superlookup_action.setShortcut("Ctrl+Alt+L")
-        # Tab indices: Project editor=0, Project resources=1, Tools=2, Settings=3
+        # Tab indices: Grid=0, Project resources=1, Tools=2, Settings=3
         superlookup_action.triggered.connect(lambda: self._go_to_superlookup() if hasattr(self, 'main_tabs') else None)  # Navigate to Superlookup
         edit_menu.addAction(superlookup_action)
         
@@ -6263,7 +6328,7 @@ class SupervertalerQt(QMainWindow):
         # Navigation submenu
         nav_menu = view_menu.addMenu("📑 &Navigate To")
         
-        go_editor_action = QAction("📝 Project &editor", self)
+        go_editor_action = QAction("📝 &Grid", self)
         go_editor_action.triggered.connect(lambda: self.main_tabs.setCurrentIndex(0) if hasattr(self, 'main_tabs') else None)
         nav_menu.addAction(go_editor_action)
         
@@ -6693,10 +6758,10 @@ class SupervertalerQt(QMainWindow):
             }
         """)
         
-        # ===== 1. PROJECT EDITOR TAB =====
+        # ===== 1. GRID TAB =====
         # Contains the translation grid
         grid_widget = self.create_grid_view_widget_for_home()
-        self.main_tabs.addTab(grid_widget, "📝 Project editor")
+        self.main_tabs.addTab(grid_widget, "📝 Grid")
         
         # ===== 2. PROJECT RESOURCES TAB =====
         # Contains TM, Termbases, Supermemory, Non-Translatables, Prompts
@@ -8171,9 +8236,9 @@ class SupervertalerQt(QMainWindow):
                     window.log_display.setPlainText("Session Log - Ready\n" + "="*50 + "\n")
 
     def _on_main_tab_changed(self, index: int):
-        """Handle main tab changes (Project editor/Project resources/Tools/Settings)"""
+        """Handle main tab changes (Grid/Project resources/Tools/Settings)"""
         try:
-            if index == 0:  # Project editor
+            if index == 0:  # Grid
                 # Grid refreshes automatically when segments change
                 pass
             elif index == 1:  # Project resources
@@ -34687,13 +34752,13 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
     def _go_to_settings_tab(self):
         """Navigate to Settings tab (from menu)"""
         if hasattr(self, 'main_tabs'):
-            # Main tabs: Project editor=0, Project resources=1, Tools=2, Settings=3
+            # Main tabs: Grid=0, Project resources=1, Tools=2, Settings=3
             self.main_tabs.setCurrentIndex(3)
     
     def _go_to_superlookup(self):
         """Navigate to Superlookup in Tools tab"""
         if hasattr(self, 'main_tabs'):
-            # Main tabs: Project editor=0, Project resources=1, Tools=2, Settings=3
+            # Main tabs: Grid=0, Project resources=1, Tools=2, Settings=3
             self.main_tabs.setCurrentIndex(2)  # Switch to Tools tab
             # Then switch to Superlookup sub-tab
             if hasattr(self, 'modules_tabs'):
@@ -36270,6 +36335,203 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             self.log(f"✗ Translation error: {str(e)}")
             QMessageBox.critical(self, "Translation Error", f"Failed to translate segment:\n\n{str(e)}")
             self.status_bar.showMessage("Translation failed", 3000)
+
+    # =========================================================================
+    # GRID QUICKMENU
+    # =========================================================================
+
+    def _quickmenu_get_selection_text(self, widget: QTextEdit) -> str:
+        """Get selected text (or full text) from a QTextEdit, normalized for LLMs."""
+        cursor = widget.textCursor()
+        text = cursor.selectedText() if cursor.hasSelection() else widget.toPlainText()
+        text = (text or "").replace('\u2029', '\n')
+
+        # Reverse invisible-character display markers if present
+        try:
+            if hasattr(self, 'reverse_invisible_replacements'):
+                text = self.reverse_invisible_replacements(text)
+        except Exception:
+            pass
+
+        return text.strip()
+
+    def _quickmenu_build_custom_prompt(self, prompt_relative_path: str, source_text: str, source_lang: str, target_lang: str) -> str:
+        """Build a complete translation prompt using the chosen QuickMenu prompt as PRIMARY instructions."""
+        if not hasattr(self, 'prompt_manager_qt') or not self.prompt_manager_qt:
+            raise RuntimeError("Prompt manager not available")
+
+        pm = self.prompt_manager_qt
+        lib = getattr(pm, 'library', None)
+        if not lib:
+            raise RuntimeError("Prompt library not available")
+
+        prompt_data = lib.prompts.get(prompt_relative_path)
+        if not prompt_data:
+            raise RuntimeError(f"Prompt not found: {prompt_relative_path}")
+
+        prompt_content = (prompt_data.get('content') or "").strip()
+        if not prompt_content:
+            raise RuntimeError("Prompt content is empty")
+
+        mode = getattr(pm, 'current_mode', None) or "single"
+        system_template = pm.get_system_template(mode)
+
+        system_template = system_template.replace("{{SOURCE_LANGUAGE}}", source_lang)
+        system_template = system_template.replace("{{TARGET_LANGUAGE}}", target_lang)
+        system_template = system_template.replace("{{SOURCE_TEXT}}", source_text)
+
+        library_prompts = "\n\n# PRIMARY INSTRUCTIONS\n\n" + prompt_content
+
+        # Keep any globally attached prompts as additional instructions
+        try:
+            for attached_content in lib.attached_prompts:
+                library_prompts += "\n\n# ADDITIONAL INSTRUCTIONS\n\n" + (attached_content or "")
+        except Exception:
+            pass
+
+        final_prompt = system_template + library_prompts
+        final_prompt += "\n\n**YOUR TRANSLATION (provide ONLY the translated text, no numbering or labels):**\n"
+        return final_prompt
+
+    def _quickmenu_show_result_dialog(self, title: str, output_text: str, apply_callback=None):
+        from PyQt6.QtWidgets import QDialog, QVBoxLayout, QTextEdit, QDialogButtonBox, QPushButton, QApplication
+
+        dlg = QDialog(self)
+        dlg.setWindowTitle(title)
+        dlg.setMinimumSize(700, 450)
+        layout = QVBoxLayout(dlg)
+
+        out = QTextEdit()
+        out.setReadOnly(True)
+        out.setPlainText(output_text or "")
+        layout.addWidget(out)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+        btn_copy = QPushButton("Copy")
+        buttons.addButton(btn_copy, QDialogButtonBox.ButtonRole.ActionRole)
+        btn_copy.clicked.connect(lambda: QApplication.clipboard().setText(output_text or ""))
+
+        if apply_callback is not None:
+            btn_apply = QPushButton("Replace")
+            buttons.addButton(btn_apply, QDialogButtonBox.ButtonRole.AcceptRole)
+            btn_apply.clicked.connect(lambda: (apply_callback(), dlg.accept()))
+
+        buttons.rejected.connect(dlg.reject)
+        layout.addWidget(buttons)
+        dlg.exec()
+
+    def run_grid_quickmenu_prompt(self, prompt_relative_path: str, origin_widget: QTextEdit, behavior: str = "show"):
+        """Run a QuickMenu prompt on the current selection and either show the result or replace selection/target."""
+        from PyQt6.QtWidgets import QMessageBox, QApplication
+        from modules.llm_clients import LLMClient
+
+        if not origin_widget:
+            return
+
+        input_text = self._quickmenu_get_selection_text(origin_widget)
+        if not input_text:
+            QMessageBox.information(self, "QuickMenu", "Please select some text first (or click inside a non-empty cell).")
+            return
+
+        # Determine project languages
+        source_lang = "English"
+        target_lang = "Dutch"
+        if hasattr(self, 'current_project') and self.current_project:
+            source_lang = getattr(self.current_project, 'source_lang', source_lang) or source_lang
+            target_lang = getattr(self.current_project, 'target_lang', target_lang) or target_lang
+
+        # Determine provider/model
+        settings = self.load_llm_settings()
+        provider = settings.get('provider', 'openai')
+        model_key = f'{provider}_model'
+        model = settings.get(model_key)
+
+        # Load API keys (unless Ollama)
+        if provider == 'ollama':
+            api_key = ""
+        else:
+            api_keys = self.load_api_keys()
+            if not api_keys:
+                QMessageBox.warning(self, "QuickMenu", "No API keys found. Configure them in Settings first.")
+                return
+            api_key = api_keys.get(provider) or (api_keys.get('google') if provider == 'gemini' else None)
+            if not api_key:
+                QMessageBox.warning(self, "QuickMenu", f"No API key found for provider '{provider}'.")
+                return
+
+        try:
+            self.status_bar.showMessage(f"⚡ QuickMenu: running '{prompt_relative_path}'…")
+            QApplication.processEvents()
+
+            custom_prompt = self._quickmenu_build_custom_prompt(
+                prompt_relative_path=prompt_relative_path,
+                source_text=input_text,
+                source_lang=source_lang,
+                target_lang=target_lang
+            )
+
+            client = LLMClient(api_key=api_key, provider=provider, model=model)
+            output_text = client.translate(
+                text=input_text,
+                source_lang=source_lang,
+                target_lang=target_lang,
+                custom_prompt=custom_prompt
+            )
+
+            if not output_text:
+                QMessageBox.warning(self, "QuickMenu", "No response received from the LLM.")
+                return
+
+        except Exception as e:
+            QMessageBox.critical(self, "QuickMenu", f"QuickMenu failed:\n\n{e}")
+            return
+        finally:
+            try:
+                self.status_bar.clearMessage()
+            except Exception:
+                pass
+
+        # Decide where to apply replacements
+        target_widget = None
+        row = getattr(origin_widget, 'row', -1)
+        table = getattr(origin_widget, 'table', None) or getattr(origin_widget, 'table_ref', None)
+
+        # If originating from target editor, replace in-place. If from source editor, target is column 3.
+        if isinstance(origin_widget, EditableGridTextEditor):
+            target_widget = origin_widget
+        elif table is not None and row is not None and row >= 0:
+            try:
+                target_widget = table.cellWidget(row, 3)
+            except Exception:
+                target_widget = None
+
+        def apply_replacement():
+            if not target_widget or not isinstance(target_widget, QTextEdit):
+                return
+            cursor = target_widget.textCursor()
+            cursor.beginEditBlock()
+            try:
+                if cursor.hasSelection():
+                    cursor.insertText(output_text)
+                else:
+                    cursor.select(cursor.SelectionType.Document)
+                    cursor.insertText(output_text)
+                target_widget.setTextCursor(cursor)
+            finally:
+                cursor.endEditBlock()
+
+        if behavior == "replace":
+            if not target_widget or not isinstance(target_widget, QTextEdit):
+                self._quickmenu_show_result_dialog("⚡ QuickMenu result", output_text)
+                return
+
+            apply_replacement()
+            return
+
+        # Default: show dialog (with optional Replace button)
+        can_apply = target_widget is not None and isinstance(target_widget, QTextEdit)
+        title = "⚡ QuickMenu result"
+        self._quickmenu_show_result_dialog(title, output_text, apply_callback=apply_replacement if can_apply else None)
     
     def translate_multiple_segments(self, scope: str):
         """Translate segments by scope (selected, status-based, or all)."""
@@ -39247,11 +39509,11 @@ class SuperlookupTab(QWidget):
         self.register_global_hotkey()
     
     def keyPressEvent(self, event):
-        """Handle key presses - Escape returns to Project Editor"""
+        """Handle key presses - Escape returns to Grid"""
         if event.key() == Qt.Key.Key_Escape:
-            # Navigate back to Project Editor (tab index 0)
+            # Navigate back to Grid (tab index 0)
             if self.main_window and hasattr(self.main_window, 'main_tabs'):
-                self.main_window.main_tabs.setCurrentIndex(0)  # Project editor
+                self.main_window.main_tabs.setCurrentIndex(0)  # Grid
                 # Focus the target cell if a segment is selected
                 if hasattr(self.main_window, 'table') and self.main_window.table:
                     current_row = self.main_window.table.currentRow()
@@ -43060,7 +43322,7 @@ class SuperlookupTab(QWidget):
             print(f"[Superlookup] Has main_tabs: {hasattr(main_window, 'main_tabs')}")
             
             # Switch to Tools tab (main_tabs index 2)
-            # Tab structure: Project editor=0, Project resources=1, Tools=2, Settings=3
+            # Tab structure: Grid=0, Project resources=1, Tools=2, Settings=3
             if hasattr(main_window, 'main_tabs'):
                 print(f"[Superlookup] Current main_tab index: {main_window.main_tabs.currentIndex()}")
                 main_window.main_tabs.setCurrentIndex(2)  # Tools tab is at index 2

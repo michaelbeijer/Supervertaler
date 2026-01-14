@@ -2,7 +2,19 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.101 (January 13, 2026)
+**Current Version:** v1.9.102 (January 14, 2026)
+
+## ⚡ QuickMenu in the Grid (v1.9.102) - January 14, 2026
+
+- New **⚡ QuickMenu** in the Grid right-click menu (Source + Target cells)
+  - Run a prompt and preview the response
+  - Run a prompt and replace the selected text / target
+- Prompt system update: renamed “Quick Run menu” terminology to **QuickMenu**
+- New prompt metadata fields (backward compatible with `quick_run`):
+  - `quickmenu_label` (menu label)
+  - `quickmenu_grid` (show in Grid right-click QuickMenu)
+  - `quickmenu_quickmenu` (show in future app-level QuickMenu)
+- UI rename: main tab “📝 Project editor” → “📝 Grid”
 **Framework:** PyQt6
 **Status:** Active Development
 
