@@ -3,8 +3,8 @@ Supervertaler
 =============
 The Ultimate Translation Workbench.
 Modern PyQt6 interface with specialised modules to handle any problem.
-Version: 1.9.102 (QuickMenu + Grid context actions)
-Release Date: January 13, 2026
+Version: 1.9.103 (QuickMenu + Grid context actions)
+Release Date: January 14, 2026
 Framework: PyQt6
 
 This is the modern edition of Supervertaler using PyQt6 framework.
@@ -34,9 +34,9 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.102"
+__version__ = "1.9.103"
 __phase__ = "0.9"
-__release_date__ = "2026-01-13"
+__release_date__ = "2026-01-14"
 __edition__ = "Qt"
 
 import sys
@@ -18099,7 +18099,12 @@ class SupervertalerQt(QMainWindow):
             self.last_page_btn.setEnabled(not is_last_page)
     
     def _apply_pagination_to_grid(self):
-        """Show/hide rows based on current page - efficient method without reloading"""
+        """Show/hide rows based on current page, optionally constrained by active filters.
+
+        IMPORTANT: QTableWidget has only one hidden flag per row. Pagination and filtering
+        must be combined into a single visibility decision; otherwise switching pages can
+        accidentally unhide rows that filters intended to hide.
+        """
         if not self.current_project or not self.current_project.segments:
             return
         
@@ -18119,14 +18124,17 @@ class SupervertalerQt(QMainWindow):
             start_row = self.grid_current_page * self.grid_page_size
             end_row = min(start_row + self.grid_page_size, total_segments)
         
+        # If a text filter (Filter Source/Target) is active, it will populate an allowlist
+        # of row indices that are allowed to be visible.
+        filter_allowlist = getattr(self, '_active_text_filter_rows', None)
+
         # Batch show/hide for performance
         self.table.setUpdatesEnabled(False)
         try:
             for row in range(total_segments):
-                if start_row <= row < end_row:
-                    self.table.showRow(row)
-                else:
-                    self.table.hideRow(row)
+                in_page = start_row <= row < end_row
+                allowed_by_filter = True if filter_allowlist is None else (row in filter_allowlist)
+                self.table.setRowHidden(row, not (in_page and allowed_by_filter))
         finally:
             self.table.setUpdatesEnabled(True)
         
@@ -31619,6 +31627,9 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         
         # Set flag to disable auto-center scrolling during filtering
         self.filtering_active = True
+
+        # Track which rows match the active text filters so pagination can respect filtering
+        matching_rows: set[int] = set()
         
         # Batch UI updates for performance
         self.table.setUpdatesEnabled(False)
@@ -31644,9 +31655,9 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                 target_match = not target_filter_lower or target_filter_lower in target_lower
                 
                 show_row = source_match and target_match
-                
-                # Hide/show row
-                self.table.setRowHidden(row, not show_row)
+
+                if show_row:
+                    matching_rows.add(row)
                 
                 if show_row:
                     visible_count += 1
@@ -31668,6 +31679,11 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         finally:
             # Re-enable UI updates
             self.table.setUpdatesEnabled(True)
+
+        # Persist allowlist and apply combined pagination+filter visibility
+        self._active_text_filter_rows = matching_rows
+        if hasattr(self, '_apply_pagination_to_grid'):
+            self._apply_pagination_to_grid()
 
         # Update status
         if source_filter_text or target_filter_text:
@@ -31727,6 +31743,9 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             target_widget.blockSignals(False)
         else:
             self.target_filter = None
+
+        # Clear any active text-filter allowlist so pagination can show rows normally
+        self._active_text_filter_rows = None
         
         # OPTIMIZED: Clear highlights and show rows WITHOUT reloading grid
         if self.current_project:
@@ -34042,7 +34061,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             target_widget.moveCursor(QTextCursor.MoveOperation.End)
     
     def confirm_and_next_unconfirmed(self):
-        """Set current segment to confirmed and move to next unconfirmed segment (Ctrl+Enter)"""
+        """Set current segment to confirmed and move to next unconfirmed segment (Ctrl+Enter)."""
         if not hasattr(self, 'table') or not self.table or not self.current_project:
             self.log("⚠️ Ctrl+Enter: Missing table or project")
             return
@@ -34050,6 +34069,16 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         current_row = self.table.currentRow()
         if current_row < 0:
             self.log("⚠️ Ctrl+Enter: No row selected")
+            return
+
+        # If text filters are active, Ctrl+Enter should advance through the filtered/visible rows,
+        # not "next unconfirmed". This avoids selecting hidden rows and prevents pagination from
+        # accidentally unhiding rows.
+        if self._is_text_filter_active():
+            self._confirm_current_row_segment()
+            # Re-apply filters in case the target text changed and affects matching
+            self.apply_filters()
+            self._move_to_next_visible_row(current_row)
             return
         
         # CRITICAL: Ensure the target widget has focus before reading from it
@@ -34060,65 +34089,8 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             # Give Qt event loop time to process the focus change
             QApplication.processEvents()
         
-        # Set current segment to confirmed
-        if current_row < len(self.current_project.segments):
-            # CRITICAL: Get segment by ID from grid, not by row index!
-            id_item = self.table.item(current_row, 0)
-            if not id_item:
-                self.log(f"⚠️ Ctrl+Enter: No ID item at row {current_row}")
-                return
-            
-            try:
-                segment_id = int(id_item.text())
-            except (ValueError, AttributeError):
-                self.log(f"⚠️ Ctrl+Enter: Could not parse segment ID from row {current_row}")
-                return
-            
-            # Find segment by ID in project
-            segment = next((seg for seg in self.current_project.segments if seg.id == segment_id), None)
-            if not segment:
-                self.log(f"⚠️ Ctrl+Enter: Could not find segment with ID {segment_id}")
-                return
-            
-            self.log(f"🔍 Ctrl+Enter: Row {current_row}, Segment ID {segment.id}")
-            self.log(f"🔍 Source: '{segment.source[:50]}...'")
-            self.log(f"🔍 Target before: '{segment.target[:50] if segment.target else '<empty>'}...'")
-            self.log(f"🔍 Segment object ID: {id(segment)}")
-            
-            # Get current target text from the grid widget
-            target_widget = self.table.cellWidget(current_row, 3)  # Column 3 = Target
-            if target_widget:
-                current_text = target_widget.toPlainText().strip()
-                old_target = segment.target
-                old_status = segment.status
-                segment.target = current_text
-                self.log(f"🔍 Target from widget: '{current_text[:50]}...'")
-                self.log(f"🔍 After assignment: segment.target = '{segment.target[:50] if segment.target else '<empty>'}...'")
-            
-            segment.status = 'confirmed'
-            
-            # Record undo state for Ctrl+Enter confirmation
-            self.record_undo_state(segment_id, old_target, segment.target, old_status, 'confirmed')
-            self.log(f"🔍 After status assignment: segment.status = '{segment.status}', segment.target = '{segment.target[:50] if segment.target else '<empty>'}...')")
-            self.update_status_icon(current_row, 'confirmed')
-            self.project_modified = True
-            self.log(f"✅ Segment {segment.id} confirmed")
-            
-            # VERIFICATION: Check the segment ONE MORE TIME to ensure target wasn't corrupted
-            verification_seg = next((s for s in self.current_project.segments if s.id == segment.id), None)
-            if verification_seg:
-                self.log(f"✅ VERIFICATION: Segment {segment_id} - target still correct: '{verification_seg.target[:30] if verification_seg.target else 'EMPTY'}', object ID={id(verification_seg)}")
-            
-            # Update status bar progress stats
-            self.update_progress_stats()
-            
-            # Save to TM if target has content
-            if segment.target.strip():
-                try:
-                    self.save_segment_to_activated_tms(segment.source, segment.target)
-                    self.log(f"💾 Saved segment {segment.id} to TM: '{segment.target[:50]}...'")
-                except Exception as e:
-                    self.log(f"⚠️ Error saving to TM: {e}")
+        # Confirm current row (shared implementation)
+        self._confirm_current_row_segment()
         
         # Find next unconfirmed segment
         for row in range(current_row + 1, self.table.rowCount()):
@@ -34262,8 +34234,126 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             # Multiple segments selected - confirm all
             self.confirm_selected_segments()
         else:
-            # Single segment - use original behavior
+            # Single segment - if text filters are active, advance through the filtered rows
+            # (handled inside confirm_and_next_unconfirmed for centralization).
             self.confirm_and_next_unconfirmed()
+
+    def _is_text_filter_active(self) -> bool:
+        """Return True if the Filter Source/Target boxes currently contain text."""
+        source_text = self._get_line_edit_text('source_filter').strip()
+        target_text = self._get_line_edit_text('target_filter').strip()
+        return bool(source_text or target_text)
+
+    def _confirm_current_row_segment(self) -> Optional[int]:
+        """Confirm the current row's segment and sync target text from the grid.
+
+        Returns the confirmed segment ID on success, else None.
+        """
+        if not hasattr(self, 'table') or not self.table or not self.current_project:
+            return None
+
+        current_row = self.table.currentRow()
+        if current_row < 0:
+            return None
+
+        # Ensure the target widget has focus before reading from it
+        target_widget_current = self.table.cellWidget(current_row, 3)
+        if target_widget_current and not target_widget_current.hasFocus():
+            target_widget_current.setFocus()
+            QApplication.processEvents()
+
+        id_item = self.table.item(current_row, 0)
+        if not id_item:
+            self.log(f"⚠️ Ctrl+Enter: No ID item at row {current_row}")
+            return None
+
+        try:
+            segment_id = int(id_item.text())
+        except (ValueError, AttributeError):
+            self.log(f"⚠️ Ctrl+Enter: Could not parse segment ID from row {current_row}")
+            return None
+
+        segment = next((seg for seg in self.current_project.segments if seg.id == segment_id), None)
+        if not segment:
+            self.log(f"⚠️ Ctrl+Enter: Could not find segment with ID {segment_id}")
+            return None
+
+        self.log(f"🔍 Ctrl+Enter: Row {current_row}, Segment ID {segment.id}")
+        self.log(f"🔍 Source: '{segment.source[:50]}...'")
+        self.log(f"🔍 Target before: '{segment.target[:50] if segment.target else '<empty>'}...'")
+        self.log(f"🔍 Segment object ID: {id(segment)}")
+
+        old_target = segment.target
+        old_status = segment.status
+
+        target_widget = self.table.cellWidget(current_row, 3)
+        if target_widget:
+            current_text = target_widget.toPlainText().strip()
+            segment.target = current_text
+            self.log(f"🔍 Target from widget: '{current_text[:50]}...'")
+            self.log(f"🔍 After assignment: segment.target = '{segment.target[:50] if segment.target else '<empty>'}...'")
+
+        segment.status = 'confirmed'
+
+        # Record undo state for Ctrl+Enter confirmation
+        self.record_undo_state(segment_id, old_target, segment.target, old_status, 'confirmed')
+        self.log(f"🔍 After status assignment: segment.status = '{segment.status}', segment.target = '{segment.target[:50] if segment.target else '<empty>'}...')")
+        self.update_status_icon(current_row, 'confirmed')
+        self.project_modified = True
+        self.log(f"✅ Segment {segment.id} confirmed")
+
+        verification_seg = next((s for s in self.current_project.segments if s.id == segment.id), None)
+        if verification_seg:
+            self.log(f"✅ VERIFICATION: Segment {segment_id} - target still correct: '{verification_seg.target[:30] if verification_seg.target else 'EMPTY'}', object ID={id(verification_seg)}")
+
+        self.update_progress_stats()
+
+        if segment.target and segment.target.strip():
+            try:
+                self.save_segment_to_activated_tms(segment.source, segment.target)
+                self.log(f"💾 Saved segment {segment.id} to TM: '{segment.target[:50]}...'")
+            except Exception as e:
+                self.log(f"⚠️ Error saving to TM: {e}")
+
+        return segment_id
+
+    def _move_to_next_visible_row(self, current_row: int) -> None:
+        """Move focus to the next visible row after current_row (respects filters + pagination)."""
+        if not hasattr(self, 'table') or not self.table or not self.current_project:
+            return
+
+        row_count = self.table.rowCount()
+        if row_count <= 0:
+            return
+
+        page_size = getattr(self, 'grid_page_size', 50)
+        has_pagination = isinstance(page_size, int) and page_size < 999999 and page_size > 0
+
+        last_page_applied = getattr(self, 'grid_current_page', 0)
+
+        for row in range(current_row + 1, row_count):
+            if has_pagination:
+                target_page = row // page_size
+                if target_page != last_page_applied:
+                    self.grid_current_page = target_page
+                    last_page_applied = target_page
+                    self._apply_pagination_to_grid()
+
+            if not self.table.isRowHidden(row):
+                self.table.clearSelection()
+                self.table.setCurrentCell(row, 3)
+                id_item = self.table.item(row, 0)
+                if id_item is not None:
+                    self.table.scrollToItem(id_item)
+
+                target_widget = self.table.cellWidget(row, 3)
+                if target_widget:
+                    target_widget.setFocus()
+                    target_widget.moveCursor(QTextCursor.MoveOperation.End)
+                return
+
+        # No more visible rows
+        self.log("✅ No more filtered segments")
     
     def confirm_selected_segments(self):
         """Confirm all selected segments in the grid.

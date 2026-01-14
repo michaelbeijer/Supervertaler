@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** January 14, 2026 | **Version:** v1.9.102
+> **Last Updated:** January 14, 2026 | **Version:** v1.9.103
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.102 (January 2026) |
+| **Version** | v1.9.103 (January 2026) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -665,6 +665,11 @@ google_api_key=AI...
 ---
 
 ## 🔄 Recent Development History
+
+### January 14, 2026 - ✅ Filtered Ctrl+Enter + Website Screenshots (v1.9.103)
+
+- Fixed Ctrl+Enter under active Filter Source/Target: confirm + advance stays within the filtered set (no more grid “unfiltering” while the filter text remains).
+- Website: added new screenshots for Compare Panel + Termview and updated the Prompt Manager screenshot.
 
 ### January 14, 2026 - ⚡ QuickMenu (Prompt actions in Grid)
 

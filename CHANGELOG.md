@@ -2,7 +2,18 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.102 (January 14, 2026)
+**Current Version:** v1.9.103 (January 14, 2026)
+
+## ✅ Filtered Ctrl+Enter + Website Screenshots (v1.9.103) - January 14, 2026
+
+**Bug Fix**
+
+- Fixed Ctrl+Enter confirmation under active **Filter Source/Filter Target**: it now confirms and advances through the *filtered* segments without the grid reverting to an unfiltered view.
+
+**Website**
+
+- Added new screenshots demonstrating the **Compare Panel** (MT + TM) and **Termview**.
+- Updated the Prompt Manager screenshot reference.
 
 ## ⚡ QuickMenu in the Grid (v1.9.102) - January 14, 2026
 

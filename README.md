@@ -1,4 +1,4 @@
-# 🚀 Supervertaler v1.9.102
+# 🚀 Supervertaler v1.9.103
 
 [![PyPI version](https://badge.fury.io/py/supervertaler.svg)](https://pypi.org/project/Supervertaler/)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
@@ -6,13 +6,17 @@
 
 🎯 **The Ultimate Translation Workbench** — Context-aware AI with intuitive 2-Layer Prompt Architecture, AI Assistant, project glossary system with automatic extraction, and specialized modules.
 
-**Current Version:** v1.9.102 (January 14, 2026)
+**Current Version:** v1.9.103 (January 14, 2026)
 
 ### NEW in v1.9.102 - ⚡ QuickMenu (Right-click prompts in the Grid)
 
 Run your favourite AI “mini-actions” directly from the grid’s right-click menu: run-and-preview, or run-and-replace the selection/target.
 **Framework:** PyQt6
 **Status:** Active Development
+
+### FIXED in v1.9.103
+
+- Ctrl+Enter now correctly confirms and advances through *filtered* segments when Filter Source/Target is active.
 
 ---
 
