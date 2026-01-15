@@ -19221,6 +19221,9 @@ class SupervertalerQt(QMainWindow):
             self.update_window_title()
             self.add_to_recent_projects(file_path)
             
+            # Auto-resize rows for better initial display
+            self.auto_resize_rows()
+            
             # Update file filter dropdown for multi-file projects
             if hasattr(self, '_update_file_filter_combo'):
                 self._update_file_filter_combo()
@@ -20794,6 +20797,9 @@ class SupervertalerQt(QMainWindow):
 
             # Initialize TM for this project
             self.initialize_tm_database()
+            
+            # Auto-resize rows for better initial display
+            self.auto_resize_rows()
 
             # Update status
             self.log(f"✓ Loaded {len(segments)} segments from {len(paragraphs)} paragraphs")
@@ -22777,6 +22783,9 @@ class SupervertalerQt(QMainWindow):
             self.load_segments_to_grid()
             self.initialize_tm_database()
             
+            # Auto-resize rows for better initial display
+            self.auto_resize_rows()
+            
             # Initialize spellcheck for target language
             self._initialize_spellcheck_for_target_language(target_lang)
             
@@ -23276,6 +23285,9 @@ class SupervertalerQt(QMainWindow):
             self.load_segments_to_grid()
             self.initialize_tm_database()
             
+            # Auto-resize rows for better initial display
+            self.auto_resize_rows()
+            
             # Initialize spellcheck for target language
             target_lang = self.current_project.target_lang if self.current_project else 'nl'
             self._initialize_spellcheck_for_target_language(target_lang)
@@ -23481,6 +23493,9 @@ class SupervertalerQt(QMainWindow):
             self.update_window_title()
             self.load_segments_to_grid()
             self.initialize_tm_database()
+            
+            # Auto-resize rows for better initial display
+            self.auto_resize_rows()
             
             # Initialize spellcheck for target language
             self._initialize_spellcheck_for_target_language(target_lang)
@@ -23836,6 +23851,9 @@ class SupervertalerQt(QMainWindow):
             self.load_segments_to_grid()
             self.initialize_tm_database()
             
+            # Auto-resize rows for better initial display
+            self.auto_resize_rows()
+            
             # Initialize spellcheck for target language
             self._initialize_spellcheck_for_target_language(target_lang)
             
@@ -24153,6 +24171,9 @@ class SupervertalerQt(QMainWindow):
             self.load_segments_to_grid()
             self.initialize_tm_database()
             
+            # Auto-resize rows for better initial display
+            self.auto_resize_rows()
+            
             # Initialize spellcheck for target language
             self._initialize_spellcheck_for_target_language(target_lang)
 
@@ -24444,6 +24465,9 @@ class SupervertalerQt(QMainWindow):
             self.update_window_title()
             self.load_segments_to_grid()
             self.initialize_tm_database()
+            
+            # Auto-resize rows for better initial display
+            self.auto_resize_rows()
             
             # Initialize spellcheck for target language
             self._initialize_spellcheck_for_target_language(target_lang)

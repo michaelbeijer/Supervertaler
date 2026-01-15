@@ -1939,7 +1939,8 @@ class UnifiedPromptManagerQt:
                 
                 if rel_path in self.library.prompts:
                     prompt_data = self.library.prompts[rel_path]
-                    name = prompt_data.get('name', item.stem)
+                    # Show full filename with extension in tree
+                    name = item.name  # e.g., "prompt.svprompt"
                     
                     prompt_item = QTreeWidgetItem([name])
                     prompt_item.setData(0, Qt.ItemDataRole.UserRole, {'type': 'prompt', 'path': rel_path})
@@ -2059,8 +2060,10 @@ class UnifiedPromptManagerQt:
         
         prompt_data = self.library.prompts[relative_path]
         
-        self.editor_name_label.setText(f"Editing: {prompt_data.get('name', 'Unnamed')}")
-        self.editor_name_input.setText(prompt_data.get('name', ''))
+        # Show full filename with extension (e.g., "prompt.svprompt")
+        filename = Path(relative_path).name
+        self.editor_name_label.setText(f"Editing: {filename}")
+        self.editor_name_input.setText(filename)
         self.editor_desc_input.setText(prompt_data.get('description', ''))
         if hasattr(self, 'editor_quickmenu_label_input'):
             self.editor_quickmenu_label_input.setText(prompt_data.get('quickmenu_label', '') or prompt_data.get('name', ''))
@@ -2083,6 +2086,9 @@ class UnifiedPromptManagerQt:
         name = self.editor_name_input.text().strip()
         description = self.editor_desc_input.text().strip()
         content = self.editor_content.toPlainText().strip()
+        
+        # Name field now represents the complete filename with extension
+        # No stripping needed - user sees and edits the full filename
 
         quickmenu_label = ''
         quickmenu_grid = False
@@ -2114,20 +2120,47 @@ class UnifiedPromptManagerQt:
                 return
 
             prompt_data = self.library.prompts[path].copy()
-            prompt_data['name'] = name
+            old_filename = Path(path).name
+            
+            # Extract name without extension for metadata
+            name_without_ext = Path(name).stem
+            
+            prompt_data['name'] = name_without_ext
             prompt_data['description'] = description
             prompt_data['content'] = content
-            prompt_data['quickmenu_label'] = quickmenu_label or name
+            prompt_data['quickmenu_label'] = quickmenu_label or name_without_ext
             prompt_data['quickmenu_grid'] = quickmenu_grid
             prompt_data['quickmenu_quickmenu'] = quickmenu_quickmenu
             # Keep legacy field in sync
             prompt_data['quick_run'] = quickmenu_quickmenu
-
-            if self.library.save_prompt(path, prompt_data):
-                QMessageBox.information(self.main_widget, "Saved", "Prompt updated successfully!")
-                self._refresh_tree()
+            
+            # Check if filename changed - need to rename file
+            if old_filename != name:
+                from pathlib import Path
+                old_path = Path(path)
+                folder = str(old_path.parent) if old_path.parent != Path('.') else ''
+                new_path = f"{folder}/{name}" if folder else name
+                
+                # Delete old file and save to new location
+                if self.library.delete_prompt(path):
+                    if self.library.save_prompt(new_path, prompt_data):
+                        self.library.load_all_prompts()
+                        self._refresh_tree()
+                        self._select_and_reveal_prompt(new_path)
+                        self.editor_current_path = new_path  # Update to new path
+                        QMessageBox.information(self.main_widget, "Saved", f"Prompt renamed to '{name}' successfully!")
+                        self.log_message(f"✓ Renamed prompt: {old_filename} → {name}")
+                    else:
+                        QMessageBox.warning(self.main_widget, "Error", "Failed to rename prompt")
+                else:
+                    QMessageBox.warning(self.main_widget, "Error", "Failed to delete old prompt file")
             else:
-                QMessageBox.warning(self.main_widget, "Error", "Failed to save prompt")
+                # Name unchanged, just update in place
+                if self.library.save_prompt(path, prompt_data):
+                    QMessageBox.information(self.main_widget, "Saved", "Prompt updated successfully!")
+                    self._refresh_tree()
+                else:
+                    QMessageBox.warning(self.main_widget, "Error", "Failed to save prompt")
         else:
             # Creating new prompt
             folder = getattr(self, 'editor_target_folder', 'Project Prompts')
@@ -2155,7 +2188,7 @@ class UnifiedPromptManagerQt:
             }
 
             # Create the prompt file (save_prompt creates new file if it doesn't exist)
-            relative_path = f"{folder}/{name}.md"
+            relative_path = f"{folder}/{name}.svprompt"
             if self.library.save_prompt(relative_path, prompt_data):
                 QMessageBox.information(self.main_widget, "Created", f"Prompt '{name}' created successfully!")
                 self.library.load_all_prompts()  # Reload to get new prompt in memory
@@ -2365,28 +2398,48 @@ class UnifiedPromptManagerQt:
     
     def _new_prompt_in_folder(self, folder_path: str):
         """Create new prompt in specific folder"""
-        name, ok = QInputDialog.getText(self.main_widget, "New Prompt", "Enter prompt name:")
+        name, ok = QInputDialog.getText(self.main_widget, "New Prompt", "Enter prompt filename with extension (e.g., prompt.svprompt):")
         if not ok or not name:
             return
-
-        # Clear editor for new prompt
-        self.editor_name_label.setText(f"Creating: {name}")
-        self.editor_name_input.setText(name)
-        self.editor_desc_input.setText("")
-        self.editor_content.setPlainText("# Your prompt content here\n\nProvide translation instructions...")
-
-        # Store target folder
-        self.editor_current_path = None  # New prompt, no path yet
-        self.editor_target_folder = folder_path  # Store folder for saving
         
-        # Hide external path display (this is a new library prompt)
-        self.external_path_frame.setVisible(False)
-        self._current_external_file_path = None
-
-        self.log_message(f"Creating new prompt '{name}' in folder: {folder_path}")
-
-        # Switch to editor view or show editor panel
-        # TODO: If editor is hidden, show it
+        # Ensure .svprompt extension
+        if not name.endswith('.svprompt'):
+            name = f"{name}.svprompt"
+        
+        # Extract name without extension for metadata
+        name_without_ext = Path(name).stem
+        
+        # Create the prompt immediately
+        from datetime import datetime
+        prompt_data = {
+            'name': name_without_ext,
+            'description': '',
+            'content': '# Your prompt content here\n\nProvide translation instructions...',
+            'domain': '',
+            'version': '1.0',
+            'task_type': 'Translation',
+            'favorite': False,
+            'quickmenu_label': name_without_ext,
+            'quickmenu_grid': False,
+            'quickmenu_quickmenu': False,
+            'quick_run': False,
+            'folder': folder_path,
+            'tags': [],
+            'created': datetime.now().strftime('%Y-%m-%d'),
+            'modified': datetime.now().strftime('%Y-%m-%d')
+        }
+        
+        # Create .svprompt file (name already includes .svprompt extension)
+        relative_path = f"{folder_path}/{name}" if folder_path else name
+        
+        if self.library.save_prompt(relative_path, prompt_data):
+            self.library.load_all_prompts()  # Reload to get new prompt in memory
+            self._refresh_tree()
+            self._select_and_reveal_prompt(relative_path)
+            self._load_prompt_in_editor(relative_path)
+            self.log_message(f"✓ Created new prompt '{name}' in folder: {folder_path}")
+        else:
+            QMessageBox.warning(self.main_widget, "Error", "Failed to create prompt")
     
     def _new_subfolder(self, parent_folder: str):
         """Create subfolder"""
@@ -2415,6 +2468,8 @@ class UnifiedPromptManagerQt:
         src_data['name'] = new_name
         src_data['favorite'] = False
         src_data['quick_run'] = False
+        src_data['quickmenu_grid'] = False
+        src_data['quickmenu_quickmenu'] = False
         src_data['folder'] = folder
         src_data['created'] = datetime.now().strftime('%Y-%m-%d')
         src_data['modified'] = datetime.now().strftime('%Y-%m-%d')
@@ -2424,7 +2479,7 @@ class UnifiedPromptManagerQt:
             self._refresh_tree()
             self._select_and_reveal_prompt(new_path)
             self._load_prompt_in_editor(new_path)
-            self.log_message(f"✓ Duplicated: {src_name} → {new_name}")
+            self.log_message(f"✓ Duplicated: {src_name} → {new_name} (saved as .svprompt)")
         else:
             QMessageBox.warning(self.main_widget, "Duplicate failed", "Failed to duplicate the prompt.")
     
