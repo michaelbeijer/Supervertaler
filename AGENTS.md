@@ -728,6 +728,48 @@ google_api_key=AI...
 
 ## 🔄 Recent Development History
 
+### January 15, 2026 - Version 1.9.107: Prompt Library & Superlookup Fixes
+
+**🔧 Prompt Library Improvements**
+
+Unified filename and Name field throughout the prompt library:
+- **Tree Display**: Now shows full filename with `.svprompt` extension (e.g., "prompt.svprompt")
+- **Editor Name Field**: Shows full filename including extension (was previously metadata-only)
+- **File Operations**: Name field now represents the actual filename - editing it renames the file on disk
+- **New Prompt Dialog**: Asks for "filename with extension" and auto-appends `.svprompt` if missing
+- **Result**: One unified concept where filename = what you see = what you edit everywhere
+
+**Files Modified:**
+- `modules/unified_prompt_manager_qt.py` - Tree display, editor field, save logic, new prompt dialog
+
+**🔍 Superlookup Navigation Fixes**
+
+Fixed two critical navigation bugs after Supermemory removal:
+
+1. **Ctrl+K AttributeError Fixed**:
+   - Removed orphaned Supermemory code from SuperlookupTab
+   - `search_supermemory()` now gracefully returns 0 instead of trying to access removed engine
+   - Removed unused methods: `create_supermemory_results_tab()`, `init_supermemory()`, `on_supermemory_result_double_click()`, `copy_selected_supermemory_target()`
+   - ~140 lines of dead code removed
+
+2. **Ctrl+K Tab Navigation Fixed**:
+   - Updated `_go_to_superlookup()` to use correct tab index
+   - After Prompt Manager tab was added, indices shifted: Tools moved from index 2 → 3
+   - Ctrl+K was opening Prompt Manager instead of Superlookup
+   - Now correctly navigates to Tools tab (index 3)
+
+**Tab Order:**
+- 0 = Grid
+- 1 = Resources
+- 2 = Prompt Manager
+- 3 = Tools (Superlookup is here)
+- 4 = Settings
+
+**Files Modified:**
+- `Supervertaler.py` - Removed Supermemory code, fixed tab navigation
+
+---
+
 ### January 15, 2026 - 🗑️ Supermemory Removed (v1.9.105)
 
 **Strategic Refactoring: Remove Supermemory Entirely**

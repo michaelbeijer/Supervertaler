@@ -2,7 +2,27 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.105 (January 15, 2026)
+**Current Version:** v1.9.107 (January 15, 2026)
+
+## ✅ Prompt Library & Superlookup Fixes (v1.9.107) - January 15, 2026
+
+**Prompt Library Improvements**
+
+- **Unified filename and Name field**: Tree and editor now show full `.svprompt` extension
+- **File Operations**: Name field edits now rename files on disk (filename = what you see = what you edit)
+- **New Prompt Dialog**: Now asks for "filename with extension" and auto-appends `.svprompt` if missing
+
+**Superlookup Navigation Fixes**
+
+- **Fixed Ctrl+K AttributeError**: Removed ~140 lines of orphaned Supermemory code that was causing errors
+- **Fixed Ctrl+K Navigation**: Now correctly navigates to Tools tab (index 3) instead of Prompt Manager (index 2)
+  - Tab indices shifted when Prompt Manager was added: Tools moved from 2→3
+
+**Files Modified:**
+- `modules/unified_prompt_manager_qt.py` - Tree display, editor field, save logic
+- `Supervertaler.py` - Removed orphaned Supermemory methods, fixed tab index
+
+---
 
 ## 🗑️ Supermemory Removed (v1.9.105) - January 15, 2026
 
