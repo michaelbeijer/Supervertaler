@@ -9,6 +9,13 @@ def __getattr__(name):
     raise ImportError(
         "The 'modules.superdocs_viewer_qt' module has been removed. Visit https://supervertaler.gitbook.io/superdocs/ for documentation."
     )
+
+
+__all__: list[str] = []
+
+# NOTE: The remainder of this file contains legacy code that is intentionally kept
+# as inert source text to avoid import-time crashes in older packaged builds.
+_DEPRECATED_SOURCE = r'''
         self.open_external_btn.clicked.connect(self.open_in_external_editor)
         self.open_external_btn.setEnabled(False)
         title_bar_layout.addWidget(self.open_external_btn)
@@ -371,3 +378,5 @@ class CheckmarkCheckBox(QCheckBox):
                 painter.drawLine(QPointF(check_x1, check_y1), QPointF(check_x2, check_y2))
 
                 painter.end()
+
+'''

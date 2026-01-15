@@ -1,4 +1,4 @@
-# 🚀 Supervertaler v1.9.103
+# 🚀 Supervertaler v1.9.104
 
 [![PyPI version](https://badge.fury.io/py/supervertaler.svg)](https://pypi.org/project/Supervertaler/)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
@@ -6,13 +6,17 @@
 
 🎯 **The Ultimate Translation Workbench** — Context-aware AI with intuitive 2-Layer Prompt Architecture, AI Assistant, project glossary system with automatic extraction, and specialized modules.
 
-**Current Version:** v1.9.103 (January 14, 2026)
+**Current Version:** v1.9.104 (January 14, 2026)
 
 ### NEW in v1.9.102 - ⚡ QuickMenu (Right-click prompts in the Grid)
 
 Run your favourite AI “mini-actions” directly from the grid’s right-click menu: run-and-preview, or run-and-replace the selection/target.
 **Framework:** PyQt6
 **Status:** Active Development
+
+### NEW in v1.9.104 - 📦 Packaging: Lighter Default Install
+
+- Supermemory (semantic search) is optional again, so the default `pip install supervertaler` does not pull the heavy ML stack (PyTorch / sentence-transformers / ChromaDB).
 
 ### FIXED in v1.9.103
 
@@ -52,6 +56,14 @@ Run your favourite AI “mini-actions” directly from the grid’s right-click 
 ```bash
 pip install supervertaler
 supervertaler
+```
+
+This installs the recommended core Supervertaler (built-in web browser, PDF support, voice features via the OpenAI Whisper API path, and extra MT providers).
+
+Supermemory (semantic search) is intentionally optional because it pulls in heavy ML dependencies (PyTorch). To enable it:
+
+```bash
+pip install supervertaler[supermemory]
 ```
 
 ### Option 2: Run from Source

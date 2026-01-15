@@ -52,11 +52,13 @@ class QuickDictationThread(QThread):
     model_loading_started = pyqtSignal(str)  # Model name being loaded/downloaded
     model_loading_finished = pyqtSignal()  # Model loaded successfully
 
-    def __init__(self, model_name="base", language="auto", duration=10):
+    def __init__(self, model_name="base", language="auto", duration=10, use_api: bool = False, api_key: str | None = None):
         super().__init__()
         self.model_name = model_name
         self.language = None if language == "auto" else language
         self.duration = duration  # Max recording duration
+        self.use_api = use_api
+        self.api_key = api_key
         self.sample_rate = 16000
         self.is_recording = False
         self.stop_requested = False
@@ -72,15 +74,17 @@ class QuickDictationThread(QThread):
             # Lazy import heavy libraries to avoid slow startup
             import sounddevice as sd
             import numpy as np
-            
-            # Check FFmpeg availability first
-            if not ensure_ffmpeg_available():
-                self.error_occurred.emit(
-                    "FFmpeg not found. Please install FFmpeg or contact support.\n\n"
-                    "Quick install: Open PowerShell as Admin and run:\n"
-                    "winget install FFmpeg  (or)  choco install ffmpeg"
-                )
-                return
+
+            # Local Whisper needs FFmpeg; API mode does not.
+            if not self.use_api:
+                if not ensure_ffmpeg_available():
+                    self.error_occurred.emit(
+                        "FFmpeg not found. Local Whisper requires FFmpeg.\n\n"
+                        "Option A (recommended): Switch to 'OpenAI Whisper API' in Settings → Supervoice.\n\n"
+                        "Option B: Install FFmpeg (PowerShell as Admin):\n"
+                        "winget install FFmpeg  (or)  choco install ffmpeg"
+                    )
+                    return
 
             # Step 1: Record audio
             self.status_update.emit("🔴 Recording... (Press F9 or click Stop to finish)")
@@ -132,6 +136,74 @@ class QuickDictationThread(QThread):
             # Step 2: Transcribe
             self.status_update.emit("⏳ Transcribing...")
 
+            if self.use_api:
+                if not self.api_key:
+                    self.error_occurred.emit(
+                        "OpenAI API key missing.\n\n"
+                        "Set your OpenAI API key in Settings → AI Settings, or switch to Local Whisper (offline)."
+                    )
+                    try:
+                        Path(temp_path).unlink()
+                    except:
+                        pass
+                    return
+
+                self.status_update.emit("🎤 Using OpenAI Whisper API (fast & accurate)")
+                text = self._transcribe_with_api(temp_path)
+            else:
+                text = self._transcribe_with_local(temp_path)
+
+            # Clean up temp file
+            try:
+                Path(temp_path).unlink()
+            except:
+                pass
+
+            # Emit result
+            if text:
+                self.transcription_ready.emit(text)
+                self.status_update.emit("✅ Done")
+            else:
+                self.error_occurred.emit("No speech detected")
+
+        except Exception as e:
+            self.is_recording = False
+            import traceback
+            error_details = traceback.format_exc()
+            self.error_occurred.emit(f"Error: {str(e)}\n\nTraceback:\n{error_details}")
+
+    def _transcribe_with_api(self, audio_path: str) -> str:
+        """Transcribe using OpenAI Whisper API (no local Whisper required)."""
+        try:
+            from openai import OpenAI
+
+            client = OpenAI(api_key=self.api_key)
+            with open(audio_path, "rb") as audio_file:
+                kwargs = {"model": "whisper-1", "file": audio_file}
+                if self.language:
+                    kwargs["language"] = self.language
+                response = client.audio.transcriptions.create(**kwargs)
+
+            return (response.text or "").strip()
+        except Exception as e:
+            self.error_occurred.emit(f"OpenAI API error: {e}")
+            return ""
+
+    def _transcribe_with_local(self, audio_path: str) -> str:
+        """Transcribe using Local Whisper (requires optional dependency)."""
+        try:
+            # Lazy import whisper to avoid slow startup (PyTorch takes seconds to import)
+            try:
+                import whisper
+            except ImportError:
+                self.error_occurred.emit(
+                    "Local Whisper is not installed.\n\n"
+                    "Install it with:\n"
+                    "  pip install supervertaler[local-whisper]\n\n"
+                    "Or switch to 'OpenAI Whisper API' in Settings → Supervoice."
+                )
+                return ""
+
             # Check if model needs to be downloaded
             cache_dir = os.path.expanduser("~/.cache/whisper")
             if os.name == 'nt':  # Windows
@@ -151,37 +223,20 @@ class QuickDictationThread(QThread):
             else:
                 self.status_update.emit(f"⏳ Loading {self.model_name} model...")
 
-            # Lazy import whisper to avoid slow startup (PyTorch takes seconds to import)
-            import whisper
             model = whisper.load_model(self.model_name)
             self.model_loading_finished.emit()
 
             # Transcribe
             self.status_update.emit("⏳ Transcribing audio...")
             if self.language:
-                result = model.transcribe(temp_path, language=self.language)
+                result = model.transcribe(audio_path, language=self.language)
             else:
-                result = model.transcribe(temp_path)
+                result = model.transcribe(audio_path)
 
-            # Clean up temp file
-            try:
-                Path(temp_path).unlink()
-            except:
-                pass
-
-            # Emit result
-            text = result["text"].strip()
-            if text:
-                self.transcription_ready.emit(text)
-                self.status_update.emit("✅ Done")
-            else:
-                self.error_occurred.emit("No speech detected")
-
+            return (result.get("text") or "").strip()
         except Exception as e:
-            self.is_recording = False
-            import traceback
-            error_details = traceback.format_exc()
-            self.error_occurred.emit(f"Error: {str(e)}\n\nTraceback:\n{error_details}")
+            self.error_occurred.emit(f"Local transcription error: {e}")
+            return ""
 
     def stop(self):
         """Stop recording"""

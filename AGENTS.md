@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** January 14, 2026 | **Version:** v1.9.103
+> **Last Updated:** January 14, 2026 | **Version:** v1.9.104
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.103 (January 2026) |
+| **Version** | v1.9.104 (January 2026) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -30,42 +30,40 @@
 - **Document Handling**: DOCX, bilingual DOCX, PDF (via OCR), simple TXT, **Multi-file folder import**
 - **Quality Assurance**: Spellcheck, tag validation, consistency checking
 - **Superlookup**: Unified concordance hub with TM, Termbase, Supermemory, MT, and Web Resources
-- **Modular Architecture**: Optional features can be enabled/disabled to reduce disk space
+- **Batteries Included**: Default install includes all major features and dependencies, except heavy optional components (Supermemory + offline Local Whisper)
 
 ---
 
-## 📦 Modular Installation (NEW in v1.9.75)
+## 📦 Installation (Simplified)
 
-Supervertaler now supports modular installation - install only the features you need!
+Supervertaler uses a batteries-included *core* install: `pip install supervertaler` pulls in everything needed for the major features, while keeping heavy optional components out of the default install.
+
+**Note:** Offline dictation via Local Whisper is optional because it pulls in very large dependencies (PyTorch). The default/recommended voice path uses the OpenAI Whisper API.
+
+**Legacy note:** older “extras” (e.g. `supervertaler[all]`) are still accepted for backward compatibility, but they no longer change what gets installed.
 
 ### Installation Options
 
-| Command | Size | Description |
-|---------|------|-------------|
-| `pip install supervertaler` | ~300 MB | Core features only |
-| `pip install supervertaler[supermemory]` | +600 MB | Add semantic search |
-| `pip install supervertaler[voice]` | +150 MB | Add voice commands |
-| `pip install supervertaler[web]` | +100 MB | Add web browser |
-| `pip install supervertaler[all]` | ~1.2 GB | Everything |
+| Command | Notes |
+|---------|-------|
+| `pip install supervertaler` | Recommended core install (excludes heavy optional Local Whisper) |
+| `pip install supervertaler[local-whisper]` | Adds offline Local Whisper (heavy; pulls PyTorch) |
+| `pip install supervertaler[all]` | Legacy alias (no-op; kept for compatibility) |
 
 ### Feature Modules
 
-| Module | pip Extra | Size | Description |
-|--------|-----------|------|-------------|
-| **Supermemory** | `supermemory` | ~600 MB | Vector-indexed semantic TM search |
-| **Supervoice** | `voice` | ~150 MB | Voice dictation & commands |
-| **Web Browser** | `web` | ~100 MB | Built-in browser for Superlookup |
-| **PDF Rescue** | `pdf` | ~30 MB | PDF text extraction/OCR |
-| **MT Providers** | `mt` | ~30 MB | DeepL, Amazon Translate |
-| **Hunspell** | `hunspell` | ~20 MB | Advanced spellcheck |
-| **AutoFingers** | `windows` | ~10 MB | Windows automation |
+| Module | Included by default | Size | Description |
+|--------|----------------------|------|-------------|
+| **Supervoice** | ✅ | ~150 MB | Voice dictation & commands (OpenAI Whisper API recommended) |
+| **Web Browser** | ✅ | ~100 MB | Built-in browser for Superlookup |
+| **PDF Rescue** | ✅ | ~30 MB | PDF text extraction/OCR |
+| **MT Providers** | ✅ | ~30 MB | DeepL, Amazon Translate |
+| **Hunspell** | ✅ | ~20 MB | Advanced spellcheck |
+| **AutoFingers** | ✅ (Windows) | ~10 MB | Windows automation |
 
 ### Settings → Features Tab
 
-Users can enable/disable optional features in **Settings → 📦 Features**. This shows:
-- Which features are installed (✅) vs not installed (❌)
-- Size estimates for each feature
-- Installation commands for missing features
+Users can enable/disable features in **Settings → 📦 Features**.
 
 ### Feature Manager Module
 
@@ -74,6 +72,70 @@ The `modules/feature_manager.py` provides:
 - `FEATURE_MODULES` dict defining all optional features
 - `lazy_import_*()` functions for conditional imports
 - `check_feature(id)` quick availability check
+
+---
+
+## 🪟 Windows EXE Releases (CORE + FULL)
+
+Supervertaler Windows releases are published as **two separate ZIP assets** on the same GitHub Release:
+
+1) **CORE** (recommended for most users)
+- Smaller download
+- Does **not** bundle the heavy ML stack (Supermemory + offline Local Whisper)
+
+2) **FULL** ("batteries included")
+- Larger download
+- Bundles **Supermemory** + **offline Local Whisper** (PyTorch / sentence-transformers / ChromaDB)
+
+### Key Rule (PyInstaller one-folder builds)
+
+The EXE must be run from the extracted distribution folder. Do **not** separate `Supervertaler.exe` from `_internal/`.
+
+If users see an error like missing `python312.dll`, they are almost always:
+- running the wrong EXE (from an intermediate build folder), or
+- moving the EXE away from `_internal/`.
+
+### How to Build (recommended)
+
+Use the automated build script:
+
+```powershell
+# Build BOTH core + full and create both ZIP assets
+powershell -NoProfile -ExecutionPolicy Bypass -File .\build_windows_release.ps1
+
+# Build only core
+powershell -NoProfile -ExecutionPolicy Bypass -File .\build_windows_release.ps1 -CoreOnly
+
+# Build only full
+powershell -NoProfile -ExecutionPolicy Bypass -File .\build_windows_release.ps1 -FullOnly
+
+# Clean build venvs + rebuild (keeps dist/ so multi-flavor builds can coexist)
+powershell -NoProfile -ExecutionPolicy Bypass -File .\build_windows_release.ps1 -Clean
+```
+
+What it does:
+- Uses two isolated build environments: `.venv-build-core` and `.venv-build-full`
+- Runs PyInstaller with the corresponding spec:
+  - `Supervertaler.core.spec` → `dist\Supervertaler-core\...`
+  - `Supervertaler.full.spec` → `dist\Supervertaler-full\...`
+- Zips each output using `create_release_zip.py` and writes a `README_FIRST.txt` into each dist folder.
+
+### Output Files
+
+After a successful run, you should have:
+- `dist\Supervertaler-v<version>-Windows-CORE.zip`
+- `dist\Supervertaler-v<version>-Windows-FULL.zip`
+
+### GitHub Release Posting
+
+Attach **both** ZIP files to the same GitHub Release tag.
+
+### VS Code Tasks
+
+There are build tasks wired up in `.vscode/tasks.json`:
+- "Build Windows EXE (core)"
+- "Build Windows EXE (full)"
+- "Build Windows EXE (core + full)"
 
 ---
 
@@ -665,6 +727,66 @@ google_api_key=AI...
 ---
 
 ## 🔄 Recent Development History
+
+### January 15, 2026 - 🗑️ Supermemory Removed (v1.9.105)
+
+**Strategic Refactoring: Remove Supermemory Entirely**
+
+After extensive attempts to package Supermemory (vector-indexed semantic search) in Windows EXE builds, made the decision to remove it entirely from the project:
+
+**Problems Encountered:**
+- PyTorch/sentence-transformers has complex native dependencies (CUDA libs, Intel MKL, OpenMP, etc.)
+- Multiple Windows DLL loading failures (`vcomp142.dll`, `c10.dll`, etc.) even after comprehensive packaging
+- 7+ packaging iterations failed to produce a working frozen build
+- ~600 MB footprint for a feature that didn't work reliably
+
+**Strategic Decision:**
+- Focus development effort on the **SQLite-based Translation Memory** system instead
+- SQLite TM is:
+  - Faster and more reliable for professional translation workflows
+  - Works perfectly in frozen builds
+  - Easier to maintain and improve
+  - Better suited for large TMX imports (thousands of entries)
+
+**Removed:**
+- `modules/supermemory.py` (2100+ lines deleted)
+- Supermemory tab from Resources
+- Auto-init and cleanup code in main application
+- Dependencies: `sentence-transformers`, `chromadb`, `tokenizers`
+- Pip extra: `supervertaler[supermemory]`
+- Feature manager entry
+- Build spec references
+
+**Files Modified:**
+- `Supervertaler.py` - Removed create_supermemory_tab(), _auto_init_supermemory(), _cleanup_supermemory(), UI tab
+- `modules/feature_manager.py` - Removed supermemory from FEATURE_MODULES
+- `pyproject.toml` - Removed supermemory extra and heavy dependencies
+- `Supervertaler.core.spec` / `Supervertaler.full.spec` - Updated comments (FULL now just for Local Whisper)
+- `CHANGELOG.md` - Documented removal in v1.9.105
+
+**Result:**
+- Cleaner codebase
+- ~600 MB smaller default installation
+- Focus on what works: SQLite TM, LLMs, termbases, voice commands
+- No more Windows EXE packaging headaches with PyTorch
+
+### January 15, 2026 - 🏗️ Windows EXE: CORE + FULL release pipeline (v1.9.104)
+
+- Added/used dual build flavors: CORE (no heavy ML stack) and FULL (bundles Supermemory + heavy deps).
+- Important runtime rule (PyInstaller one-folder): users must run `Supervertaler.exe` from the extracted folder next to `_internal/` (do not move the EXE).
+- FULL launch crash mitigation notes: avoid importing heavy deps during startup/feature detection; disable UPX for FULL; exclude problematic `VCOMP140.DLL` from the bundle when it causes `0xc0000409` startup crashes.
+- Supermemory-in-FULL packaging note: do not exclude `torch.cuda` Python modules (CPU use can still touch those imports); keep `triton` excluded if needed.
+- **Critical:** Do NOT exclude `unittest` - it's a standard library module needed by sentence-transformers/tokenizers. The spec initially had it in excludes list which caused "No module named 'unittest'" error.
+- **Critical:** Add `tiktoken` to the `collect_submodules()` package list - sentence-transformers needs `tiktoken140.dll` which won't be bundled otherwise.
+- **Critical:** Use `collect_dynamic_libs()` for packages with native extensions - added explicit DLL collection for `tokenizers`, `safetensors`, and `torch` to ensure all `.dll`/`.pyd` files are bundled (sentence-transformers depends on native code from all three).
+- **Critical:** Use `collect_data_files("torch")` to bundle ALL torch lib files, not just DLLs - PyTorch has complex directory structure with many dependent files.
+- **Exit crash fix:** Added `_cleanup_supermemory()` method in closeEvent to explicitly shut down ChromaDB client and clear PyTorch references before exit, preventing "Python has stopped working" crash on Windows.
+- Artifact hygiene: keep only the two intended release zips in `dist/` (`Supervertaler-v1.9.104-Windows-CORE.zip` + `...-FULL.zip`) to avoid uploading/testing stale builds.
+
+### January 14, 2026 - 📦 Packaging: Lighter Default Install (v1.9.104)
+
+- Made Supermemory an optional install extra again so `pip install supervertaler` no longer pulls the heavy ML stack by default.
+- Install on demand with `pip install supervertaler[supermemory]`.
 
 ### January 14, 2026 - ✅ Filtered Ctrl+Enter + Website Screenshots (v1.9.103)
 
@@ -2979,4 +3101,4 @@ An intelligent proofreading system that uses LLMs to verify translation quality.
 ---
 
 *This file replaces the previous CLAUDE.md and PROJECT_CONTEXT.md files.*
-*Last updated: January 14, 2026 - v1.9.102*
+*Last updated: January 14, 2026 - v1.9.104*

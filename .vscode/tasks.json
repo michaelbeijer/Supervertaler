@@ -9,7 +9,199 @@
 				"-NoLogo",
 				"-NoProfile",
 				"-Command",
-				"$ErrorActionPreference = 'Stop'; $v = '1.9.90'; (Get-Content README.md) -replace 'v1\\.9\\.89','v1.9.90' | Set-Content README.md; (Get-Content docs/index.html) -replace 'v1\\.9\\.89','v1.9.90' | Set-Content docs/index.html; (Get-Content Supervertaler.py) -replace '__version__\\s*=\\s*\\\"[0-9\\.]+\\\"','__version__ = \\\"'+$v+'\\\"' | Set-Content Supervertaler.py"
+				"$ErrorActionPreference = 'Stop'; $v = '1.9.104'; # Update $v when bumping version\n$readme = Get-Content README.md;\n$readme = $readme -replace '^#\\s*.*Supervertaler v[0-9\\.]+\\s*$', ('# 🚀 Supervertaler v' + $v);\n$readme = $readme -replace '\\\*\\\\*Current Version:\\\*\\\\*\\s*v[0-9\\.]+', ('**Current Version:** v' + $v);\n$readme | Set-Content README.md;\n\n$html = Get-Content docs/index.html;\n$html = $html -replace 'styles\\.css\\?v=[0-9\\.]+', ('styles.css?v=' + $v);\n$html = $html -replace '>v[0-9\\.]+<', ('>v' + $v + '<');\n$html = $html -replace 'v[0-9\\.]+\\s*-', ('v' + $v + ' -');\n$html | Set-Content docs/index.html;\n\n(Get-Content Supervertaler.py) -replace '__version__\\s*=\\s*\\\"[0-9\\.]+\\\"', ('__version__ = \\\"' + $v + '\\"') | Set-Content Supervertaler.py"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Build Windows EXE (core)",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoLogo",
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"${workspaceFolder}\\build_windows_release.ps1",
+				"-CoreOnly"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Build Windows EXE (full)",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoLogo",
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"${workspaceFolder}\\build_windows_release.ps1",
+				"-FullOnly"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Build Windows EXE (core + full)",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoLogo",
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"${workspaceFolder}\\build_windows_release.ps1"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Smoke test supermemory optional deps",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoLogo",
+				"-NoProfile",
+				"-Command",
+				"$ErrorActionPreference='Stop'; Set-Location 'C:\\Dev\\Supervertaler'; $whl=(Get-ChildItem .\\dist\\supervertaler-*.whl | Sort-Object LastWriteTime | Select-Object -Last 1).FullName; Write-Host ('Wheel: ' + $whl); $root='C:\\Dev\\Supervertaler\\_smoketest_task'; if (Test-Path $root) { Remove-Item -Recurse -Force $root }; New-Item -ItemType Directory -Path $root | Out-Null; $base='C:\\Dev\\Supervertaler\\.venv\\Scripts\\python.exe'; & $base -m venv \"$root\\core\"; & \"$root\\core\\Scripts\\python.exe\" -m pip install -q -U pip; & \"$root\\core\\Scripts\\pip.exe\" install -q $whl; & \"$root\\core\\Scripts\\python.exe\" -c \"import importlib.util as u; mods=['torch','sentence_transformers','chromadb','tokenizers']; print('CORE install module presence:'); [print(f'{m}:', bool(u.find_spec(m))) for m in mods]\"; & $base -m venv \"$root\\supermemory\"; & \"$root\\supermemory\\Scripts\\python.exe\" -m pip install -q -U pip; & \"$root\\supermemory\\Scripts\\pip.exe\" install -q ($whl+'[supermemory]'); & \"$root\\supermemory\\Scripts\\python.exe\" -c \"import importlib.util as u; mods=['torch','sentence_transformers','chromadb','tokenizers']; print('EXTRA install module presence:'); [print(f'{m}:', bool(u.find_spec(m))) for m in mods]\";"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "Smoke test supermemory optional deps (logged)",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoLogo",
+				"-NoProfile",
+				"-Command",
+				"$ErrorActionPreference='Stop'; Set-Location 'C:\\Dev\\Supervertaler'; $whl=(Get-ChildItem .\\dist\\supervertaler-*.whl | Sort-Object LastWriteTime | Select-Object -Last 1).FullName; $root='C:\\Dev\\Supervertaler\\_smoketest_task'; if (Test-Path $root) { Remove-Item -Recurse -Force $root }; New-Item -ItemType Directory -Path $root | Out-Null; $log=Join-Path $root 'out.txt'; function Log($s){ $s | Tee-Object -FilePath $log -Append | Out-Host }; Log ('Wheel: ' + $whl); $base='C:\\Dev\\Supervertaler\\.venv\\Scripts\\python.exe'; Log '--- CORE ---'; & $base -m venv \"$root\\core\" 2>&1 | Tee-Object -FilePath $log -Append | Out-Host; & \"$root\\core\\Scripts\\python.exe\" -m pip install -q -U pip 2>&1 | Tee-Object -FilePath $log -Append | Out-Host; & \"$root\\core\\Scripts\\pip.exe\" install -q \"$whl\" 2>&1 | Tee-Object -FilePath $log -Append | Out-Host; & \"$root\\core\\Scripts\\python.exe\" -c \"import importlib.util as u; mods=['torch','sentence_transformers','chromadb','tokenizers']; print('CORE install module presence:'); [print(f'{m}:', bool(u.find_spec(m))) for m in mods]\" 2>&1 | Tee-Object -FilePath $log -Append | Out-Host; Log '--- EXTRA [supermemory] ---'; & $base -m venv \"$root\\supermemory\" 2>&1 | Tee-Object -FilePath $log -Append | Out-Host; & \"$root\\supermemory\\Scripts\\python.exe\" -m pip install -q -U pip 2>&1 | Tee-Object -FilePath $log -Append | Out-Host; $req = \"$whl[supermemory]\"; Log ('Installing: ' + $req); & \"$root\\supermemory\\Scripts\\pip.exe\" install -q \"$req\" 2>&1 | Tee-Object -FilePath $log -Append | Out-Host; & \"$root\\supermemory\\Scripts\\python.exe\" -c \"import importlib.util as u; mods=['torch','sentence_transformers','chromadb','tokenizers']; print('EXTRA install module presence:'); [print(f'{m}:', bool(u.find_spec(m))) for m in mods]\" 2>&1 | Tee-Object -FilePath $log -Append | Out-Host; Log 'DONE';"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "Smoke test Windows EXE (full)",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoLogo",
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"${workspaceFolder}\\scripts\\smoke_test_windows_exe.ps1",
+				"-Flavor",
+				"full",
+				"-Seconds",
+				"20"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "Kill Supervertaler processes",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoLogo",
+				"-NoProfile",
+				"-Command",
+				"$ErrorActionPreference='Continue'; Get-Process Supervertaler -ErrorAction SilentlyContinue | Stop-Process -Force; Write-Host 'Done.'"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "Cleanup old dist artifacts",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoLogo",
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"$ErrorActionPreference='Stop'; Set-Location 'C:\\Dev\\Supervertaler';\n$keep = @('Supervertaler-v1.9.104-Windows-CORE.zip','Supervertaler-v1.9.104-Windows-FULL.zip');\nWrite-Host '--- BEFORE ---';\nif (Test-Path .\\dist) { Get-ChildItem .\\dist -Directory | Select-Object Name,LastWriteTime | Sort-Object Name | Format-Table | Out-String | Write-Host; Get-ChildItem .\\dist -File -Filter '*.zip' | Select-Object Name,LastWriteTime,Length | Sort-Object LastWriteTime -Descending | Format-Table | Out-String | Write-Host } else { Write-Host 'dist/ does not exist' }\nif (Test-Path .\\build) { Write-Host 'build/ exists' } else { Write-Host 'build/ does not exist' }\n\n$toDeleteZips = @();\nif (Test-Path .\\dist) {\n  $toDeleteZips = Get-ChildItem .\\dist -File -Filter '*.zip' | Where-Object { $keep -notcontains $_.Name };\n}\nWrite-Host '--- DELETING ---';\nif (Test-Path .\\dist\\Supervertaler) { Write-Host 'Removing dist\\\\Supervertaler (legacy single build)'; Remove-Item .\\dist\\Supervertaler -Recurse -Force }\nif (Test-Path .\\build) { Write-Host 'Removing build\\\\ (PyInstaller work dir)'; Remove-Item .\\build -Recurse -Force }\nforeach ($z in $toDeleteZips) { Write-Host ('Removing dist\\\\' + $z.Name); Remove-Item $z.FullName -Force }\n\nWrite-Host '--- AFTER ---';\nif (Test-Path .\\dist) { Get-ChildItem .\\dist -Directory | Select-Object Name,LastWriteTime | Sort-Object Name | Format-Table | Out-String | Write-Host; Get-ChildItem .\\dist -File -Filter '*.zip' | Select-Object Name,LastWriteTime,Length | Sort-Object LastWriteTime -Descending | Format-Table | Out-String | Write-Host } else { Write-Host 'dist/ does not exist' }\nif (Test-Path .\\build) { Write-Host 'build/ exists' } else { Write-Host 'build/ does not exist' }\n"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Kill PyInstaller/build processes",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoLogo",
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"$ErrorActionPreference='Continue'; Set-Location 'C:\\Dev\\Supervertaler';\n$procs = Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -and ($_.CommandLine -match 'pyinstaller|PyInstaller|build_windows_release\\.ps1|Supervertaler\\.full\\.spec|Supervertaler\\.core\\.spec') };\nif (-not $procs) { Write-Host 'No matching build processes found.'; exit 0 }\n$procs | Select-Object Name,ProcessId,CommandLine | Format-Table -Wrap | Out-String | Write-Host;\nforeach ($p in $procs) { try { Stop-Process -Id $p.ProcessId -Force -ErrorAction Stop; Write-Host ('Stopped PID ' + $p.ProcessId + ' (' + $p.Name + ')') } catch { Write-Host ('Failed to stop PID ' + $p.ProcessId + ': ' + $_.Exception.Message) } }\n"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Kill PyInstaller/build processes (one-line)",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoLogo",
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"$ErrorActionPreference='Continue'; Set-Location 'C:\\Dev\\Supervertaler'; $procs = Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -and ($_.CommandLine -match 'pyinstaller|PyInstaller|build_windows_release\\.ps1|Supervertaler\\.full\\.spec|Supervertaler\\.core\\.spec') }; if (-not $procs) { Write-Host 'No matching build processes found.'; exit 0 }; $procs | Select-Object Name,ProcessId,CommandLine | Format-Table -Wrap | Out-String | Write-Host; foreach ($p in $procs) { try { Stop-Process -Id $p.ProcessId -Force -ErrorAction Stop; Write-Host ('Stopped PID ' + $p.ProcessId + ' (' + $p.Name + ')') } catch { Write-Host ('Failed to stop PID ' + $p.ProcessId + ': ' + $_.Exception.Message) } }"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Kill build processes (script)",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoLogo",
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"c:\\Dev\\Supervertaler\\scripts\\kill_build_processes.ps1"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Cleanup old dist artifacts (script)",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoLogo",
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-File",
+				"c:\\Dev\\Supervertaler\\scripts\\cleanup_old_build_artifacts.ps1"
 			],
 			"isBackground": false,
 			"problemMatcher": [],

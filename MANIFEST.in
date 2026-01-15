@@ -14,18 +14,3 @@ recursive-include modules *.py
 # Include assets
 recursive-include assets *
 
-# Exclude version control
-exclude .git
-exclude .github
-exclude .gitignore
-
-# Exclude cache and compiled files
-global-exclude __pycache__
-global-exclude *.py[cod]
-global-exclude *$py.class
-global-exclude .pytest_cache
-
-# Exclude private data and development files
-exclude-dir user\ data_private
-exclude-dir .dev
-exclude-dir tests

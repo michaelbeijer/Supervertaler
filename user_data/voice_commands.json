@@ -1,0 +1,273 @@
+{
+  "version": "1.0",
+  "match_threshold": 0.85,
+  "commands": [
+    {
+      "phrase": "next segment",
+      "aliases": [
+        "next",
+        "down"
+      ],
+      "action_type": "internal",
+      "action": "navigate_next",
+      "description": "Move to next segment",
+      "category": "navigation",
+      "enabled": true
+    },
+    {
+      "phrase": "previous segment",
+      "aliases": [
+        "previous",
+        "back",
+        "up"
+      ],
+      "action_type": "internal",
+      "action": "navigate_previous",
+      "description": "Move to previous segment",
+      "category": "navigation",
+      "enabled": true
+    },
+    {
+      "phrase": "first segment",
+      "aliases": [
+        "go to start",
+        "beginning"
+      ],
+      "action_type": "internal",
+      "action": "navigate_first",
+      "description": "Jump to first segment",
+      "category": "navigation",
+      "enabled": true
+    },
+    {
+      "phrase": "last segment",
+      "aliases": [
+        "go to end",
+        "end"
+      ],
+      "action_type": "internal",
+      "action": "navigate_last",
+      "description": "Jump to last segment",
+      "category": "navigation",
+      "enabled": true
+    },
+    {
+      "phrase": "confirm",
+      "aliases": [
+        "confirm segment",
+        "done",
+        "okay"
+      ],
+      "action_type": "internal",
+      "action": "confirm_segment",
+      "description": "Confirm current segment",
+      "category": "editing",
+      "enabled": true
+    },
+    {
+      "phrase": "copy source",
+      "aliases": [
+        "copy from source",
+        "source to target"
+      ],
+      "action_type": "internal",
+      "action": "copy_source_to_target",
+      "description": "Copy source text to target",
+      "category": "editing",
+      "enabled": true
+    },
+    {
+      "phrase": "clear target",
+      "aliases": [
+        "clear",
+        "delete target"
+      ],
+      "action_type": "internal",
+      "action": "clear_target",
+      "description": "Clear target text",
+      "category": "editing",
+      "enabled": true
+    },
+    {
+      "phrase": "undo",
+      "aliases": [],
+      "action_type": "keystroke",
+      "action": "ctrl+z",
+      "description": "Undo last action",
+      "category": "editing",
+      "enabled": true
+    },
+    {
+      "phrase": "redo",
+      "aliases": [],
+      "action_type": "keystroke",
+      "action": "ctrl+y",
+      "description": "Redo last action",
+      "category": "editing",
+      "enabled": true
+    },
+    {
+      "phrase": "translate",
+      "aliases": [
+        "translate segment",
+        "translate this"
+      ],
+      "action_type": "internal",
+      "action": "translate_segment",
+      "description": "AI translate current segment",
+      "category": "translation",
+      "enabled": true
+    },
+    {
+      "phrase": "translate all",
+      "aliases": [
+        "batch translate"
+      ],
+      "action_type": "internal",
+      "action": "batch_translate",
+      "description": "Translate all segments",
+      "category": "translation",
+      "enabled": true
+    },
+    {
+      "phrase": "lookup",
+      "aliases": [
+        "super lookup",
+        "search"
+      ],
+      "action_type": "internal",
+      "action": "open_superlookup",
+      "description": "Open Superlookup (Ctrl+K)",
+      "category": "lookup",
+      "enabled": true
+    },
+    {
+      "phrase": "concordance",
+      "aliases": [
+        "search memory",
+        "search TM"
+      ],
+      "action_type": "internal",
+      "action": "concordance_search",
+      "description": "Open concordance search",
+      "category": "lookup",
+      "enabled": true
+    },
+    {
+      "phrase": "save project",
+      "aliases": [
+        "save"
+      ],
+      "action_type": "keystroke",
+      "action": "ctrl+s",
+      "description": "Save current project",
+      "category": "file",
+      "enabled": true
+    },
+    {
+      "phrase": "open project",
+      "aliases": [
+        "open"
+      ],
+      "action_type": "keystroke",
+      "action": "ctrl+o",
+      "description": "Open project",
+      "category": "file",
+      "enabled": true
+    },
+    {
+      "phrase": "show log",
+      "aliases": [
+        "open log",
+        "log tab"
+      ],
+      "action_type": "internal",
+      "action": "show_log",
+      "description": "Show log panel",
+      "category": "view",
+      "enabled": true
+    },
+    {
+      "phrase": "show editor",
+      "aliases": [
+        "editor tab",
+        "go to editor"
+      ],
+      "action_type": "internal",
+      "action": "show_editor",
+      "description": "Show editor panel",
+      "category": "view",
+      "enabled": true
+    },
+    {
+      "phrase": "start dictation",
+      "aliases": [
+        "dictate",
+        "voice input"
+      ],
+      "action_type": "internal",
+      "action": "start_dictation",
+      "description": "Start voice dictation mode",
+      "category": "dictation",
+      "enabled": true
+    },
+    {
+      "phrase": "stop listening",
+      "aliases": [
+        "stop",
+        "pause"
+      ],
+      "action_type": "internal",
+      "action": "stop_listening",
+      "description": "Stop voice recognition",
+      "category": "dictation",
+      "enabled": true
+    },
+    {
+      "phrase": "glossary",
+      "aliases": [
+        "add term",
+        "add to glossary"
+      ],
+      "action_type": "ahk_inline",
+      "action": "Send, !{Down}",
+      "description": "Add term pair to memoQ termbase",
+      "category": "memoq",
+      "enabled": true
+    },
+    {
+      "phrase": "tag next",
+      "aliases": [
+        "next tag",
+        "insert tag"
+      ],
+      "action_type": "ahk_inline",
+      "action": "Send, ^{PgDn}\nSleep, 100\nSend, {F9}\nSleep, 100\nSend, ^{Enter}",
+      "description": "Go to end, insert next tag, confirm",
+      "category": "memoq",
+      "enabled": true
+    },
+    {
+      "phrase": "confirm memoQ",
+      "aliases": [
+        "confirm memo"
+      ],
+      "action_type": "ahk_inline",
+      "action": "Send, ^{Enter}",
+      "description": "Confirm segment in memoQ",
+      "category": "memoq",
+      "enabled": true
+    },
+    {
+      "phrase": "confirm trados",
+      "aliases": [
+        "confirm studio"
+      ],
+      "action_type": "ahk_inline",
+      "action": "Send, ^{Enter}",
+      "description": "Confirm segment in Trados Studio",
+      "category": "trados",
+      "enabled": true
+    }
+  ]
+}

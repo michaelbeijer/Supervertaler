@@ -52,7 +52,6 @@ setup(
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
-        "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
         "Operating System :: Microsoft :: Windows",
         "Operating System :: POSIX :: Linux",
@@ -62,72 +61,6 @@ setup(
         "Environment :: X11 Applications :: Qt",
     ],
     python_requires=">=3.10",
-    install_requires=[
-        # Core UI Framework
-        "PyQt6>=6.5.0",
-        "PyQt6-WebEngine>=6.5.0",
-        
-        # Document Processing
-        "python-docx>=0.8.11",
-        "openpyxl>=3.1.0",
-        "Pillow>=10.0.0",
-        "lxml>=4.9.0",
-        
-        # AI/LLM Providers
-        "openai>=1.0.0",
-        "anthropic>=0.7.0",
-        "google-generativeai>=0.3.0",
-        "requests>=2.28.0",
-        
-        # Document Conversion & Analysis
-        "markitdown>=0.0.1",
-        
-        # Translation Quality Metrics
-        "sacrebleu>=2.3.1",
-        
-        # Clipboard Operations
-        "pyperclip>=1.8.2",
-        
-        # PDF Processing
-        "PyMuPDF>=1.23.0",
-        
-        # Audio Processing
-        "numpy>=1.24.0",
-        "sounddevice>=0.4.6",
-        
-        # Semantic Search (Supermemory)
-        "sentence-transformers>=2.2.0",
-        "chromadb>=0.4.0",
-        
-        # YAML Support
-        "pyyaml>=6.0.0",
-        
-        # Markdown Rendering
-        "markdown>=3.4.0",
-        
-        # Spellchecking
-        "pyspellchecker>=0.7.0",
-        
-        # Machine Translation APIs
-        "boto3>=1.28.0",
-        "deepl>=1.15.0",
-    ],
-    extras_require={
-        "voice": [
-            "openai-whisper>=20230314",
-        ],
-        "windows": [
-            "keyboard>=0.13.5",
-            "ahk>=1.0.0",
-            "cyhunspell>=2.0.0",
-        ],
-        "all": [
-            "openai-whisper>=20230314",
-            "keyboard>=0.13.5",
-            "ahk>=1.0.0",
-            "cyhunspell>=2.0.0",
-        ],
-    },
     entry_points={
         "console_scripts": [
             "supervertaler=Supervertaler:main",

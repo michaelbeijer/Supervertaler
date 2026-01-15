@@ -4,11 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "Supervertaler"
-version = "1.9.103"
-description = "Professional AI-powered translation workbench with multi-LLM support, glossary system, TM, spellcheck, voice commands, and PyQt6 interface. Modular architecture - install only the features you need!"
+version = "1.9.105"
+description = "Professional AI-powered translation workbench with multi-LLM support, glossary system, TM, spellcheck, voice commands, and PyQt6 interface. Batteries included (core)."
 readme = "README.md"
 requires-python = ">=3.10"
-license = {text = "MIT"}
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [
     {name = "Michael Beijer", email = "info@michaelbeijer.co.uk"},
 ]
@@ -44,7 +45,6 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Operating System :: Microsoft :: Windows",
     "Operating System :: POSIX :: Linux",
@@ -57,7 +57,7 @@ classifiers = [
 dependencies = [
     # Core UI Framework
     "PyQt6>=6.5.0",
-    # Note: PyQt6-WebEngine moved to [web] extra
+    "PyQt6-WebEngine>=6.5.0",
     
     # Document Processing
     "python-docx>=0.8.11",
@@ -79,14 +79,9 @@ dependencies = [
     
     # Clipboard Operations
     "pyperclip>=1.8.2",
-    
-    # Note: Heavy dependencies moved to optional extras:
-    # - sentence-transformers, chromadb → [supermemory]
-    # - PyMuPDF → [pdf]
-    # - sounddevice, numpy, whisper → [voice]
-    # - boto3, deepl → [mt]
-    # - spylls → [hunspell]  (pure Python Hunspell, works on Windows)
-    # - PyQt6-WebEngine → [web]
+
+    # Encoding repair (optional in code, included by default)
+    "chardet>=5.0.0",
     
     # YAML Support
     "pyyaml>=6.0.0",
@@ -96,70 +91,46 @@ dependencies = [
     
     # Basic Spellchecking (lightweight, works offline)
     "pyspellchecker>=0.7.0",
+
+    # Voice dictation/commands
+    "sounddevice>=0.4.6",
+    "numpy>=1.24.0",
+
+    # PDF text extraction
+    "PyMuPDF>=1.23.0",
+
+    # MT providers
+    "boto3>=1.28.0",
+    "deepl>=1.15.0",
+
+    # Advanced spellcheck (Hunspell via pure Python)
+    "spylls>=0.1.7",
+
+    # Windows automation / system helpers
+    "keyboard>=0.13.5; platform_system == 'Windows'",
+    "ahk>=1.0.0; platform_system == 'Windows'",
+    "pyautogui>=0.9.54; platform_system == 'Windows'",
+    "psutil>=5.9.0",
 ]
 
 [project.optional-dependencies]
-# Modular feature extras - install only what you need!
-# Example: pip install supervertaler[supermemory,voice]
+# Local Whisper is intentionally optional because it pulls in heavy PyTorch wheels.
+# Voice dictation/commands still work via the OpenAI Whisper API without it.
+local-whisper = ["openai-whisper>=20230314"]
 
-# Semantic search across translation memories (~600 MB)
-supermemory = [
-    "sentence-transformers>=2.2.0",
-    "chromadb>=0.4.0",
-]
+# Legacy aliases for backward compatibility (no longer used)
+all = []
 
-# Voice dictation and commands (~150 MB, requires ffmpeg)
-voice = [
-    "openai-whisper>=20230314",
-    "sounddevice>=0.4.6",
-    "numpy>=1.24.0",
-]
-
-# Built-in web browser for research (~100 MB)
-web = [
-    "PyQt6-WebEngine>=6.5.0",
-]
-
-# PDF text extraction and OCR (~30 MB)
-pdf = [
-    "PyMuPDF>=1.23.0",
-]
-
-# Additional MT providers: DeepL, Amazon (~30 MB)
-mt = [
-    "boto3>=1.28.0",
-    "deepl>=1.15.0",
-]
-
-# Advanced Hunspell spellcheck with regional variants (~20 MB)
-hunspell = [
-    "spylls>=0.1.7",  # Pure Python - works on all platforms including Windows
-]
-
-# Windows automation features (~10 MB)
-windows = [
-    "keyboard>=0.13.5",
-    "ahk>=1.0.0",
-]
-
-# Minimal install - just core translation features (~300 MB)
+# Legacy extras (kept for backward compatibility).
+# Some extras are still listed for historical reasons and may be no-ops.
+voice = []
+web = []
+pdf = []
+mt = []
+hunspell = []
+windows = []
 core = []
-
-# Full install - everything (~1.2 GB)
-all = [
-    "sentence-transformers>=2.2.0",
-    "chromadb>=0.4.0",
-    "openai-whisper>=20230314",
-    "sounddevice>=0.4.6",
-    "numpy>=1.24.0",
-    "PyQt6-WebEngine>=6.5.0",
-    "PyMuPDF>=1.23.0",
-    "boto3>=1.28.0",
-    "deepl>=1.15.0",
-    "spylls>=0.1.7",
-    "keyboard>=0.13.5",
-    "ahk>=1.0.0",
-]
+all = []
 
 [project.urls]
 Homepage = "https://supervertaler.com"

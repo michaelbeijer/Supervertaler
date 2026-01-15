@@ -2,7 +2,35 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.103 (January 14, 2026)
+**Current Version:** v1.9.105 (January 15, 2026)
+
+## 🗑️ Supermemory Removed (v1.9.105) - January 15, 2026
+
+**Major Architectural Change**
+
+- **Removed Supermemory** (vector-indexed semantic search) from the project entirely
+- Supermemory did not work reliably in frozen PyInstaller builds due to complex PyTorch native dependencies
+- **Recommendation:** Focus development effort on improving the SQLite-based Translation Memory system
+  - Better TMX import performance for large files
+  - Advanced fuzzy matching algorithms
+  - More reliable and faster than vector-based approaches for professional translation workflows
+
+**Removed:**
+- `modules/supermemory.py` (2100+ lines)
+- Supermemory tab from UI
+- Auto-init and cleanup code
+- Dependencies: sentence-transformers, chromadb, tokenizers
+- ~600 MB from default installation footprint
+
+**Files Modified:**
+- `Supervertaler.py` - Removed UI tab, auto-init, cleanup methods
+- `modules/feature_manager.py` - Removed supermemory feature definition
+- `pyproject.toml` - Removed supermemory pip extra and dependencies
+- Build specs updated (CORE/FULL now only differ in Local Whisper inclusion)
+
+## 📦 Packaging: Lighter Default Install (v1.9.104) - January 14, 2026
+
+- Made **Supermemory** an optional install extra again, so the default `pip install supervertaler` no longer pulls the heavy ML stack (PyTorch / sentence-transformers / ChromaDB). Install with `pip install supervertaler[supermemory]` when needed.
 
 ## ✅ Filtered Ctrl+Enter + Website Screenshots (v1.9.103) - January 14, 2026
 

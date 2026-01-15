@@ -127,7 +127,8 @@ This allows voice dictation while translating!
 ## Technical Details
 
 **Dependencies:**
-- `openai-whisper` - Speech recognition model
+- `openai` - OpenAI Whisper API (recommended)
+- `openai-whisper` (optional) - Offline/local Whisper model (very large dependency; installs PyTorch)
 - `pyaudio` - Audio recording
 - `sounddevice` - Audio I/O
 - `PyQt6` - GUI framework

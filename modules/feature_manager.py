@@ -2,25 +2,26 @@
 Supervertaler Feature Manager
 =============================
 
-Manages optional features that can be enabled/disabled to reduce disk space
-and dependencies. Features can be toggled in Settings → Features.
+Manages feature availability and user enable/disable toggles. Features can be
+toggled in Settings → Features.
 
 Each feature module has:
-- Required pip packages (installed separately via extras)
+- Required pip packages (some are optional extras)
 - Size estimate for user information
 - Availability check (are dependencies installed?)
 - Enable/disable toggle (user preference)
 
 Installation examples:
-    pip install supervertaler                    # Core only (~300 MB)
-    pip install supervertaler[supermemory]       # + Semantic search (~900 MB)
-    pip install supervertaler[voice]             # + Voice commands (~400 MB)
-    pip install supervertaler[all]               # Everything (~1.2 GB)
+    pip install supervertaler                    # Recommended core install
+    pip install supervertaler[supermemory]       # Optional: Supermemory semantic search (heavy)
+    pip install supervertaler[local-whisper]     # Optional: Local Whisper (offline, heavy)
+    pip install supervertaler[all]               # Legacy alias (no-op; kept for compatibility)
 """
 
 import json
 import os
 import importlib.util
+import importlib
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Callable
 from pathlib import Path
@@ -42,37 +43,47 @@ class FeatureModule:
     
     def is_available(self) -> bool:
         """Check if required packages are installed."""
+        # IMPORTANT: do NOT import the module here.
+        # Some optional features (e.g., sentence-transformers/torch) can be slow to import
+        # and may even crash in frozen/PyInstaller builds depending on native deps.
+        # Availability checks should be cheap and side-effect free.
         try:
-            importlib.import_module(self.check_import)
-            return True
-        except ImportError:
+            return importlib.util.find_spec(self.check_import) is not None
+        except (ImportError, ValueError):
             return False
 
 
 # Define all optional feature modules
 FEATURE_MODULES: Dict[str, FeatureModule] = {
-    "supermemory": FeatureModule(
-        id="supermemory",
-        name="Supermemory (Semantic Search)",
-        description="Vector-indexed semantic search across translation memories using AI embeddings. Find similar translations by meaning, not just exact text matches.",
-        pip_extra="supermemory",
-        packages=["sentence-transformers", "chromadb"],
-        size_mb=600,
-        check_import="sentence_transformers",
-        icon="🧠",
-        category="AI Features",
-    ),
     "voice": FeatureModule(
         id="voice",
         name="Supervoice (Voice Commands)",
-        description="Voice dictation and hands-free commands using OpenAI Whisper. Say 'next segment', 'confirm', 'translate' to control Supervertaler.",
+        description=(
+            "Voice dictation and hands-free commands. Works via the OpenAI Whisper API (recommended). "
+            "Optional offline Local Whisper is available via the 'local-whisper' extra."
+        ),
         pip_extra="voice",
-        packages=["openai-whisper", "sounddevice", "numpy"],
+        packages=["sounddevice", "numpy", "openai"],
         size_mb=150,
-        check_import="whisper",
+        check_import="sounddevice",
         icon="🎤",
         category="AI Features",
-        enabled_by_default=False,  # Requires ffmpeg system dependency
+        enabled_by_default=False,
+    ),
+    "local_whisper": FeatureModule(
+        id="local_whisper",
+        name="Local Whisper (Offline Speech Recognition)",
+        description=(
+            "Offline Whisper speech recognition (no API key required). This is a heavy dependency (PyTorch) and "
+            "may increase install size significantly. Requires FFmpeg for best results."
+        ),
+        pip_extra="local-whisper",
+        packages=["openai-whisper"],
+        size_mb=1500,
+        check_import="whisper",
+        icon="🤖",
+        category="AI Features",
+        enabled_by_default=False,
     ),
     "webengine": FeatureModule(
         id="webengine",

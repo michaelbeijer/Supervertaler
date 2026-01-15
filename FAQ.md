@@ -557,7 +557,7 @@ Supervertaler provides AI with multiple layers of context:
 - **openai:** OpenAI API client
 - **anthropic:** Claude API client
 - **google-generativeai:** Gemini API client
-- **openai-whisper:** Voice dictation (local model)
+- **openai-whisper (optional):** Offline/local voice dictation (very large dependency; installs PyTorch). The default/recommended path uses the OpenAI Whisper API via `openai`.
 - **Pillow (PIL):** Image processing for figure context
 
 **Architecture:**

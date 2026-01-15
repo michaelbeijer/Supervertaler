@@ -3,7 +3,7 @@ Supervertaler
 =============
 The Ultimate Translation Workbench.
 Modern PyQt6 interface with specialised modules to handle any problem.
-Version: 1.9.103 (QuickMenu + Grid context actions)
+Version: 1.9.104 (Packaging + docs)
 Release Date: January 14, 2026
 Framework: PyQt6
 
@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.103"
+__version__ = "1.9.105"
 __phase__ = "0.9"
 __release_date__ = "2026-01-14"
 __edition__ = "Qt"
@@ -5265,11 +5265,6 @@ class SupervertalerQt(QMainWindow):
         QApplication.instance().processEvents()  # Allow UI to finish initializing
         self.load_font_sizes_from_preferences()
         
-        # Auto-initialize Supermemory if enabled in settings
-        if general_settings.get('supermemory_auto_init', False):
-            from PyQt6.QtCore import QTimer
-            QTimer.singleShot(1000, self._auto_init_supermemory)  # 1 second delay to not block startup
-
         # Auto-check for new models if enabled in settings
         if general_settings.get('auto_check_models', True):
             from PyQt6.QtCore import QTimer
@@ -5350,44 +5345,6 @@ class SupervertalerQt(QMainWindow):
         except Exception as e:
             self.log(f"⚠️ First-run welcome error: {e}")
     
-    def _auto_init_supermemory(self):
-        """Auto-initialize Supermemory in the background at startup."""
-        try:
-            # Check if Supermemory widget exists (it's lazy-loaded)
-            if not hasattr(self, 'supermemory_widget') or self.supermemory_widget is None:
-                # Import and create the widget to trigger initialization
-                try:
-                    from modules.supermemory import SupermemoryWidget
-                    self.supermemory_widget = SupermemoryWidget(self.user_data_path)
-                    self.log("🧠 Supermemory auto-initialized at startup")
-                    
-                    # Check if engine initialized successfully
-                    if self.supermemory_widget.engine and self.supermemory_widget.engine.is_initialized():
-                        stats = self.supermemory_widget.engine.get_stats()
-                        if stats.get('total_entries', 0) > 0:
-                            self.log(f"  ✓ {stats['total_entries']:,} entries ready for semantic search")
-                        else:
-                            self.log("  ℹ No entries indexed yet. Go to Resources → Supermemory to index TMX files.")
-                except ImportError as e:
-                    self.log(f"  ⚠ Supermemory dependencies not installed: {e}")
-                    self.log("  Run: pip install chromadb sentence-transformers")
-            else:
-                # Widget already exists, just ensure engine is initialized
-                if self.supermemory_widget.engine and not self.supermemory_widget.engine.is_initialized():
-                    self.supermemory_widget.engine.initialize()
-                    self.log("🧠 Supermemory engine initialized")
-        except Exception as e:
-            error_msg = str(e)
-            self.log(f"⚠ Supermemory auto-init failed: {error_msg}")
-
-            # Provide helpful instructions for common Windows DLL errors
-            if "DLL" in error_msg or "c10.dll" in error_msg or "torch" in error_msg.lower():
-                self.log("  💡 PyTorch DLL loading failed. Try these fixes:")
-                self.log("  1. Install Visual C++ Redistributables: https://aka.ms/vs/17/release/vc_redist.x64.exe")
-                self.log("  2. Reinstall PyTorch: pip uninstall torch sentence-transformers")
-                self.log("     Then: pip install torch sentence-transformers")
-                self.log("  3. If still failing, disable Supermemory auto-init in Settings → AI Settings")
-
     def _check_for_new_models(self, force: bool = False):
         """
         Check for new LLM models from providers
@@ -6764,7 +6721,7 @@ class SupervertalerQt(QMainWindow):
         self.main_tabs.addTab(grid_widget, "📝 Grid")
         
         # ===== 2. PROJECT RESOURCES TAB =====
-        # Contains TM, Termbases, Supermemory, Non-Translatables, Prompts
+        # Contains TM, Termbases, Non-Translatables, Prompts
         resources_tab = self.create_resources_tab()
         self.main_tabs.addTab(resources_tab, "🗂️ Resources")
         
@@ -8045,27 +8002,6 @@ class SupervertalerQt(QMainWindow):
         layout.addWidget(label)
         return placeholder
 
-    def create_supermemory_tab(self) -> QWidget:
-        """Create the Supermemory tab - Vector-Indexed Translation Memory"""
-        try:
-            from modules.supermemory import SupermemoryWidget
-            
-            # Create and return the Supermemory widget
-            supermemory_widget = SupermemoryWidget(main_window=self, parent=self)
-            self.supermemory_widget = supermemory_widget  # Store reference
-            
-            return supermemory_widget
-        except Exception as e:
-            self.log(f"[Supermemory] Error creating tab: {e}")
-            # Return placeholder if module fails to load
-            placeholder = QWidget()
-            layout = QVBoxLayout(placeholder)
-            label = QLabel(f"🧠 Supermemory\n\nFailed to load: {e}\n\nInstall dependencies with:\npip install chromadb sentence-transformers")
-            label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            label.setStyleSheet("color: #888; font-size: 12px;")
-            layout.addWidget(label)
-            return placeholder
-
     def _get_api_keys(self) -> dict:
         """Get API keys from settings"""
         from modules.llm_clients import load_api_keys
@@ -8077,7 +8013,6 @@ class SupervertalerQt(QMainWindow):
         
         Superlookup provides concordance search plus:
         - Termbase search
-        - Supermemory semantic search  
         - Machine Translation
         - Web Resources
         
@@ -8424,10 +8359,6 @@ class SupervertalerQt(QMainWindow):
         
         termbase_tab = self.create_termbases_tab()
         resources_tabs.addTab(termbase_tab, "🏷️ Glossaries")
-        
-        # Supermemory - Vector-Indexed Translation Memory (semantic search)
-        supermemory_tab = self.create_supermemory_tab()
-        resources_tabs.addTab(supermemory_tab, "🧠 Supermemory")
         
         nt_tab = self.create_non_translatables_tab()
         resources_tabs.addTab(nt_tab, "🚫 Non-Translatables")
@@ -13186,7 +13117,7 @@ class SupervertalerQt(QMainWindow):
         general_tab = self._create_general_settings_tab()
         settings_tabs.addTab(scroll_area_wrapper(general_tab), "⚙️ General")
         
-        # ===== TAB 2: AI Settings (LLM, Ollama, Supermemory) =====
+        # ===== TAB 2: AI Settings (LLM, Ollama) =====
         ai_tab = self._create_ai_settings_tab()
         settings_tabs.addTab(scroll_area_wrapper(ai_tab), "🤖 AI Settings")
         
@@ -13321,7 +13252,7 @@ class SupervertalerQt(QMainWindow):
         return tab
     
     def _create_ai_settings_tab(self):
-        """Create unified AI Settings tab - combines LLM, Ollama, Supermemory, and AI Assistant settings"""
+        """Create unified AI Settings tab - combines LLM, Ollama, and AI Assistant settings"""
         from PyQt6.QtWidgets import QCheckBox, QGroupBox, QPushButton
         
         tab = QWidget()
@@ -13606,27 +13537,6 @@ class SupervertalerQt(QMainWindow):
         )
         ollama_layout.addWidget(ollama_keepwarm_cb)
         
-        # Supermemory context injection setting
-        supermemory_cb = CheckmarkCheckBox("🧠 Use Supermemory for Ollama translations")
-        supermemory_cb.setChecked(general_settings.get('supermemory_ollama_context', True))
-        supermemory_cb.setToolTip(
-            "When enabled, Supermemory searches your indexed TMX files for similar segments\n"
-            "and injects them into the Ollama prompt as reference translations.\n\n"
-            "Benefits: Better terminology, learns from your TMs, domain-specific accuracy.\n\n"
-            "Requirements: TMX files indexed in Resources → Supermemory"
-        )
-        ollama_layout.addWidget(supermemory_cb)
-        
-        # Supermemory auto-initialize at startup
-        supermemory_autoinit_cb = CheckmarkCheckBox("🚀 Auto-initialize Supermemory at startup")
-        supermemory_autoinit_cb.setChecked(general_settings.get('supermemory_auto_init', False))
-        supermemory_autoinit_cb.setToolTip(
-            "When enabled, Supermemory automatically initializes at startup.\n"
-            "Pre-loads the vector database for faster first searches.\n\n"
-            "Note: Adds ~2-5 seconds to startup time (runs in background)."
-        )
-        ollama_layout.addWidget(supermemory_autoinit_cb)
-        
         ollama_info = QLabel(
             "💡 <b>Tip:</b> Ollama normally unloads models after 5 minutes of inactivity.\n"
             "Enable 'Keep warm' for faster translations if you translate frequently."
@@ -13868,7 +13778,7 @@ class SupervertalerQt(QMainWindow):
             openai_enable_cb, claude_enable_cb, gemini_enable_cb, ollama_enable_cb,
             batch_size_spin, surrounding_spin, full_context_cb, context_slider,
             check_tm_cb, auto_propagate_cb, delay_spin,
-            ollama_keepwarm_cb, supermemory_cb, supermemory_autoinit_cb,
+            ollama_keepwarm_cb,
             llm_matching_cb, auto_markdown_cb, llm_spin
         ))
         layout.addWidget(save_btn)
@@ -15647,6 +15557,19 @@ class SupervertalerQt(QMainWindow):
                     api_keys = self.load_api_keys()
                     api_key = api_keys.get('openai') or api_keys.get('openai_api_key')
                     if not api_key:
+                        # If no API key, only fall back if Local Whisper is actually installed.
+                        try:
+                            import whisper  # noqa: F401
+                        except ImportError:
+                            QMessageBox.warning(
+                                self, "OpenAI API Key Required",
+                                "To use OpenAI Whisper API, please set your OpenAI API key in:\n\n"
+                                "Settings → AI Settings → OpenAI API Key\n\n"
+                                "Local Whisper is not installed either.\n\n"
+                                "Install offline Local Whisper with:\n"
+                                "  pip install supervertaler[local-whisper]"
+                            )
+                            return
                         QMessageBox.warning(
                             self, "OpenAI API Key Required",
                             "To use OpenAI Whisper API, please set your OpenAI API key in:\n\n"
@@ -16231,6 +16154,7 @@ class SupervertalerQt(QMainWindow):
         """Create Features Settings tab - view optional modules and installation status."""
         from PyQt6.QtWidgets import QGroupBox, QPushButton, QProgressBar, QTextEdit, QFrame, QSplitter
         from modules.feature_manager import get_feature_manager, FEATURE_MODULES
+        import sys
         
         tab = QWidget()
         main_layout = QVBoxLayout(tab)
@@ -16239,11 +16163,24 @@ class SupervertalerQt(QMainWindow):
         
         fm = get_feature_manager(str(self.user_data_path))
         
+        is_frozen_build = bool(getattr(sys, 'frozen', False))
+
         # Header info with legend
+        header_subtitle = (
+            "Supervertaler has a modular design. Core features work out of the box. "
+            "Optional features require additional packages."
+        )
+        if is_frozen_build:
+            header_subtitle += (
+                " <b>Note:</b> This is the Windows EXE build; you can't install pip extras into this portable app. "
+                "To add optional features, install the Python version (pip) or download a separate EXE build that includes them."
+            )
+        else:
+            header_subtitle += " See install commands on the right."
+
         header_info = QLabel(
             "📦 <b>Optional Feature Modules</b><br>"
-            "<span style='color:#666;'>Supervertaler has a modular design. Core features work out of the box. "
-            "Optional features require additional packages - see install commands on the right.</span><br><br>"
+            f"<span style='color:#666;'>{header_subtitle}</span><br><br>"
             "<b>✅ Installed</b> — Feature is ready to use&nbsp;&nbsp;&nbsp;&nbsp;"
             "<b>❌ Not installed</b> — Run the install command to add this feature"
         )
@@ -16350,10 +16287,17 @@ class SupervertalerQt(QMainWindow):
         right_layout.setSpacing(10)
         
         # Install header
-        install_header = QLabel(
-            "<b>🔧 Installation Commands</b><br>"
-            "<span style='font-size:8pt; color:#666;'>Run in Terminal to add features</span>"
-        )
+        if is_frozen_build:
+            install_header_text = (
+                "<b>🔧 Installation Commands</b><br>"
+                "<span style='font-size:8pt; color:#666;'>These commands apply to the <b>Python/pip</b> install (not the Windows EXE build).</span>"
+            )
+        else:
+            install_header_text = (
+                "<b>🔧 Installation Commands</b><br>"
+                "<span style='font-size:8pt; color:#666;'>Run in Terminal to add features</span>"
+            )
+        install_header = QLabel(install_header_text)
         install_header.setTextFormat(Qt.TextFormat.RichText)
         install_header.setStyleSheet("padding: 5px;")
         right_layout.addWidget(install_header)
@@ -16395,21 +16339,31 @@ class SupervertalerQt(QMainWindow):
         pypi_text = QTextEdit()
         pypi_text.setReadOnly(True)
         pypi_text.setStyleSheet(terminal_style)
+        if is_frozen_build:
+            pypi_prefix = (
+                "# WINDOWS EXE BUILD NOTE\n"
+                "# This portable EXE does not support installing extras via pip inside the app.\n"
+                "# To add Local Whisper: Download the FULL Windows build from GitHub releases.\n"
+                "#\n"
+                "# Releases: https://github.com/michaelbeijer/Supervertaler/releases/latest\n\n"
+            )
+        else:
+            pypi_prefix = "# If you installed via: pip install supervertaler\n\n"
+
         pypi_text.setPlainText(
-            "# If you installed via: pip install supervertaler\n\n"
+            pypi_prefix +
             "# ADD FEATURES:\n"
-            "pip install supervertaler[supermemory]  # ~600 MB\n"
             "pip install supervertaler[voice]       # ~150 MB\n"
             "pip install supervertaler[web]         # ~100 MB\n"
             "pip install supervertaler[pdf]         # ~30 MB\n"
             "pip install supervertaler[mt]          # ~30 MB\n\n"
             "# MULTIPLE:\n"
-            "pip install supervertaler[supermemory,voice]\n\n"
+            "pip install supervertaler[voice,web]\n\n"
             "# EVERYTHING:\n"
-            "pip install supervertaler[all]         # ~1.2 GB\n\n"
+            "pip install supervertaler[all]         # ~300 MB\n\n"
             "# ═══════════════════════════════════════════════════\n"
             "# EXTRAS (copy-paste these names):\n"
-            "# supermemory, voice, web, pdf, mt, hunspell, windows\n"
+            "# voice, web, pdf, mt, hunspell, windows\n"
             "# ═══════════════════════════════════════════════════"
         )
         commands_tabs.addTab(pypi_text, "📦 PyPI")
@@ -16418,21 +16372,29 @@ class SupervertalerQt(QMainWindow):
         repo_text = QTextEdit()
         repo_text.setReadOnly(True)
         repo_text.setStyleSheet(terminal_style)
+        if is_frozen_build:
+            repo_prefix = (
+                "# PYTHON DEV INSTALL NOTE\n"
+                "# These commands are for developers / Python installs (not the EXE build).\n\n"
+            )
+        else:
+            repo_prefix = "# If you cloned from GitHub:\n\n"
+
         repo_text.setPlainText(
-            "# If you cloned from GitHub:\n\n"
+            repo_prefix +
             "# OPTION A - Direct install:\n"
-            "pip install sentence-transformers chromadb\n"
-            "pip install openai-whisper sounddevice\n"
+            "pip install .\n"
+            "pip install sounddevice numpy\n"
+            "pip install supervertaler[local-whisper]  # Optional: offline Local Whisper (heavy)\n"
             "pip install PyQt6-WebEngine\n"
             "pip install PyMuPDF\n"
             "pip install deepl boto3\n\n"
             "# OPTION B - Editable install:\n"
             "cd C:\\path\\to\\Supervertaler\n"
-            "pip install -e .[supermemory]\n"
+            "pip install -e .\n"
             "pip install -e .[all]  # Everything\n\n"
             "# ═══════════════════════════════════════════════════\n"
             "# ALL PACKAGES (copy-paste):\n"
-            "# sentence-transformers chromadb openai-whisper\n"
             "# sounddevice PyQt6-WebEngine PyMuPDF deepl boto3\n"
             "# spylls keyboard ahk\n"
             "#\n"
@@ -16814,7 +16776,7 @@ class SupervertalerQt(QMainWindow):
                                    openai_enable_cb, claude_enable_cb, gemini_enable_cb, ollama_enable_cb,
                                    batch_size_spin, surrounding_spin, full_context_cb, context_slider,
                                    check_tm_cb, auto_propagate_cb, delay_spin,
-                                   ollama_keepwarm_cb, supermemory_cb, supermemory_autoinit_cb,
+                                   ollama_keepwarm_cb,
                                    llm_matching_cb, auto_markdown_cb, llm_spin):
         """Save all AI settings from the unified AI Settings tab"""
         # Determine selected provider
@@ -16878,8 +16840,6 @@ class SupervertalerQt(QMainWindow):
         general_prefs['auto_propagate_100'] = auto_propagate_cb.isChecked()
         general_prefs['lookup_delay'] = delay_spin.value()
         general_prefs['ollama_keepwarm'] = ollama_keepwarm_cb.isChecked()
-        general_prefs['supermemory_ollama_context'] = supermemory_cb.isChecked()
-        general_prefs['supermemory_auto_init'] = supermemory_autoinit_cb.isChecked()
         general_prefs['enable_llm_matching'] = llm_matching_cb.isChecked()
         general_prefs['auto_generate_markdown'] = auto_markdown_cb.isChecked()
         general_prefs['auto_check_models'] = self.auto_check_models_cb.isChecked()
@@ -16990,8 +16950,6 @@ class SupervertalerQt(QMainWindow):
             'enable_auto_backup': enable_backup_cb.isChecked() if enable_backup_cb is not None else True,
             'backup_interval_minutes': backup_interval_spin.value() if backup_interval_spin is not None else 5,
             'ollama_keepwarm': existing_settings.get('ollama_keepwarm', False),  # Preserve AI setting
-            'supermemory_ollama_context': existing_settings.get('supermemory_ollama_context', True),  # Preserve AI setting
-            'supermemory_auto_init': existing_settings.get('supermemory_auto_init', False),  # Preserve AI setting
             'grid_font_size': self.default_font_size,
             'results_match_font_size': 9,
             'results_compare_font_size': 9,
@@ -31402,13 +31360,6 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         else:
             settings_layout.addWidget(QLabel(f"<b>Spellcheck:</b> Not available"))
         
-        # Supermemory
-        if hasattr(self, 'supermemory') and self.supermemory:
-            sm_count = self.supermemory.get_segment_count() if hasattr(self.supermemory, 'get_segment_count') else 0
-            settings_layout.addWidget(QLabel(f"<b>Supermemory:</b> ✅ Active ({sm_count:,} entries)"))
-        else:
-            settings_layout.addWidget(QLabel(f"<b>Supermemory:</b> <span style='color: #999;'>Not initialized</span>"))
-        
         layout.addWidget(settings_group)
         
         layout.addStretch()
@@ -33020,6 +32971,20 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             max_duration = dictation_settings.get('max_duration', 10)
             lang_setting = dictation_settings.get('language', 'Auto (use project target language)')
 
+            # Recognition engine: local vs OpenAI API
+            use_api = dictation_settings.get('recognition_engine', 'local') == 'api'
+            api_key = None
+            if use_api:
+                api_keys = self.load_api_keys()
+                api_key = api_keys.get('openai') or api_keys.get('openai_api_key')
+                if not api_key:
+                    QMessageBox.warning(
+                        self, "OpenAI API Key Required",
+                        "To use OpenAI Whisper API, please set your OpenAI API key in:\n\n"
+                        "Settings → AI Settings → OpenAI API Key"
+                    )
+                    return
+
             # Determine language
             if lang_setting == 'Auto (use project target language)':
                 # Use project's target language
@@ -33049,7 +33014,9 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             self.dictation_thread = QuickDictationThread(
                 model_name=model_name,
                 language=lang_code,
-                duration=max_duration
+                duration=max_duration,
+                use_api=use_api,
+                api_key=api_key
             )
 
             # Connect signals
@@ -33064,7 +33031,10 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             self._set_dictation_button_recording(True)
 
             # Start recording
-            self.log(f"▶️ Starting dictation thread (model={model_name}, language={lang_code}, duration={max_duration}s)...")
+            if use_api:
+                self.log(f"▶️ Starting dictation thread (OpenAI Whisper API, language={lang_code}, duration={max_duration}s)...")
+            else:
+                self.log(f"▶️ Starting dictation thread (local Whisper model={model_name}, language={lang_code}, duration={max_duration}s)...")
             self.dictation_thread.start()
 
         except Exception as e:
@@ -36232,33 +36202,9 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                 except:
                     pass
                 
-                # Get Supermemory context (TM matches from vector database)
-                supermemory_context = ""
-                supermemory_enabled = general_prefs.get('supermemory_ollama_context', True)
-                
-                if supermemory_enabled:
-                    try:
-                        if hasattr(self, 'supermemory_widget') and self.supermemory_widget:
-                            engine = self.supermemory_widget.engine
-                            if engine and engine.is_initialized():
-                                supermemory_context = engine.get_context_for_llm(
-                                    segment.source,
-                                    n_examples=3,
-                                    source_lang=source_lang,
-                                    target_lang=target_lang
-                                )
-                                if supermemory_context:
-                                    self.log(f"  [Supermemory] Injecting {supermemory_context.count('Source:')} TM examples into prompt")
-                    except Exception as e:
-                        self.log(f"  [Supermemory] Error getting context: {e}")
-                
-                # Build optimized prompt with Supermemory context
+                # Build optimized prompt
                 prompt_parts = [f"You are a professional translator ({source_lang} → {target_lang})."]
                 
-                # Add Supermemory TM matches first (most important for terminology)
-                if supermemory_context:
-                    prompt_parts.append("")
-                    prompt_parts.append(supermemory_context)
                 
                 # Add surrounding segment context
                 if context_lines:
@@ -39769,7 +39715,7 @@ class SuperlookupTab(QWidget):
         self.lang_from_combo.addItem("Any", None)
         self.lang_to_combo.addItem("Any", None)
         
-        # Results area (with tabs for TM, termbase, MT, Supermemory)
+        # Results area (with tabs for TM, termbase, MT)
         self.results_tabs = QTabWidget()
         self.results_tabs.tabBar().setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.results_tabs.tabBar().setDrawBase(False)
@@ -39783,10 +39729,6 @@ class SuperlookupTab(QWidget):
         termbase_tab = self.create_termbase_results_tab()
         self.results_tabs.addTab(termbase_tab, "📚 Glossaries")
         
-        # Supermemory Results tab (semantic search)
-        supermemory_tab = self.create_supermemory_results_tab()
-        self.results_tabs.addTab(supermemory_tab, "🧠 Supermemory")
-        
         # MT Results tab
         mt_tab = self.create_mt_results_tab()
         self.results_tabs.addTab(mt_tab, "🤖 Machine Translation")
@@ -39799,7 +39741,7 @@ class SuperlookupTab(QWidget):
         settings_tab = self.create_settings_tab()
         self.results_tabs.addTab(settings_tab, "⚙️ Settings")
         
-        # Connect tab change for Supermemory initialization and Settings refresh
+        # Connect tab change for Settings refresh
         self.results_tabs.currentChanged.connect(self.on_results_tab_changed)
         
         layout.addWidget(self.results_tabs, stretch=1)

@@ -1,12 +1,8 @@
-# Supervertaler Dependencies
-# Install all required packages: pip install -r requirements.txt
-#
-# For minimal install (core only): pip install supervertaler
-# For full install: pip install supervertaler[all]
-# For specific features: pip install supervertaler[supermemory,voice]
+# Supervertaler Dependencies (Full / Batteries Included)
+# Install everything needed for all features:
+#   pip install -r requirements.txt
 
-# ===== CORE DEPENDENCIES (Required) =====
-# These are installed with: pip install supervertaler
+# ===== CORE DEPENDENCIES =====
 
 # Core UI Framework
 PyQt6>=6.5.0
@@ -22,6 +18,12 @@ openai>=1.0.0
 anthropic>=0.7.0
 google-generativeai>=0.3.0
 requests>=2.28.0
+
+# Encoding detection (used by Encoding Repair module)
+chardet>=5.0.0
+
+# System helpers (used for process cleanup / system specs)
+psutil>=5.9.0
 
 # Document Conversion & Analysis
 markitdown>=0.0.1
@@ -42,15 +44,9 @@ markdown>=3.4.0
 pyspellchecker>=0.7.0
 
 
-# ===== OPTIONAL DEPENDENCIES =====
-# Install specific features with: pip install supervertaler[feature_name]
-# Or install everything with: pip install supervertaler[all]
-
-# [supermemory] - Semantic Search (~600 MB)
-# Vector-indexed semantic search across translation memories
-sentence-transformers>=2.2.0
-chromadb==0.6.3
-tokenizers==0.22.0
+# ===== FEATURE DEPENDENCIES =====
+# These are required for certain features, and are included here so this
+# requirements file provides a complete install.
 
 # [web] - Built-in Web Browser (~100 MB)
 # Web browser for Superlookup research resources
@@ -64,7 +60,10 @@ PyMuPDF>=1.23.0
 # Voice commands and dictation using Whisper
 numpy>=1.24.0
 sounddevice>=0.4.6
-# openai-whisper>=20230314  # Uncomment for local Whisper model
+# Optional (offline/local speech recognition). Heavy dependency (PyTorch).
+# Install only if you want Local Whisper mode:
+#   pip install supervertaler[local-whisper]
+# openai-whisper>=20230314
 
 # [mt] - Additional MT Providers (~30 MB)
 # DeepL API and Amazon Translate
@@ -77,8 +76,11 @@ spylls>=0.1.7  # Pure Python Hunspell (replaces cyhunspell which doesn't work on
 
 # [windows] - Windows Automation (~10 MB)
 # AutoFingers and keyboard control (Windows only)
-keyboard>=0.13.5
-ahk>=1.0.0
+keyboard>=0.13.5; sys_platform == "win32"
+ahk>=1.0.0; sys_platform == "win32"
+
+# AutoFingers UI automation (used when available)
+pyautogui>=0.9.54; sys_platform == "win32"
 
 
 # ===== PLATFORM-SPECIFIC NOTES =====

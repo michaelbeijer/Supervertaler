@@ -726,7 +726,17 @@ class _VADListenerThread(QObject):
                 # Load local Whisper model once
                 self.status_update.emit("🎤 Loading local speech model...")
                 self.vad_status.emit("loading")
-                import whisper
+                try:
+                    import whisper
+                except ImportError:
+                    self.error_occurred.emit(
+                        "Local Whisper is not installed.\n\n"
+                        "Option A (recommended): Choose 'OpenAI Whisper API' in Settings → Supervoice (requires OpenAI API key).\n"
+                        "Option B: Install Local Whisper:\n"
+                        "  pip install supervertaler[local-whisper]"
+                    )
+                    self._running = False
+                    return
                 self._model = whisper.load_model(self.listener.model_name)
             
             self.status_update.emit("🎤 Always-on listening active (waiting for speech...)")

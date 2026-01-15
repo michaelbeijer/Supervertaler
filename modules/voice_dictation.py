@@ -4,7 +4,6 @@ Uses OpenAI Whisper for multilingual speech recognition
 Supports English, Dutch, and 90+ other languages
 """
 
-import whisper
 import sounddevice as sd
 import numpy as np
 import tempfile
@@ -91,6 +90,17 @@ class TranscriptionThread(QThread):
         """Transcribe audio in background"""
         try:
             import os
+
+            try:
+                import whisper  # Local Whisper (optional)
+            except ImportError:
+                self.error.emit(
+                    "Local Whisper is not installed.\n\n"
+                    "To use offline speech recognition, install:\n"
+                    "  pip install supervertaler[local-whisper]\n\n"
+                    "Or switch to 'OpenAI Whisper API' in Supervoice settings."
+                )
+                return
 
             # Verify file exists
             if not os.path.exists(self.audio_path):
