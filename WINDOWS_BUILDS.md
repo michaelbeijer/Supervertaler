@@ -5,7 +5,7 @@
 Supervertaler Windows releases are published as **two separate ZIP assets**:
 
 ### 1. CORE (Recommended)
-- **File:** `Supervertaler-v1.9.106-Windows-CORE.zip`
+- **File:** `Supervertaler-v1.9.107-Windows-CORE.zip`
 - **Size:** ~300 MB
 - **Contents:** Full application without heavy ML stack
 - **Excludes:** Supermemory, offline Local Whisper (PyTorch)
@@ -13,7 +13,7 @@ Supervertaler Windows releases are published as **two separate ZIP assets**:
 - **Features:** All core CAT tool features, LLM translation, TM/glossaries, voice dictation via OpenAI API
 
 ### 2. FULL (Complete)
-- **File:** `Supervertaler-v1.9.106-Windows-FULL.zip`
+- **File:** `Supervertaler-v1.9.107-Windows-FULL.zip`
 - **Size:** ~900 MB
 - **Contents:** Full application with all optional components
 - **Includes:** Everything in CORE + offline Local Whisper support
@@ -54,8 +54,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\build_windows_release.ps1 
 ## Output Files
 
 After successful build:
-- `dist\Supervertaler-v1.9.106-Windows-CORE.zip`
-- `dist\Supervertaler-v1.9.106-Windows-FULL.zip`
+- `dist\Supervertaler-v1.9.107-Windows-CORE.zip`
+- `dist\Supervertaler-v1.9.107-Windows-FULL.zip`
 
 Each ZIP contains:
 - `Supervertaler.exe`
@@ -64,7 +64,7 @@ Each ZIP contains:
 
 ## Posting to GitHub
 
-1. Create a new release on GitHub with tag `v1.9.106`
+1. Create a new release on GitHub with tag `v1.9.107`
 2. Attach **both** ZIP files to the same release
 3. Users can choose which build suits their needs
 
@@ -87,4 +87,4 @@ Before building, ensure version is updated in:
 
 ## Current Version
 
-**v1.9.106** - January 15, 2026
+**v1.9.107** - January 15, 2026
