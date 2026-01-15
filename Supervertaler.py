@@ -6721,18 +6721,26 @@ class SupervertalerQt(QMainWindow):
         self.main_tabs.addTab(grid_widget, "📝 Grid")
         
         # ===== 2. PROJECT RESOURCES TAB =====
-        # Contains TM, Termbases, Non-Translatables, Prompts
+        # Contains TM, Termbases, Non-Translatables
         resources_tab = self.create_resources_tab()
         self.main_tabs.addTab(resources_tab, "🗂️ Resources")
+        
+        # ===== 3. PROMPT MANAGER TAB =====
+        # Unified Prompt Library + AI Assistant
+        from modules.unified_prompt_manager_qt import UnifiedPromptManagerQt
+        prompt_widget = QWidget()
+        self.prompt_manager_qt = UnifiedPromptManagerQt(self, standalone=False)
+        self.prompt_manager_qt.create_tab(prompt_widget)
+        self.main_tabs.addTab(prompt_widget, "🤖 Prompt Manager")
         
         # Keep backward compatibility reference
         self.document_views_widget = self.main_tabs
         
-        # 3. TOOLS
+        # 4. TOOLS
         tools_tab = self.create_specialised_tools_tab()
         self.main_tabs.addTab(tools_tab, "🛠️ Tools")
 
-        # 4. SETTINGS
+        # 5. SETTINGS
         settings_tab = self.create_settings_tab()
         self.main_tabs.addTab(settings_tab, "⚙️ Settings")
         
@@ -8363,19 +8371,8 @@ class SupervertalerQt(QMainWindow):
         nt_tab = self.create_non_translatables_tab()
         resources_tabs.addTab(nt_tab, "🚫 Non-Translatables")
         
-        # Segmentation Rules
-        seg_tab = self.create_segmentation_rules_tab()
-        resources_tabs.addTab(seg_tab, "📏 Segmentation Rules")
-        
         ref_tab = self.create_reference_images_tab()
         resources_tabs.addTab(ref_tab, "🎯 Image Context")
-        
-        # Prompt Manager (Prompt Library + AI Assistant)
-        from modules.unified_prompt_manager_qt import UnifiedPromptManagerQt
-        prompt_widget = QWidget()
-        self.prompt_manager_qt = UnifiedPromptManagerQt(self, standalone=False)
-        self.prompt_manager_qt.create_tab(prompt_widget)
-        resources_tabs.addTab(prompt_widget, "🤖 Prompt Manager")
         
         layout.addWidget(resources_tabs)
         
@@ -13149,12 +13146,16 @@ class SupervertalerQt(QMainWindow):
         domain_keywords_tab = self._create_domain_keywords_tab()
         settings_tabs.addTab(scroll_area_wrapper(domain_keywords_tab), "🎯 Domain Detection")
 
-        # ===== TAB 10: Keyboard Shortcuts =====
+        # ===== TAB 10: Segmentation Rules =====
+        seg_tab = self.create_segmentation_rules_tab()
+        settings_tabs.addTab(scroll_area_wrapper(seg_tab), "📏 Segmentation Rules")
+
+        # ===== TAB 11: Keyboard Shortcuts =====
         from modules.keyboard_shortcuts_widget import KeyboardShortcutsWidget
         shortcuts_tab = KeyboardShortcutsWidget(self)
         settings_tabs.addTab(shortcuts_tab, "⌨️ Keyboard Shortcuts")
 
-        # ===== TAB 11: Log (moved from main tabs) =====
+        # ===== TAB 12: Log (moved from main tabs) =====
         log_tab = self.create_log_tab()
         settings_tabs.addTab(log_tab, "📋 Log")
         
