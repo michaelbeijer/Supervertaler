@@ -34843,8 +34843,8 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
     def _go_to_superlookup(self):
         """Navigate to Superlookup in Tools tab"""
         if hasattr(self, 'main_tabs'):
-            # Main tabs: Grid=0, Project resources=1, Tools=2, Settings=3
-            self.main_tabs.setCurrentIndex(2)  # Switch to Tools tab
+            # Main tabs: Grid=0, Resources=1, Prompt Manager=2, Tools=3, Settings=4
+            self.main_tabs.setCurrentIndex(3)  # Switch to Tools tab
             # Then switch to Superlookup sub-tab
             if hasattr(self, 'modules_tabs'):
                 # Find Superlookup index in modules tabs
