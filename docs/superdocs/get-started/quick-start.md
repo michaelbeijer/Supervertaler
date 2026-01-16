@@ -16,13 +16,12 @@ If you want to use AI translation, set up your API keys first: [Setting Up API K
 
 1. Go to **File → Import**
 2. Choose your file type:
-   - **DOCX** - Standard Word documents
-   - **Text File** - Plain text (one segment per line)
-   - **memoQ Bilingual** - memoQ XLIFF or bilingual DOCX
-   - **Trados Package** - SDLPPX files
-   - **Phrase Bilingual** - Memsource bilingual DOCX
-   - **CafeTran Bilingual** - CafeTran external view
-
+   * **DOCX** - Standard Word documents
+   * **Text File** - Plain text (one segment per line)
+   * **memoQ Bilingual** - memoQ XLIFF or bilingual DOCX
+   * **Trados Package** - SDLPPX files
+   * **Phrase Bilingual** - Memsource bilingual DOCX
+   * **CafeTran Bilingual** - CafeTran external view
 3. Select source and target languages when prompted
 4. Your document appears in the translation grid
 
@@ -34,20 +33,20 @@ If you're working with memoQ/Trados/Phrase/CafeTran, always choose the matching 
 
 The translation grid has 4 columns:
 
-| Column | Description |
-|--------|-------------|
-| **#** | Segment number |
+| Column     | Description                  |
+| ---------- | ---------------------------- |
+| **#**      | Segment number               |
 | **Status** | Translation status indicator |
-| **Source** | Original text (read-only) |
-| **Target** | Your translation (editable) |
+| **Source** | Original text (read-only)    |
+| **Target** | Your translation (editable)  |
 
 ### Basic Navigation
 
-| Action | Shortcut |
-|--------|----------|
-| Next segment | `Enter` or `↓` (at end of cell) |
-| Previous segment | `↑` (at start of cell) |
-| Go to segment | `Ctrl+G` |
+| Action           | Shortcut                        |
+| ---------------- | ------------------------------- |
+| Next segment     | `Enter` or `↓` (at end of cell) |
+| Previous segment | `↑` (at start of cell)          |
+| Go to segment    | `Ctrl+G`                        |
 
 Most navigation is designed to feel memoQ-like: arrow keys move within a cell, and at the top/bottom line they can jump between segments.
 
@@ -62,11 +61,11 @@ Most navigation is designed to feel memoQ-like: arrow keys move within a cell, a
 ### AI Translation
 
 1. Select a segment
-2. Use the Translate action (single segment) or Batch Translate (multiple segments)
+2. Use the **Translate action** (single segment; **Ctrl+T**) or **Batch Translate** (multiple segments)
 3. Review and edit if needed
 4. Confirm the segment when you're happy
 
-{% hint style="tip" %}
+{% hint style="info" %}
 If AI translation isn't available yet, double-check provider setup in [Setting Up API Keys](api-keys.md).
 {% endhint %}
 
@@ -80,44 +79,23 @@ If AI translation isn't available yet, double-check provider setup in [Setting U
 
 1. Go to **File → Export**
 2. Choose the appropriate format:
-   - **DOCX** - Translated Word document
-   - **Bilingual Table** - Side-by-side source/target
-   - **Return Package** - For CAT tool workflows
+   * **DOCX** - Translated Word document
+   * **Bilingual Table** - Side-by-side source/target
+   * **Return Package** - For CAT tool workflows
 
 {% hint style="warning" %}
 For CAT tool workflows, always export the matching return format (for example, SDLRPX for Trados return packages) to preserve tags and statuses.
 {% endhint %}
 
----
+***
 
 ## What's Next?
 
 ### Recommended next steps
 
-- [Setting Up API Keys](api-keys.md) — enable AI translation
-- [Installation](installation.md) — verify dependencies and optional components
-- [CAT Tool Integration](../cat-tools/overview.md) — memoQ/Trados/Phrase/CafeTran workflows
-- [Keyboard Shortcuts](../editor/keyboard-shortcuts.md) — faster editing and navigation
+* [Setting Up API Keys](api-keys.md) — enable AI translation
+* [Installation](installation.md) — verify dependencies and optional components
+* [CAT Tool Integration](../cat-tools/overview.md) — memoQ/Trados/Phrase/CafeTran workflows
+* [Keyboard Shortcuts](../editor/keyboard-shortcuts.md) — faster editing and navigation
 
-<table data-view="cards">
-<thead>
-<tr>
-<th></th>
-<th></th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><strong>Set up AI Translation</strong></td>
-<td><a href="api-keys.md">Configure API keys →</a></td>
-</tr>
-<tr>
-<td><strong>Learn Keyboard Shortcuts</strong></td>
-<td><a href="../editor/keyboard-shortcuts.md">View all shortcuts →</a></td>
-</tr>
-<tr>
-<td><strong>Work with CAT Tools</strong></td>
-<td><a href="../cat-tools/overview.md">CAT tool integration →</a></td>
-</tr>
-</tbody>
-</table>
+<table data-view="cards"><thead><tr><th></th><th></th></tr></thead><tbody><tr><td><strong>Set up AI Translation</strong></td><td><a href="api-keys.md">Configure API keys →</a></td></tr><tr><td><strong>Learn Keyboard Shortcuts</strong></td><td><a href="../editor/keyboard-shortcuts.md">View all shortcuts →</a></td></tr><tr><td><strong>Work with CAT Tools</strong></td><td><a href="../cat-tools/overview.md">CAT tool integration →</a></td></tr></tbody></table>
