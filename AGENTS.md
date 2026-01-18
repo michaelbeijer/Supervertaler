@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** January 14, 2026 | **Version:** v1.9.104
+> **Last Updated:** January 18, 2026 | **Version:** v1.9.108
 
 ---
 

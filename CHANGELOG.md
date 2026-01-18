@@ -2,7 +2,58 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.107 (January 15, 2026)
+**Current Version:** v1.9.108 (January 18, 2026)
+
+## 📥📤 memoQ XLIFF Import/Export Support (v1.9.108) - January 18, 2026
+
+**Complete memoQ XLIFF (.mqxliff) Workflow**
+
+Added full import/export support for memoQ XLIFF files - feature was implemented in module but never exposed in UI:
+
+**Implementation:**
+
+1. **Import Menu Item**: File → Import → memoQ XLIFF (.mqxliff)...
+   - Opens file dialog for `.mqxliff` files
+   - Automatically extracts source segments using `MQXLIFFHandler`
+   - Converts ISO language codes to full names (`sk` → `Slovak`)
+   - Stores handler and source path for round-trip export
+
+2. **Export Menu Item**: File → Export → memoQ XLIFF - Translated (.mqxliff)...
+   - Updates target segments in original XLIFF structure
+   - Preserves formatting tags (bpt/ept pairs)
+   - Saves translated file with proper namespace handling
+
+3. **Language Code Normalization**:
+   - New `_normalize_language_code()` method
+   - Converts ISO 639-1/639-2 codes to full language names
+   - Supports 30+ languages including Slovak (`sk`, `sk-SK`)
+
+4. **memoQ Bilingual DOCX Language Detection**:
+   - Expanded `lang_map` in `import_memoq_bilingual()` from 8 to 24 languages
+   - Now includes Slovak, Czech, Hungarian, Romanian, Bulgarian, Greek, Russian, Ukrainian, Swedish, Danish, Finnish, Norwegian, Japanese, Chinese, Korean, Arabic, Turkish, Hebrew
+   - Fixes bug where Slovak would default to EN→NL instead of being detected
+
+5. **Project Persistence**:
+   - Added `mqxliff_source_path` field to `Project` dataclass
+   - Source path saved in `.svproj` files
+   - Automatic handler restoration when loading projects
+
+**Round-Trip Workflow:**
+1. Export from memoQ as XLIFF
+2. Import into Supervertaler
+3. Translate segments
+4. Export back to XLIFF
+5. Import into memoQ
+
+**Files Modified:**
+- `Supervertaler.py` - Import/export menu items, methods, language normalization
+- `Supervertaler.py` - Project dataclass: added `mqxliff_source_path` field
+- `Supervertaler.py` - Project save/load: persist mqxliff_source_path
+
+**GitHub Discussion:**
+- https://github.com/michaelbeijer/Supervertaler/discussions/106
+
+---
 
 ## ✅ Prompt Library & Superlookup Fixes (v1.9.107) - January 15, 2026
 

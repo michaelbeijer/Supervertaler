@@ -1,4 +1,4 @@
-# 🚀 Supervertaler v1.9.107
+# 🚀 Supervertaler v1.9.108
 
 [![PyPI version](https://badge.fury.io/py/supervertaler.svg)](https://pypi.org/project/Supervertaler/)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
@@ -6,7 +6,11 @@
 
 AI-enhanced CAT tool with multi-LLM support (GPT-4, Claude, Gemini, Ollama), innovative Superlookup concordance system offering access to multiple terminology sources (TMs, glossaries, web resources, etc.), and seamless CAT tool integration (memoQ, Trados, CafeTran, Phrase).
 
-**Current Version:** v1.9.107 (January 15, 2026)
+**Current Version:** v1.9.108 (January 18, 2026)
+
+### NEW in v1.9.108 - 📥📤 memoQ XLIFF Import/Export
+
+Full support for memoQ XLIFF (.mqxliff) files with complete round-trip workflow, language detection for 30+ languages, and formatting preservation.
 
 ### NEW in v1.9.102 - ⚡ QuickMenu (Right-click prompts in the Grid)
 
