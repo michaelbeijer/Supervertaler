@@ -1,0 +1,7 @@
+[
+    {
+        "key": "ctrl+shift+alt+a",
+        "command": "workbench.action.tasks.runTask",
+        "args": "🌐 Start Beijerterm Admin Panel"
+    }
+]

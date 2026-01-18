@@ -728,6 +728,68 @@ google_api_key=AI...
 
 ## 🔄 Recent Development History
 
+### January 18, 2026 - memoQ XLIFF Import/Export Support (User Issue #106)
+
+**📥📤 Complete memoQ XLIFF (.mqxliff) Workflow**
+
+Added full import/export support for memoQ XLIFF files - feature was implemented in module but never exposed in UI:
+
+**User Issue:**
+- User reported inability to import memoQ XLIFF files
+- Slovak language support question (already supported but needed clarification)
+- Handler module (`modules/mqxliff_handler.py`) existed but no menu items
+- memoQ bilingual DOCX import had limited language detection (only 8 languages)
+
+**Implementation:**
+
+1. **Import Menu Item**: File → Import → memoQ XLIFF (.mqxliff)...
+   - Opens file dialog for `.mqxliff` files
+   - Automatically extracts source segments using `MQXLIFFHandler`
+   - Converts ISO language codes to full names (`sk` → `Slovak`)
+   - Stores handler and source path for round-trip export
+
+2. **Export Menu Item**: File → Export → memoQ XLIFF - Translated (.mqxliff)...
+   - Updates target segments in original XLIFF structure
+   - Preserves formatting tags (bpt/ept pairs)
+   - Saves translated file with proper namespace handling
+
+3. **Language Code Normalization**:
+   - New `_normalize_language_code()` method
+   - Converts ISO 639-1/639-2 codes to full language names
+   - Supports 30+ languages including Slovak (`sk`, `sk-SK`)
+
+4. **memoQ Bilingual DOCX Language Detection**:
+   - Expanded `lang_map` in `import_memoq_bilingual()` from 8 to 24 languages
+   - Now includes Slovak, Czech, Hungarian, Romanian, Bulgarian, Greek, Russian, Ukrainian, Swedish, Danish, Finnish, Norwegian, Japanese, Chinese, Korean, Arabic, Turkish, Hebrew
+   - Fixes bug where Slovak would default to EN→NL instead of being detected
+
+5. **Project Persistence**:
+   - Added `mqxliff_source_path` field to `Project` dataclass
+   - Source path saved in `.svproj` files
+   - Automatic handler restoration when loading projects
+
+**Methods Added:**
+- `import_memoq_xliff()` - Import XLIFF files (~90 lines)
+- `export_memoq_xliff()` - Export with translations (~120 lines)  
+- `_normalize_language_code()` - ISO code → full name converter (~60 lines)
+
+**Round-Trip Workflow:**
+1. Export from memoQ as XLIFF
+2. Import into Supervertaler
+3. Translate segments
+4. Export back to XLIFF
+5. Import into memoQ
+
+**Files Modified:**
+- `Supervertaler.py` - Import/export menu items, methods, language normalization
+- `Supervertaler.py` - Project dataclass: added `mqxliff_source_path` field
+- `Supervertaler.py` - Project save/load: persist mqxliff_source_path
+
+**GitHub Discussion:**
+- https://github.com/michaelbeijer/Supervertaler/discussions/106
+
+---
+
 ### January 15, 2026 - Version 1.9.107: Prompt Library & Superlookup Fixes
 
 **🔧 Prompt Library Improvements**

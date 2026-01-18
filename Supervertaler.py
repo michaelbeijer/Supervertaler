@@ -678,6 +678,7 @@ class Project:
     original_docx_path: str = None  # Path to original DOCX for structure-preserving export
     trados_source_path: str = None  # Path to original Trados bilingual DOCX for round-trip export
     memoq_source_path: str = None  # Path to original memoQ bilingual DOCX for round-trip export
+    mqxliff_source_path: str = None  # Path to original memoQ XLIFF for round-trip export
     cafetran_source_path: str = None  # Path to original CafeTran bilingual DOCX for round-trip export
     sdlppx_source_path: str = None  # Path to original Trados SDLPPX package for SDLRPX export
     original_txt_path: str = None  # Path to original simple text file for round-trip export
@@ -758,6 +759,8 @@ class Project:
             result['trados_source_path'] = self.trados_source_path
         if self.memoq_source_path:
             result['memoq_source_path'] = self.memoq_source_path
+        if self.mqxliff_source_path:
+            result['mqxliff_source_path'] = self.mqxliff_source_path
         if self.cafetran_source_path:
             result['cafetran_source_path'] = self.cafetran_source_path
         if self.sdlppx_source_path:
@@ -826,6 +829,9 @@ class Project:
         # Store memoQ source path if it exists
         if 'memoq_source_path' in data:
             project.memoq_source_path = data['memoq_source_path']
+        # Store memoQ XLIFF source path if it exists
+        if 'mqxliff_source_path' in data:
+            project.mqxliff_source_path = data['mqxliff_source_path']
         # Store CafeTran source path if it exists
         if 'cafetran_source_path' in data:
             project.cafetran_source_path = data['cafetran_source_path']
@@ -6001,6 +6007,10 @@ class SupervertalerQt(QMainWindow):
         import_memoq_action.triggered.connect(self.import_memoq_bilingual)
         import_menu.addAction(import_memoq_action)
         
+        import_memoq_xliff_action = QAction("memoQ &XLIFF (.mqxliff)...", self)
+        import_memoq_xliff_action.triggered.connect(self.import_memoq_xliff)
+        import_menu.addAction(import_memoq_xliff_action)
+        
         import_cafetran_action = QAction("&CafeTran Bilingual Table (DOCX)...", self)
         import_cafetran_action.triggered.connect(self.import_cafetran_bilingual)
         import_menu.addAction(import_cafetran_action)
@@ -6037,6 +6047,10 @@ class SupervertalerQt(QMainWindow):
         export_memoq_action = QAction("memoQ &Bilingual Table - Translated (DOCX)...", self)
         export_memoq_action.triggered.connect(self.export_memoq_bilingual)
         export_menu.addAction(export_memoq_action)
+        
+        export_memoq_xliff_action = QAction("memoQ &XLIFF - Translated (.mqxliff)...", self)
+        export_memoq_xliff_action.triggered.connect(self.export_memoq_xliff)
+        export_menu.addAction(export_memoq_xliff_action)
         
         export_cafetran_action = QAction("&CafeTran Bilingual Table - Translated (DOCX)...", self)
         export_cafetran_action.triggered.connect(self.export_cafetran_bilingual)
@@ -22705,7 +22719,12 @@ class SupervertalerQt(QMainWindow):
                 # Try to detect language from header
                 lang_map = {
                     'english': 'en', 'dutch': 'nl', 'german': 'de', 'french': 'fr',
-                    'spanish': 'es', 'italian': 'it', 'portuguese': 'pt', 'polish': 'pl'
+                    'spanish': 'es', 'italian': 'it', 'portuguese': 'pt', 'polish': 'pl',
+                    'czech': 'cs', 'slovak': 'sk', 'hungarian': 'hu', 'romanian': 'ro',
+                    'bulgarian': 'bg', 'greek': 'el', 'russian': 'ru', 'ukrainian': 'uk',
+                    'swedish': 'sv', 'danish': 'da', 'finnish': 'fi', 'norwegian': 'no',
+                    'japanese': 'ja', 'chinese': 'zh', 'korean': 'ko', 'arabic': 'ar',
+                    'turkish': 'tr', 'hebrew': 'he'
                 }
                 
                 for lang_name, lang_code in lang_map.items():
@@ -23199,6 +23218,264 @@ class SupervertalerQt(QMainWindow):
         # Add any remaining unformatted text
         if current_pos < len(text):
             paragraph.add_run(text[current_pos:])
+    
+    # ========================================================================
+    # MEMOQ XLIFF IMPORT/EXPORT
+    # ========================================================================
+    
+    def import_memoq_xliff(self):
+        """Import memoQ XLIFF (.mqxliff) file"""
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select memoQ XLIFF File",
+            "",
+            "memoQ XLIFF (*.mqxliff);;All Files (*.*)"
+        )
+        
+        if not file_path:
+            return
+        
+        try:
+            from modules.mqxliff_handler import MQXLIFFHandler
+            
+            # Load the file
+            handler = MQXLIFFHandler()
+            if not handler.load(file_path):
+                QMessageBox.critical(
+                    self, "Error",
+                    "Failed to load memoQ XLIFF file."
+                )
+                return
+            
+            # Extract segments
+            mqxliff_segments = handler.extract_source_segments()
+            
+            if not mqxliff_segments:
+                QMessageBox.warning(
+                    self, "No Segments",
+                    "No segments found in the memoQ XLIFF file."
+                )
+                return
+            
+            # Convert to internal Segment format
+            segments = []
+            for i, mq_seg in enumerate(mqxliff_segments):
+                segment = Segment(
+                    id=i + 1,
+                    source=mq_seg.plain_text,
+                    target="",
+                    status=DEFAULT_STATUS.key,
+                    notes="",
+                )
+                segments.append(segment)
+            
+            # Store the handler and original path for round-trip export
+            self.mqxliff_handler = handler
+            self.mqxliff_source_file = file_path
+            
+            # Get language codes from handler
+            source_lang = self._normalize_language_code(handler.source_lang)
+            target_lang = self._normalize_language_code(handler.target_lang)
+            
+            # Create new project
+            file_name = Path(file_path).stem
+            self.current_project = Project(
+                name=file_name,
+                segments=segments,
+                source_lang=source_lang,
+                target_lang=target_lang
+            )
+            
+            # Store memoQ XLIFF source path in project for persistence across saves
+            self.current_project.mqxliff_source_path = file_path
+            
+            # Update UI
+            self.project_file_path = None
+            self.project_modified = True
+            self.update_window_title()
+            self.load_segments_to_grid()
+            self.initialize_tm_database()
+            
+            # Auto-resize rows for better initial display
+            self.auto_resize_rows()
+            
+            # Initialize spellcheck for target language
+            self._initialize_spellcheck_for_target_language(target_lang)
+            
+            # Log success
+            self.log(f"✓ Imported {len(segments)} segments from memoQ XLIFF: {Path(file_path).name}")
+            self.log(f"  Source: {source_lang}, Target: {target_lang}")
+            
+            QMessageBox.information(
+                self, "Import Successful",
+                f"Successfully imported {len(segments)} segment(s) from memoQ XLIFF.\n\n"
+                f"Languages: {source_lang} → {target_lang}"
+            )
+        except Exception as e:
+            self.log(f"❌ Error importing memoQ XLIFF: {e}")
+            QMessageBox.critical(
+                self, "Import Error",
+                f"Error importing memoQ XLIFF file:\n\n{str(e)}"
+            )
+    
+    def _normalize_language_code(self, lang_code: str) -> str:
+        """Convert ISO language codes to full language names."""
+        # Common ISO 639-1 codes to full names
+        lang_map = {
+            'en': 'English', 'en-US': 'English', 'en-GB': 'English',
+            'nl': 'Dutch', 'nl-NL': 'Dutch', 'nl-BE': 'Dutch',
+            'de': 'German', 'de-DE': 'German', 'de-AT': 'German',
+            'fr': 'French', 'fr-FR': 'French', 'fr-BE': 'French',
+            'es': 'Spanish', 'es-ES': 'Spanish', 'es-MX': 'Spanish',
+            'it': 'Italian', 'it-IT': 'Italian',
+            'pt': 'Portuguese', 'pt-PT': 'Portuguese', 'pt-BR': 'Portuguese',
+            'pl': 'Polish', 'pl-PL': 'Polish',
+            'cs': 'Czech', 'cs-CZ': 'Czech',
+            'sk': 'Slovak', 'sk-SK': 'Slovak',
+            'hu': 'Hungarian', 'hu-HU': 'Hungarian',
+            'ro': 'Romanian', 'ro-RO': 'Romanian',
+            'bg': 'Bulgarian', 'bg-BG': 'Bulgarian',
+            'el': 'Greek', 'el-GR': 'Greek',
+            'ru': 'Russian', 'ru-RU': 'Russian',
+            'uk': 'Ukrainian', 'uk-UA': 'Ukrainian',
+            'ja': 'Japanese', 'ja-JP': 'Japanese',
+            'zh': 'Chinese', 'zh-CN': 'Chinese', 'zh-TW': 'Chinese',
+            'ko': 'Korean', 'ko-KR': 'Korean',
+            'ar': 'Arabic', 'ar-SA': 'Arabic',
+            'he': 'Hebrew', 'he-IL': 'Hebrew',
+            'tr': 'Turkish', 'tr-TR': 'Turkish',
+            'sv': 'Swedish', 'sv-SE': 'Swedish',
+            'da': 'Danish', 'da-DK': 'Danish',
+            'fi': 'Finnish', 'fi-FI': 'Finnish',
+            'no': 'Norwegian', 'nb-NO': 'Norwegian', 'nn-NO': 'Norwegian',
+        }
+        
+        # Try exact match first
+        if lang_code in lang_map:
+            return lang_map[lang_code]
+        
+        # Try lowercase match
+        lang_lower = lang_code.lower()
+        if lang_lower in lang_map:
+            return lang_map[lang_lower]
+        
+        # Try base code (before hyphen)
+        if '-' in lang_code:
+            base_code = lang_code.split('-')[0].lower()
+            if base_code in lang_map:
+                return lang_map[base_code]
+        
+        # Return original if no match found
+        return lang_code
+    
+    def export_memoq_xliff(self):
+        """Export to memoQ XLIFF format with translations"""
+        # Check if we have segments
+        if not self.current_project or not self.current_project.segments:
+            QMessageBox.warning(self, "No Data", "No segments to export")
+            return
+        
+        # Check if a memoQ XLIFF source file was imported - check both instance var and project
+        mqxliff_source = None
+        if hasattr(self, 'mqxliff_source_file') and self.mqxliff_source_file:
+            mqxliff_source = self.mqxliff_source_file
+        elif hasattr(self.current_project, 'mqxliff_source_path') and self.current_project.mqxliff_source_path:
+            mqxliff_source = self.current_project.mqxliff_source_path
+            # Verify it still exists
+            if Path(mqxliff_source).exists():
+                self.mqxliff_source_file = mqxliff_source
+                self.log(f"✓ Restored memoQ XLIFF source from project: {Path(mqxliff_source).name}")
+                # Reload the handler
+                try:
+                    from modules.mqxliff_handler import MQXLIFFHandler
+                    self.mqxliff_handler = MQXLIFFHandler()
+                    if not self.mqxliff_handler.load(mqxliff_source):
+                        QMessageBox.critical(self, "Error", "Failed to reload memoQ XLIFF source file")
+                        return
+                except Exception as e:
+                    QMessageBox.critical(self, "Error", f"Failed to reload memoQ XLIFF file: {str(e)}")
+                    return
+            else:
+                mqxliff_source = None
+        
+        if not mqxliff_source:
+            # Prompt user to select the original memoQ XLIFF file
+            reply = QMessageBox.question(
+                self, "Select memoQ XLIFF Source File",
+                "To export to memoQ XLIFF format, please select the original memoQ XLIFF file.\n\n"
+                "This is the file you originally imported from memoQ.\n\n"
+                "Would you like to select it now?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            )
+            
+            if reply == QMessageBox.StandardButton.Yes:
+                file_path, _ = QFileDialog.getOpenFileName(
+                    self,
+                    "Select Original memoQ XLIFF File",
+                    "",
+                    "memoQ XLIFF (*.mqxliff);;All Files (*.*)"
+                )
+                
+                if file_path:
+                    self.mqxliff_source_file = file_path
+                    self.log(f"✓ memoQ XLIFF source file set: {Path(file_path).name}")
+                    
+                    # Load the handler
+                    try:
+                        from modules.mqxliff_handler import MQXLIFFHandler
+                        self.mqxliff_handler = MQXLIFFHandler()
+                        if not self.mqxliff_handler.load(file_path):
+                            QMessageBox.critical(self, "Error", "Failed to load memoQ XLIFF source file")
+                            return
+                    except Exception as e:
+                        QMessageBox.critical(self, "Error", f"Failed to load memoQ XLIFF file: {str(e)}")
+                        return
+                else:
+                    self.log("Export cancelled - no source file selected")
+                    return
+            else:
+                self.log("Export cancelled")
+                return
+        
+        # Get output file path
+        default_name = Path(self.mqxliff_source_file).stem + "_translated.mqxliff"
+        output_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Save Translated memoQ XLIFF",
+            default_name,
+            "memoQ XLIFF (*.mqxliff);;All Files (*.*)"
+        )
+        
+        if not output_path:
+            return
+        
+        try:
+            # Get translations from current segments
+            translations = [seg.target for seg in self.current_project.segments]
+            
+            # Update the handler with translations
+            updated_count = self.mqxliff_handler.update_target_segments(translations)
+            
+            # Save the updated file
+            if self.mqxliff_handler.save(output_path):
+                self.log(f"✓ Exported {updated_count} segments to memoQ XLIFF: {Path(output_path).name}")
+                QMessageBox.information(
+                    self, "Export Successful",
+                    f"Successfully exported {updated_count} translated segment(s) to memoQ XLIFF.\n\n"
+                    f"File: {Path(output_path).name}\n\n"
+                    f"You can now import this file back into memoQ."
+                )
+            else:
+                QMessageBox.critical(
+                    self, "Export Error",
+                    "Failed to save memoQ XLIFF file."
+                )
+        except Exception as e:
+            self.log(f"❌ Error exporting memoQ XLIFF: {e}")
+            QMessageBox.critical(
+                self, "Export Error",
+                f"Error exporting memoQ XLIFF file:\n\n{str(e)}"
+            )
     
     # ========================================================================
     # CAFETRAN BILINGUAL DOCX IMPORT/EXPORT
