@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** January 18, 2026 | **Version:** v1.9.109
+> **Last Updated:** January 18, 2026 | **Version:** v1.9.111
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.104 (January 2026) |
+| **Version** | v1.9.111 (January 2026) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -915,6 +915,45 @@ After extensive attempts to package Supermemory (vector-indexed semantic search)
 - ~600 MB smaller default installation
 - Focus on what works: SQLite TM, LLMs, termbases, voice commands
 - No more Windows EXE packaging headaches with PyTorch
+
+---
+
+### January 18, 2026 - Version 1.9.111: Clean Slate Project Imports
+
+**🔒 Automatic Resource Deactivation on New Project Import**
+
+Implemented automatic deactivation of all resources (TMs, glossaries, NT lists) when importing new projects:
+
+**The Problem:**
+- When importing a new project, all previously activated resources remained active
+- Users could end up with dozens of unrelated TMs/glossaries active across projects
+- No clean separation between project contexts
+- Difficult to tell which resources were actually relevant to current project
+
+**The Solution:**
+- Added `_deactivate_all_resources_for_new_project()` method
+- Automatically called after import in all 5 handlers: DOCX, TXT, memoQ, CafeTran, Trados
+- Deactivates all TMs via `tm_metadata_mgr.deactivate_tm()`
+- Deactivates all glossaries via `termbase_mgr.deactivate_termbase()`
+- Deactivates all NT lists via `nt_manager.set_list_active(False)`
+
+**User Workflow:**
+1. Import new project → All resources automatically deactivated
+2. Go to Project Resources tab → Activate only needed TMs/glossaries
+3. Work on project with clean, relevant resource set
+4. Import next project → Clean slate again
+
+**Benefits:**
+- ✅ Fresh start for every project
+- ✅ Prevents unintended resource pollution
+- ✅ Users explicitly choose what's relevant
+- ✅ Clearer project context separation
+- ✅ Consistent behavior across all import types
+
+**Files Modified:**
+- `Supervertaler.py` - Added `_deactivate_all_resources_for_new_project()`, called in 5 import handlers
+
+---
 
 ### January 15, 2026 - 🏗️ Windows EXE: CORE + FULL release pipeline (v1.9.104)
 

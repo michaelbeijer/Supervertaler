@@ -2,7 +2,36 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.110 (January 18, 2026)
+**Current Version:** v1.9.111 (January 18, 2026)
+
+## 🔒 Clean Slate Project Imports (v1.9.111) - January 18, 2026
+
+**Automatic Resource Deactivation on New Project Import**
+
+New projects now start with a clean slate - all TMs, glossaries, and Non-Translatable lists are automatically deactivated on import:
+
+- **Auto-Deactivation**: When importing a new project (DOCX, TXT, memoQ, CafeTran, Trados), all existing resources are deactivated
+- **Explicit Activation**: Users explicitly activate only the resources they need for each project
+- **Prevents Pollution**: Stops unintended resource bleeding across unrelated projects
+- **Applied to All Imports**: Works consistently across all 5 import handlers
+
+**User Workflow:**
+1. Import new project → All resources deactivated automatically
+2. Go to Project Resources tab → Activate needed TMs/glossaries
+3. Work on project with only relevant resources active
+4. Import next project → Clean slate again
+
+**Technical Implementation:**
+- New `_deactivate_all_resources_for_new_project()` method
+- Deactivates TMs via `tm_metadata_mgr.deactivate_tm()`
+- Deactivates glossaries via `termbase_mgr.deactivate_termbase()`
+- Deactivates NT lists via `nt_manager.set_list_active(False)`
+- Logs: "📋 New project: All TMs, glossaries, and NT lists deactivated (start clean)"
+
+**Files Modified:**
+- `Supervertaler.py` - Added deactivation method, called in all import handlers
+
+---
 
 ## 🔄 Superconverter - Format Conversion Hub (v1.9.110) - January 18, 2026
 
