@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.108"
+__version__ = "1.9.109"
 __phase__ = "0.9"
 __release_date__ = "2026-01-18"
 __edition__ = "Qt"
@@ -12858,9 +12858,64 @@ class SupervertalerQt(QMainWindow):
                 )
                 return
             
-            # Use first two detected languages (typically source and target)
-            detected_src = tmx_langs[0]
-            detected_tgt = tmx_langs[1]
+            # Let user select source and target from detected languages
+            lang_dialog = QDialog(self)
+            lang_dialog.setWindowTitle("Select Language Pair")
+            lang_dialog.setMinimumWidth(400)
+            
+            lang_layout = QVBoxLayout(lang_dialog)
+            lang_layout.addWidget(QLabel(f"TMX file contains {len(tmx_langs)} languages:\n{', '.join(tmx_langs)}\n"))
+            lang_layout.addWidget(QLabel("Select source and target languages:"))
+            
+            # Source language combo
+            src_layout = QHBoxLayout()
+            src_layout.addWidget(QLabel("Source:"))
+            src_combo = QComboBox()
+            for lang in tmx_langs:
+                src_combo.addItem(lang)
+            src_layout.addWidget(src_combo)
+            lang_layout.addLayout(src_layout)
+            
+            # Target language combo
+            tgt_layout = QHBoxLayout()
+            tgt_layout.addWidget(QLabel("Target:"))
+            tgt_combo = QComboBox()
+            for lang in tmx_langs:
+                tgt_combo.addItem(lang)
+            # Default to second language if available
+            if len(tmx_langs) > 1:
+                tgt_combo.setCurrentIndex(1)
+            tgt_layout.addWidget(tgt_combo)
+            lang_layout.addLayout(tgt_layout)
+            
+            # Buttons
+            lang_button_box = QHBoxLayout()
+            lang_button_box.addStretch()
+            
+            lang_cancel_btn = QPushButton("Cancel")
+            lang_cancel_btn.clicked.connect(lang_dialog.reject)
+            lang_button_box.addWidget(lang_cancel_btn)
+            
+            lang_ok_btn = QPushButton("OK")
+            lang_ok_btn.setStyleSheet("font-weight: bold;")
+            lang_ok_btn.clicked.connect(lang_dialog.accept)
+            lang_button_box.addWidget(lang_ok_btn)
+            
+            lang_layout.addLayout(lang_button_box)
+            
+            if lang_dialog.exec() != QDialog.DialogCode.Accepted:
+                return
+            
+            detected_src = src_combo.currentText()
+            detected_tgt = tgt_combo.currentText()
+            
+            # Validate that source != target
+            if detected_src == detected_tgt:
+                QMessageBox.warning(
+                    self, "Invalid Selection",
+                    "Source and target languages must be different."
+                )
+                return
             
             # Create TM metadata entry with detected languages
             db_id = tm_metadata_mgr.create_tm(
@@ -12899,7 +12954,7 @@ class SupervertalerQt(QMainWindow):
                 tm_src_lang = tm_info.get('source_lang')
                 tm_tgt_lang = tm_info.get('target_lang')
                 
-                # If TM has NULL languages, detect from TMX and update metadata
+                # If TM has NULL languages, detect from TMX and let user select
                 if not tm_src_lang or not tm_tgt_lang:
                     tmx_langs = self.tm_database.detect_tmx_languages(filepath)
                     
@@ -12910,9 +12965,64 @@ class SupervertalerQt(QMainWindow):
                         )
                         return
                     
-                    # Use detected languages
-                    tm_src_lang = tmx_langs[0]
-                    tm_tgt_lang = tmx_langs[1]
+                    # Let user select source and target from detected languages
+                    lang_dialog = QDialog(self)
+                    lang_dialog.setWindowTitle("Select Language Pair")
+                    lang_dialog.setMinimumWidth(400)
+                    
+                    lang_layout = QVBoxLayout(lang_dialog)
+                    lang_layout.addWidget(QLabel(f"TMX file contains {len(tmx_langs)} languages:\n{', '.join(tmx_langs)}\n"))
+                    lang_layout.addWidget(QLabel("Select source and target languages:"))
+                    
+                    # Source language combo
+                    src_layout = QHBoxLayout()
+                    src_layout.addWidget(QLabel("Source:"))
+                    src_combo = QComboBox()
+                    for lang in tmx_langs:
+                        src_combo.addItem(lang)
+                    src_layout.addWidget(src_combo)
+                    lang_layout.addLayout(src_layout)
+                    
+                    # Target language combo
+                    tgt_layout = QHBoxLayout()
+                    tgt_layout.addWidget(QLabel("Target:"))
+                    tgt_combo = QComboBox()
+                    for lang in tmx_langs:
+                        tgt_combo.addItem(lang)
+                    # Default to second language if available
+                    if len(tmx_langs) > 1:
+                        tgt_combo.setCurrentIndex(1)
+                    tgt_layout.addWidget(tgt_combo)
+                    lang_layout.addLayout(tgt_layout)
+                    
+                    # Buttons
+                    lang_button_box = QHBoxLayout()
+                    lang_button_box.addStretch()
+                    
+                    lang_cancel_btn = QPushButton("Cancel")
+                    lang_cancel_btn.clicked.connect(lang_dialog.reject)
+                    lang_button_box.addWidget(lang_cancel_btn)
+                    
+                    lang_ok_btn = QPushButton("OK")
+                    lang_ok_btn.setStyleSheet("font-weight: bold;")
+                    lang_ok_btn.clicked.connect(lang_dialog.accept)
+                    lang_button_box.addWidget(lang_ok_btn)
+                    
+                    lang_layout.addLayout(lang_button_box)
+                    
+                    if lang_dialog.exec() != QDialog.DialogCode.Accepted:
+                        return
+                    
+                    tm_src_lang = src_combo.currentText()
+                    tm_tgt_lang = tgt_combo.currentText()
+                    
+                    # Validate that source != target
+                    if tm_src_lang == tm_tgt_lang:
+                        QMessageBox.warning(
+                            self, "Invalid Selection",
+                            "Source and target languages must be different."
+                        )
+                        return
                     
                     # Update TM metadata with detected languages
                     tm_metadata_mgr.update_tm(

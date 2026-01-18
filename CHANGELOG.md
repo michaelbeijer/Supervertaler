@@ -2,7 +2,33 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.108 (January 18, 2026)
+**Current Version:** v1.9.109 (January 18, 2026)
+
+## 🔧 TMX Language Pair Bug Fix (v1.9.109) - January 18, 2026
+
+**Fixed Critical TMX Import Language Reversal Bug**
+
+**Issue ([#105](https://github.com/michaelbeijer/Supervertaler/issues/105)):** When importing TMX files, the language pair was sometimes reversed (EN-GB → DE-DE imported as DE-DE → EN-GB). This made it impossible to find matches for translated segments.
+
+**Root Cause:** The TMX import code was incorrectly assuming that the FIRST language in the TMX file was the source language and the SECOND was the target language. However, TMX files list languages in arbitrary order (often alphabetically), so this assumption was wrong.
+
+**Fix Implemented:**
+- Added language pair selection dialog when importing TMX files
+- User now explicitly selects which detected language should be source and which should be target
+- Prevents accidental language reversal
+- Applies to both "Create new TM from TMX" and "Add to existing TM" workflows
+
+**User Workflow:**
+1. Import TMX file
+2. Dialog shows all detected languages (e.g., "de-DE, en-GB")
+3. User selects: Source = en-GB, Target = de-DE
+4. Import proceeds with correct language pair
+5. TM matches now work correctly
+
+**Files Modified:**
+- `Supervertaler.py` - Added language selection dialog in `_import_tmx_as_tm()` method (2 locations)
+
+---
 
 ## 📥📤 memoQ XLIFF Import/Export Support (v1.9.108) - January 18, 2026
 
