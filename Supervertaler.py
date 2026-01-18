@@ -6085,8 +6085,8 @@ class SupervertalerQt(QMainWindow):
         export_txt_action.triggered.connect(self.export_simple_txt)
         export_menu.addAction(export_txt_action)
         
-        export_ai_action = QAction("🤖 &AI-Readable Format (TXT)...", self)
-        export_ai_action.triggered.connect(self.export_for_ai)
+        export_ai_action = QAction("📄 &AI-Readable Markdown (.md)...", self)
+        export_ai_action.triggered.connect(self.export_bilingual_table_markdown)
         export_ai_action.setToolTip("Export segments in [SEGMENT] format for AI translation/review")
         export_menu.addAction(export_ai_action)
         
@@ -6415,10 +6415,52 @@ class SupervertalerQt(QMainWindow):
         # Tools Menu
         tools_menu = menubar.addMenu("&Tools")
         
-        autofingers_action = QAction("✋ &AutoFingers - CAT Tool Automation...", self)
+        # Tools in same order as Tools tab
+        autofingers_action = QAction("✋ &AutoFingers...", self)
         autofingers_action.setShortcut("Ctrl+Shift+A")
         autofingers_action.triggered.connect(self.show_autofingers)
         tools_menu.addAction(autofingers_action)
+        
+        superconverter_action = QAction("🔄 Super&converter...", self)
+        superconverter_action.triggered.connect(lambda: self._navigate_to_tool("Superconverter"))
+        tools_menu.addAction(superconverter_action)
+        
+        pdf_rescue_action = QAction("📄 &PDF Rescue...", self)
+        pdf_rescue_action.triggered.connect(lambda: self._navigate_to_tool("PDF Rescue"))
+        tools_menu.addAction(pdf_rescue_action)
+        
+        superbench_action = QAction("📊 Super&bench...", self)
+        superbench_action.triggered.connect(lambda: self._navigate_to_tool("Superbench"))
+        tools_menu.addAction(superbench_action)
+        
+        superbrowser_action = QAction("🌐 Super&browser...", self)
+        superbrowser_action.triggered.connect(lambda: self._navigate_to_tool("Superbrowser"))
+        tools_menu.addAction(superbrowser_action)
+        
+        supercleaner_action = QAction("🧹 Supercleaner...", self)
+        supercleaner_action.triggered.connect(lambda: self._navigate_to_tool("Supercleaner"))
+        tools_menu.addAction(supercleaner_action)
+        
+        superlookup_action = QAction("🔍 Super&lookup...", self)
+        superlookup_action.setShortcut("Ctrl+K")
+        superlookup_action.triggered.connect(self._go_to_superlookup)
+        tools_menu.addAction(superlookup_action)
+        
+        supervoice_action = QAction("🎤 Super&voice...", self)
+        supervoice_action.triggered.connect(lambda: self._navigate_to_tool("Supervoice"))
+        tools_menu.addAction(supervoice_action)
+        
+        encoding_action = QAction("🔧 &Text Encoding Repair...", self)
+        encoding_action.triggered.connect(lambda: self._navigate_to_tool("Text Encoding Repair"))
+        tools_menu.addAction(encoding_action)
+        
+        tmx_editor_action = QAction("✏️ T&MX Editor...", self)
+        tmx_editor_action.triggered.connect(lambda: self._navigate_to_tool("TMX Editor"))
+        tools_menu.addAction(tmx_editor_action)
+        
+        tracked_changes_action = QAction("🔄 Tracked &Changes...", self)
+        tracked_changes_action.triggered.connect(lambda: self._navigate_to_tool("Tracked Changes"))
+        tools_menu.addAction(tracked_changes_action)
         
         tools_menu.addSeparator()
         
@@ -7281,6 +7323,143 @@ class SupervertalerQt(QMainWindow):
         self.prompt_manager_qt.create_tab(prompt_widget)
         
         return prompt_widget
+    
+    
+    def create_superconverter_tab(self) -> QWidget:
+        """Create the Superconverter tab - Format conversion tools"""
+        container = QWidget()
+        main_layout = QVBoxLayout(container)
+        main_layout.setContentsMargins(10, 10, 10, 10)
+        main_layout.setSpacing(10)
+        
+        # Header
+        header = QLabel("🔄 Superconverter")
+        header.setStyleSheet("font-size: 16pt; font-weight: bold; color: #1976D2;")
+        main_layout.addWidget(header)
+        
+        # Description
+        description = QLabel(
+            "Convert translation data between different formats - perfect for AI workflows, CAT tool exchanges, and data processing."
+        )
+        description.setWordWrap(True)
+        description.setStyleSheet("color: #666; padding: 5px; background-color: #E3F2FD; border-radius: 3px;")
+        main_layout.addWidget(description)
+        
+        main_layout.addSpacing(5)
+        
+        # Create tabbed interface for different conversion types
+        tabs = QTabWidget()
+        tabs.setStyleSheet("QTabBar::tab { outline: 0; } QTabBar::tab:focus { outline: none; }")
+        
+        # Tab 1: Bilingual Export (current project)
+        bilingual_tab = QWidget()
+        bilingual_layout = QVBoxLayout(bilingual_tab)
+        bilingual_layout.setContentsMargins(15, 15, 15, 15)
+        
+        bilingual_info = QLabel(
+            "<b>Export Current Project</b><br><br>"
+            "Export your translation project as a Markdown table - perfect for AI chat interfaces like ChatGPT and Claude.<br><br>"
+            "The table format renders beautifully and makes it easy for AI to understand and process your segments."
+        )
+        bilingual_info.setWordWrap(True)
+        bilingual_info.setTextFormat(Qt.TextFormat.RichText)
+        bilingual_layout.addWidget(bilingual_info)
+        
+        bilingual_layout.addSpacing(15)
+        
+        bilingual_btn = QPushButton("📄 Export as Markdown Table")
+        bilingual_btn.setMinimumHeight(40)
+        bilingual_btn.setStyleSheet(
+            "QPushButton { background-color: #2196F3; color: white; font-weight: bold; "
+            "border: none; border-radius: 5px; padding: 10px; outline: none; }"
+            "QPushButton:hover { background-color: #1976D2; }"
+        )
+        bilingual_btn.clicked.connect(self.export_bilingual_table_markdown)
+        bilingual_layout.addWidget(bilingual_btn)
+        
+        bilingual_layout.addStretch()
+        tabs.addTab(bilingual_tab, "📊 Bilingual Table")
+        
+        # Tab 2: Document Converter (monolingual docs to Markdown)
+        doc_tab = QWidget()
+        doc_layout = QVBoxLayout(doc_tab)
+        doc_layout.setContentsMargins(15, 15, 15, 15)
+        
+        doc_info = QLabel(
+            "<b>Convert Documents to Markdown</b><br><br>"
+            "Convert DOCX or TXT documents to Markdown format, preserving structure (headings, lists, paragraphs).<br><br>"
+            "Perfect for preparing documents for AI processing or publishing on web platforms."
+        )
+        doc_info.setWordWrap(True)
+        doc_info.setTextFormat(Qt.TextFormat.RichText)
+        doc_layout.addWidget(doc_info)
+        
+        doc_layout.addSpacing(15)
+        
+        # Single file button
+        single_doc_btn = QPushButton("📄 Convert Single Document")
+        single_doc_btn.setMinimumHeight(40)
+        single_doc_btn.setStyleSheet(
+            "QPushButton { background-color: #4CAF50; color: white; font-weight: bold; "
+            "border: none; border-radius: 5px; padding: 10px; outline: none; }"
+            "QPushButton:hover { background-color: #388E3C; }"
+        )
+        single_doc_btn.clicked.connect(self.convert_document_to_markdown)
+        doc_layout.addWidget(single_doc_btn)
+        
+        doc_layout.addSpacing(10)
+        
+        # Batch conversion button
+        batch_doc_btn = QPushButton("📁 Batch Convert Multiple Documents")
+        batch_doc_btn.setMinimumHeight(40)
+        batch_doc_btn.setStyleSheet(
+            "QPushButton { background-color: #FF9800; color: white; font-weight: bold; "
+            "border: none; border-radius: 5px; padding: 10px; outline: none; }"
+            "QPushButton:hover { background-color: #F57C00; }"
+        )
+        batch_doc_btn.clicked.connect(self.batch_convert_documents_to_markdown)
+        doc_layout.addWidget(batch_doc_btn)
+        
+        doc_layout.addStretch()
+        tabs.addTab(doc_tab, "📝 Document → Markdown")
+        
+        # Tab 3: TMX Tools (placeholder for future)
+        tmx_tab = QWidget()
+        tmx_layout = QVBoxLayout(tmx_tab)
+        tmx_layout.setContentsMargins(15, 15, 15, 15)
+        
+        tmx_info = QLabel(
+            "<b>TMX Conversion Tools</b><br><br>"
+            "Convert Translation Memory eXchange (TMX) files to and from tab-delimited format.<br><br>"
+            "<i>Coming soon...</i>"
+        )
+        tmx_info.setWordWrap(True)
+        tmx_info.setTextFormat(Qt.TextFormat.RichText)
+        tmx_info.setStyleSheet("color: #888;")
+        tmx_layout.addWidget(tmx_info)
+        
+        tmx_layout.addSpacing(15)
+        
+        tmx_to_tsv_btn = QPushButton("TMX → Tab-delimited")
+        tmx_to_tsv_btn.setMinimumHeight(40)
+        tmx_to_tsv_btn.setEnabled(False)
+        tmx_to_tsv_btn.setStyleSheet("QPushButton:disabled { color: #999; background-color: #E0E0E0; }")
+        tmx_layout.addWidget(tmx_to_tsv_btn)
+        
+        tmx_layout.addSpacing(10)
+        
+        tsv_to_tmx_btn = QPushButton("Tab-delimited → TMX")
+        tsv_to_tmx_btn.setMinimumHeight(40)
+        tsv_to_tmx_btn.setEnabled(False)
+        tsv_to_tmx_btn.setStyleSheet("QPushButton:disabled { color: #999; background-color: #E0E0E0; }")
+        tmx_layout.addWidget(tsv_to_tmx_btn)
+        
+        tmx_layout.addStretch()
+        tabs.addTab(tmx_tab, "🔄 TMX Tools")
+        
+        main_layout.addWidget(tabs)
+        
+        return container
     
     def create_supercleaner_tab(self) -> QWidget:
         """Create the Supercleaner tab - Clean DOCX documents"""
@@ -8411,6 +8590,10 @@ class SupervertalerQt(QMainWindow):
         # Add nested tabs (alphabetical order)
         autofingers_tab = AutoFingersWidget(self)
         modules_tabs.addTab(autofingers_tab, "✋ AutoFingers")
+        
+        # Superconverter - Format conversion tools
+        superconverter_tab = self.create_superconverter_tab()
+        modules_tabs.addTab(superconverter_tab, "🔄 Superconverter")
         
         pdf_tab = self.create_pdf_rescue_tab()
         modules_tabs.addTab(pdf_tab, "📄 PDF Rescue")
@@ -21670,6 +21853,493 @@ class SupervertalerQt(QMainWindow):
                 "Export Error",
                 f"Failed to export AI format:\n\n{str(e)}"
             )
+    
+    def export_bilingual_table_markdown(self):
+        """Export current project segments as Markdown table (for AI systems)"""
+        try:
+            if not self.current_project or not self.current_project.segments:
+                QMessageBox.warning(self, "No Project", "Please open a project with segments first")
+                return
+            
+            segments = list(self.current_project.segments)
+            
+            # Get language names
+            source_lang = self.current_project.source_lang or "Source"
+            target_lang = self.current_project.target_lang or "Target"
+            
+            # Check translation status
+            translated_count = sum(1 for seg in segments if seg.target and seg.target.strip())
+            total_count = len(segments)
+            
+            # Show export options dialog
+            dialog = QDialog(self)
+            dialog.setWindowTitle("Export as Markdown Table")
+            dialog.setMinimumWidth(500)
+            
+            layout = QVBoxLayout(dialog)
+            
+            # Info label
+            info_label = QLabel(
+                "Export segments as a <b>Markdown table</b> optimized for AI systems.\n"
+                "The table format renders beautifully in ChatGPT, Claude, and all AI chat interfaces."
+            )
+            info_label.setWordWrap(True)
+            info_label.setTextFormat(Qt.TextFormat.RichText)
+            layout.addWidget(info_label)
+            
+            layout.addSpacing(10)
+            
+            # Status info
+            status_label = QLabel(
+                f"📊 <b>{translated_count} of {total_count}</b> segments have translations."
+                if translated_count > 0
+                else f"📊 <b>{total_count}</b> segments (none translated yet)."
+            )
+            status_label.setTextFormat(Qt.TextFormat.RichText)
+            layout.addWidget(status_label)
+            
+            layout.addSpacing(10)
+            
+            # Content options
+            content_group = QGroupBox("Content Options")
+            content_layout = QVBoxLayout(content_group)
+            
+            include_both_radio = CheckmarkRadioButton(f"Include both {source_lang} and {target_lang} (bilingual table)")
+            include_both_radio.setChecked(True)
+            source_only_radio = CheckmarkRadioButton(f"{source_lang} only (for AI translation)")
+            target_only_radio = CheckmarkRadioButton(f"{target_lang} only (translated segments)")
+            
+            content_layout.addWidget(include_both_radio)
+            content_layout.addWidget(source_only_radio)
+            content_layout.addWidget(target_only_radio)
+            layout.addWidget(content_group)
+            
+            # Filter options
+            filter_group = QGroupBox("Segment Filter")
+            filter_layout = QVBoxLayout(filter_group)
+            
+            all_segments_radio = CheckmarkRadioButton("All segments")
+            all_segments_radio.setChecked(True)
+            untranslated_radio = CheckmarkRadioButton("Untranslated segments only (empty target)")
+            translated_radio = CheckmarkRadioButton("Translated segments only (has target)")
+            
+            filter_layout.addWidget(all_segments_radio)
+            filter_layout.addWidget(untranslated_radio)
+            filter_layout.addWidget(translated_radio)
+            layout.addWidget(filter_group)
+            
+            layout.addSpacing(10)
+            
+            # Preview
+            preview_group = QGroupBox("Preview")
+            preview_layout = QVBoxLayout(preview_group)
+            preview_text = QTextEdit()
+            preview_text.setReadOnly(True)
+            preview_text.setMaximumHeight(150)
+            preview_text.setStyleSheet("font-family: Consolas, monospace; font-size: 10px;")
+            preview_layout.addWidget(preview_text)
+            layout.addWidget(preview_group)
+            
+            def update_preview():
+                # Show preview with sample data
+                if include_both_radio.isChecked():
+                    preview = f"# Translation Project: {self.current_project.name or 'Untitled'}\n\n"
+                    preview += f"| Segment | {source_lang} | {target_lang} |\n"
+                    preview += "|---------|" + "-" * (len(source_lang) + 2) + "|" + "-" * (len(target_lang) + 2) + "|\n"
+                    preview += "| 1 | Source text example... | Target text example... |\n"
+                    preview += "| 2 | Another segment... | Translation here... |"
+                elif source_only_radio.isChecked():
+                    preview = f"# Translation Project: {self.current_project.name or 'Untitled'}\n\n"
+                    preview += f"| Segment | {source_lang} |\n"
+                    preview += "|---------|" + "-" * (len(source_lang) + 2) + "|\n"
+                    preview += "| 1 | Source text example... |\n"
+                    preview += "| 2 | Another segment... |"
+                else:
+                    preview = f"# Translation Project: {self.current_project.name or 'Untitled'}\n\n"
+                    preview += f"| Segment | {target_lang} |\n"
+                    preview += "|---------|" + "-" * (len(target_lang) + 2) + "|\n"
+                    preview += "| 1 | Target text example... |\n"
+                    preview += "| 2 | Translation here... |"
+                
+                preview_text.setPlainText(preview)
+            
+            # Connect signals for live preview
+            include_both_radio.toggled.connect(update_preview)
+            source_only_radio.toggled.connect(update_preview)
+            target_only_radio.toggled.connect(update_preview)
+            
+            update_preview()  # Initial preview
+            
+            layout.addSpacing(10)
+            
+            # Buttons
+            button_layout = QHBoxLayout()
+            ok_btn = QPushButton("Export")
+            ok_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; border: none; outline: none;")
+            ok_btn.clicked.connect(dialog.accept)
+            cancel_btn = QPushButton("Cancel")
+            cancel_btn.clicked.connect(dialog.reject)
+            
+            button_layout.addStretch()
+            button_layout.addWidget(cancel_btn)
+            button_layout.addWidget(ok_btn)
+            layout.addLayout(button_layout)
+            
+            if dialog.exec() != QDialog.DialogCode.Accepted:
+                return
+            
+            # Determine content mode
+            if source_only_radio.isChecked():
+                content_mode = "source_only"
+            elif target_only_radio.isChecked():
+                content_mode = "target_only"
+            else:
+                content_mode = "bilingual"
+            
+            # Filter segments
+            if untranslated_radio.isChecked():
+                filtered_segments = [s for s in segments if not (s.target and s.target.strip())]
+            elif translated_radio.isChecked():
+                filtered_segments = [s for s in segments if s.target and s.target.strip()]
+            else:
+                filtered_segments = segments
+            
+            if not filtered_segments:
+                QMessageBox.warning(
+                    self, "No Segments",
+                    "No segments match the selected filter criteria."
+                )
+                return
+            
+            # Get save path
+            default_name = ""
+            if self.current_project.name:
+                default_name = self.current_project.name.replace(" ", "_") + "_table.md"
+            
+            file_path, _ = QFileDialog.getSaveFileName(
+                self,
+                "Export Markdown Table",
+                default_name,
+                "Markdown Files (*.md);;All Files (*.*)"
+            )
+            
+            if not file_path:
+                return
+            
+            # Ensure .md extension
+            if not file_path.lower().endswith('.md'):
+                file_path += '.md'
+            
+            # Build Markdown table
+            output_lines = []
+            output_lines.append(f"# Translation Project: {self.current_project.name or 'Untitled'}")
+            output_lines.append("")
+            output_lines.append(f"**Languages:** {source_lang} → {target_lang}")
+            output_lines.append(f"**Segments:** {len(filtered_segments)}")
+            output_lines.append(f"**Exported:** {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+            output_lines.append("")
+            
+            # Table header
+            if content_mode == "bilingual":
+                output_lines.append(f"| Segment | {source_lang} | {target_lang} |")
+                output_lines.append("|---------|" + "-" * (len(source_lang) + 2) + "|" + "-" * (len(target_lang) + 2) + "|")
+            elif content_mode == "source_only":
+                output_lines.append(f"| Segment | {source_lang} |")
+                output_lines.append("|---------|" + "-" * (len(source_lang) + 2) + "|")
+            else:  # target_only
+                output_lines.append(f"| Segment | {target_lang} |")
+                output_lines.append("|---------|" + "-" * (len(target_lang) + 2) + "|")
+            
+            # Table rows
+            for i, seg in enumerate(filtered_segments, 1):
+                # Escape pipe characters in text for Markdown tables
+                source_text = seg.source.replace("|", "\\|").replace("\n", " ")
+                target_text = (seg.target or "").replace("|", "\\|").replace("\n", " ")
+                
+                if content_mode == "bilingual":
+                    output_lines.append(f"| {i} | {source_text} | {target_text} |")
+                elif content_mode == "source_only":
+                    output_lines.append(f"| {i} | {source_text} |")
+                else:  # target_only
+                    output_lines.append(f"| {i} | {target_text} |")
+            
+            # Write file
+            with open(file_path, 'w', encoding='utf-8', newline='\n') as f:
+                f.write('\n'.join(output_lines))
+            
+            self.log(f"✓ Exported {len(filtered_segments)} segments as Markdown table to: {os.path.basename(file_path)}")
+            
+            QMessageBox.information(
+                self,
+                "Export Complete",
+                f"Successfully exported {len(filtered_segments)} segments as Markdown table to:\n\n{os.path.basename(file_path)}\n\n"
+                f"This format renders beautifully in ChatGPT, Claude, and other AI chat interfaces!"
+            )
+            
+        except Exception as e:
+            self.log(f"✗ Markdown table export failed: {str(e)}")
+            QMessageBox.critical(
+                self,
+                "Export Error",
+                f"Failed to export Markdown table:\n\n{str(e)}"
+            )
+    
+    def convert_document_to_markdown(self):
+        """Convert a single DOCX or TXT document to Markdown format, preserving structure"""
+        try:
+            # Select input file
+            file_path, _ = QFileDialog.getOpenFileName(
+                self,
+                "Select Document to Convert",
+                "",
+                "Documents (*.docx *.txt);;All Files (*.*)"
+            )
+            
+            if not file_path:
+                return
+            
+            # Determine output path
+            base_name = os.path.splitext(file_path)[0]
+            output_path, _ = QFileDialog.getSaveFileName(
+                self,
+                "Save Markdown File",
+                base_name + ".md",
+                "Markdown Files (*.md);;All Files (*.*)"
+            )
+            
+            if not output_path:
+                return
+            
+            # Ensure .md extension
+            if not output_path.lower().endswith('.md'):
+                output_path += '.md'
+            
+            # Convert based on file type
+            if file_path.lower().endswith('.docx'):
+                self._convert_docx_to_markdown(file_path, output_path)
+            else:  # TXT
+                self._convert_txt_to_markdown(file_path, output_path)
+            
+            self.log(f"✓ Converted {os.path.basename(file_path)} → {os.path.basename(output_path)}")
+            
+            QMessageBox.information(
+                self,
+                "Conversion Complete",
+                f"Successfully converted document to Markdown:\n\n{os.path.basename(output_path)}"
+            )
+            
+        except Exception as e:
+            self.log(f"✗ Document conversion failed: {str(e)}")
+            QMessageBox.critical(
+                self,
+                "Conversion Error",
+                f"Failed to convert document:\n\n{str(e)}"
+            )
+    
+    def batch_convert_documents_to_markdown(self):
+        """Batch convert multiple documents to Markdown format"""
+        try:
+            # Select multiple files
+            file_paths, _ = QFileDialog.getOpenFileNames(
+                self,
+                "Select Documents to Convert",
+                "",
+                "Documents (*.docx *.txt);;All Files (*.*)"
+            )
+            
+            if not file_paths:
+                return
+            
+            # Select output folder
+            output_folder = QFileDialog.getExistingDirectory(
+                self,
+                "Select Output Folder for Markdown Files",
+                "",
+                QFileDialog.Option.ShowDirsOnly
+            )
+            
+            if not output_folder:
+                return
+            
+            # Progress dialog
+            progress = QProgressDialog(
+                "Converting documents to Markdown...",
+                "Cancel",
+                0,
+                len(file_paths),
+                self
+            )
+            progress.setWindowModality(Qt.WindowModality.WindowModal)
+            progress.setMinimumDuration(0)
+            
+            converted_count = 0
+            failed_count = 0
+            
+            for i, file_path in enumerate(file_paths):
+                if progress.wasCanceled():
+                    break
+                
+                progress.setValue(i)
+                progress.setLabelText(f"Converting: {os.path.basename(file_path)}")
+                QApplication.processEvents()
+                
+                try:
+                    # Determine output path
+                    base_name = os.path.splitext(os.path.basename(file_path))[0]
+                    output_path = os.path.join(output_folder, base_name + ".md")
+                    
+                    # Convert based on file type
+                    if file_path.lower().endswith('.docx'):
+                        self._convert_docx_to_markdown(file_path, output_path)
+                    else:  # TXT
+                        self._convert_txt_to_markdown(file_path, output_path)
+                    
+                    converted_count += 1
+                    self.log(f"✓ Converted: {os.path.basename(file_path)}")
+                    
+                except Exception as e:
+                    failed_count += 1
+                    self.log(f"✗ Failed: {os.path.basename(file_path)} - {str(e)}")
+            
+            progress.setValue(len(file_paths))
+            
+            # Show summary
+            summary = f"Batch conversion complete!\n\n"
+            summary += f"✓ Successfully converted: {converted_count} files\n"
+            if failed_count > 0:
+                summary += f"✗ Failed: {failed_count} files\n"
+            summary += f"\nOutput folder: {output_folder}"
+            
+            QMessageBox.information(
+                self,
+                "Batch Conversion Complete",
+                summary
+            )
+            
+        except Exception as e:
+            self.log(f"✗ Batch conversion failed: {str(e)}")
+            QMessageBox.critical(
+                self,
+                "Conversion Error",
+                f"Failed to perform batch conversion:\n\n{str(e)}"
+            )
+    
+    def _convert_docx_to_markdown(self, docx_path: str, output_path: str):
+        """Convert DOCX document to Markdown, preserving structure"""
+        from docx import Document
+        
+        doc = Document(docx_path)
+        markdown_lines = []
+        
+        # Add document title
+        doc_name = os.path.splitext(os.path.basename(docx_path))[0]
+        markdown_lines.append(f"# {doc_name}")
+        markdown_lines.append("")
+        
+        for para in doc.paragraphs:
+            if not para.text.strip():
+                markdown_lines.append("")
+                continue
+            
+            # Check paragraph style
+            style = para.style.name.lower()
+            text = para.text.strip()
+            
+            # Detect ALL CAPS headings (common in patent documents)
+            words = text.split()
+            is_all_caps = (
+                len(words) >= 2 and 
+                all(word.isupper() or not word.isalpha() for word in words) and
+                len(text) <= 100  # Reasonable heading length
+            )
+            
+            if 'heading 1' in style or style == 'title':
+                markdown_lines.append(f"# {text}")
+            elif 'heading 2' in style:
+                markdown_lines.append(f"## {text}")
+            elif 'heading 3' in style:
+                markdown_lines.append(f"### {text}")
+            elif 'heading 4' in style:
+                markdown_lines.append(f"#### {text}")
+            elif 'heading 5' in style:
+                markdown_lines.append(f"##### {text}")
+            elif 'heading 6' in style:
+                markdown_lines.append(f"###### {text}")
+            elif is_all_caps:
+                # ALL CAPS line without heading style - treat as heading
+                markdown_lines.append(f"## {text.title()}")
+            elif 'list bullet' in style or 'bullet' in style:
+                markdown_lines.append(f"- {text}")
+            elif 'list number' in style or 'numbering' in style:
+                markdown_lines.append(f"1. {text}")
+            elif 'quote' in style or 'quotation' in style:
+                markdown_lines.append(f"> {text}")
+            else:
+                # Regular paragraph - preserve bold/italic if present
+                # Simple formatting detection (runs with bold/italic)
+                has_bold = any(run.bold for run in para.runs if run.text.strip())
+                has_italic = any(run.italic for run in para.runs if run.text.strip())
+                
+                if has_bold and has_italic:
+                    markdown_lines.append(f"***{text}***")
+                elif has_bold:
+                    markdown_lines.append(f"**{text}**")
+                elif has_italic:
+                    markdown_lines.append(f"*{text}*")
+                else:
+                    markdown_lines.append(text)
+            
+            markdown_lines.append("")
+        
+        # Write output
+        with open(output_path, 'w', encoding='utf-8', newline='\n') as f:
+            f.write('\n'.join(markdown_lines))
+    
+    def _convert_txt_to_markdown(self, txt_path: str, output_path: str):
+        """Convert TXT document to Markdown with minimal formatting"""
+        with open(txt_path, 'r', encoding='utf-8') as f:
+            lines = f.readlines()
+        
+        markdown_lines = []
+        
+        # Add document title
+        doc_name = os.path.splitext(os.path.basename(txt_path))[0]
+        markdown_lines.append(f"# {doc_name}")
+        markdown_lines.append("")
+        
+        # Process lines - detect simple patterns
+        for line in lines:
+            stripped = line.strip()
+            
+            if not stripped:
+                markdown_lines.append("")
+                continue
+            
+            # Detect ALL CAPS headings (common in plain text documents)
+            # Must be at least 3 words long and all uppercase
+            words = stripped.split()
+            is_all_caps = (
+                len(words) >= 2 and 
+                all(word.isupper() or not word.isalpha() for word in words) and
+                len(stripped) <= 100  # Reasonable heading length
+            )
+            
+            if is_all_caps:
+                # Convert to title case and make it a heading
+                markdown_lines.append(f"## {stripped.title()}")
+            # Detect simple bullet points
+            elif stripped.startswith('- ') or stripped.startswith('* '):
+                markdown_lines.append(stripped)
+            # Detect numbered lists
+            elif len(stripped) > 2 and stripped[0].isdigit() and stripped[1] in '.):':
+                markdown_lines.append(stripped)
+            # Regular text
+            else:
+                markdown_lines.append(stripped)
+        
+        # Write output
+        with open(output_path, 'w', encoding='utf-8', newline='\n') as f:
+            f.write('\n'.join(markdown_lines))
 
     # ========================================================================
     # MULTI-FILE FOLDER IMPORT
@@ -35237,6 +35907,18 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                 # Find Superlookup index in modules tabs
                 for i in range(self.modules_tabs.count()):
                     if "Superlookup" in self.modules_tabs.tabText(i):
+                        self.modules_tabs.setCurrentIndex(i)
+                        break
+    
+    def _navigate_to_tool(self, tool_name: str):
+        """Navigate to a specific tool in the Tools tab"""
+        if hasattr(self, 'main_tabs'):
+            # Main tabs: Grid=0, Resources=1, Prompt Manager=2, Tools=3, Settings=4
+            self.main_tabs.setCurrentIndex(3)  # Switch to Tools tab
+            # Then switch to the specific tool sub-tab
+            if hasattr(self, 'modules_tabs'):
+                for i in range(self.modules_tabs.count()):
+                    if tool_name in self.modules_tabs.tabText(i):
                         self.modules_tabs.setCurrentIndex(i)
                         break
     

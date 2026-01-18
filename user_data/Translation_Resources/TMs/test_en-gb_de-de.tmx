@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<tmx version="1.4">
+  <header creationtool="Supervertaler Test" creationtoolversion="1.0" datatype="plaintext" segtype="sentence" adminlang="en-GB" srclang="en-GB" o-tmf="unknown"/>
+  <body>
+    <tu>
+      <tuv xml:lang="en-GB">
+        <seg>Hello, how are you?</seg>
+      </tuv>
+      <tuv xml:lang="de-DE">
+        <seg>Hallo, wie geht es dir?</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-GB">
+        <seg>This is a test translation.</seg>
+      </tuv>
+      <tuv xml:lang="de-DE">
+        <seg>Dies ist eine Testübersetzung.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-GB">
+        <seg>The quick brown fox jumps over the lazy dog.</seg>
+      </tuv>
+      <tuv xml:lang="de-DE">
+        <seg>Der schnelle braune Fuchs springt über den faulen Hund.</seg>
+      </tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-GB">
+        <seg>Translation memory is an essential tool for professional translators.</seg>
+      </tuv>
+      <tuv xml:lang="de-DE">
+        <seg>Translation Memory ist ein unverzichtbares Werkzeug für professionelle Übersetzer.</seg>
+      </tuv>
+    </tu>
+  </body>
+</tmx>
