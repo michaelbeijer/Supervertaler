@@ -21105,6 +21105,9 @@ class SupervertalerQt(QMainWindow):
             # Initialize TM for this project
             self.initialize_tm_database()
             
+            # Deactivate all resources for new project (user explicitly activates what they need)
+            self._deactivate_all_resources_for_new_project()
+            
             # Auto-resize rows for better initial display
             self.auto_resize_rows()
 
@@ -23582,6 +23585,9 @@ class SupervertalerQt(QMainWindow):
             self.load_segments_to_grid()
             self.initialize_tm_database()
             
+            # Deactivate all resources for new project (user explicitly activates what they need)
+            self._deactivate_all_resources_for_new_project()
+            
             # Auto-resize rows for better initial display
             self.auto_resize_rows()
             
@@ -24076,6 +24082,9 @@ class SupervertalerQt(QMainWindow):
             self.load_segments_to_grid()
             self.initialize_tm_database()
             
+            # Deactivate all resources for new project (user explicitly activates what they need)
+            self._deactivate_all_resources_for_new_project()
+            
             # Auto-resize rows for better initial display
             self.auto_resize_rows()
             
@@ -24342,6 +24351,9 @@ class SupervertalerQt(QMainWindow):
             self.load_segments_to_grid()
             self.initialize_tm_database()
             
+            # Deactivate all resources for new project (user explicitly activates what they need)
+            self._deactivate_all_resources_for_new_project()
+            
             # Auto-resize rows for better initial display
             self.auto_resize_rows()
             
@@ -24550,6 +24562,9 @@ class SupervertalerQt(QMainWindow):
             self.update_window_title()
             self.load_segments_to_grid()
             self.initialize_tm_database()
+            
+            # Deactivate all resources for new project (user explicitly activates what they need)
+            self._deactivate_all_resources_for_new_project()
             
             # Auto-resize rows for better initial display
             self.auto_resize_rows()
@@ -30469,6 +30484,35 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                     self.log(f"⚠ Spellcheck dictionary not available for {target_lang}")
         except Exception as e:
             self.log(f"⚠ Could not initialize spellcheck: {e}")
+    
+    def _deactivate_all_resources_for_new_project(self):
+        """Deactivate all TMs, termbases, and NT lists for a freshly imported project.
+        This ensures new projects start with clean slate - user explicitly activates what they need."""
+        if not self.current_project or not hasattr(self.current_project, 'id'):
+            return
+        
+        project_id = self.current_project.id
+        if not project_id:
+            return
+        
+        # Deactivate all TMs for this project
+        if hasattr(self, 'tm_metadata_mgr') and self.tm_metadata_mgr:
+            all_tms = self.tm_metadata_mgr.get_all_tms()
+            for tm in all_tms:
+                self.tm_metadata_mgr.deactivate_tm(tm['id'], project_id)
+        
+        # Deactivate all termbases for this project
+        if hasattr(self, 'termbase_mgr') and self.termbase_mgr:
+            all_termbases = self.termbase_mgr.get_all_termbases()
+            for tb in all_termbases:
+                self.termbase_mgr.deactivate_termbase(tb['id'], project_id)
+        
+        # Deactivate all NT lists
+        if hasattr(self, 'nt_manager') and self.nt_manager:
+            for list_name in list(self.nt_manager.lists.keys()):
+                self.nt_manager.set_list_active(list_name, False)
+        
+        self.log("📋 New project: All TMs, glossaries, and NT lists deactivated (start clean)")
     
     def search_and_display_tm_matches(self, source_text: str):
         """Search TM and Termbases and display matches with visual diff for fuzzy matches"""
