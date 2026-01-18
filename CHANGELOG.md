@@ -2,7 +2,56 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.109 (January 18, 2026)
+**Current Version:** v1.9.110 (January 18, 2026)
+
+## 🔄 Superconverter - Format Conversion Hub (v1.9.110) - January 18, 2026
+
+**New Superconverter Tool - Document & Format Conversion**
+
+Introduced a comprehensive format conversion tool under **Tools → Superconverter** with three tabs:
+
+**1. Bilingual Table (Markdown Export)**
+- Export project segments as AI-optimized Markdown tables
+- Perfect for ChatGPT, Claude, Gemini - renders as clean tables in chat interfaces
+- Options: bilingual, source-only, or target-only
+- Filters: all segments, untranslated only, or translated only
+- Language-tagged rows (e.g., `Dutch:`, `English:`)
+
+**2. Document → Markdown Converter**
+- Convert DOCX and TXT documents to structured Markdown
+- **Single file conversion**: Choose file, set output location, convert
+- **Batch conversion**: Select multiple files, output folder, convert all at once
+- **Auto-detects ALL CAPS headings** (e.g., "TECHNISCH DOMEIN" → "## Technisch Domein")
+  - Especially useful for patent documents and technical reports
+- Preserves Word document structure:
+  - Headings (H1-H6) → Markdown headings
+  - Bulleted lists → Unordered lists
+  - Numbered lists → Ordered lists
+  - Paragraphs with proper spacing
+  - Bold/italic formatting
+
+**3. TMX Tools (Placeholder)**
+- Prepared for future TMX conversion workflows
+- More conversion workflows coming soon
+
+**UI/UX Improvements:**
+- All 11 Tools tab items now accessible via **Tools menu** for quick navigation
+- Removed focus rectangles from buttons for cleaner appearance
+- File → Export menu updated: "AI-Readable Format (TXT)" → "AI-Readable Markdown (.md)"
+
+**Technical Details:**
+- `create_superconverter_tab()` - New 3-tab converter interface
+- `export_bilingual_table_markdown()` - Markdown table export with filters
+- `convert_document_to_markdown()` - Single DOCX/TXT conversion
+- `batch_convert_documents_to_markdown()` - Batch processing
+- `_convert_docx_to_markdown()` - DOCX structure preservation + ALL CAPS detection
+- `_convert_txt_to_markdown()` - TXT conversion + ALL CAPS detection
+- `_navigate_to_tool()` - Helper for Tools menu navigation
+
+**Files Modified:**
+- `Supervertaler.py` - Complete Superconverter implementation (911 line insertions)
+
+---
 
 ## 🔧 TMX Language Pair Bug Fix (v1.9.109) - January 18, 2026
 
