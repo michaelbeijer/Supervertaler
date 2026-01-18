@@ -2,6 +2,8 @@
 
 Thank you for trying Supervertaler and for reporting this issue! I've investigated and implemented fixes for both problems you encountered.
 
+**All fixes are now available in Supervertaler v1.9.108** (released January 18, 2026).
+
 ---
 
 ## The Problems Found
