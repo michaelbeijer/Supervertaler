@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** January 18, 2026 | **Version:** v1.9.108
+> **Last Updated:** January 18, 2026 | **Version:** v1.9.109
 
 ---
 
@@ -728,7 +728,49 @@ google_api_key=AI...
 
 ## 🔄 Recent Development History
 
-### January 18, 2026 - memoQ XLIFF Import/Export Support (User Issue #106)
+### January 18, 2026 - TMX Language Pair Bug Fix (User Issue #105) - v1.9.109
+
+**🔧 Fixed Critical TMX Import Language Reversal Bug**
+
+**Issue ([#105](https://github.com/michaelbeijer/Supervertaler/issues/105)):** User reported that EN-GB → DE-DE TMX files were being imported as DE-DE → EN-GB, making it impossible to find matches for translated segments.
+
+**Root Cause:**
+- TMX import code incorrectly assumed the FIRST language in the TMX file was the source language and the SECOND was the target
+- TMX files list languages in arbitrary order (often alphabetically), so this assumption was wrong
+- Example: A file with languages listed as [de-DE, en-GB] would be imported as DE-DE → EN-GB even if the user wanted EN-GB → DE-DE
+
+**Fix Implemented:**
+- Added language pair selection dialog when importing TMX files
+- User now explicitly selects which detected language should be source and which should be target
+- Prevents accidental language reversal regardless of TMX file language order
+- Applied to both "Create new TM from TMX" and "Add to existing TM" workflows
+
+**User Workflow:**
+1. Import TMX file via TM Manager
+2. Dialog shows all detected languages (e.g., "de-DE, en-GB")
+3. User selects: Source = en-GB, Target = de-DE
+4. Import proceeds with correct language pair
+5. TM matches now work correctly
+
+**Implementation Details:**
+- Added language selection dialog with two dropdowns (Source/Target)
+- Validation ensures source ≠ target
+- Dialog appears in two locations in `_import_tmx_as_tm()`:
+  - When creating new TM from TMX (line ~12852)
+  - When adding to existing TM with no languages set (line ~12957)
+
+**Files Modified:**
+- `Supervertaler.py` - Added language selection dialog in `_import_tmx_as_tm()` method (~110 lines added)
+- `CHANGELOG.md` - Added v1.9.109 entry
+- `README.md` - Version updated to v1.9.109
+
+**GitHub:**
+- Issue: https://github.com/michaelbeijer/Supervertaler/issues/105
+- Response: `GitHub_Issue_105_Response.md`
+
+---
+
+### January 18, 2026 - memoQ XLIFF Import/Export Support (User Issue #106) - v1.9.108
 
 **📥📤 Complete memoQ XLIFF (.mqxliff) Workflow**
 
