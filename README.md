@@ -1,4 +1,4 @@
-# 🚀 Supervertaler v1.9.116
+# 🚀 Supervertaler v1.9.117
 
 [![PyPI version](https://badge.fury.io/py/supervertaler.svg)](https://pypi.org/project/Supervertaler/)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
@@ -6,7 +6,11 @@
 
 AI-enhanced CAT tool with multi-LLM support (GPT-4, Claude, Gemini, Ollama), innovative Superlookup concordance system offering access to multiple terminology sources (TMs, glossaries, web resources, etc.), and seamless CAT tool integration (memoQ, Trados, CafeTran, Phrase).
 
-**Current Version:** v1.9.116 (January 19, 2026)
+**Current Version:** v1.9.117 (January 19, 2026)
+
+### FIXED in v1.9.117 - 🐛 Glossary Punctuation Matching
+
+**Critical Fix:** Glossary entries with trailing punctuation (periods, quotes, etc.) now match correctly! Previously, "sentence." in glossary wouldn't match "sentence." in source text due to tokenization stripping punctuation from source but not from glossary entries.
 
 ### FIXED in v1.9.116 - 🐛 Tab Navigation & Startup
 
