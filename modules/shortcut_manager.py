@@ -542,6 +542,13 @@ class ShortcutManager:
             "action": "copy_source_to_target",
             "context": "grid_editor"
         },
+        "editor_add_to_dictionary": {
+            "category": "Editor",
+            "description": "Add word at cursor to custom dictionary",
+            "default": "Alt+D",
+            "action": "add_word_to_dictionary",
+            "context": "grid_editor"
+        },
         
         # Filter Operations
         "filter_selected_text": {

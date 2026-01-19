@@ -3,7 +3,7 @@ Supervertaler
 =============
 The Ultimate Translation Workbench.
 Modern PyQt6 interface with specialised modules to handle any problem.
-Version: 1.9.118 (Fix Termview glossary matching with punctuation)
+Version: 1.9.119 (Alt+D shortcut for quick dictionary addition)
 Release Date: January 19, 2026
 Framework: PyQt6
 
@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.118"
+__version__ = "1.9.119"
 __phase__ = "0.9"
 __release_date__ = "2026-01-19"
 __edition__ = "Qt"
@@ -5668,6 +5668,9 @@ class SupervertalerQt(QMainWindow):
         
         # Ctrl+Shift+2 - Quick add term with Priority 2
         create_shortcut("editor_quick_add_priority_2", "Ctrl+Shift+2", lambda: self._quick_add_term_with_priority(2))
+        
+        # Alt+D - Add word at cursor to dictionary
+        create_shortcut("editor_add_to_dictionary", "Alt+D", self.add_word_to_dictionary_shortcut)
     
     def refresh_shortcut_enabled_states(self):
         """Refresh enabled/disabled states and key bindings of all global shortcuts from shortcut manager.
@@ -10835,6 +10838,38 @@ class SupervertalerQt(QMainWindow):
             self.log(f"✗ Error adding term: {e}")
             self._play_sound_effect('glossary_term_error')
             self.statusBar().showMessage(f"Error adding term: {e}", 3000)
+
+    def add_word_to_dictionary_shortcut(self):
+        """Add word at cursor position to custom dictionary (Alt+D shortcut)
+        
+        Finds the misspelled word at the current cursor position and adds it to the
+        custom dictionary. Works when focus is in a grid target cell.
+        """
+        # Get currently focused widget
+        focused_widget = QApplication.focusWidget()
+        
+        # Check if we're in an editable grid cell
+        if not isinstance(focused_widget, EditableGridTextEditor):
+            self.statusBar().showMessage("Alt+D: Place cursor on a misspelled word in the target cell first", 3000)
+            return
+        
+        # Get cursor position
+        cursor = focused_widget.textCursor()
+        
+        # Try to find misspelled word at cursor
+        word_info = focused_widget._get_misspelled_word_at_cursor(cursor)
+        
+        if word_info[0] is None:
+            # No misspelled word found at cursor
+            self.statusBar().showMessage("No misspelled word at cursor position", 3000)
+            return
+        
+        word, start_pos, end_pos = word_info
+        
+        # Add to dictionary
+        focused_widget._add_to_dictionary(word)
+        
+        # Status message already shown by _add_to_dictionary
 
     def add_text_to_non_translatables(self, text: str):
         """Add selected text to active non-translatable list(s)"""

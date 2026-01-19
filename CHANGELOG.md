@@ -2,7 +2,37 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.118 (January 19, 2026)
+**Current Version:** v1.9.119 (January 19, 2026)
+
+## ⌨️ Alt+D Dictionary Shortcut (v1.9.119) - January 19, 2026
+
+**Quick Dictionary Addition from Grid**
+
+Added Alt+D keyboard shortcut for quickly adding words to the custom dictionary without using the right-click menu:
+
+**How It Works:**
+- Place cursor on any misspelled word in the target cell
+- Press Alt+D
+- Word is instantly added to custom dictionary
+- Red underline removed and highlighting refreshed across all cells
+
+**Benefits:**
+- Faster workflow - no need to right-click and select from menu
+- Particularly useful when translating technical documents with many specialized terms
+- Works exactly like the context menu "Add to Dictionary" but with a single keystroke
+
+**Files Modified:**
+- `modules/shortcut_manager.py` - Added `editor_add_to_dictionary` shortcut definition
+- `Supervertaler.py` - Added `add_word_to_dictionary_shortcut()` handler method
+- `Supervertaler.py` - Registered Alt+D shortcut in `setup_global_shortcuts()`
+
+**Usage:**
+1. See a red underline on a word in the target cell
+2. Click to place cursor on that word
+3. Press Alt+D
+4. Word added to dictionary, underline removed
+
+---
 
 ## 🐛 Termview Glossary Punctuation Fix (v1.9.118) - January 19, 2026
 
