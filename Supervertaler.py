@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.120"
+__version__ = "1.9.121"
 __phase__ = "0.9"
 __release_date__ = "2026-01-19"
 __edition__ = "Qt"
@@ -31579,9 +31579,17 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             self.update_window_title()
             
         finally:
-            # OPTIMIZATION: Re-enable UI updates and refresh grid once at the end
+            # OPTIMIZATION: Re-enable UI updates and refresh only target column cells
             self.table.setUpdatesEnabled(True)
-            self.load_segments_to_grid()
+            # Update all target cells in-place (batch operations can affect many segments)
+            for row in range(len(self.current_project.segments)):
+                segment = self.current_project.segments[row]
+                target_widget = self.table.cellWidget(row, 3)
+                if target_widget and hasattr(target_widget, 'setPlainText'):
+                    target_widget.blockSignals(True)
+                    target_widget.setPlainText(segment.target)
+                    target_widget.blockSignals(False)
+            self.table.viewport().update()
         
         QMessageBox.information(
             self.find_replace_dialog,
@@ -31989,6 +31997,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             # Perform replacements
             import re
             replaced_count = 0
+            updated_rows = set()  # Track which rows need UI updates
             
             for row, col in self.find_matches:
                 segment = self.current_project.segments[row]
@@ -32011,6 +32020,8 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                 
                 if new_text != old_text:
                     replaced_count += 1
+                    updated_rows.add(row)
+                    
                     # Update the appropriate field
                     if col == 2:
                         segment.source = new_text
@@ -32020,6 +32031,13 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                         segment.target = new_text
                         # Record undo state for find/replace operation
                         self.record_undo_state(segment.id, old_target, new_text, old_status, old_status)
+                    
+                    # OPTIMIZATION: Update only the affected cell widget in-place
+                    cell_widget = self.table.cellWidget(row, col)
+                    if cell_widget and hasattr(cell_widget, 'setPlainText'):
+                        cell_widget.blockSignals(True)
+                        cell_widget.setPlainText(new_text)
+                        cell_widget.blockSignals(False)
             
             self.project_modified = True
             self.update_window_title()
@@ -32028,9 +32046,11 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             self.find_matches = []
             
         finally:
-            # OPTIMIZATION: Re-enable UI updates and reload grid once at the end
+            # OPTIMIZATION: Re-enable UI updates without full grid reload
             self.table.setUpdatesEnabled(True)
-            self.load_segments_to_grid()
+            # Trigger a repaint of updated rows only
+            for row in updated_rows:
+                self.table.viewport().update()
         
         QMessageBox.information(self.find_replace_dialog, "Replace All", f"Replaced {replaced_count} occurrence(s).")
         self.log(f"✓ Replaced {replaced_count} occurrence(s) of '{find_text}'")

@@ -2,9 +2,56 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.120 (January 19, 2026)
+**Current Version:** v1.9.121 (January 19, 2026)
+
+## 🐛 Find & Replace Performance Fix (v1.9.121) - January 19, 2026
+
+**Critical Fix: Actually Fast Now!**
+
+Fixed v1.9.120 optimization that accidentally made Find & Replace slower by calling `load_segments_to_grid()` which recreates all widgets.
+
+**The Problem in v1.9.120:**
+- Replace All took 37-39 seconds for 12 replacements (worse than before!)
+- Root cause: `load_segments_to_grid()` recreates all 755 QTextEdit widgets (23 seconds)
+- My optimization batched UI updates but then destroyed the performance by rebuilding everything
+
+**The Real Fix in v1.9.121:**
+- Update only the affected cells in-place using `cellWidget().setPlainText()`
+- No widget recreation - just update the text content
+- Track which rows were modified and update only those
+- Batch operations update all target cells efficiently
+
+**Performance Results:**
+- Replace operations should now be near-instant (<1 second)
+- No more 20+ second widget recreation delays
+- Same results, but actually fast this time
+
+**Files Modified:**
+- `Supervertaler.py` - Fixed `replace_all_matches()` and `_fr_run_set_batch()` to update cells in-place
+
+---
 
 ## ⚡ Find & Replace Speed Optimization (v1.9.120) - January 19, 2026
+
+**Note:** This version had a bug that made performance worse. Use v1.9.121 instead.
+
+**Massive Performance Improvement for Find & Replace Operations**
+- Track which rows were modified and update only those
+- Batch operations update all target cells efficiently
+
+**Performance Results:**
+- Replace operations should now be near-instant (<1 second)
+- No more 20+ second widget recreation delays
+- Same results, but actually fast this time
+
+**Files Modified:**
+- `Supervertaler.py` - Fixed `replace_all_matches()` and `_fr_run_set_batch()` to update cells in-place
+
+---
+
+## ⚡ Find & Replace Speed Optimization (v1.9.120) - January 19, 2026
+
+**Note:** This version had a bug that made performance worse. Use v1.9.121 instead.
 
 **Massive Performance Improvement for Find & Replace Operations**
 
