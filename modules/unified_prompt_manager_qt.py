@@ -856,22 +856,26 @@ class UnifiedPromptManagerQt:
         tab = QWidget()
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(10, 10, 10, 10)
-        layout.setSpacing(10)
+        layout.setSpacing(5)
         
-        # Header
+        # Header (matches standard tool style: Superbench, AutoFingers, TMX Editor)
         header = QLabel("📝 Available Placeholders")
-        header.setStyleSheet("font-size: 14pt; font-weight: bold; color: #2196F3;")
-        layout.addWidget(header)
+        header.setStyleSheet("font-size: 16pt; font-weight: bold; color: #1976D2;")
+        layout.addWidget(header, 0)
         
-        # Intro text
-        intro = QLabel(
+        # Description box (matches standard tool style)
+        description = QLabel(
             "Use these placeholders in your prompts. They will be replaced with actual values when the prompt runs."
         )
-        intro.setWordWrap(True)
-        intro.setStyleSheet("color: #666; margin-bottom: 10px;")
-        layout.addWidget(intro)
+        description.setWordWrap(True)
+        description.setStyleSheet("color: #666; padding: 5px; background-color: #E3F2FD; border-radius: 3px;")
+        layout.addWidget(description, 0)
         
-        # Table with placeholders
+        # Horizontal splitter for table and tips
+        splitter = QSplitter(Qt.Orientation.Horizontal)
+        splitter.setHandleWidth(3)
+        
+        # Left: Table with placeholders
         table = QTableWidget()
         table.setColumnCount(3)
         table.setHorizontalHeaderLabels(["Placeholder", "Description", "Example"])
@@ -940,25 +944,47 @@ class UnifiedPromptManagerQt:
         for row in range(table.rowCount()):
             table.setRowHeight(row, 60)
         
-        layout.addWidget(table)
+        splitter.addWidget(table)
         
-        # Usage tips section
-        tips_label = QLabel("💡 Usage Tips:")
-        tips_label.setStyleSheet("font-weight: bold; margin-top: 10px;")
-        layout.addWidget(tips_label)
+        # Right: Usage tips panel
+        tips_panel = QWidget()
+        tips_layout = QVBoxLayout(tips_panel)
+        tips_layout.setContentsMargins(10, 0, 0, 0)
+        
+        tips_header = QLabel("💡 Usage Tips")
+        tips_header.setStyleSheet("font-weight: bold; font-size: 11pt; color: #2196F3; margin-bottom: 8px;")
+        tips_layout.addWidget(tips_header)
+        
+        tips_intro = QLabel(
+            "Use these placeholders in your prompts. They will be replaced with actual values when the prompt runs."
+        )
+        tips_intro.setWordWrap(True)
+        tips_intro.setStyleSheet("color: #666; margin-bottom: 15px; font-style: italic;")
+        tips_layout.addWidget(tips_intro)
         
         tips_text = QLabel(
-            "• Placeholders are case-sensitive (use UPPERCASE)\n"
-            "• Surround placeholders with double curly braces: {{ }}\n"
-            "• You can combine multiple placeholders in one prompt\n"
-            "• Use {{DOCUMENT_CONTEXT}} for context-aware translations\n"
+            "• Placeholders are case-sensitive (use UPPERCASE)\n\n"
+            "• Surround placeholders with double curly braces: {{ }}\n\n"
+            "• You can combine multiple placeholders in one prompt\n\n"
+            "• Use {{DOCUMENT_CONTEXT}} for context-aware translations\n\n"
             "• Configure {{DOCUMENT_CONTEXT}} percentage in Settings → AI Settings"
         )
         tips_text.setWordWrap(True)
-        tips_text.setStyleSheet("color: #666; margin-left: 20px;")
-        layout.addWidget(tips_text)
+        tips_text.setStyleSheet("color: #666; line-height: 1.6;")
+        tips_layout.addWidget(tips_text)
         
-        layout.addStretch()
+        tips_layout.addStretch()
+        
+        tips_panel.setMinimumWidth(280)
+        tips_panel.setMaximumWidth(400)
+        splitter.addWidget(tips_panel)
+        
+        # Set splitter proportions (75% table, 25% tips)
+        splitter.setSizes([750, 250])
+        splitter.setStretchFactor(0, 1)  # Table expands
+        splitter.setStretchFactor(1, 0)  # Tips panel fixed-ish
+        
+        layout.addWidget(splitter, 1)  # 1 = stretch to fill all available space
         
         return tab
     
