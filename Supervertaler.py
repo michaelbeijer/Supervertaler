@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.128"
+__version__ = "1.9.129"
 __phase__ = "0.9"
 __release_date__ = "2026-01-19"
 __edition__ = "Qt"
@@ -37742,6 +37742,10 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         document_context = ""
         if "{{DOCUMENT_CONTEXT}}" in prompt_content and hasattr(self, 'current_project') and self.current_project:
             document_context = self._build_quickmenu_document_context()
+            self.log(f"🔍 QuickMenu: Built document context ({len(document_context)} characters)")
+        else:
+            if "{{DOCUMENT_CONTEXT}}" in prompt_content:
+                self.log("⚠️ QuickMenu: {{DOCUMENT_CONTEXT}} requested but no project loaded")
 
         # Replace placeholders in the prompt content
         prompt_content = prompt_content.replace("{{SOURCE_LANGUAGE}}", source_lang)
@@ -37749,6 +37753,12 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         prompt_content = prompt_content.replace("{{SOURCE_TEXT}}", source_text)
         prompt_content = prompt_content.replace("{{SELECTION}}", source_text)  # Alternative placeholder
         prompt_content = prompt_content.replace("{{DOCUMENT_CONTEXT}}", document_context)
+        
+        # Debug: Log the final prompt being sent
+        self.log(f"📝 QuickMenu: Final prompt ({len(prompt_content)} chars):")
+        self.log("─" * 80)
+        self.log(prompt_content[:500] + ("..." if len(prompt_content) > 500 else ""))
+        self.log("─" * 80)
         
         # If the prompt doesn't contain the selection/text, append it
         if "{{SOURCE_TEXT}}" not in prompt_data.get('content', '') and "{{SELECTION}}" not in prompt_data.get('content', ''):
@@ -37767,7 +37777,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         
         try:
             # Get settings
-            general_prefs = self.load_general_settings_from_file()
+            general_prefs = self.load_general_settings()
             context_percent = general_prefs.get('quickmenu_context_percent', 50)  # Default: 50%
             max_context_segments = general_prefs.get('quickmenu_context_max', 100)  # Safety limit
             

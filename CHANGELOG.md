@@ -2,7 +2,44 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.128 (January 19, 2026)
+**Current Version:** v1.9.129 (January 19, 2026)
+
+## 🐛 QuickMenu Document Context Bug Fix (v1.9.129) - January 19, 2026
+
+**Fixed Critical Bug: {{DOCUMENT_CONTEXT}} Placeholder Now Works**
+
+Fixed a critical bug where the `{{DOCUMENT_CONTEXT}}` placeholder in QuickMenu prompts was completely broken due to a method name typo:
+
+**The Problem:**
+- QuickMenu prompts using `{{DOCUMENT_CONTEXT}}` would fail to load project segments
+- Instead of receiving actual document context, the AI received an error message
+- This made context-aware prompts ineffective (AI answered generic questions without project knowledge)
+
+**Root Cause:**
+- `_build_quickmenu_document_context()` called `self.load_general_settings_from_file()` which doesn't exist
+- Should have been `self.load_general_settings()` (without "_from_file" suffix)
+- Exception was caught but resulted in error text being sent to AI instead of segments
+
+**The Fix:**
+- Fixed method name: `load_general_settings_from_file()` → `load_general_settings()`
+- Document context now builds correctly with configurable percentage (default 50%)
+- Maximum 100 segments as safety limit to prevent token overflow
+
+**User Impact:**
+- ✅ QuickMenu prompts can now access full project context
+- ✅ AI receives actual segments instead of error messages
+- ✅ Context-aware translation suggestions now work as intended
+- ✅ Better handling of domain-specific terminology with project knowledge
+
+**Example Working Prompt:**
+```
+Suggest the best possible translation of "{{SELECTION}}" from {{SOURCE_LANGUAGE}} to {{TARGET_LANGUAGE}} within the context of the current patent application: {{DOCUMENT_CONTEXT}}
+```
+
+**Files Modified:**
+- `Supervertaler.py` - Fixed method name in `_build_quickmenu_document_context()`
+
+---
 
 ## 📐 Placeholders Tab Layout Optimization (v1.9.128) - January 19, 2026
 
