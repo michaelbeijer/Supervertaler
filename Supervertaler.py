@@ -3,7 +3,7 @@ Supervertaler
 =============
 The Ultimate Translation Workbench.
 Modern PyQt6 interface with specialised modules to handle any problem.
-Version: 1.9.115 (API Keys dialog navigation fix)
+Version: 1.9.116 (Fix all tab navigation + startup tab)
 Release Date: January 19, 2026
 Framework: PyQt6
 
@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.115"
+__version__ = "1.9.116"
 __phase__ = "0.9"
 __release_date__ = "2026-01-18"
 __edition__ = "Qt"
@@ -5322,7 +5322,7 @@ class SupervertalerQt(QMainWindow):
             dialog.exec()
             
             # Navigate to Settings → Features tab
-            self.main_tabs.setCurrentIndex(3)  # Settings tab
+            self.main_tabs.setCurrentIndex(4)  # Settings tab
             if hasattr(self, 'settings_tabs'):
                 # Find the Features tab index
                 for i in range(self.settings_tabs.count()):
@@ -6307,12 +6307,16 @@ class SupervertalerQt(QMainWindow):
         go_resources_action.triggered.connect(lambda: self.main_tabs.setCurrentIndex(1) if hasattr(self, 'main_tabs') else None)
         nav_menu.addAction(go_resources_action)
         
+        go_prompt_manager_action = QAction("🤖 &Prompt Manager", self)
+        go_prompt_manager_action.triggered.connect(lambda: self.main_tabs.setCurrentIndex(2) if hasattr(self, 'main_tabs') else None)
+        nav_menu.addAction(go_prompt_manager_action)
+        
         go_tools_action = QAction("🛠️ &Tools", self)
-        go_tools_action.triggered.connect(lambda: self.main_tabs.setCurrentIndex(2) if hasattr(self, 'main_tabs') else None)
+        go_tools_action.triggered.connect(lambda: self.main_tabs.setCurrentIndex(3) if hasattr(self, 'main_tabs') else None)
         nav_menu.addAction(go_tools_action)
         
         go_settings_action = QAction("⚙️ &Settings", self)
-        go_settings_action.triggered.connect(lambda: self.main_tabs.setCurrentIndex(3) if hasattr(self, 'main_tabs') else None)
+        go_settings_action.triggered.connect(lambda: self.main_tabs.setCurrentIndex(4) if hasattr(self, 'main_tabs') else None)
         nav_menu.addAction(go_settings_action)
         
         view_menu.addSeparator()
@@ -6799,6 +6803,9 @@ class SupervertalerQt(QMainWindow):
         # 5. SETTINGS
         settings_tab = self.create_settings_tab()
         self.main_tabs.addTab(settings_tab, "⚙️ Settings")
+        
+        # Set startup tab to Grid (index 0)
+        self.main_tabs.setCurrentIndex(0)
         
         main_layout.addWidget(self.main_tabs)
         
@@ -35948,8 +35955,8 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             subtab_name: Name of the sub-tab to navigate to (e.g., "AI Settings")
         """
         if hasattr(self, 'main_tabs'):
-            # Main tabs: Grid=0, Project resources=1, Tools=2, Settings=3
-            self.main_tabs.setCurrentIndex(3)
+            # Main tabs: Grid=0, Resources=1, Prompt Manager=2, Tools=3, Settings=4
+            self.main_tabs.setCurrentIndex(4)
             
             # Navigate to specific sub-tab if requested
             if subtab_name and hasattr(self, 'settings_tabs'):
@@ -39564,9 +39571,9 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
     def show_autofingers(self):
         """Show AutoFingers by switching to the AutoFingers tab"""
         # Find the AutoFingers tab index and activate it
-        # AutoFingers is in Tools tab (main_tabs index 2)
+        # AutoFingers is in Tools tab (main_tabs index 3)
         if hasattr(self, 'main_tabs'):
-            self.main_tabs.setCurrentIndex(2)  # Switch to Tools tab
+            self.main_tabs.setCurrentIndex(3)  # Switch to Tools tab
             # Then switch to AutoFingers sub-tab
             if hasattr(self, 'modules_tabs'):
                 for i in range(self.modules_tabs.count()):
@@ -44391,11 +44398,11 @@ class SuperlookupTab(QWidget):
             print(f"[Superlookup] Main window type: {type(main_window).__name__}")
             print(f"[Superlookup] Has main_tabs: {hasattr(main_window, 'main_tabs')}")
             
-            # Switch to Tools tab (main_tabs index 2)
-            # Tab structure: Grid=0, Project resources=1, Tools=2, Settings=3
+            # Switch to Tools tab (main_tabs index 3)
+            # Tab structure: Grid=0, Resources=1, Prompt Manager=2, Tools=3, Settings=4
             if hasattr(main_window, 'main_tabs'):
                 print(f"[Superlookup] Current main_tab index: {main_window.main_tabs.currentIndex()}")
-                main_window.main_tabs.setCurrentIndex(2)  # Tools tab is at index 2
+                main_window.main_tabs.setCurrentIndex(3)  # Tools tab
                 print(f"[Superlookup] Switched to Tools tab (index 2)")
                 QApplication.processEvents()  # Force GUI update
             else:

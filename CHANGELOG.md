@@ -2,7 +2,38 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.115 (January 19, 2026)
+**Current Version:** v1.9.116 (January 19, 2026)
+
+## 🐛 Fixed ALL Tab Navigation + Startup Tab (v1.9.116) - January 19, 2026
+
+**What Was Wrong:**
+The v1.9.115 fix for the "API Keys Missing" dialog navigation was incomplete - it still went to AutoFingers! The root cause was that `_go_to_settings_tab()` was using the **wrong tab index**.
+
+**The Real Problem:**
+When the Prompt Manager tab was added to the main tab bar, it shifted ALL subsequent tab indices:
+- **Before**: Grid=0, Resources=1, Tools=2, Settings=3
+- **After**: Grid=0, Resources=1, **Prompt Manager=2**, Tools=3, Settings=4
+
+But `_go_to_settings_tab()` was still using index 3 (which is now Tools, not Settings)!
+
+**What Was Fixed:**
+- ✅ `_go_to_settings_tab()` now uses correct index 4 (Settings)
+- ✅ "API Keys Missing" dialog now correctly navigates to Settings → AI Settings
+- ✅ Navigate To menu items updated (Prompt Manager, Tools, Settings)
+- ✅ First-run welcome dialog navigation fixed
+- ✅ AutoFingers navigation fixed
+- ✅ Superlookup hotkey handler fixed
+- ✅ **Startup tab now Grid** (index 0) instead of Tools/AutoFingers
+
+**User-Facing Changes:**
+1. When you start Supervertaler, it now opens to the **Grid tab** (empty or with your last project)
+2. "API Keys Missing" dialog **actually works** now - takes you to Settings → AI Settings
+3. All menu navigation items work correctly
+
+**Files Modified:**
+- `Supervertaler.py` - Fixed 8+ locations with incorrect tab indices, added startup tab initialization
+
+---
 
 ## 🐛 API Keys Dialog Navigation Fix (v1.9.115) - January 19, 2026
 
