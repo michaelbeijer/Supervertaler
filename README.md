@@ -1,4 +1,4 @@
-# 🚀 Supervertaler v1.9.121
+# 🚀 Supervertaler v1.9.124
 
 [![PyPI version](https://badge.fury.io/py/supervertaler.svg)](https://pypi.org/project/Supervertaler/)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
@@ -6,7 +6,19 @@
 
 AI-enhanced CAT tool with multi-LLM support (GPT-4, Claude, Gemini, Ollama), innovative Superlookup concordance system offering access to multiple terminology sources (TMs, glossaries, web resources, etc.), and seamless CAT tool integration (memoQ, Trados, CafeTran, Phrase).
 
-**Current Version:** v1.9.121 (January 19, 2026)
+**Current Version:** v1.9.124 (January 19, 2026)
+
+### ADDED in v1.9.124 - 📄 QuickMenu Document Context
+
+**Context-Aware AI Suggestions:** QuickMenu prompts can now access the full document context! Use the new `{{DOCUMENT_CONTEXT}}` placeholder to give the AI access to your project's source segments. Configure what percentage of segments to include (0-100%, default 50%) in Settings → AI Settings. Perfect for: "Suggest the best translation of '{{SELECTION}}' within the context of this project."
+
+### FIXED in v1.9.123 - 🤖 QuickMenu Generic AI Support
+
+**QuickMenu Now Works for Any Task:** Fixed bug where QuickMenu prompts were forced into translation mode. Now supports any AI task: explain terms, define concepts, suggest multiple options, analyze tone, etc.
+
+### ENHANCED in v1.9.122 - ⌨️ Ctrl+N for Quick Notes
+
+**Faster Note-Taking:** Ctrl+N now focuses the Segment Note tab and places your cursor in the notes field, ready to type. Perfect for quick proofreading notes, context reminders, or translation decisions.
 
 ### FIXED in v1.9.121 - 🐛 Find & Replace Performance
 

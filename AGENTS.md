@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** January 19, 2026 | **Version:** v1.9.113
+> **Last Updated:** January 19, 2026 | **Version:** v1.9.124
 
 ---
 
@@ -749,6 +749,87 @@ deepl=...
 ---
 
 ## 🔄 Recent Development History
+
+### January 19, 2026 - QuickMenu Document Context (v1.9.124)
+
+**📄 Context-Aware AI Suggestions**
+
+Implemented major enhancement allowing QuickMenu prompts to access full project context for better AI suggestions:
+
+**The Feature:**
+- New `{{DOCUMENT_CONTEXT}}` placeholder for QuickMenu prompts
+- Configurable percentage slider (0-100%, default 50%) in Settings → AI Settings
+- Safety limit: Maximum 100 segments to prevent token overload
+- Format: `[ID] source\n    → target\n\n` with header showing segment count/percentage
+
+**Implementation:**
+- `_build_quickmenu_document_context()` - Builds formatted segment list
+- Enhanced `_quickmenu_build_custom_prompt()` - Replaces placeholder with context
+- Settings UI: Horizontal slider with dynamic value label
+- Pattern reuse: Adapted from batch translation "surrounding segments" feature
+
+**Example Use Case:**
+```
+{{DOCUMENT_CONTEXT}}
+
+Suggest the best possible translation of "{{SELECTION}}" from {{SOURCE_LANGUAGE}} to {{TARGET_LANGUAGE}} within the context of the current project shown above.
+```
+
+**Benefits:**
+- ✅ AI understands project domain and terminology
+- ✅ Consistent translations across the document  
+- ✅ Better handling of ambiguous terms
+- ✅ Context-aware suggestions for specialized fields
+
+**Files Modified:**
+- `Supervertaler.py` - New method, enhanced prompt builder, settings UI, save wiring
+
+---
+
+### January 19, 2026 - QuickMenu Generic AI Support (v1.9.123)
+
+**🤖 Fixed QuickMenu Translation Mode Lock**
+
+Fixed critical bug where QuickMenu prompts were being forced into translation mode:
+
+**The Problem:**
+- QuickMenu was calling `client.translate(text=input_text, ...)` which forced translation behavior
+- Generic prompts like "Explain this", "Define the selection" would fail
+- The AI would translate the prompt itself instead of executing it
+
+**The Fix:**
+- Changed to use generic AI completion: `client.translate(text="", custom_prompt=...)`
+- Simplified prompt builder - removed translation-specific wrappers
+- QuickMenu now supports ANY AI task (explain, define, suggest, analyze)
+
+**Placeholders Available:**
+- `{{SELECTION}}` - Selected text
+- `{{SOURCE_TEXT}}` - Full source segment
+- `{{SOURCE_LANGUAGE}}` - Project source language
+- `{{TARGET_LANGUAGE}}` - Project target language
+- `{{DOCUMENT_CONTEXT}}` - Full project context (v1.9.124)
+
+**Files Modified:**
+- `Supervertaler.py` - `run_grid_quickmenu_prompt()`, `_quickmenu_build_custom_prompt()`
+
+---
+
+### January 19, 2026 - Ctrl+N for Quick Notes (v1.9.122)
+
+**⌨️ Shortcut Repurposed for Note-Taking**
+
+Repurposed Ctrl+N from "New Project" (rarely used) to "Focus Segment Note tab":
+
+**The Feature:**
+- Press Ctrl+N to instantly jump to Segment Note tab
+- Cursor placed in notes field, ready to type
+- Perfect for quick proofreading notes, context reminders, translation decisions
+
+**Implementation:**
+- `modules/shortcut_manager.py` - Changed `file_new` default to "" (empty), added `editor_focus_notes` with Ctrl+N
+- `Supervertaler.py` - New `focus_segment_notes()` method switches to tab index 1, focuses `bottom_notes_edit`
+
+---
 
 ### January 19, 2026 - API Key Loading System Unified (v1.9.113)
 

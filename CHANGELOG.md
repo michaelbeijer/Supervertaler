@@ -2,7 +2,54 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.123 (January 19, 2026)
+**Current Version:** v1.9.124 (January 19, 2026)
+
+## 📄 QuickMenu Document Context Support (v1.9.124) - January 19, 2026
+
+**QuickMenu Prompts Can Now Access Full Document Context**
+
+Major enhancement allowing QuickMenu prompts to access the entire project's source segments for context-aware AI suggestions:
+
+**New Placeholder:**
+- `{{DOCUMENT_CONTEXT}}` - Inserts formatted list of project segments (source + target)
+
+**Configurable Context:**
+- Slider in Settings → AI Settings → QuickMenu Document Context (0-100%)
+- Default: 50% of project segments
+- Safety limit: Maximum 100 segments to prevent token overload
+- 0% disables document context
+
+**Format:**
+```
+=== DOCUMENT CONTEXT ===
+(Showing 250 of 500 segments - 50%)
+
+[1] Technical defect
+    → Technisch mankement
+
+[2] Manufacturing process
+    → Fabricageproces
+
+...
+```
+
+**Example Use Case:**
+```
+{{DOCUMENT_CONTEXT}}
+
+Suggest the best possible translation of "{{SELECTION}}" from {{SOURCE_LANGUAGE}} to {{TARGET_LANGUAGE}} within the context of the current project shown above.
+```
+
+**Benefits:**
+- ✅ AI understands project domain and terminology
+- ✅ Consistent translations across the document
+- ✅ Better handling of ambiguous terms
+- ✅ Context-aware suggestions for specialized fields
+
+**Files Modified:**
+- `Supervertaler.py` - Added `_build_quickmenu_document_context()`, enhanced `_quickmenu_build_custom_prompt()`, added UI settings
+
+---
 
 ## 🤖 QuickMenu Generic AI Support (v1.9.123) - January 19, 2026
 

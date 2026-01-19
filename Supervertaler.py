@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.123"
+__version__ = "1.9.124"
 __phase__ = "0.9"
 __release_date__ = "2026-01-19"
 __edition__ = "Qt"
@@ -14006,6 +14006,45 @@ class SupervertalerQt(QMainWindow):
         full_context_cb.stateChanged.connect(lambda: context_slider.setEnabled(full_context_cb.isChecked()))
         update_context_label(context_window_size)
         
+        prefs_layout.addSpacing(10)
+        
+        # QuickMenu document context
+        quickmenu_context_label = QLabel("<b>QuickMenu Document Context:</b>")
+        prefs_layout.addWidget(quickmenu_context_label)
+        
+        quickmenu_context_percent = general_prefs.get('quickmenu_context_percent', 50)
+        quickmenu_context_layout = QHBoxLayout()
+        quickmenu_context_layout.addWidget(QLabel("  Document context size:"))
+        quickmenu_context_slider = QSlider(Qt.Orientation.Horizontal)
+        quickmenu_context_slider.setMinimum(0)
+        quickmenu_context_slider.setMaximum(100)
+        quickmenu_context_slider.setValue(quickmenu_context_percent)
+        quickmenu_context_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
+        quickmenu_context_slider.setTickInterval(10)
+        quickmenu_context_layout.addWidget(quickmenu_context_slider)
+        quickmenu_context_value_label = QLabel(f"{quickmenu_context_percent}%")
+        quickmenu_context_value_label.setMinimumWidth(60)
+        quickmenu_context_layout.addWidget(quickmenu_context_value_label)
+        quickmenu_context_layout.addStretch()
+        prefs_layout.addLayout(quickmenu_context_layout)
+        
+        quickmenu_context_info = QLabel(
+            "  ⓘ When using {{DOCUMENT_CONTEXT}} placeholder in QuickMenu prompts.\n"
+            "  0% = disabled, 50% = half the document (default), 100% = entire document.\n"
+            "  Limit: maximum 100 segments for performance."
+        )
+        quickmenu_context_info.setStyleSheet("font-size: 9pt; color: #666; padding-left: 20px;")
+        quickmenu_context_info.setWordWrap(True)
+        prefs_layout.addWidget(quickmenu_context_info)
+        
+        def update_quickmenu_context_label(value):
+            if value == 0:
+                quickmenu_context_value_label.setText("0% (disabled)")
+            else:
+                quickmenu_context_value_label.setText(f"{value}%")
+        
+        quickmenu_context_slider.valueChanged.connect(update_quickmenu_context_label)
+        
         prefs_layout.addSpacing(5)
         
         # Check TM before API call
@@ -14150,7 +14189,8 @@ class SupervertalerQt(QMainWindow):
             batch_size_spin, surrounding_spin, full_context_cb, context_slider,
             check_tm_cb, auto_propagate_cb, delay_spin,
             ollama_keepwarm_cb,
-            llm_matching_cb, auto_markdown_cb, llm_spin
+            llm_matching_cb, auto_markdown_cb, llm_spin,
+            quickmenu_context_slider
         ))
         layout.addWidget(save_btn)
         
@@ -17148,7 +17188,8 @@ class SupervertalerQt(QMainWindow):
                                    batch_size_spin, surrounding_spin, full_context_cb, context_slider,
                                    check_tm_cb, auto_propagate_cb, delay_spin,
                                    ollama_keepwarm_cb,
-                                   llm_matching_cb, auto_markdown_cb, llm_spin):
+                                   llm_matching_cb, auto_markdown_cb, llm_spin,
+                                   quickmenu_context_slider):
         """Save all AI settings from the unified AI Settings tab"""
         # Determine selected provider
         if openai_radio.isChecked():
@@ -17207,6 +17248,7 @@ class SupervertalerQt(QMainWindow):
         general_prefs['surrounding_segments'] = surrounding_spin.value()
         general_prefs['use_full_context'] = full_context_cb.isChecked()
         general_prefs['context_window_size'] = context_slider.value()
+        general_prefs['quickmenu_context_percent'] = quickmenu_context_slider.value()
         general_prefs['check_tm_before_api'] = check_tm_cb.isChecked()
         general_prefs['auto_propagate_100'] = auto_propagate_cb.isChecked()
         general_prefs['lookup_delay'] = delay_spin.value()
@@ -37673,6 +37715,12 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         
         This is a GENERIC prompt builder (not translation-specific) that allows QuickMenu prompts
         to do anything: explain, define, search, translate, analyze, etc.
+        
+        Supports placeholders:
+        - {{SELECTION}} or {{SOURCE_TEXT}} - The selected text
+        - {{SOURCE_LANGUAGE}} - Source language name
+        - {{TARGET_LANGUAGE}} - Target language name
+        - {{DOCUMENT_CONTEXT}} - Surrounding segments from the project for context
         """
         if not hasattr(self, 'prompt_manager_qt') or not self.prompt_manager_qt:
             raise RuntimeError("Prompt manager not available")
@@ -37690,18 +37738,70 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         if not prompt_content:
             raise RuntimeError("Prompt content is empty")
 
-        # Build a simple, generic prompt that doesn't force translation behavior
+        # Build document context if requested
+        document_context = ""
+        if "{{DOCUMENT_CONTEXT}}" in prompt_content and hasattr(self, 'current_project') and self.current_project:
+            document_context = self._build_quickmenu_document_context()
+
         # Replace placeholders in the prompt content
         prompt_content = prompt_content.replace("{{SOURCE_LANGUAGE}}", source_lang)
         prompt_content = prompt_content.replace("{{TARGET_LANGUAGE}}", target_lang)
         prompt_content = prompt_content.replace("{{SOURCE_TEXT}}", source_text)
         prompt_content = prompt_content.replace("{{SELECTION}}", source_text)  # Alternative placeholder
+        prompt_content = prompt_content.replace("{{DOCUMENT_CONTEXT}}", document_context)
         
         # If the prompt doesn't contain the selection/text, append it
         if "{{SOURCE_TEXT}}" not in prompt_data.get('content', '') and "{{SELECTION}}" not in prompt_data.get('content', ''):
             prompt_content += f"\n\nText:\n{source_text}"
         
         return prompt_content
+    
+    def _build_quickmenu_document_context(self) -> str:
+        """Build document context for QuickMenu prompts.
+        
+        Returns a formatted string with segments from the project for context.
+        Uses the 'quickmenu_context_segments' setting (default: 50% of total segments).
+        """
+        if not hasattr(self, 'current_project') or not self.current_project or not self.current_project.segments:
+            return "(No project context available)"
+        
+        try:
+            # Get settings
+            general_prefs = self.load_general_settings_from_file()
+            context_percent = general_prefs.get('quickmenu_context_percent', 50)  # Default: 50%
+            max_context_segments = general_prefs.get('quickmenu_context_max', 100)  # Safety limit
+            
+            # Calculate how many segments to include
+            total_segments = len(self.current_project.segments)
+            num_segments = min(
+                int(total_segments * context_percent / 100),
+                max_context_segments
+            )
+            
+            if num_segments == 0:
+                return "(Document context disabled)"
+            
+            # Get segments (from start of document)
+            context_segments = self.current_project.segments[:num_segments]
+            
+            # Format segments
+            context_parts = []
+            context_parts.append(f"=== DOCUMENT CONTEXT ===")
+            context_parts.append(f"(Showing {num_segments} of {total_segments} segments - {context_percent}%)")
+            context_parts.append("")
+            
+            for seg in context_segments:
+                # Source text
+                context_parts.append(f"[{seg.id}] {seg.source}")
+                # Target text if available
+                if seg.target and seg.target.strip():
+                    context_parts.append(f"    → {seg.target}")
+                context_parts.append("")  # Blank line between segments
+            
+            return "\n".join(context_parts)
+            
+        except Exception as e:
+            return f"(Error building document context: {e})"
 
     def _quickmenu_show_result_dialog(self, title: str, output_text: str, apply_callback=None):
         from PyQt6.QtWidgets import QDialog, QVBoxLayout, QTextEdit, QDialogButtonBox, QPushButton, QApplication
