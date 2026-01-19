@@ -3,7 +3,7 @@ Supervertaler
 =============
 The Ultimate Translation Workbench.
 Modern PyQt6 interface with specialised modules to handle any problem.
-Version: 1.9.120 (Optimized Find & Replace performance)
+Version: 1.9.122 (Ctrl+N now focuses Segment Note tab)
 Release Date: January 19, 2026
 Framework: PyQt6
 
@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.121"
+__version__ = "1.9.122"
 __phase__ = "0.9"
 __release_date__ = "2026-01-19"
 __edition__ = "Qt"
@@ -5671,6 +5671,21 @@ class SupervertalerQt(QMainWindow):
         
         # Alt+D - Add word at cursor to dictionary
         create_shortcut("editor_add_to_dictionary", "Alt+D", self.add_word_to_dictionary_shortcut)
+        
+        # Ctrl+N - Focus Segment Note tab
+        create_shortcut("editor_focus_notes", "Ctrl+N", self.focus_segment_notes)
+    
+    def focus_segment_notes(self):
+        """Switch to Segment Note tab and focus the notes editor so user can start typing immediately"""
+        if not hasattr(self, 'bottom_tabs'):
+            return
+        
+        # Switch to Segment note tab (index 1)
+        self.bottom_tabs.setCurrentIndex(1)
+        
+        # Focus the notes editor so user can start typing
+        if hasattr(self, 'bottom_notes_edit'):
+            self.bottom_notes_edit.setFocus()
     
     def refresh_shortcut_enabled_states(self):
         """Refresh enabled/disabled states and key bindings of all global shortcuts from shortcut manager.

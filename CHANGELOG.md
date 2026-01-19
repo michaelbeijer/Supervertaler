@@ -2,7 +2,40 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.121 (January 19, 2026)
+**Current Version:** v1.9.122 (January 19, 2026)
+
+## ⌨️ Ctrl+N Repurposed for Quick Notes (v1.9.122) - January 19, 2026
+
+**Faster Note-Taking Workflow**
+
+Repurposed Ctrl+N keyboard shortcut from "New Project" to "Focus Segment Note Tab" for a more useful translation workflow:
+
+**What Changed:**
+- **Ctrl+N**: Now switches to the Segment Note tab and focuses the editor
+- **New Project**: No longer has a keyboard shortcut (create via File menu)
+
+**Why This Change:**
+- Users rarely create new projects via keyboard
+- Quick note-taking is much more common during translation
+- Faster workflow: Press Ctrl+N, start typing your note immediately
+
+**How It Works:**
+1. Press Ctrl+N while translating in the grid
+2. The "📝 Segment note" tab (below the grid) is selected
+3. Cursor automatically placed in the notes editor
+4. Start typing your note right away
+
+**Use Cases:**
+- Add context about difficult terms
+- Note translation concerns for later review
+- Add research notes or URLs
+- Document translator decisions
+
+**Files Modified:**
+- `modules/shortcut_manager.py` - Changed `file_new` default to empty, added `editor_focus_notes` with Ctrl+N
+- `Supervertaler.py` - Added `focus_segment_notes()` handler method
+
+---
 
 ## 🐛 Find & Replace Performance Fix (v1.9.121) - January 19, 2026
 
