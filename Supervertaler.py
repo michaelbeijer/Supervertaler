@@ -2559,7 +2559,7 @@ class EditableGridTextEditor(QTextEdit):
                     menu.addSeparator()
                 
                 # Add to dictionary action
-                add_to_dict_action = QAction(f"📖 Add '{misspelled_word}' to Dictionary", self)
+                add_to_dict_action = QAction(f"📖 Add '{misspelled_word}' to Dictionary (Alt+D)", self)
                 add_to_dict_action.triggered.connect(
                     lambda checked, w=misspelled_word: self._add_to_dictionary(w)
                 )
