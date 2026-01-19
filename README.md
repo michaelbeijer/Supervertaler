@@ -1,4 +1,4 @@
-# 🚀 Supervertaler v1.9.120
+# 🚀 Supervertaler v1.9.121
 
 [![PyPI version](https://badge.fury.io/py/supervertaler.svg)](https://pypi.org/project/Supervertaler/)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
@@ -6,11 +6,13 @@
 
 AI-enhanced CAT tool with multi-LLM support (GPT-4, Claude, Gemini, Ollama), innovative Superlookup concordance system offering access to multiple terminology sources (TMs, glossaries, web resources, etc.), and seamless CAT tool integration (memoQ, Trados, CafeTran, Phrase).
 
-**Current Version:** v1.9.120 (January 19, 2026)
+**Current Version:** v1.9.121 (January 19, 2026)
 
-### OPTIMIZED in v1.9.120 - ⚡ Find & Replace Speed
+### FIXED in v1.9.121 - 🐛 Find & Replace Performance
 
-**10x Performance Boost:** Find & Replace operations that took 5-10 seconds now complete in under 1 second! Implemented batch UI updates, pre-filtering, and removed redundant operations.
+**Critical Fix:** v1.9.120 accidentally made Find & Replace slower (37+ seconds). v1.9.121 actually fixes it by updating cells in-place instead of recreating all widgets. Now near-instant!
+
+### OPTIMIZED in v1.9.120 - ⚡ Find & Replace Speed (BUGGY - USE v1.9.121)
 
 ### ADDED in v1.9.119 - ⌨️ Alt+D Dictionary Shortcut
 
