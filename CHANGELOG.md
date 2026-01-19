@@ -2,7 +2,30 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.127 (January 19, 2026)
+**Current Version:** v1.9.128 (January 19, 2026)
+
+## 📐 Placeholders Tab Layout Optimization (v1.9.128) - January 19, 2026
+
+**Vertical Space Optimization**
+
+Redesigned the Placeholders reference tab to eliminate wasted vertical space and match the standard tool layout pattern used in AutoFingers, TMX Editor, and Supercleaner:
+
+**Layout Changes:**
+- **Tips Sidebar**: Moved "Usage Tips" section to a right sidebar panel (280-400px width)
+- **Standard Header**: Changed header from 10pt to 16pt bold with #1976D2 color to match other tools
+- **Description Box**: Added light blue (#E3F2FD) description box below header for consistency
+- **Stretch Factor**: Added stretch factor to splitter layout (`layout.addWidget(splitter, 1)`) to fill all vertical space
+- **QSplitter**: Implemented horizontal splitter with table (75%) and tips panel (25%)
+
+**Result:**
+- Table now fills entire vertical space without any wasted area
+- Tips remain easily accessible in right sidebar
+- Visual consistency with other tool tabs throughout the application
+
+**Files Modified:**
+- `modules/unified_prompt_manager_qt.py` - Complete `_create_placeholders_tab()` redesign (~85 lines modified)
+
+---
 
 ## 🔧 Prompt Manager UI Fixes (v1.9.127) - January 19, 2026
 
