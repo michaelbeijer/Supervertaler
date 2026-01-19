@@ -3,7 +3,7 @@ Supervertaler
 =============
 The Ultimate Translation Workbench.
 Modern PyQt6 interface with specialised modules to handle any problem.
-Version: 1.9.116 (Fix all tab navigation + startup tab)
+Version: 1.9.117 (Fix glossary matching with punctuation)
 Release Date: January 19, 2026
 Framework: PyQt6
 
@@ -34,9 +34,9 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.116"
+__version__ = "1.9.117"
 __phase__ = "0.9"
-__release_date__ = "2026-01-18"
+__release_date__ = "2026-01-19"
 __edition__ = "Qt"
 
 import sys
@@ -31042,11 +31042,18 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                         normalized_source = clean_source_lower
                         for quote_char in '\"\'\u201C\u201D\u201E\u00AB\u00BB\u2018\u2019\u201A\u2039\u203A':
                             normalized_source = normalized_source.replace(quote_char, ' ')
+                        
+                        # CRITICAL FIX: Strip trailing punctuation from glossary term before matching
+                        # This allows entries like "De huidige uitvinding...problemen." (with period)
+                        # to match source text "...problemen." where tokenization strips the period
+                        # Strip from both ends to handle quotes and trailing punctuation
+                        normalized_term = source_term.lower().rstrip(PUNCT_CHARS).lstrip(PUNCT_CHARS)
+                        
                         # Check if term has punctuation - use different pattern
-                        if any(char in source_term for char in ['.', '%', ',', '-', '/']):
-                            pattern = re.compile(r'(?<!\w)' + re.escape(source_term.lower()) + r'(?!\w)')
+                        if any(char in normalized_term for char in ['.', '%', ',', '-', '/']):
+                            pattern = re.compile(r'(?<!\w)' + re.escape(normalized_term) + r'(?!\w)')
                         else:
-                            pattern = re.compile(r"\b" + re.escape(source_term.lower()) + r"\b")
+                            pattern = re.compile(r"\b" + re.escape(normalized_term) + r"\b")
                         
                         # Try matching on normalized (tag-stripped, quote-stripped) text first, 
                         # then tag-stripped, then original with tags

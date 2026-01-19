@@ -2,7 +2,39 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.116 (January 19, 2026)
+**Current Version:** v1.9.117 (January 19, 2026)
+
+## 🐛 Glossary Matching with Punctuation (v1.9.117) - January 19, 2026
+
+**Fixed Critical Glossary Matching Bug**
+
+Glossary entries with trailing punctuation (periods, quotes, etc.) now match correctly in source text:
+
+**The Problem:**
+- Glossary entry: "De huidige uitvinding beoogt een oplossing te vinden voor tenminste enkele van bovenvermelde problemen." (with period)
+- Source text: "De huidige uitvinding beoogt een oplossing te vinden voor tenminste enkele van bovenvermelde problemen."
+- **Result**: No match! ❌
+
+**Root Cause:**
+- Tokenization stripped punctuation from source text words: "problemen." → "problemen"
+- But glossary matching used the original entry WITH punctuation: "...problemen."
+- Match failed because "problemen" ≠ "...problemen."
+
+**The Fix:**
+- Now strips trailing/leading punctuation from **both** source text AND glossary entries before matching
+- Normalized term: "...problemen." → "...problemen"
+- Source text: "...problemen." → "...problemen"
+- **Result**: Match succeeds! ✅
+
+**User Impact:**
+- Users can now add full sentences to glossaries without worrying about punctuation
+- Entries work correctly whether they have periods, quotes, or other punctuation at the end
+- More natural workflow - copy/paste sentences directly into glossaries
+
+**Files Modified:**
+- `Supervertaler.py` - Added punctuation stripping to `find_termbase_matches_in_source()` (line ~31029-31031)
+
+---
 
 ## 🐛 Fixed ALL Tab Navigation + Startup Tab (v1.9.116) - January 19, 2026
 
