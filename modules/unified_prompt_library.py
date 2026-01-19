@@ -171,11 +171,14 @@ class UnifiedPromptLibrary:
             # Backward compatibility: quick_run is the legacy field; internally we
             # treat it as the "QuickMenu (future app menu)" flag.
             prompt_data.setdefault('quick_run', False)
-            prompt_data['quickmenu_quickmenu'] = bool(
-                prompt_data.get('quickmenu_quickmenu', prompt_data.get('quick_run', False))
+            # Support legacy quickmenu_quickmenu field (rename to sv_quickmenu)
+            if 'quickmenu_quickmenu' in prompt_data:
+                prompt_data['sv_quickmenu'] = prompt_data['quickmenu_quickmenu']
+            prompt_data['sv_quickmenu'] = bool(
+                prompt_data.get('sv_quickmenu', prompt_data.get('quick_run', False))
             )
             # Keep legacy field in sync so older code/versions still behave.
-            prompt_data['quick_run'] = bool(prompt_data['quickmenu_quickmenu'])
+            prompt_data['quick_run'] = bool(prompt_data['sv_quickmenu'])
 
             # New QuickMenu fields
             prompt_data.setdefault('quickmenu_grid', False)
@@ -270,7 +273,7 @@ class UnifiedPromptLibrary:
                 'name', 'description', 'domain', 'version', 'task_type', 
                 'favorite',
                 # QuickMenu
-                'quickmenu_label', 'quickmenu_grid', 'quickmenu_quickmenu',
+                'quickmenu_label', 'quickmenu_grid', 'sv_quickmenu',
                 # Legacy (kept for backward compatibility)
                 'quick_run',
                 'folder', 'tags',
@@ -309,8 +312,8 @@ class UnifiedPromptLibrary:
             prompt_data['_relative_path'] = relative_path
 
             # Keep legacy field in sync
-            if 'quickmenu_quickmenu' in prompt_data:
-                prompt_data['quick_run'] = bool(prompt_data.get('quickmenu_quickmenu', False))
+            if 'sv_quickmenu' in prompt_data:
+                prompt_data['quick_run'] = bool(prompt_data.get('sv_quickmenu', False))
             self.prompts[relative_path] = prompt_data
             
             self.log(f"✓ Saved prompt: {prompt_data.get('name', relative_path)}")
@@ -456,8 +459,8 @@ class UnifiedPromptLibrary:
             return False
         
         prompt_data = self.prompts[relative_path]
-        new_value = not bool(prompt_data.get('quickmenu_quickmenu', prompt_data.get('quick_run', False)))
-        prompt_data['quickmenu_quickmenu'] = new_value
+        new_value = not bool(prompt_data.get('sv_quickmenu', prompt_data.get('quick_run', False)))
+        prompt_data['sv_quickmenu'] = new_value
         prompt_data['quick_run'] = new_value  # keep legacy in sync
         prompt_data['modified'] = datetime.now().strftime("%Y-%m-%d")
         
@@ -493,7 +496,7 @@ class UnifiedPromptLibrary:
         """Update cached QuickMenu (future app menu) list (legacy name: quick_run)."""
         self._quick_run = []
         for path, data in self.prompts.items():
-            is_enabled = bool(data.get('quickmenu_quickmenu', data.get('quick_run', False)))
+            is_enabled = bool(data.get('sv_quickmenu', data.get('quick_run', False)))
             if not is_enabled:
                 continue
             label = (data.get('quickmenu_label') or data.get('name') or Path(path).stem).strip()

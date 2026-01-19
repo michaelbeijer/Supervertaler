@@ -563,6 +563,10 @@ class UnifiedPromptManagerQt:
         assistant_tab = self._create_ai_assistant_tab()
         self.sub_tabs.addTab(assistant_tab, "✨ AI Assistant")
 
+        # Tab 3: Placeholders Reference
+        placeholders_tab = self._create_placeholders_tab()
+        self.sub_tabs.addTab(placeholders_tab, "📝 Placeholders")
+
         # Connect tab change signal to update context
         self.sub_tabs.currentChanged.connect(self._on_tab_changed)
 
@@ -761,6 +765,118 @@ class UnifiedPromptManagerQt:
         main_splitter.setStretchFactor(1, 1)  # Chat area expands
         
         layout.addWidget(main_splitter, 1)
+        
+        return tab
+    
+    def _create_placeholders_tab(self) -> QWidget:
+        """Create the Placeholders Reference sub-tab"""
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(10)
+        
+        # Header
+        header = QLabel("📝 Available Placeholders")
+        header.setStyleSheet("font-size: 14pt; font-weight: bold; color: #2196F3;")
+        layout.addWidget(header)
+        
+        # Intro text
+        intro = QLabel(
+            "Use these placeholders in your prompts. They will be replaced with actual values when the prompt runs."
+        )
+        intro.setWordWrap(True)
+        intro.setStyleSheet("color: #666; margin-bottom: 10px;")
+        layout.addWidget(intro)
+        
+        # Table with placeholders
+        from PyQt6.QtWidgets import QTableWidget, QHeaderView
+        table = QTableWidget()
+        table.setColumnCount(3)
+        table.setHorizontalHeaderLabels(["Placeholder", "Description", "Example"])
+        table.horizontalHeader().setStretchLastSection(True)
+        table.verticalHeader().setVisible(False)
+        table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        table.setAlternatingRowColors(True)
+        
+        # Placeholder data
+        placeholders = [
+            (
+                "{{SELECTION}}",
+                "Currently selected text in the grid (source or target cell)",
+                "If you select 'translation memory' in the grid, this will contain that text"
+            ),
+            (
+                "{{SOURCE_TEXT}}",
+                "Full text of the current source segment",
+                "The complete source sentence/paragraph from the active segment"
+            ),
+            (
+                "{{SOURCE_LANGUAGE}}",
+                "Project's source language",
+                "Dutch, English, German, French, etc."
+            ),
+            (
+                "{{TARGET_LANGUAGE}}",
+                "Project's target language",
+                "English, Spanish, Portuguese, etc."
+            ),
+            (
+                "{{DOCUMENT_CONTEXT}}",
+                "Formatted list of project segments (configurable % in Settings → AI Settings)",
+                "[1] Source text\\n    → Target text\\n\\n[2] Source text\\n    → Target text\\n\\n..."
+            )
+        ]
+        
+        table.setRowCount(len(placeholders))
+        for row, (placeholder, description, example) in enumerate(placeholders):
+            # Placeholder column (monospace, bold)
+            item_placeholder = QTableWidgetItem(placeholder)
+            item_placeholder.setFont(QFont("Courier New", 10, QFont.Weight.Bold))
+            table.setItem(row, 0, item_placeholder)
+            
+            # Description column
+            item_desc = QTableWidgetItem(description)
+            item_desc.setToolTip(description)
+            table.setItem(row, 1, item_desc)
+            
+            # Example column (monospace, italic)
+            item_example = QTableWidgetItem(example)
+            item_example.setFont(QFont("Courier New", 9))
+            item_example.setToolTip(example)
+            table.setItem(row, 2, item_example)
+        
+        # Set column widths
+        table.setColumnWidth(0, 200)
+        table.setColumnWidth(1, 300)
+        header = table.horizontalHeader()
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Interactive)
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
+        
+        # Adjust row heights for readability
+        for row in range(table.rowCount()):
+            table.setRowHeight(row, 60)
+        
+        layout.addWidget(table)
+        
+        # Usage tips section
+        tips_label = QLabel("💡 Usage Tips:")
+        tips_label.setStyleSheet("font-weight: bold; margin-top: 10px;")
+        layout.addWidget(tips_label)
+        
+        tips_text = QLabel(
+            "• Placeholders are case-sensitive (use UPPERCASE)\n"
+            "• Surround placeholders with double curly braces: {{ }}\n"
+            "• You can combine multiple placeholders in one prompt\n"
+            "• Use {{DOCUMENT_CONTEXT}} for context-aware translations\n"
+            "• Configure {{DOCUMENT_CONTEXT}} percentage in Settings → AI Settings"
+        )
+        tips_text.setWordWrap(True)
+        tips_text.setStyleSheet("color: #666; margin-left: 20px;")
+        layout.addWidget(tips_text)
+        
+        layout.addStretch()
         
         return tab
     
@@ -1950,7 +2066,7 @@ class UnifiedPromptManagerQt:
                     indicators = []
                     if prompt_data.get('favorite'):
                         indicators.append("⭐")
-                    if prompt_data.get('quickmenu_quickmenu', prompt_data.get('quick_run', False)):
+                    if prompt_data.get('sv_quickmenu', prompt_data.get('quick_run', False)):
                         indicators.append("⚡")
                     if prompt_data.get('quickmenu_grid', False):
                         indicators.append("🖱️")
@@ -2018,7 +2134,7 @@ class UnifiedPromptManagerQt:
             action_fav.triggered.connect(lambda: self._toggle_favorite(path))
             
             # Toggle QuickMenu (legacy: quick_run)
-            if prompt_data.get('quickmenu_quickmenu', prompt_data.get('quick_run', False)):
+            if prompt_data.get('sv_quickmenu', prompt_data.get('quick_run', False)):
                 action_qr = menu.addAction("⚡ Remove from QuickMenu")
             else:
                 action_qr = menu.addAction("⚡ Add to QuickMenu")
@@ -2070,7 +2186,7 @@ class UnifiedPromptManagerQt:
         if hasattr(self, 'editor_quickmenu_in_grid_cb'):
             self.editor_quickmenu_in_grid_cb.setChecked(bool(prompt_data.get('quickmenu_grid', False)))
         if hasattr(self, 'editor_quickmenu_in_quickmenu_cb'):
-            self.editor_quickmenu_in_quickmenu_cb.setChecked(bool(prompt_data.get('quickmenu_quickmenu', prompt_data.get('quick_run', False))))
+            self.editor_quickmenu_in_quickmenu_cb.setChecked(bool(prompt_data.get('sv_quickmenu', prompt_data.get('quick_run', False))))
         self.editor_content.setPlainText(prompt_data.get('content', ''))
         
         # Store current path for saving
@@ -2093,13 +2209,13 @@ class UnifiedPromptManagerQt:
 
             quickmenu_label = ''
             quickmenu_grid = False
-            quickmenu_quickmenu = False
+            sv_quickmenu = False
             if hasattr(self, 'editor_quickmenu_label_input'):
                 quickmenu_label = self.editor_quickmenu_label_input.text().strip()
             if hasattr(self, 'editor_quickmenu_in_grid_cb'):
                 quickmenu_grid = bool(self.editor_quickmenu_in_grid_cb.isChecked())
             if hasattr(self, 'editor_quickmenu_in_quickmenu_cb'):
-                quickmenu_quickmenu = bool(self.editor_quickmenu_in_quickmenu_cb.isChecked())
+                sv_quickmenu = bool(self.editor_quickmenu_in_quickmenu_cb.isChecked())
 
             if not name or not content:
                 QMessageBox.warning(self.main_widget, "Error", "Name and content are required")
@@ -2131,9 +2247,9 @@ class UnifiedPromptManagerQt:
                 prompt_data['content'] = content
                 prompt_data['quickmenu_label'] = quickmenu_label or name_without_ext
                 prompt_data['quickmenu_grid'] = quickmenu_grid
-                prompt_data['quickmenu_quickmenu'] = quickmenu_quickmenu
+                prompt_data['sv_quickmenu'] = sv_quickmenu
                 # Keep legacy field in sync
-                prompt_data['quick_run'] = quickmenu_quickmenu
+                prompt_data['quick_run'] = sv_quickmenu
                 
                 # Check if filename changed - need to rename file
                 if old_filename != name:
@@ -2179,9 +2295,9 @@ class UnifiedPromptManagerQt:
                     # QuickMenu
                     'quickmenu_label': quickmenu_label or name,
                     'quickmenu_grid': quickmenu_grid,
-                    'quickmenu_quickmenu': quickmenu_quickmenu,
+                    'sv_quickmenu': sv_quickmenu,
                     # Legacy
-                    'quick_run': quickmenu_quickmenu,
+                    'quick_run': sv_quickmenu,
                     'folder': folder,
                     'tags': [],
                     'created': datetime.now().strftime('%Y-%m-%d'),
@@ -2430,7 +2546,7 @@ class UnifiedPromptManagerQt:
             'favorite': False,
             'quickmenu_label': name_without_ext,
             'quickmenu_grid': False,
-            'quickmenu_quickmenu': False,
+            'sv_quickmenu': False,
             'quick_run': False,
             'folder': folder_path,
             'tags': [],
@@ -2478,7 +2594,7 @@ class UnifiedPromptManagerQt:
         src_data['favorite'] = False
         src_data['quick_run'] = False
         src_data['quickmenu_grid'] = False
-        src_data['quickmenu_quickmenu'] = False
+        src_data['sv_quickmenu'] = False
         src_data['folder'] = folder
         src_data['created'] = datetime.now().strftime('%Y-%m-%d')
         src_data['modified'] = datetime.now().strftime('%Y-%m-%d')

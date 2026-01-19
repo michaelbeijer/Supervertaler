@@ -2,7 +2,50 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.125 (January 19, 2026)
+**Current Version:** v1.9.126 (January 19, 2026)
+
+## 🔄 Prompt System Improvements (v1.9.126) - January 19, 2026
+
+**Field Rename: `quickmenu_quickmenu` → `sv_quickmenu`**
+
+Renamed the redundant `quickmenu_quickmenu` field to cleaner `sv_quickmenu` (Supervertaler QuickMenu) throughout the codebase:
+
+**What Changed:**
+- All internal code now uses `sv_quickmenu` instead of `quickmenu_quickmenu`
+- Backward compatibility maintained: Old .svprompt files with `quickmenu_quickmenu` still load correctly
+- Legacy `quick_run` field kept in sync for compatibility with older code
+- Pattern: Read old field names if present, always write new field name
+
+**Files Modified:**
+- `modules/unified_prompt_library.py` - Updated parse, save, toggle methods (6 occurrences)
+- `modules/unified_prompt_manager_qt.py` - Updated editor, creation, display code (12 occurrences)
+
+**📝 Placeholders Reference Tab**
+
+Added new "Placeholders" tab to Prompt Manager for easy reference when writing prompts:
+
+**Features:**
+- Complete list of all 5 available placeholders with descriptions and examples
+- Table format: Placeholder | Description | Example
+- Usage tips section with best practices
+- Located in Prompt Manager after AI Assistant tab
+
+**Available Placeholders:**
+- `{{SELECTION}}` - Currently selected text in grid
+- `{{SOURCE_TEXT}}` - Full source segment text
+- `{{SOURCE_LANGUAGE}}` - Project source language (e.g., "Dutch")
+- `{{TARGET_LANGUAGE}}` - Project target language (e.g., "English")
+- `{{DOCUMENT_CONTEXT}}` - Formatted list of project segments (configurable %)
+
+**Access:**
+- Open Prompt Manager
+- Click "📝 Placeholders" tab
+- View table with all placeholders, descriptions, and examples
+
+**Files Modified:**
+- `modules/unified_prompt_manager_qt.py` - Added `_create_placeholders_tab()` method, added tab to sub-tabs
+
+---
 
 ## 🐛 Prompt Save Crash Fix (v1.9.125) - January 19, 2026
 
