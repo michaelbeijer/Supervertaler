@@ -2083,119 +2083,128 @@ class UnifiedPromptManagerQt:
     
     def _save_current_prompt(self):
         """Save currently edited prompt"""
-        name = self.editor_name_input.text().strip()
-        description = self.editor_desc_input.text().strip()
-        content = self.editor_content.toPlainText().strip()
-        
-        # Name field now represents the complete filename with extension
-        # No stripping needed - user sees and edits the full filename
-
-        quickmenu_label = ''
-        quickmenu_grid = False
-        quickmenu_quickmenu = False
-        if hasattr(self, 'editor_quickmenu_label_input'):
-            quickmenu_label = self.editor_quickmenu_label_input.text().strip()
-        if hasattr(self, 'editor_quickmenu_in_grid_cb'):
-            quickmenu_grid = bool(self.editor_quickmenu_in_grid_cb.isChecked())
-        if hasattr(self, 'editor_quickmenu_in_quickmenu_cb'):
-            quickmenu_quickmenu = bool(self.editor_quickmenu_in_quickmenu_cb.isChecked())
-
-        if not name or not content:
-            QMessageBox.warning(self.main_widget, "Error", "Name and content are required")
-            return
-
-        # Check if this is a new prompt or editing existing
-        if hasattr(self, 'editor_current_path') and self.editor_current_path:
-            path = self.editor_current_path
+        try:
+            name = self.editor_name_input.text().strip()
+            description = self.editor_desc_input.text().strip()
+            content = self.editor_content.toPlainText().strip()
             
-            # Handle external prompts (save back to external file)
-            if path.startswith("[EXTERNAL] "):
-                external_file_path = path[11:]  # Remove "[EXTERNAL] " prefix
-                self._save_external_prompt(external_file_path, name, description, content)
-                return
-            
-            # Editing existing library prompt
-            if path not in self.library.prompts:
-                QMessageBox.warning(self.main_widget, "Error", "Prompt no longer exists")
+            # Name field now represents the complete filename with extension
+            # No stripping needed - user sees and edits the full filename
+
+            quickmenu_label = ''
+            quickmenu_grid = False
+            quickmenu_quickmenu = False
+            if hasattr(self, 'editor_quickmenu_label_input'):
+                quickmenu_label = self.editor_quickmenu_label_input.text().strip()
+            if hasattr(self, 'editor_quickmenu_in_grid_cb'):
+                quickmenu_grid = bool(self.editor_quickmenu_in_grid_cb.isChecked())
+            if hasattr(self, 'editor_quickmenu_in_quickmenu_cb'):
+                quickmenu_quickmenu = bool(self.editor_quickmenu_in_quickmenu_cb.isChecked())
+
+            if not name or not content:
+                QMessageBox.warning(self.main_widget, "Error", "Name and content are required")
                 return
 
-            prompt_data = self.library.prompts[path].copy()
-            old_filename = Path(path).name
-            
-            # Extract name without extension for metadata
-            name_without_ext = Path(name).stem
-            
-            prompt_data['name'] = name_without_ext
-            prompt_data['description'] = description
-            prompt_data['content'] = content
-            prompt_data['quickmenu_label'] = quickmenu_label or name_without_ext
-            prompt_data['quickmenu_grid'] = quickmenu_grid
-            prompt_data['quickmenu_quickmenu'] = quickmenu_quickmenu
-            # Keep legacy field in sync
-            prompt_data['quick_run'] = quickmenu_quickmenu
-            
-            # Check if filename changed - need to rename file
-            if old_filename != name:
-                from pathlib import Path
-                old_path = Path(path)
-                folder = str(old_path.parent) if old_path.parent != Path('.') else ''
-                new_path = f"{folder}/{name}" if folder else name
+            # Check if this is a new prompt or editing existing
+            if hasattr(self, 'editor_current_path') and self.editor_current_path:
+                path = self.editor_current_path
                 
-                # Delete old file and save to new location
-                if self.library.delete_prompt(path):
-                    if self.library.save_prompt(new_path, prompt_data):
-                        self.library.load_all_prompts()
-                        self._refresh_tree()
-                        self._select_and_reveal_prompt(new_path)
-                        self.editor_current_path = new_path  # Update to new path
-                        QMessageBox.information(self.main_widget, "Saved", f"Prompt renamed to '{name}' successfully!")
-                        self.log_message(f"✓ Renamed prompt: {old_filename} → {name}")
+                # Handle external prompts (save back to external file)
+                if path.startswith("[EXTERNAL] "):
+                    external_file_path = path[11:]  # Remove "[EXTERNAL] " prefix
+                    self._save_external_prompt(external_file_path, name, description, content)
+                    return
+                
+                # Editing existing library prompt
+                if path not in self.library.prompts:
+                    QMessageBox.warning(self.main_widget, "Error", "Prompt no longer exists")
+                    return
+
+                prompt_data = self.library.prompts[path].copy()
+                old_filename = Path(path).name
+                
+                # Extract name without extension for metadata
+                name_without_ext = Path(name).stem
+                
+                prompt_data['name'] = name_without_ext
+                prompt_data['description'] = description
+                prompt_data['content'] = content
+                prompt_data['quickmenu_label'] = quickmenu_label or name_without_ext
+                prompt_data['quickmenu_grid'] = quickmenu_grid
+                prompt_data['quickmenu_quickmenu'] = quickmenu_quickmenu
+                # Keep legacy field in sync
+                prompt_data['quick_run'] = quickmenu_quickmenu
+                
+                # Check if filename changed - need to rename file
+                if old_filename != name:
+                    from pathlib import Path
+                    old_path = Path(path)
+                    folder = str(old_path.parent) if old_path.parent != Path('.') else ''
+                    new_path = f"{folder}/{name}" if folder else name
+                    
+                    # Delete old file and save to new location
+                    if self.library.delete_prompt(path):
+                        if self.library.save_prompt(new_path, prompt_data):
+                            self.library.load_all_prompts()
+                            self._refresh_tree()
+                            self._select_and_reveal_prompt(new_path)
+                            self.editor_current_path = new_path  # Update to new path
+                            QMessageBox.information(self.main_widget, "Saved", f"Prompt renamed to '{name}' successfully!")
+                            self.log_message(f"✓ Renamed prompt: {old_filename} → {name}")
+                        else:
+                            QMessageBox.warning(self.main_widget, "Error", "Failed to rename prompt")
                     else:
-                        QMessageBox.warning(self.main_widget, "Error", "Failed to rename prompt")
+                        QMessageBox.warning(self.main_widget, "Error", "Failed to delete old prompt file")
                 else:
-                    QMessageBox.warning(self.main_widget, "Error", "Failed to delete old prompt file")
+                    # Name unchanged, just update in place
+                    if self.library.save_prompt(path, prompt_data):
+                        QMessageBox.information(self.main_widget, "Saved", "Prompt updated successfully!")
+                        self._refresh_tree()
+                    else:
+                        QMessageBox.warning(self.main_widget, "Error", "Failed to save prompt")
             else:
-                # Name unchanged, just update in place
-                if self.library.save_prompt(path, prompt_data):
-                    QMessageBox.information(self.main_widget, "Saved", "Prompt updated successfully!")
+                # Creating new prompt
+                folder = getattr(self, 'editor_target_folder', 'Project Prompts')
+
+                # Create new prompt data
+                from datetime import datetime
+                prompt_data = {
+                    'name': name,
+                    'description': description,
+                    'content': content,
+                    'domain': '',
+                    'version': '1.0',
+                    'task_type': 'Translation',
+                    'favorite': False,
+                    # QuickMenu
+                    'quickmenu_label': quickmenu_label or name,
+                    'quickmenu_grid': quickmenu_grid,
+                    'quickmenu_quickmenu': quickmenu_quickmenu,
+                    # Legacy
+                    'quick_run': quickmenu_quickmenu,
+                    'folder': folder,
+                    'tags': [],
+                    'created': datetime.now().strftime('%Y-%m-%d'),
+                    'modified': datetime.now().strftime('%Y-%m-%d')
+                }
+
+                # Create the prompt file (save_prompt creates new file if it doesn't exist)
+                relative_path = f"{folder}/{name}.svprompt"
+                if self.library.save_prompt(relative_path, prompt_data):
+                    QMessageBox.information(self.main_widget, "Created", f"Prompt '{name}' created successfully!")
+                    self.library.load_all_prompts()  # Reload to get new prompt in memory
                     self._refresh_tree()
+                    self.editor_current_path = relative_path  # Now editing this prompt
                 else:
-                    QMessageBox.warning(self.main_widget, "Error", "Failed to save prompt")
-        else:
-            # Creating new prompt
-            folder = getattr(self, 'editor_target_folder', 'Project Prompts')
-
-            # Create new prompt data
-            from datetime import datetime
-            prompt_data = {
-                'name': name,
-                'description': description,
-                'content': content,
-                'domain': '',
-                'version': '1.0',
-                'task_type': 'Translation',
-                'favorite': False,
-                # QuickMenu
-                'quickmenu_label': quickmenu_label or name,
-                'quickmenu_grid': quickmenu_grid,
-                'quickmenu_quickmenu': quickmenu_quickmenu,
-                # Legacy
-                'quick_run': quickmenu_quickmenu,
-                'folder': folder,
-                'tags': [],
-                'created': datetime.now().strftime('%Y-%m-%d'),
-                'modified': datetime.now().strftime('%Y-%m-%d')
-            }
-
-            # Create the prompt file (save_prompt creates new file if it doesn't exist)
-            relative_path = f"{folder}/{name}.svprompt"
-            if self.library.save_prompt(relative_path, prompt_data):
-                QMessageBox.information(self.main_widget, "Created", f"Prompt '{name}' created successfully!")
-                self.library.load_all_prompts()  # Reload to get new prompt in memory
-                self._refresh_tree()
-                self.editor_current_path = relative_path  # Now editing this prompt
-            else:
-                QMessageBox.warning(self.main_widget, "Error", "Failed to create prompt")
+                    QMessageBox.warning(self.main_widget, "Error", "Failed to create prompt")
+        
+        except Exception as e:
+            import traceback
+            error_msg = f"Prompt save error: {str(e)}\n{traceback.format_exc()}"
+            print(f"[ERROR] {error_msg}")
+            self.log_message(f"❌ Prompt save error: {str(e)}")
+            QMessageBox.critical(self.main_widget, "Save Error", f"Failed to save prompt:\n\n{str(e)}")
+            return
     
     def _save_external_prompt(self, file_path: str, name: str, description: str, content: str):
         """Save changes to an external prompt file"""

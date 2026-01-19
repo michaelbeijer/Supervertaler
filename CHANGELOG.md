@@ -2,7 +2,39 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.124 (January 19, 2026)
+**Current Version:** v1.9.125 (January 19, 2026)
+
+## 🐛 Prompt Save Crash Fix (v1.9.125) - January 19, 2026
+
+**Fixed Critical Crash When Saving Prompts**
+
+Fixed unhandled exception that caused the application to crash silently when saving prompts:
+
+**The Problem:**
+- Changing text in a prompt and clicking save would crash the app
+- No error message displayed - just "Unhandled Python exception"
+- Users couldn't save their prompt changes
+
+**The Fix:**
+- Wrapped entire `_save_current_prompt()` method in comprehensive try/except block
+- Added detailed error logging with full stack trace
+- Now shows user-friendly error dialog with actual error message
+- Logs error to console and session log for debugging
+
+**Error Handling:**
+```python
+try:
+    # All save logic...
+except Exception as e:
+    # Log full traceback
+    # Show error dialog to user
+    # Prevent silent crash
+```
+
+**Files Modified:**
+- `modules/unified_prompt_manager_qt.py` - Added comprehensive error handling to prompt save
+
+---
 
 ## 📄 QuickMenu Document Context Support (v1.9.124) - January 19, 2026
 

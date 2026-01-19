@@ -1,4 +1,4 @@
-# 🚀 Supervertaler v1.9.124
+# 🚀 Supervertaler v1.9.125
 
 [![PyPI version](https://badge.fury.io/py/supervertaler.svg)](https://pypi.org/project/Supervertaler/)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
@@ -6,7 +6,11 @@
 
 AI-enhanced CAT tool with multi-LLM support (GPT-4, Claude, Gemini, Ollama), innovative Superlookup concordance system offering access to multiple terminology sources (TMs, glossaries, web resources, etc.), and seamless CAT tool integration (memoQ, Trados, CafeTran, Phrase).
 
-**Current Version:** v1.9.124 (January 19, 2026)
+**Current Version:** v1.9.125 (January 19, 2026)
+
+### FIXED in v1.9.125 - 🐛 Prompt Save Crash
+
+**Critical Fix:** Wrapped prompt save logic in comprehensive error handling to prevent silent crashes. Now shows detailed error messages if save fails instead of crashing the app.
 
 ### ADDED in v1.9.124 - 📄 QuickMenu Document Context
 
