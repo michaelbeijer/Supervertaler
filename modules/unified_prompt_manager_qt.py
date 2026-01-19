@@ -2821,7 +2821,12 @@ If the text refers to figures (e.g., 'Figure 1A'), relevant images may be provid
     def _init_llm_client(self):
         """Initialize LLM client with available API keys"""
         try:
-            api_keys = load_api_keys()
+            # Use parent app's API key loading method (reads from user_data/api_keys.txt)
+            if hasattr(self.parent_app, 'load_api_keys'):
+                api_keys = self.parent_app.load_api_keys()
+            else:
+                # Fallback to module function (legacy path)
+                api_keys = load_api_keys()
             
             # Try to use the same provider as main app if available
             provider = None
@@ -2839,7 +2844,7 @@ If the text refers to figures (e.g., 'Figure 1A'), relevant images may be provid
                     provider = "openai"
                 elif api_keys.get("claude"):
                     provider = "claude"
-                elif api_keys.get("google"):
+                elif api_keys.get("google") or api_keys.get("gemini"):
                     provider = "gemini"
             
             if provider:

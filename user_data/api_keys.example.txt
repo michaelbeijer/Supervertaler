@@ -1,30 +1,30 @@
 # ============================================================
-# API KEYS CONFIGURATION - SUPERVERTALER v3.7.2
+# API KEYS CONFIGURATION - SUPERVERTALER
 # ============================================================
 #
 # SECURITY NOTICE:
 # ---------------
-# This is an EXAMPLE file only. Your actual API keys should be 
-# stored in: user_data_private/api_keys.txt (for dev mode)
-# or: api_keys.txt (for standalone executable)
+# This is an EXAMPLE file only. Your actual API keys should be stored at:
 #
-# The file "api_keys.txt" is automatically ignored by Git and 
-# will NEVER be uploaded to GitHub.
+# FOR DEVELOPERS (running from source):
+#   → user_data_private/api_keys.txt (gitignored, never synced to GitHub)
+#
+# FOR END USERS (pip install or .exe):
+#   → user_data/api_keys.txt (app auto-creates this location)
 #
 # SETUP INSTRUCTIONS:
 # ------------------
-# 1. Copy this file to: user_data_private/api_keys.txt
+# 1. Copy this file to the appropriate location above
 # 2. Remove the # symbol before each key you want to use
 # 3. Replace [YOUR_KEY_HERE] with your actual API key
 # 4. Save the file
-# 5. Restart Supervertaler 
+# 5. Restart Supervertaler
 #
 # IMPORTANT:
 # ---------
 # • Never share your API keys with anyone
 # • Never commit api_keys.txt to version control
-# • For dev mode: Keep api_keys.txt in user_data_private/
-# • Only api_keys.example.txt should be committed to Git
+# • Developer keys in user_data_private/ are fully gitignored
 #
 # WHERE TO GET API KEYS:
 # ---------------------
@@ -38,14 +38,37 @@
 # ============================================================
 
 
-# Example API keys (replace with your real keys):
+# ============================================
+# LLM PROVIDERS (for AI Translation & AI Assistant)
+# ============================================
+# These are for AI-powered translation using ChatGPT, Claude, Gemini, etc.
 
-# LLM APIs (for translation and prompts)
+# OpenAI (GPT-4o, GPT-4o-mini, GPT-5, o1, o3)
+# Get your key at: https://platform.openai.com/api-keys
 openai = YOUR_OPENAI_KEY_HERE
+
+# Anthropic Claude (Claude Sonnet 4.5, Haiku 4.5, Opus 4.1)
+# Get your key at: https://console.anthropic.com/settings/keys
 claude = YOUR_CLAUDE_KEY_HERE
+
+# Google Gemini (Gemini 2.5 Flash, 2.5 Pro)
+# Get your key at: https://aistudio.google.com/app/apikey
+# NOTE: You can use either "google" or "gemini" as the key name (they're aliases)
 google = YOUR_GOOGLE_GEMINI_KEY_HERE
 
-# Machine Translation APIs (for MT preview)
+# ============================================
+# LOCAL LLM (Ollama) - No API key needed!
+# ============================================
+# Ollama runs locally on your computer.
+# Install from: https://ollama.com
+# Default endpoint (change only if using non-standard port):
+ollama_endpoint = http://localhost:11434
+
+# ============================================
+# MACHINE TRANSLATION APIs (for MT Preview panel)
+# ============================================
+# These are DIFFERENT from the LLM APIs above!
+# MT APIs provide quick machine translations, not AI-powered translation.
 # Supervertaler will use MT providers in this priority order (first available):
 # 1. Google Translate
 # 2. DeepL
@@ -86,6 +109,8 @@ modernmt = YOUR_MODERNMT_API_KEY
 # MyMemory Translation (Free tier available, no key required)
 # Get API key (optional, for higher limits): https://mymemory.translated.net/
 # Works without key but with lower rate limits
+# TIP: Use your email instead of an API key to get 10,000 words/day instead of 1,000!
+#      Example: mymemory = your.email@example.com
 mymemory = YOUR_MYMEMORY_KEY
 
 # NOTE: The above keys are FAKE examples for illustration only.
@@ -94,14 +119,16 @@ mymemory = YOUR_MYMEMORY_KEY
 # TROUBLESHOOTING:
 # ---------------
 # If you see "API Key Missing" errors:
-# 1. Check that your file is in: user_data_private/api_keys.txt
+# 1. Check that your file is in the correct location:
+#    - Developers: user_data_private/api_keys.txt
+#    - End users: user_data/api_keys.txt
 # 2. Make sure the # is removed from the beginning of the line
 # 3. Verify there are no extra spaces around the = sign
 # 4. Confirm your key is valid (test at the provider's website)
 #
 # If keys still don't work:
 # 1. Check console output to see which file was loaded
-# 2. Look for errors: "Error reading api_keys.txt"
+# 2. Look for errors: "Error loading API keys"
 # 3. Restart Supervertaler after editing api_keys.txt
 #
 # DeepL Authorization Error:

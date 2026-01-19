@@ -3,8 +3,8 @@ Supervertaler
 =============
 The Ultimate Translation Workbench.
 Modern PyQt6 interface with specialised modules to handle any problem.
-Version: 1.9.104 (Packaging + docs)
-Release Date: January 14, 2026
+Version: 1.9.113 (API key loading unified)
+Release Date: January 19, 2026
 Framework: PyQt6
 
 This is the modern edition of Supervertaler using PyQt6 framework.
@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.112"
+__version__ = "1.9.113"
 __phase__ = "0.9"
 __release_date__ = "2026-01-18"
 __edition__ = "Qt"
@@ -39404,11 +39404,26 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             return f"[MyMemory error: {str(e)}]"
     
     def load_api_keys(self) -> Dict[str, str]:
-        """Load API keys from user_data folder"""
-        api_keys = {}
-        api_keys_file = self.user_data_path / "api_keys.txt"
+        """Load API keys with dev-first priority
         
-        if not api_keys_file.exists():
+        Priority order:
+        1. user_data_private/api_keys.txt (dev mode, gitignored)
+        2. user_data/api_keys.txt (user mode, shipped with app)
+        """
+        api_keys = {}
+        
+        # Priority 1: Dev mode (gitignored, never shipped)
+        dev_file = Path("user_data_private") / "api_keys.txt"
+        
+        # Priority 2: User mode (ships with app)
+        user_file = self.user_data_path / "api_keys.txt"
+        
+        # Check dev first, then user
+        if dev_file.exists():
+            api_keys_file = dev_file
+        elif user_file.exists():
+            api_keys_file = user_file
+        else:
             return api_keys
         
         try:

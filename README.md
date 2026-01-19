@@ -511,6 +511,10 @@ python Supervertaler.py
 ### First Steps
 
 1.  **Configure API Keys**: Set up OpenAI, Claude, or Gemini credentials
+    - Copy `user_data/api_keys.example.txt` to `user_data/api_keys.txt`
+    - Add your API keys (remove the `#` from each line you use)
+    - Format: `openai = sk-YOUR_KEY_HERE` (no quotes needed)
+    - **Developers**: Use `user_data_private/api_keys.txt` instead (gitignored)
 2.  **Explore System Prompts** (Ctrl+P) - Browse domain-specific specialist prompts
 3.  **Create Custom Instructions** - Define your translation preferences
 4.  **Open a Document** - Import DOCX, create segments

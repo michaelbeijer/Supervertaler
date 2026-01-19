@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** January 19, 2026 | **Version:** v1.9.112
+> **Last Updated:** January 19, 2026 | **Version:** v1.9.113
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.112 (January 2026) |
+| **Version** | v1.9.113 (January 2026) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -717,16 +717,81 @@ pytest tests/
 
 ## 🔑 API Keys
 
-Store in `api_keys.txt` (gitignored):
+**Unified Loading System with Dev-First Priority:**
+
+The app now uses a **dual-path** API key loading system:
+
+1. **Priority 1**: `user_data_private/api_keys.txt` (Dev mode - gitignored, never synced)
+2. **Priority 2**: `user_data/api_keys.txt` (User mode - ships with app)
+
+**For Developers (running from source):**
+- Store keys in: `user_data_private/api_keys.txt`
+- This location is fully gitignored and will **never** be uploaded to GitHub
+- All features (translation, AI Assistant, tests) will find keys here
+
+**For End Users (pip install or .exe):**
+- Store keys in: `user_data/api_keys.txt`
+- The app auto-creates this location on first run
+
+**Format:**
 ```
-openai_api_key=sk-...
-anthropic_api_key=sk-ant-...
-google_api_key=AI...
+openai=sk-...
+claude=sk-ant-...
+google=AI...
+deepl=...
 ```
+
+**Implementation Details:**
+- `Supervertaler.py` line ~39407: `load_api_keys()` method checks dev path first
+- `modules/unified_prompt_manager_qt.py` line ~2824: AI Assistant uses parent app's loader
+- All API key loading now unified through main app's method
 
 ---
 
 ## 🔄 Recent Development History
+
+### January 19, 2026 - API Key Loading System Unified (v1.9.113)
+
+**🔐 Unified API Key Loading with Dev-First Priority**
+
+Consolidated the confusing multi-path API key loading system into a single, clear dual-path approach:
+
+**The Problem:**
+- Three different API key file locations existed (root, user_data, user_data_private)
+- Two different loading mechanisms (`Supervertaler.load_api_keys()` vs `llm_clients.load_api_keys()`)
+- Conflicting instructions in example files
+- AI Assistant bug (#107): Keys worked for translation but failed for AI Assistant
+
+**The Solution:**
+- **Unified loading in main app**: `load_api_keys()` now checks TWO locations with clear priority
+  1. `user_data_private/api_keys.txt` (Dev mode - gitignored, never uploaded to GitHub)
+  2. `user_data/api_keys.txt` (User mode - ships with app)
+- **AI Assistant fixed**: Now uses `parent_app.load_api_keys()` instead of module function
+- **Example files updated**: Both example files now give consistent, clear instructions
+
+**Developer Workflow:**
+- Store keys in `user_data_private/api_keys.txt`
+- Fully gitignored - safe from accidental commits
+- All features find keys here (translation, AI Assistant, tests)
+
+**User Workflow:**
+- Keys go in `user_data/api_keys.txt`
+- App auto-creates this location on first run
+- Simple, single location
+
+**Files Modified:**
+- `Supervertaler.py` - `load_api_keys()` method now checks dev path first (line ~39407)
+- `api_keys.example.txt` - Updated with dev/user instructions
+- `user_data/api_keys.example.txt` - Updated with dev/user instructions
+- `AGENTS.md` - Updated API Keys section with new dual-path documentation
+
+**Result:**
+- ✅ Developers: Keys safe in gitignored location
+- ✅ Users: Simple single location
+- ✅ AI Assistant: Now works with same keys as translation
+- ✅ No more confusion about where to put keys
+
+---
 
 ### January 19, 2026 - Version 1.9.112: Critical Bug Fixes
 

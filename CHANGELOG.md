@@ -2,9 +2,53 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.112 (January 19, 2026)
+**Current Version:** v1.9.113 (January 19, 2026)
 
-## � Bug Fixes (v1.9.112) - January 19, 2026
+## 🔐 API Key Loading System Unified (v1.9.113) - January 19, 2026
+
+**Unified API Key Loading with Dev-First Priority**
+
+Consolidated the confusing multi-path API key loading system into a single, clear dual-path approach that fixes AI Assistant bug #107:
+
+**The Problem:**
+- Three different API key file locations existed (root, user_data, user_data_private)
+- Two different loading mechanisms (`Supervertaler.load_api_keys()` vs `llm_clients.load_api_keys()`)
+- Conflicting instructions in example files
+- **AI Assistant bug (#107)**: Keys worked for translation but failed for AI Assistant with "Incorrect API key" error
+
+**The Solution:**
+- **Unified loading in main app**: `load_api_keys()` now checks TWO locations with clear priority
+  1. `user_data_private/api_keys.txt` (Dev mode - gitignored, never uploaded to GitHub)
+  2. `user_data/api_keys.txt` (User mode - ships with app)
+- **AI Assistant fixed**: Now uses `parent_app.load_api_keys()` instead of module function
+- **Example files updated**: Both example files now give consistent, clear instructions
+
+**Developer Workflow:**
+- Store keys in `user_data_private/api_keys.txt`
+- Fully gitignored - safe from accidental commits
+- All features find keys here (translation, AI Assistant, tests)
+
+**User Workflow:**
+- Keys go in `user_data/api_keys.txt`
+- App auto-creates this location on first run
+- Simple, single location
+
+**Files Modified:**
+- `Supervertaler.py` - `load_api_keys()` method now checks dev path first (line ~39407)
+- `api_keys.example.txt` - Updated with dev/user instructions
+- `user_data/api_keys.example.txt` - Updated with dev/user instructions
+- `README.md` - Updated First Steps with API key setup
+- `AGENTS.md` - Updated API Keys section with new dual-path documentation
+
+**Result:**
+- ✅ Developers: Keys safe in gitignored location
+- ✅ Users: Simple single location
+- ✅ AI Assistant: Now works with same keys as translation
+- ✅ No more confusion about where to put keys
+
+---
+
+## 🐛 Bug Fixes (v1.9.112) - January 19, 2026
 
 **Filter Pagination Bug Fixed**
 
@@ -37,7 +81,7 @@ Reduced segment ID column width for more compact display:
 
 ---
 
-## �🔒 Clean Slate Project Imports (v1.9.111) - January 18, 2026
+## 🔒 Clean Slate Project Imports (v1.9.111) - January 18, 2026
 
 **Automatic Resource Deactivation on New Project Import**
 
@@ -3695,7 +3739,7 @@ Each match shows:
     1. 🏠 Home (NEW - welcome screen)
     2. 💡 Prompt Manager (moved up from #5)
     3. 📝 Editor (renamed from "Project Editor")
-    4. �️ Resources (organized nested tabs)
+    4. 🗂️ Resources (organized nested tabs)
     5. 🧩 Modules (renamed from "Specialised Modules")
     6. ⚙️ Settings (moved from Tools menu, includes Log)
   - **Navigation Menu:** Added "Go to Home" action (🏠 Home menu item)
