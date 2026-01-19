@@ -24,7 +24,6 @@ a = Analysis(
         ('README.md', '.'),
         ('CHANGELOG.md', '.'),
         ('FAQ.md', '.'),
-        ('api_keys.example.txt', '.'),
     ],
     hiddenimports=[
         'PyQt6.QtCore',
