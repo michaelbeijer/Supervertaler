@@ -18,7 +18,7 @@ from PyQt6.QtWidgets import (
     QTextEdit, QPlainTextEdit, QSplitter, QGroupBox, QMessageBox, QFileDialog,
     QInputDialog, QLineEdit, QFrame, QMenu, QCheckBox, QSizePolicy, QScrollArea, QTabWidget,
     QListWidget, QListWidgetItem, QStyledItemDelegate, QStyleOptionViewItem, QApplication, QDialog,
-    QAbstractItemView
+    QAbstractItemView, QTableWidget, QTableWidgetItem, QHeaderView
 )
 from PyQt6.QtCore import Qt, QSettings, pyqtSignal, QThread, QSize, QRect, QRectF
 from PyQt6.QtGui import QFont, QColor, QAction, QIcon, QPainter, QPen, QBrush, QPainterPath, QLinearGradient
@@ -789,7 +789,6 @@ class UnifiedPromptManagerQt:
         layout.addWidget(intro)
         
         # Table with placeholders
-        from PyQt6.QtWidgets import QTableWidget, QHeaderView
         table = QTableWidget()
         table.setColumnCount(3)
         table.setHorizontalHeaderLabels(["Placeholder", "Description", "Example"])
