@@ -2,7 +2,51 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.122 (January 19, 2026)
+**Current Version:** v1.9.123 (January 19, 2026)
+
+## 🤖 QuickMenu Generic AI Support (v1.9.123) - January 19, 2026
+
+**QuickMenu Now Supports Any AI Task**
+
+Fixed critical bug where QuickMenu prompts were being forced into translation mode, preventing generic AI tasks from working correctly:
+
+**The Problem:**
+- QuickMenu was calling `client.translate()` with the selected text as input
+- This forced the LLM to interpret every prompt as a translation task
+- Generic prompts like "Explain this", "Define the selection", "Suggest four translations" would fail
+- The AI would try to translate the prompt itself instead of executing it
+
+**The Fix:**
+- Changed to use generic AI completion pattern (empty text + custom_prompt)
+- Simplified prompt builder to not add translation-specific instructions
+- QuickMenu prompts now work as intended for ANY task
+
+**What You Can Do Now:**
+- ✅ **Explain this** - Get explanations of technical terms
+- ✅ **Define the selection** - Quick dictionary lookups
+- ✅ **Suggest four translations** - Multiple translation options with context
+- ✅ **Analyze tone** - Check if translation matches source tone
+- ✅ **Search for examples** - Find usage examples
+- ✅ **Any custom prompt** - QuickMenu works for any AI task
+
+**Example QuickMenu Prompts:**
+```
+Explain {{SELECTION}} in simple terms.
+
+Suggest four possible translations of "{{SELECTION}}" from {{SOURCE_LANGUAGE}} to {{TARGET_LANGUAGE}} within the context of patent law.
+
+Define {{SELECTION}} and provide usage examples.
+```
+
+**Technical Changes:**
+- `run_grid_quickmenu_prompt()`: Now uses empty text with custom_prompt for generic completion
+- `_quickmenu_build_custom_prompt()`: Simplified to generic prompt builder (removed translation-specific wrappers)
+- Supports placeholders: `{{SELECTION}}`, `{{SOURCE_TEXT}}`, `{{SOURCE_LANGUAGE}}`, `{{TARGET_LANGUAGE}}`
+
+**Files Modified:**
+- `Supervertaler.py` - Fixed QuickMenu AI execution to support generic tasks
+
+---
 
 ## ⌨️ Ctrl+N Repurposed for Quick Notes (v1.9.122) - January 19, 2026
 

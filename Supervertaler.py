@@ -3,7 +3,7 @@ Supervertaler
 =============
 The Ultimate Translation Workbench.
 Modern PyQt6 interface with specialised modules to handle any problem.
-Version: 1.9.122 (Ctrl+N now focuses Segment Note tab)
+Version: 1.9.123 (QuickMenu now supports generic AI tasks)
 Release Date: January 19, 2026
 Framework: PyQt6
 
@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.122"
+__version__ = "1.9.123"
 __phase__ = "0.9"
 __release_date__ = "2026-01-19"
 __edition__ = "Qt"
@@ -37669,7 +37669,11 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         return text.strip()
 
     def _quickmenu_build_custom_prompt(self, prompt_relative_path: str, source_text: str, source_lang: str, target_lang: str) -> str:
-        """Build a complete translation prompt using the chosen QuickMenu prompt as PRIMARY instructions."""
+        """Build a prompt for QuickMenu using the selected prompt as instructions.
+        
+        This is a GENERIC prompt builder (not translation-specific) that allows QuickMenu prompts
+        to do anything: explain, define, search, translate, analyze, etc.
+        """
         if not hasattr(self, 'prompt_manager_qt') or not self.prompt_manager_qt:
             raise RuntimeError("Prompt manager not available")
 
@@ -37686,25 +37690,18 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         if not prompt_content:
             raise RuntimeError("Prompt content is empty")
 
-        mode = getattr(pm, 'current_mode', None) or "single"
-        system_template = pm.get_system_template(mode)
-
-        system_template = system_template.replace("{{SOURCE_LANGUAGE}}", source_lang)
-        system_template = system_template.replace("{{TARGET_LANGUAGE}}", target_lang)
-        system_template = system_template.replace("{{SOURCE_TEXT}}", source_text)
-
-        library_prompts = "\n\n# PRIMARY INSTRUCTIONS\n\n" + prompt_content
-
-        # Keep any globally attached prompts as additional instructions
-        try:
-            for attached_content in lib.attached_prompts:
-                library_prompts += "\n\n# ADDITIONAL INSTRUCTIONS\n\n" + (attached_content or "")
-        except Exception:
-            pass
-
-        final_prompt = system_template + library_prompts
-        final_prompt += "\n\n**YOUR TRANSLATION (provide ONLY the translated text, no numbering or labels):**\n"
-        return final_prompt
+        # Build a simple, generic prompt that doesn't force translation behavior
+        # Replace placeholders in the prompt content
+        prompt_content = prompt_content.replace("{{SOURCE_LANGUAGE}}", source_lang)
+        prompt_content = prompt_content.replace("{{TARGET_LANGUAGE}}", target_lang)
+        prompt_content = prompt_content.replace("{{SOURCE_TEXT}}", source_text)
+        prompt_content = prompt_content.replace("{{SELECTION}}", source_text)  # Alternative placeholder
+        
+        # If the prompt doesn't contain the selection/text, append it
+        if "{{SOURCE_TEXT}}" not in prompt_data.get('content', '') and "{{SELECTION}}" not in prompt_data.get('content', ''):
+            prompt_content += f"\n\nText:\n{source_text}"
+        
+        return prompt_content
 
     def _quickmenu_show_result_dialog(self, title: str, output_text: str, apply_callback=None):
         from PyQt6.QtWidgets import QDialog, QVBoxLayout, QTextEdit, QDialogButtonBox, QPushButton, QApplication
@@ -37784,10 +37781,14 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             )
 
             client = LLMClient(api_key=api_key, provider=provider, model=model)
+            
+            # Use translate() with empty text and custom_prompt for generic AI completion
+            # This allows QuickMenu prompts to do anything (explain, define, search, etc.)
+            # not just translation. Same pattern as AI Assistant.
             output_text = client.translate(
-                text=input_text,
-                source_lang=source_lang,
-                target_lang=target_lang,
+                text="",  # Empty - we're using custom_prompt for everything
+                source_lang="en",  # Dummy values
+                target_lang="en",
                 custom_prompt=custom_prompt
             )
 
