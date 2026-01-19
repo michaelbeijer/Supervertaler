@@ -1,4 +1,4 @@
-# 🚀 Supervertaler v1.9.111
+# 🚀 Supervertaler v1.9.112
 
 [![PyPI version](https://badge.fury.io/py/supervertaler.svg)](https://pypi.org/project/Supervertaler/)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
@@ -6,7 +6,14 @@
 
 AI-enhanced CAT tool with multi-LLM support (GPT-4, Claude, Gemini, Ollama), innovative Superlookup concordance system offering access to multiple terminology sources (TMs, glossaries, web resources, etc.), and seamless CAT tool integration (memoQ, Trados, CafeTran, Phrase).
 
-**Current Version:** v1.9.111 (January 18, 2026)
+**Current Version:** v1.9.112 (January 19, 2026)
+
+### FIXED in v1.9.112 - 🐛 Critical Bug Fixes
+
+Three important bug fixes:
+- **Filter Pagination**: Filtering now searches ALL segments regardless of pagination (was only searching visible page)
+- **Bilingual Export**: Segment notes now properly exported to Notes column in Supervertaler Bilingual Table DOCX files
+- **Grid Layout**: Segment ID column reduced from 55px to 40px for more compact display
 
 ### NEW in v1.9.108 - 📥📤 memoQ XLIFF Import/Export
 

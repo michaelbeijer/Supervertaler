@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** January 18, 2026 | **Version:** v1.9.111
+> **Last Updated:** January 19, 2026 | **Version:** v1.9.112
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.111 (January 2026) |
+| **Version** | v1.9.112 (January 2026) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -727,6 +727,44 @@ google_api_key=AI...
 ---
 
 ## 🔄 Recent Development History
+
+### January 19, 2026 - Version 1.9.112: Critical Bug Fixes
+
+**🐛 Filter Pagination Bug Fixed**
+
+Fixed critical bug where Filter Source/Target boxes only searched visible page instead of all segments:
+
+- **The Problem**: When pagination was active (e.g., "50 per page"), filtering only searched through the currently visible rows in the table
+- **Root Cause**: `apply_filters()` used `self.table.rowCount()` which could be limited by pagination state or previous filtering
+- **The Fix**: Changed to `len(segments)` to always iterate through ALL segments in the project
+- **User Impact**: Filtering now finds matches across the entire project regardless of which page you're viewing
+
+**Technical Details:**
+- Changed iteration from `for row in range(row_count)` where `row_count = self.table.rowCount()`
+- To: `for row in range(total_segments)` where `total_segments = len(segments)`
+- The filter builds a complete `matching_rows` set, then `_apply_pagination_to_grid()` handles combined visibility
+
+**📝 Bilingual Table Export - Notes Column**
+
+Fixed segment notes not being exported to Supervertaler Bilingual Table DOCX files:
+
+- **The Problem**: Notes column was hardcoded to empty string: `cells[4].text = ''`
+- **The Fix**: Now properly exports `seg.notes` from each segment
+- **Formatting**: 8pt font to match Status column styling
+- **Includes**: Proofreading notes (⚠️ PROOFREAD prefix), user notes, all segment annotations
+
+**📏 Grid Column Width Optimization**
+
+Reduced segment ID column width for more compact display:
+
+- **Before**: 55px (unnecessarily wide even for 4-digit segment numbers)
+- **After**: 40px (fits up to 3 digits comfortably, readable for 4+ digits)
+- **Benefit**: More horizontal space available for Source/Target columns
+
+**Files Modified:**
+- `Supervertaler.py` - Fixed `apply_filters()` iteration logic, notes export in `_export_review_table()`, column width in grid initialization
+
+---
 
 ### January 18, 2026 - TMX Language Pair Bug Fix (User Issue #105) - v1.9.109
 

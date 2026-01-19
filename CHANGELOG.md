@@ -2,9 +2,42 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.111 (January 18, 2026)
+**Current Version:** v1.9.112 (January 19, 2026)
 
-## 🔒 Clean Slate Project Imports (v1.9.111) - January 18, 2026
+## � Bug Fixes (v1.9.112) - January 19, 2026
+
+**Filter Pagination Bug Fixed**
+
+Fixed critical bug where Filter Source/Target boxes only searched visible page instead of all segments:
+
+- **The Problem**: When pagination was active, filtering only searched through currently visible rows
+- **Root Cause**: Used `self.table.rowCount()` which could be limited by pagination state
+- **The Fix**: Now uses `len(segments)` to always search ALL segments in project
+- **Result**: Filtering finds matches across entire project regardless of pagination settings
+
+**Bilingual Table Export - Notes Column**
+
+Fixed segment notes not being exported to Supervertaler Bilingual Table DOCX files:
+
+- **The Problem**: Notes column was hardcoded to empty string `cells[4].text = ''`
+- **The Fix**: Now properly exports `seg.notes` from each segment
+- **Formatting**: 8pt font to match Status column styling
+- **Includes**: Proofreading notes (⚠️ PROOFREAD prefix), user notes, all segment annotations
+
+**Grid Column Width Optimization**
+
+Reduced segment ID column width for more compact display:
+
+- **Before**: 55px (unnecessarily wide)
+- **After**: 40px (fits up to 3 digits comfortably, readable for 4+ digits)
+- **Result**: More horizontal space for Source/Target columns
+
+**Files Modified:**
+- `Supervertaler.py` - Fixed `apply_filters()` iteration, notes export, column width
+
+---
+
+## �🔒 Clean Slate Project Imports (v1.9.111) - January 18, 2026
 
 **Automatic Resource Deactivation on New Project Import**
 

@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.111"
+__version__ = "1.9.112"
 __phase__ = "0.9"
 __release_date__ = "2026-01-18"
 __edition__ = "Qt"
@@ -9917,8 +9917,12 @@ class SupervertalerQt(QMainWindow):
                         elif status in ('draft', 'needs_review'):
                             run.font.color.rgb = RGBColor(200, 100, 0)  # Orange
                 
-                # Notes column - empty for user to fill
-                cells[4].text = ''
+                # Notes column - populate with segment notes if available
+                notes_text = seg.notes if hasattr(seg, 'notes') else ''
+                cells[4].text = notes_text
+                for para in cells[4].paragraphs:
+                    for run in para.runs:
+                        run.font.size = Pt(8)
             
             # Add footer with branding
             footer_para = doc.add_paragraph()
@@ -18685,7 +18689,7 @@ class SupervertalerQt(QMainWindow):
         header.setStretchLastSection(False)  # Don't auto-stretch last section (we use Stretch mode for Source/Target)
         
         # Set initial column widths - give Source and Target equal space
-        self.table.setColumnWidth(0, 55)   # ID - fits 4-digit segment numbers
+        self.table.setColumnWidth(0, 40)   # ID - compact, fits up to 3 digits comfortably
         self.table.setColumnWidth(1, 40)   # Type - narrower
         self.table.setColumnWidth(2, 400)  # Source
         self.table.setColumnWidth(3, 400)  # Target
@@ -32713,15 +32717,17 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         
         try:
             visible_count = 0
-            row_count = self.table.rowCount()
             segments = self.current_project.segments
+            total_segments = len(segments)
             
             # Pre-compute lowercase filter texts
             source_filter_lower = source_filter_text.lower() if source_filter_text else None
             target_filter_lower = target_filter_text.lower() if target_filter_text else None
             
-            for row in range(row_count):
-                if row >= len(segments):
+            # IMPORTANT: Always search through ALL segments, not just visible rows
+            # Pagination state should not affect which segments we search
+            for row in range(total_segments):
+                if row >= total_segments:
                     break
                     
                 segment = segments[row]
