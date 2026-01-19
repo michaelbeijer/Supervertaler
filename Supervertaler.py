@@ -13434,7 +13434,9 @@ class SupervertalerQt(QMainWindow):
         
         # ===== TAB 2: AI Settings (LLM, Ollama) =====
         ai_tab = self._create_ai_settings_tab()
-        settings_tabs.addTab(scroll_area_wrapper(ai_tab), "🤖 AI Settings")
+        ai_scroll = scroll_area_wrapper(ai_tab)
+        settings_tabs.addTab(ai_scroll, "🤖 AI Settings")
+        self.ai_settings_scroll = ai_scroll  # Store reference for scrolling to API keys
         
         # ===== TAB 3: Language Pair Settings =====
         lang_tab = self._create_language_pair_tab()
@@ -35963,6 +35965,14 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                 for i in range(self.settings_tabs.count()):
                     if subtab_name.lower() in self.settings_tabs.tabText(i).lower():
                         self.settings_tabs.setCurrentIndex(i)
+                        
+                        # If navigating to AI Settings, scroll to bottom (API keys section)
+                        if "ai settings" in subtab_name.lower() and hasattr(self, 'ai_settings_scroll'):
+                            # Use QTimer to ensure the tab is fully rendered before scrolling
+                            from PyQt6.QtCore import QTimer
+                            QTimer.singleShot(100, lambda: self.ai_settings_scroll.verticalScrollBar().setValue(
+                                self.ai_settings_scroll.verticalScrollBar().maximum()
+                            ))
                         break
     
     def _go_to_superlookup(self):
