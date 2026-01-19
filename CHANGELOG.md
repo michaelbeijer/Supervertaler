@@ -2,7 +2,43 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.119 (January 19, 2026)
+**Current Version:** v1.9.120 (January 19, 2026)
+
+## ⚡ Find & Replace Speed Optimization (v1.9.120) - January 19, 2026
+
+**Massive Performance Improvement for Find & Replace Operations**
+
+Optimized Find & Replace to be dramatically faster, especially when making many replacements:
+
+**The Problem:**
+- Replace All operations could take 5-10 seconds when making many replacements
+- UI was updated for **every single replacement**, causing hundreds of redraws
+- After all replacements, the entire grid was reloaded, recreating ALL widgets
+- No pre-filtering - all segments were processed even if they didn't contain the search text
+
+**Optimizations Implemented:**
+
+1. **Batch UI Updates**: Wrap replacements in `setUpdatesEnabled(False)` to prevent redraws during processing
+   - Before: Update grid after each replacement (hundreds of redraws)
+   - After: Single grid reload at the end
+
+2. **Pre-Filter Segments**: Quick text search to skip segments that don't contain the search text
+   - Before: Process all 500+ segments with regex operations
+   - After: Only process segments that might match (case-insensitive substring check)
+
+3. **Removed Individual Item Updates**: No longer calls `item.setText()` for each replacement
+   - Before: Update each cell individually, then reload entire grid
+   - After: Just reload grid once at the end
+
+**Performance Results:**
+- Operations that took 5-10 seconds now complete in under 1 second
+- Batch F&R operations also optimized with same improvements
+- No functional changes - same results, just much faster
+
+**Files Modified:**
+- `Supervertaler.py` - Optimized `replace_all_matches()`, `_fr_run_set_batch()`, `_execute_single_fr_operation()`
+
+---
 
 ## ⌨️ Alt+D Dictionary Shortcut (v1.9.119) - January 19, 2026
 

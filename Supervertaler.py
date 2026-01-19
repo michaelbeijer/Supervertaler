@@ -3,7 +3,7 @@ Supervertaler
 =============
 The Ultimate Translation Workbench.
 Modern PyQt6 interface with specialised modules to handle any problem.
-Version: 1.9.119 (Alt+D shortcut for quick dictionary addition)
+Version: 1.9.120 (Optimized Find & Replace performance)
 Release Date: January 19, 2026
 Framework: PyQt6
 
@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.119"
+__version__ = "1.9.120"
 __phase__ = "0.9"
 __release_date__ = "2026-01-19"
 __edition__ = "Qt"
@@ -31545,7 +31545,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         self.case_sensitive_cb.setChecked(op.case_sensitive)
     
     def _fr_run_set_batch(self, fr_set: FindReplaceSet):
-        """Run all enabled operations in a F&R Set as a batch."""
+        """Run all enabled operations in a F&R Set as a batch (optimized for speed)."""
         enabled_ops = [op for op in fr_set.operations if op.enabled and op.find_text]
         
         if not enabled_ops:
@@ -31564,17 +31564,24 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         if reply != QMessageBox.StandardButton.Yes:
             return
         
-        # Run each operation
-        total_replaced = 0
-        for op in enabled_ops:
-            count = self._execute_single_fr_operation(op)
-            total_replaced += count
-            self.log(f"  '{op.find_text}' → '{op.replace_text}': {count} replacement(s)")
+        # OPTIMIZATION: Disable UI updates during batch processing
+        self.table.setUpdatesEnabled(False)
         
-        # Refresh grid
-        self.load_segments_to_grid()
-        self.project_modified = True
-        self.update_window_title()
+        try:
+            # Run each operation
+            total_replaced = 0
+            for op in enabled_ops:
+                count = self._execute_single_fr_operation(op)
+                total_replaced += count
+                self.log(f"  '{op.find_text}' → '{op.replace_text}': {count} replacement(s)")
+            
+            self.project_modified = True
+            self.update_window_title()
+            
+        finally:
+            # OPTIMIZATION: Re-enable UI updates and refresh grid once at the end
+            self.table.setUpdatesEnabled(True)
+            self.load_segments_to_grid()
         
         QMessageBox.information(
             self.find_replace_dialog,
@@ -31583,12 +31590,30 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         )
     
     def _execute_single_fr_operation(self, op: FindReplaceOperation) -> int:
-        """Execute a single F&R operation on all segments. Returns replacement count."""
+        """Execute a single F&R operation on all segments (optimized). Returns replacement count."""
         import re
         count = 0
         
+        # OPTIMIZATION: Pre-filter segments - only check segments that might contain the text
+        # Quick case-insensitive check to skip segments that definitely don't match
+        search_text_lower = op.find_text.lower() if not op.case_sensitive else None
+        
         for segment in self.current_project.segments:
             texts_to_check = []
+            
+            # Pre-filter: skip segments that can't possibly match
+            if not op.case_sensitive:
+                # Quick check: does the segment contain the search text at all?
+                skip_segment = True
+                if op.search_in in ("source", "both") and self.allow_replace_in_source:
+                    if search_text_lower in segment.source.lower():
+                        skip_segment = False
+                if op.search_in in ("target", "both"):
+                    if search_text_lower in segment.target.lower():
+                        skip_segment = False
+                if skip_segment:
+                    continue
+            
             if op.search_in in ("source", "both") and self.allow_replace_in_source:
                 texts_to_check.append(("source", segment.source))
             if op.search_in in ("target", "both"):
@@ -31884,7 +31909,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         self.find_next_match()
     
     def replace_all_matches(self):
-        """Replace all matches in target segments"""
+        """Replace all matches in target segments (optimized for speed)"""
         find_text = self.find_input.text()
         replace_text = self.replace_input.text()
         
@@ -31957,52 +31982,55 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         if reply != QMessageBox.StandardButton.Yes:
             return
         
-        # Perform replacements
-        import re
-        replaced_count = 0
+        # OPTIMIZATION: Disable UI updates during batch replacement
+        self.table.setUpdatesEnabled(False)
         
-        for row, col in self.find_matches:
-            segment = self.current_project.segments[row]
+        try:
+            # Perform replacements
+            import re
+            replaced_count = 0
             
-            # Get the appropriate field
-            if col == 2:  # Source
-                old_text = segment.source
-            else:  # col == 3, Target
-                old_text = segment.target
-            
-            # Perform replacement
-            if match_mode == 2:  # Entire segment
-                new_text = replace_text
-            else:
-                if case_sensitive:
-                    new_text = old_text.replace(find_text, replace_text)
-                else:
-                    pattern = re.escape(find_text)
-                    new_text = re.sub(pattern, replace_text, old_text, flags=re.IGNORECASE)
-            
-            if new_text != old_text:
-                replaced_count += 1
-                # Update the appropriate field
-                if col == 2:
-                    segment.source = new_text
-                else:
-                    old_target = segment.target
-                    old_status = segment.status
-                    segment.target = new_text
-                    # Record undo state for find/replace operation
-                    self.record_undo_state(segment.id, old_target, new_text, old_status, old_status)
+            for row, col in self.find_matches:
+                segment = self.current_project.segments[row]
                 
-                # Update table
-                item = self.table.item(row, col)
-                if item:
-                    item.setText(new_text)
-        
-        self.project_modified = True
-        self.update_window_title()
-        
-        # Clear matches and reload
-        self.find_matches = []
-        self.load_segments_to_grid()
+                # Get the appropriate field
+                if col == 2:  # Source
+                    old_text = segment.source
+                else:  # col == 3, Target
+                    old_text = segment.target
+                
+                # Perform replacement
+                if match_mode == 2:  # Entire segment
+                    new_text = replace_text
+                else:
+                    if case_sensitive:
+                        new_text = old_text.replace(find_text, replace_text)
+                    else:
+                        pattern = re.escape(find_text)
+                        new_text = re.sub(pattern, replace_text, old_text, flags=re.IGNORECASE)
+                
+                if new_text != old_text:
+                    replaced_count += 1
+                    # Update the appropriate field
+                    if col == 2:
+                        segment.source = new_text
+                    else:
+                        old_target = segment.target
+                        old_status = segment.status
+                        segment.target = new_text
+                        # Record undo state for find/replace operation
+                        self.record_undo_state(segment.id, old_target, new_text, old_status, old_status)
+            
+            self.project_modified = True
+            self.update_window_title()
+            
+            # Clear matches
+            self.find_matches = []
+            
+        finally:
+            # OPTIMIZATION: Re-enable UI updates and reload grid once at the end
+            self.table.setUpdatesEnabled(True)
+            self.load_segments_to_grid()
         
         QMessageBox.information(self.find_replace_dialog, "Replace All", f"Replaced {replaced_count} occurrence(s).")
         self.log(f"✓ Replaced {replaced_count} occurrence(s) of '{find_text}'")
