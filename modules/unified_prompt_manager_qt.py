@@ -2828,6 +2828,13 @@ If the text refers to figures (e.g., 'Figure 1A'), relevant images may be provid
                 # Fallback to module function (legacy path)
                 api_keys = load_api_keys()
             
+            # Debug: Log which keys were found (without exposing the actual keys)
+            key_names = [k for k in api_keys.keys() if api_keys.get(k)]
+            if key_names:
+                self.log_message(f"🔑 Found API keys for: {', '.join(key_names)}")
+            else:
+                self.log_message("⚠ No API keys found in api_keys.txt")
+            
             # Try to use the same provider as main app if available
             provider = None
             model = None

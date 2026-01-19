@@ -3,7 +3,7 @@ Supervertaler
 =============
 The Ultimate Translation Workbench.
 Modern PyQt6 interface with specialised modules to handle any problem.
-Version: 1.9.113 (API key loading unified)
+Version: 1.9.114 (AI Assistant diagnostic logging)
 Release Date: January 19, 2026
 Framework: PyQt6
 
@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.113"
+__version__ = "1.9.114"
 __phase__ = "0.9"
 __release_date__ = "2026-01-18"
 __edition__ = "Qt"

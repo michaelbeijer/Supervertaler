@@ -2,9 +2,34 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.113 (January 19, 2026)
+**Current Version:** v1.9.114 (January 19, 2026)
 
-## 🔐 API Key Loading System Unified (v1.9.113) - January 19, 2026
+## � AI Assistant Diagnostic Logging (v1.9.114) - January 19, 2026
+
+**Improved AI Assistant Troubleshooting**
+
+Added diagnostic logging to help users troubleshoot API key issues:
+
+- **Key Discovery Logging**: When AI Assistant initializes, it now logs which API keys were found
+  - Example: "🔑 Found API keys for: openai, google, deepl"
+  - If no keys found: "⚠ No API keys found in api_keys.txt"
+  
+- **Helps Diagnose Issues**:
+  - Users can verify their API keys are being loaded correctly
+  - Makes it clear which providers are available
+  - Doesn't expose actual key values (only key names)
+
+**Why This Helps**:
+- User reported AI Assistant showing "not available" despite having keys configured
+- New logging will show exactly which keys are detected
+- Makes troubleshooting much easier for both users and developers
+
+**Files Modified:**
+- `modules/unified_prompt_manager_qt.py` - Added API key discovery logging to `_init_llm_client()`
+
+---
+
+## �🔐 API Key Loading System Unified (v1.9.113) - January 19, 2026
 
 **Unified API Key Loading with Dev-First Priority**
 
