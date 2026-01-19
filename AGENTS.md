@@ -798,6 +798,79 @@ Added dedicated reference tab in Prompt Manager showing all available placeholde
 
 ### January 19, 2026 - QuickMenu Document Context (v1.9.124)
 
+---
+
+### January 19, 2026 - Prompt Manager UI Fixes (v1.9.127)
+
+**🔧 Save Button Fix**
+
+Fixed issue where Save button remained greyed out after creating new prompts:
+
+- **Problem**: User creates new prompt → editor loads content → Save button stays disabled
+- **Root Cause**: `_new_prompt_in_folder()` called `_load_prompt_in_editor()` which should enable button, but timing issue prevented it
+- **Solution**: Added explicit `btn_save_prompt.setEnabled(True)` call immediately after loading prompt in editor
+- **Result**: Save button now properly enabled for all new prompts
+
+**📝 Label Rename for Clarity**
+
+Renamed QuickMenu checkbox label:
+- **Before**: "Show in QuickMenu"
+- **After**: "Show in Supervertaler QuickMenu"
+- **Reason**: Distinguishes app-level QuickMenu from Grid right-click QuickMenu
+
+**Files Modified:**
+- `modules/unified_prompt_manager_qt.py` - Save button enable, checkbox label
+
+---
+
+### January 19, 2026 - Prompt System Improvements (v1.9.126)
+
+**🔄 Field Rename: `quickmenu_quickmenu` → `sv_quickmenu`**
+
+Renamed redundant field throughout the codebase for cleaner API:
+
+**What Changed:**
+- All internal code now uses `sv_quickmenu` (Supervertaler QuickMenu)
+- Updated in both `unified_prompt_library.py` and `unified_prompt_manager_qt.py`
+- 18+ occurrences renamed across parsing, saving, display, and toggle methods
+- Backward compatibility: Old .svprompt files still load correctly
+- Legacy `quick_run` field kept in sync for compatibility
+
+**Files Modified:**
+- `modules/unified_prompt_library.py` - Parse, save, toggle methods
+- `modules/unified_prompt_manager_qt.py` - Editor, creation, display code
+- `Supervertaler.py` - Version bump to 1.9.126
+- `CHANGELOG.md` - Added v1.9.126 entry
+
+**📝 Placeholders Reference Tab**
+
+Added dedicated reference tab in Prompt Manager showing all available placeholders:
+
+**Features:**
+- Table format: Placeholder | Description | Example
+- All 5 placeholders documented:
+  * `{{SELECTION}}` - Selected text in grid
+  * `{{SOURCE_TEXT}}` - Full source segment
+  * `{{SOURCE_LANGUAGE}}` - Project source language
+  * `{{TARGET_LANGUAGE}}` - Project target language
+  * `{{DOCUMENT_CONTEXT}}` - Project segments (configurable %)
+- Usage tips section with best practices
+- Located after AI Assistant tab
+
+**Implementation:**
+- New `_create_placeholders_tab()` method (~120 lines)
+- Added as Tab 3 in Prompt Manager sub-tabs
+- Uses QTableWidget with 3 columns and 5 rows
+- Monospace font for placeholders and examples
+- Adjustable column widths for readability
+
+**Files Modified:**
+- `modules/unified_prompt_manager_qt.py` - New tab method, added to sub-tabs
+
+---
+
+### January 19, 2026 - QuickMenu Document Context (v1.9.124)
+
 **📄 Context-Aware AI Suggestions**
 
 Implemented major enhancement allowing QuickMenu prompts to access full project context for better AI suggestions:

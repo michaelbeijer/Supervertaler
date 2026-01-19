@@ -1671,7 +1671,7 @@ class UnifiedPromptManagerQt:
         self.editor_quickmenu_in_grid_cb = CheckmarkCheckBox("Show in Grid right-click QuickMenu")
         quickmenu_layout.addWidget(self.editor_quickmenu_in_grid_cb, 2)
 
-        self.editor_quickmenu_in_quickmenu_cb = CheckmarkCheckBox("Show in QuickMenu")
+        self.editor_quickmenu_in_quickmenu_cb = CheckmarkCheckBox("Show in Supervertaler QuickMenu")
         quickmenu_layout.addWidget(self.editor_quickmenu_in_quickmenu_cb, 1)
 
         layout.addLayout(quickmenu_layout)
@@ -2643,6 +2643,7 @@ class UnifiedPromptManagerQt:
             self._refresh_tree()
             self._select_and_reveal_prompt(relative_path)
             self._load_prompt_in_editor(relative_path)
+            self.btn_save_prompt.setEnabled(True)  # Ensure Save button is enabled for new prompt
             self.log_message(f"✓ Created new prompt '{name}' in folder: {folder_path}")
         else:
             QMessageBox.warning(self.main_widget, "Error", "Failed to create prompt")

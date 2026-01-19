@@ -2,7 +2,37 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.126 (January 19, 2026)
+**Current Version:** v1.9.127 (January 19, 2026)
+
+## 🔧 Prompt Manager UI Fixes (v1.9.127) - January 19, 2026
+
+**Save Button Fix**
+
+Fixed issue where Save button remained greyed out (disabled) after creating a new prompt:
+
+**Problem:**
+- User clicks "+ New" → enters prompt name → prompt loads in editor
+- Save button remains disabled despite content being loaded
+- Could not save edits to new prompts
+
+**Fix:**
+- Added explicit `btn_save_prompt.setEnabled(True)` call after `_load_prompt_in_editor()` in `_new_prompt_in_folder()` method
+- Ensures Save button is always enabled after new prompt creation
+- Prevents workflow interruption when creating and editing prompts
+
+**Label Rename**
+
+Renamed QuickMenu checkbox label for clarity:
+
+**Before:** "Show in QuickMenu"  
+**After:** "Show in Supervertaler QuickMenu"
+
+**Reason:** Distinguishes the app-level QuickMenu from the Grid right-click QuickMenu for better user understanding.
+
+**Files Modified:**
+- `modules/unified_prompt_manager_qt.py` - Save button enable call, checkbox label text
+
+---
 
 ## 🔄 Prompt System Improvements (v1.9.126) - January 19, 2026
 
