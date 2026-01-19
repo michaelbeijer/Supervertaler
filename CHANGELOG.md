@@ -2,7 +2,27 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.114 (January 19, 2026)
+**Current Version:** v1.9.115 (January 19, 2026)
+
+## 🐛 API Keys Dialog Navigation Fix (v1.9.115) - January 19, 2026
+
+**Fixed "API Keys Missing" Dialog Navigation**
+
+When users start Supervertaler without configured API keys, they see a dialog asking "Would you like to configure them now?" Clicking "Yes" should take them to Settings → AI Settings where they can configure their keys.
+
+**The Bug:**
+- Dialog navigation went to **Tools → AutoFingers** instead of **Settings → AI Settings**
+- Users couldn't find where to configure their API keys
+
+**The Fix:**
+- Updated `_go_to_settings_tab()` to accept optional `subtab_name` parameter
+- Dialog now calls `_go_to_settings_tab("AI Settings")` to navigate directly to the AI Settings sub-tab
+- Users are now taken to the correct location where API keys can be configured
+
+**Files Modified:**
+- `Supervertaler.py` - Updated `_go_to_settings_tab()` method and API Keys Missing dialog handler
+
+---
 
 ## � AI Assistant Diagnostic Logging (v1.9.114) - January 19, 2026
 

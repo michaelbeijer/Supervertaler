@@ -1,0 +1,26 @@
+{
+  "history": [
+    {
+      "role": "user",
+      "content": "what can you do?",
+      "timestamp": "2026-01-19T14:23:43.258076"
+    },
+    {
+      "role": "assistant",
+      "content": "I can assist you with managing and utilizing the Supervertaler Prompt Library. Here are some of the things I can do:\n\n1. **List Prompts:** I can list all available prompts, and you can filter them by folder if needed.\n\n2. **Get Prompt Details:** I can provide full details of a specific prompt, including its content and metadata.\n\n3. **Create Prompt:** I can help you create a new prompt with specified content, folder, description, and tags.\n\n4. **Update Prompt:** I can update an existing prompt's content, name, or description.\n\n5. **Delete Prompt:** I can delete a prompt if it's no longer needed.\n\n6. **Search Prompts:** I can search for prompts based on a query, searching through names, content, tags, or all of these.\n\n7. **Create Folder:** I can create a new folder to help you organize your prompts better.\n\n8. **Toggle Favorite:** I can mark a prompt as a favorite or remove it from favorites.\n\n9. **Toggle Quick Run:** I can add or remove prompts from the QuickMenu for easy access.\n\n10. **Get Favorites:** I can list all prompts that are marked as favorites.\n\n11. **Get Quick Run:** I can list all prompts available in the QuickMenu.\n\n12. **Get Folder Structure:** I can provide the complete folder structure of your prompts.\n\n13. **Get Segment Count:** I can provide the total segment count and translation progress.\n\n14. **Get Segment Info:** I can provide detailed information about specific translation segments.\n\n15. **Activate Prompt:** I can activate or attach a prompt to the current project.\n\nIf you have any specific task in mind or need assistance with any of these actions, feel free to let me know!",
+      "timestamp": "2026-01-19T14:23:51.012206"
+    },
+    {
+      "role": "user",
+      "content": "hello?",
+      "timestamp": "2026-01-19T14:24:39.488190"
+    },
+    {
+      "role": "assistant",
+      "content": "Hello! How can I assist you today with the Supervertaler Prompt Library? If you have any questions or need help with managing prompts, feel free to let me know!",
+      "timestamp": "2026-01-19T14:24:42.522502"
+    }
+  ],
+  "files": [],
+  "updated": "2026-01-19T14:24:42.523542"
+}

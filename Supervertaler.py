@@ -3,7 +3,7 @@ Supervertaler
 =============
 The Ultimate Translation Workbench.
 Modern PyQt6 interface with specialised modules to handle any problem.
-Version: 1.9.114 (AI Assistant diagnostic logging)
+Version: 1.9.115 (API Keys dialog navigation fix)
 Release Date: January 19, 2026
 Framework: PyQt6
 
@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.114"
+__version__ = "1.9.115"
 __phase__ = "0.9"
 __release_date__ = "2026-01-18"
 __edition__ = "Qt"
@@ -35941,11 +35941,22 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         except Exception as e:
             QMessageBox.warning(self, "Error", f"Could not open api_keys.txt: {str(e)}")
     
-    def _go_to_settings_tab(self):
-        """Navigate to Settings tab (from menu)"""
+    def _go_to_settings_tab(self, subtab_name: str = None):
+        """Navigate to Settings tab (from menu), optionally to a specific sub-tab
+        
+        Args:
+            subtab_name: Name of the sub-tab to navigate to (e.g., "AI Settings")
+        """
         if hasattr(self, 'main_tabs'):
             # Main tabs: Grid=0, Project resources=1, Tools=2, Settings=3
             self.main_tabs.setCurrentIndex(3)
+            
+            # Navigate to specific sub-tab if requested
+            if subtab_name and hasattr(self, 'settings_tabs'):
+                for i in range(self.settings_tabs.count()):
+                    if subtab_name.lower() in self.settings_tabs.tabText(i).lower():
+                        self.settings_tabs.setCurrentIndex(i)
+                        break
     
     def _go_to_superlookup(self):
         """Navigate to Superlookup in Tools tab"""
@@ -37177,7 +37188,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
                 )
                 if reply == QMessageBox.StandardButton.Yes:
-                    self._go_to_settings_tab()
+                    self._go_to_settings_tab("AI Settings")
                 return
             
             # Check if API key exists for selected provider
