@@ -30,6 +30,14 @@ from modules.ai_attachment_manager import AttachmentManager
 from modules.ai_file_viewer_dialog import FileViewerDialog, FileRemoveConfirmDialog
 from modules.ai_actions import AIActionSystem
 
+# Import custom checkbox from main app
+import sys
+if 'Supervertaler' in sys.modules:
+    from Supervertaler import CheckmarkCheckBox
+else:
+    # Fallback to standard checkbox if Supervertaler module not loaded
+    CheckmarkCheckBox = QCheckBox
+
 
 class PromptLibraryTreeWidget(QTreeWidget):
     """Tree widget that supports drag-and-drop moves for prompt files."""
@@ -1585,10 +1593,10 @@ class UnifiedPromptManagerQt:
         self.editor_quickmenu_label_input.setPlaceholderText("Label shown in QuickMenu")
         quickmenu_layout.addWidget(self.editor_quickmenu_label_input, 2)
 
-        self.editor_quickmenu_in_grid_cb = QCheckBox("Show in Grid right-click QuickMenu")
+        self.editor_quickmenu_in_grid_cb = CheckmarkCheckBox("Show in Grid right-click QuickMenu")
         quickmenu_layout.addWidget(self.editor_quickmenu_in_grid_cb, 2)
 
-        self.editor_quickmenu_in_quickmenu_cb = QCheckBox("Show in QuickMenu")
+        self.editor_quickmenu_in_quickmenu_cb = CheckmarkCheckBox("Show in QuickMenu")
         quickmenu_layout.addWidget(self.editor_quickmenu_in_quickmenu_cb, 1)
 
         layout.addLayout(quickmenu_layout)
