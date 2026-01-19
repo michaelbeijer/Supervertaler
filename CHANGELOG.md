@@ -55,7 +55,7 @@ When users start Supervertaler without configured API keys, they see a dialog as
 
 ---
 
-## � AI Assistant Diagnostic Logging (v1.9.114) - January 19, 2026
+## 🔍 AI Assistant Diagnostic Logging (v1.9.114) - January 19, 2026
 
 **Improved AI Assistant Troubleshooting**
 
@@ -80,7 +80,7 @@ Added diagnostic logging to help users troubleshoot API key issues:
 
 ---
 
-## �🔐 API Key Loading System Unified (v1.9.113) - January 19, 2026
+## 🔑🔐 API Key Loading System Unified (v1.9.113) - January 19, 2026
 
 **Unified API Key Loading with Dev-First Priority**
 
