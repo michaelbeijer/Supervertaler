@@ -941,13 +941,20 @@ class TermviewWidget(QWidget):
                     for quote_char in '\"\'\u201C\u201D\u201E\u00AB\u00BB\u2018\u2019\u201A\u2039\u203A':
                         normalized_text = normalized_text.replace(quote_char, ' ')
                     
+                    # CRITICAL FIX v1.9.118: Strip punctuation from glossary term before matching
+                    # This allows entries like "...problemen." (with period) to match source text
+                    # where tokenization strips the period during word splitting
+                    # Comprehensive set of quote and punctuation characters to strip
+                    PUNCT_CHARS = '.,;:!?\"\'\u201C\u201D\u201E\u00AB\u00BB\u2018\u2019\u201A\u2039\u203A'
+                    normalized_term = source_lower.rstrip(PUNCT_CHARS).lstrip(PUNCT_CHARS)
+                    
                     # Use word boundaries to match complete words/phrases only
                     if ' ' in source_term:
                         # Multi-word term - must exist as exact phrase
-                        pattern = r'\b' + re.escape(source_lower) + r'\b'
+                        pattern = r'\b' + re.escape(normalized_term) + r'\b'
                     else:
                         # Single word
-                        pattern = r'\b' + re.escape(source_lower) + r'\b'
+                        pattern = r'\b' + re.escape(normalized_term) + r'\b'
                     
                     # Try matching on normalized text first, then original
                     if not re.search(pattern, normalized_text) and not re.search(pattern, text_lower):

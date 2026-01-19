@@ -2,7 +2,34 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.117 (January 19, 2026)
+**Current Version:** v1.9.118 (January 19, 2026)
+
+## 🐛 Termview Glossary Punctuation Fix (v1.9.118) - January 19, 2026
+
+**Fixed Glossary Punctuation Matching in Termview Widget**
+
+Completed the glossary punctuation fix by applying it to the Termview widget:
+
+**The Problem:**
+- v1.9.117 fixed punctuation matching in the Translation Results panel
+- But the Termview widget has its own separate matching logic that wasn't fixed
+- Glossary entry: `"...problemen."` (with period) wouldn't show in Termview
+- Same entry without period: `"...problemen"` worked correctly
+
+**The Fix:**
+- Applied the same punctuation normalization fix to `get_all_termbase_matches()` in `termview_widget.py`
+- Now strips trailing/leading punctuation from glossary terms before pattern matching
+- Both Translation Results panel AND Termview now handle punctuation correctly
+
+**User Impact:**
+- Users can add full sentences/phrases to glossaries with punctuation
+- Termview now shows matches for entries with periods, quotes, etc.
+- Consistent behavior between Translation Results and Termview
+
+**Files Modified:**
+- `modules/termview_widget.py` - Added punctuation stripping to `get_all_termbase_matches()` (line ~933-947)
+
+---
 
 ## 🐛 Glossary Matching with Punctuation (v1.9.117) - January 19, 2026
 

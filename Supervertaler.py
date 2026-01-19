@@ -3,7 +3,7 @@ Supervertaler
 =============
 The Ultimate Translation Workbench.
 Modern PyQt6 interface with specialised modules to handle any problem.
-Version: 1.9.117 (Fix glossary matching with punctuation)
+Version: 1.9.118 (Fix Termview glossary matching with punctuation)
 Release Date: January 19, 2026
 Framework: PyQt6
 
@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.117"
+__version__ = "1.9.118"
 __phase__ = "0.9"
 __release_date__ = "2026-01-19"
 __edition__ = "Qt"
