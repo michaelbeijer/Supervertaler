@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.142"
+__version__ = "1.9.143"
 __phase__ = "0.9"
 __release_date__ = "2026-01-20"
 __edition__ = "Qt"
@@ -36031,17 +36031,15 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             )
             
             if reply == QMessageBox.StandardButton.Yes:
-                if self.db_manager:
+                if self.termbase_mgr:
                     try:
-                        conn = self.db_manager.get_connection()
-                        cursor = conn.cursor()
-                        cursor.execute("DELETE FROM termbase_terms WHERE id = ?", (term_id,))
-                        conn.commit()
-                        
-                        self.log(f"✓ Deleted glossary entry: {source_term} → {target_term}")
-                        
-                        # Refresh termview and translation results
-                        self._refresh_current_segment_matches()
+                        if self.termbase_mgr.delete_term(term_id):
+                            self.log(f"✓ Deleted glossary entry: {source_term} → {target_term}")
+                            
+                            # Refresh termview and translation results
+                            self._refresh_current_segment_matches()
+                        else:
+                            self.log(f"✗ Failed to delete glossary entry")
                     except Exception as e:
                         self.log(f"✗ Error deleting glossary entry from database: {e}")
         except Exception as e:

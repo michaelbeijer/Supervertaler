@@ -2,7 +2,25 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.142 (January 20, 2026)
+**Current Version:** v1.9.143 (January 20, 2026)
+
+## 🐛 Fix: Deleting Glossary Entry from Termview (v1.9.143) - January 20, 2026
+
+**Bug Fix:** Deleting glossary entries via right-click in Termview failed with an error.
+
+**Error in Logs:**
+```
+✗ Error deleting glossary entry from database: 'DatabaseManager' object has no attribute 'get_connection'
+```
+
+**Root Cause:**
+- The delete handler was trying to call `db_manager.get_connection()` which doesn't exist
+- Was using raw SQL instead of the existing `termbase_mgr.delete_term()` method
+
+**The Fix:**
+- Changed to use `self.termbase_mgr.delete_term(term_id)` which already exists and works correctly
+
+---
 
 ## 🐛 Fix: Error When Editing Glossary Entry from Termview (v1.9.142) - January 20, 2026
 
