@@ -2,7 +2,29 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.140 (January 20, 2026)
+**Current Version:** v1.9.141 (January 20, 2026)
+
+## 🐛 Fix: Termview Blank After Adding Glossary Term (v1.9.141) - January 20, 2026
+
+**Bug Fix:** After adding a term to a glossary via Alt+Down (or similar shortcuts), the Termview pane would go blank and stay blank until navigating to another segment.
+
+**Error in Logs:**
+```
+Error updating termview: list index out of range
+```
+
+**Root Cause:**
+- The `_refresh_termbase_display_for_current_segment()` method (added in v1.9.140) was using incorrect dictionary keys
+- `find_termbase_matches_in_source()` returns dict with keys `source` and `translation`
+- But the refresh method was looking for keys `source_term` and `target_term`
+- This resulted in empty strings being passed to the termview, causing the index error
+
+**The Fix:**
+- Changed `match.get('source_term', '')` → `match.get('source', '')`
+- Changed `match.get('target_term', '')` → `match.get('translation', '')`
+- Applied same fix to Translation Results panel update section
+
+---
 
 ## 🐛 Fix: Adding Glossary Term No Longer Triggers TM Search (v1.9.140) - January 20, 2026
 

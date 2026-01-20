@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.140"
+__version__ = "1.9.141"
 __phase__ = "0.9"
 __release_date__ = "2026-01-20"
 __edition__ = "Qt"
@@ -10555,10 +10555,11 @@ class SupervertalerQt(QMainWindow):
         if hasattr(self, 'termview_widget') and self.termview_widget:
             try:
                 # Convert termbase matches to list format for termview
+                # Note: find_termbase_matches_in_source returns dict with 'source' and 'translation' keys
                 termbase_list = [
                     {
-                        'source_term': match.get('source_term', ''),
-                        'target_term': match.get('target_term', ''),
+                        'source_term': match.get('source', ''),  # 'source' not 'source_term'
+                        'target_term': match.get('translation', ''),  # 'translation' not 'target_term'
                         'termbase_name': match.get('termbase_name', ''),
                         'ranking': match.get('ranking', 99),
                         'is_project_termbase': match.get('is_project_termbase', False),
@@ -10582,13 +10583,14 @@ class SupervertalerQt(QMainWindow):
                     # Get the existing matches from the panel and update only Termbases
                     if hasattr(panel, 'current_matches') and panel.current_matches:
                         # Convert termbase matches to TranslationMatch format
+                        # Note: find_termbase_matches_in_source returns 'source' and 'translation' keys
                         from modules.translation_results_panel import TranslationMatch
                         tb_matches = []
                         for match_data in termbase_matches.values():
                             if isinstance(match_data, dict):
                                 tb_match = TranslationMatch(
-                                    source=match_data.get('source_term', ''),
-                                    target=match_data.get('target_term', ''),
+                                    source=match_data.get('source', ''),  # 'source' not 'source_term'
+                                    target=match_data.get('translation', ''),  # 'translation' not 'target_term'
                                     relevance=100.0,
                                     match_type='Termbase',
                                     provider=match_data.get('termbase_name', 'Glossary'),
