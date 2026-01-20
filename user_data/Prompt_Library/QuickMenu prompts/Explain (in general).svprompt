@@ -1,18 +1,18 @@
 ---
 name: "Explain (in general)"
 description: "Suggest best translation within project context"
-quickmenu_label: "Suggest Translation"
-quickmenu_grid: true
-quickmenu_quickmenu: false
+domain: ""
+version: 1.0
+task_type: "Translation"
 favorite: false
+quickmenu_label: "Explain (in general)"
+quickmenu_grid: true
+sv_quickmenu: false
 quick_run: false
 folder: "QuickMenu prompts"
 tags: []
-domain: ""
-version: "1.0"
-task_type: "Translation"
 created: "2026-01-19"
 modified: "2026-01-19"
 ---
 
-Explain {{SELECTION}} in simple terms.
+Explain "{{SELECTION}}" in simple, clear language. Include a practical example if helpful.

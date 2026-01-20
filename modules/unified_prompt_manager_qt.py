@@ -908,9 +908,19 @@ class UnifiedPromptManagerQt:
                 "English, Spanish, Portuguese, etc."
             ),
             (
-                "{{DOCUMENT_CONTEXT}}",
-                "Formatted list of project segments (configurable % in Settings → AI Settings)",
+                "{{SOURCE+TARGET_CONTEXT}}",
+                "Project segments with BOTH source and target text. Use for proofreading prompts.",
                 "[1] Source text\\n    → Target text\\n\\n[2] Source text\\n    → Target text\\n\\n..."
+            ),
+            (
+                "{{SOURCE_CONTEXT}}",
+                "Project segments with SOURCE ONLY. Use for translation/terminology questions.",
+                "[1] Source text\\n\\n[2] Source text\\n\\n[3] Source text\\n\\n..."
+            ),
+            (
+                "{{TARGET_CONTEXT}}",
+                "Project segments with TARGET ONLY. Use for consistency/style analysis.",
+                "[1] Target text\\n\\n[2] Target text\\n\\n[3] Target text\\n\\n..."
             )
         ]
         

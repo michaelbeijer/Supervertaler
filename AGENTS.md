@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** January 19, 2026 | **Version:** v1.9.124
+> **Last Updated:** January 20, 2026 | **Version:** v1.9.130
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.113 (January 2026) |
+| **Version** | v1.9.130 (January 2026) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -749,6 +749,50 @@ deepl=...
 ---
 
 ## 🔄 Recent Development History
+
+### January 20, 2026 - Context Placeholders & Auto-Center Fix (v1.9.130)
+
+**📝 Three Context Placeholders for QuickMenu**
+
+Split `{{DOCUMENT_CONTEXT}}` into specialized variants:
+
+| Placeholder | Mode | Use Case |
+|-------------|------|----------|
+| `{{SOURCE+TARGET_CONTEXT}}` | `mode="both"` | Proofreading (needs both to verify) |
+| `{{SOURCE_CONTEXT}}` | `mode="source"` | Translation questions (source only) |
+| `{{TARGET_CONTEXT}}` | `mode="target"` | Consistency/style analysis |
+
+**Implementation:**
+- `_build_quickmenu_document_context(mode)` now accepts "both", "source", or "target"
+- `_quickmenu_build_custom_prompt()` detects and handles all three placeholders
+- `modules/unified_prompt_manager_qt.py` Placeholders tab updated
+
+**🎯 Auto-Center Active Segment Fix**
+
+Fixed "Keep Active Segment Centered" using Qt's built-in `scrollTo()` with `PositionAtCenter`:
+
+```python
+index = self.table.model().index(row, 0)
+self.table.scrollTo(index, QAbstractItemView.ScrollHint.PositionAtCenter)
+```
+
+- Added `QAbstractItemView` to imports
+- Replaced unreliable manual viewport calculations
+- Works consistently across all screen sizes
+
+**⌨️ Double-Tap Shift Context Menu (AutoHotkey)**
+
+- `superlookup_hotkey.ahk` → `supervertaler_hotkeys.ahk`
+- Added double-tap Shift detection for context menu (Supervertaler window only)
+- Uses `Shift+F10` (Qt's native context menu trigger)
+
+**Files Modified:**
+- `Supervertaler.py` - Context placeholders, auto-center, AHK references
+- `modules/unified_prompt_manager_qt.py` - Placeholders tab
+- `modules/shortcut_manager.py` - Double-shift shortcut docs
+- `supervertaler_hotkeys.ahk` - Combined hotkey script (renamed)
+
+---
 
 ### January 19, 2026 - Prompt System Improvements (v1.9.126)
 

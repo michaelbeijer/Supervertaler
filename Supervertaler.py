@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.129"
+__version__ = "1.9.131"
 __phase__ = "0.9"
 __release_date__ = "2026-01-19"
 __edition__ = "Qt"
@@ -123,10 +123,10 @@ try:
         QButtonGroup, QDialogButtonBox, QTabWidget, QGroupBox, QGridLayout, QCheckBox,
         QProgressBar, QProgressDialog, QFormLayout, QTabBar, QPlainTextEdit, QAbstractItemDelegate,
         QFrame, QListWidget, QListWidgetItem, QStackedWidget, QTreeWidget, QTreeWidgetItem,
-        QScrollArea, QSizePolicy, QSlider, QToolButton
+        QScrollArea, QSizePolicy, QSlider, QToolButton, QAbstractItemView
     )
     from PyQt6.QtCore import Qt, QSize, QTimer, pyqtSignal, QObject, QUrl
-    from PyQt6.QtGui import QFont, QAction, QKeySequence, QIcon, QTextOption, QColor, QDesktopServices, QTextCharFormat, QTextCursor, QBrush, QSyntaxHighlighter, QPalette, QTextBlockFormat
+    from PyQt6.QtGui import QFont, QAction, QKeySequence, QIcon, QTextOption, QColor, QDesktopServices, QTextCharFormat, QTextCursor, QBrush, QSyntaxHighlighter, QPalette, QTextBlockFormat, QCursor
     from PyQt6.QtWidgets import QStyleOptionViewItem, QStyle
     from PyQt6.QtCore import QRectF
     from PyQt6.QtNetwork import QNetworkAccessManager, QNetworkRequest, QNetworkReply
@@ -170,11 +170,11 @@ def cleanup_ahk_process():
         try:
             _ahk_process.terminate()
             _ahk_process.wait(timeout=1)
-            print("[Superlookup] AHK process terminated on exit")
+            print("[Hotkeys] AHK process terminated on exit")
         except:
             try:
                 _ahk_process.kill()
-                print("[Superlookup] AHK process killed on exit")
+                print("[Hotkeys] AHK process killed on exit")
             except:
                 pass
 
@@ -909,6 +909,7 @@ class _CtrlReturnEventFilter(QObject):
                 return True
 
         return False
+
 
 class GridTableEventFilter:
     """Mixin to pass keyboard shortcuts from editor to table"""
@@ -5592,6 +5593,11 @@ class SupervertalerQt(QMainWindow):
         self.termview_shortcuts = []
         self._termview_last_key = None  # Track last key for double-tap detection
         self._termview_last_time = 0    # Track timing for double-tap
+        
+        # Double-tap Shift detection for context menu
+        self._shift_last_press_time = 0
+        self._shift_double_tap_threshold = 0.35  # 350ms window
+        
         for i in range(0, 10):  # 0-9
             shortcut_id = f"termview_insert_{i}"
             default_key = f"Alt+{i}"
@@ -5635,6 +5641,9 @@ class SupervertalerQt(QMainWindow):
             self._ctrl_return_event_filter = _CtrlReturnEventFilter(self)
             QApplication.instance().installEventFilter(self._ctrl_return_event_filter)
         
+        # Note: Double-tap Shift for context menu is handled by AutoHotkey (double_shift_menu.ahk)
+        # Qt's event system makes reliable double-tap detection difficult in Python
+        
         # Ctrl+Shift+Enter - Always confirm all selected segments
         create_shortcut("editor_confirm_selected", "Ctrl+Shift+Return", self.confirm_selected_segments)
         
@@ -5674,6 +5683,9 @@ class SupervertalerQt(QMainWindow):
         
         # Ctrl+N - Focus Segment Note tab
         create_shortcut("editor_focus_notes", "Ctrl+N", self.focus_segment_notes)
+        
+        # Alt+K - Open QuickMenu directly
+        create_shortcut("editor_open_quickmenu", "Alt+K", self.open_quickmenu)
     
     def focus_segment_notes(self):
         """Switch to Segment Note tab and focus the notes editor so user can start typing immediately"""
@@ -5686,6 +5698,63 @@ class SupervertalerQt(QMainWindow):
         # Focus the notes editor so user can start typing
         if hasattr(self, 'bottom_notes_edit'):
             self.bottom_notes_edit.setFocus()
+    
+    def open_quickmenu(self):
+        """Open QuickMenu popup at current cursor position for quick AI prompt selection.
+        
+        User can navigate with arrow keys and press Enter to select a prompt.
+        """
+        try:
+            # Get QuickMenu items from prompt library
+            quickmenu_items = []
+            if hasattr(self, 'prompt_manager_qt') and self.prompt_manager_qt:
+                lib = getattr(self.prompt_manager_qt, 'library', None)
+                if lib and hasattr(lib, 'get_quickmenu_grid_prompts'):
+                    quickmenu_items = lib.get_quickmenu_grid_prompts() or []
+            
+            if not quickmenu_items:
+                self.log("⚠️ No QuickMenu prompts available. Add prompts with 'Show in Supervertaler QuickMenu' enabled.")
+                return
+            
+            # Find the currently focused widget (source or target cell)
+            focus_widget = QApplication.focusWidget()
+            
+            # Build the menu
+            menu = QMenu(self)
+            menu.setTitle("⚡ QuickMenu")
+            
+            for rel_path, label in sorted(quickmenu_items, key=lambda x: (x[1] or x[0]).lower()):
+                prompt_menu = menu.addMenu(label or rel_path)
+                
+                run_show = QAction("▶ Run (show response)…", self)
+                run_show.triggered.connect(
+                    lambda checked=False, p=rel_path, w=focus_widget: self.run_grid_quickmenu_prompt(p, origin_widget=w, behavior="show")
+                )
+                prompt_menu.addAction(run_show)
+                
+                run_replace = QAction("↺ Run and replace target selection", self)
+                run_replace.triggered.connect(
+                    lambda checked=False, p=rel_path, w=focus_widget: self.run_grid_quickmenu_prompt(p, origin_widget=w, behavior="replace")
+                )
+                prompt_menu.addAction(run_replace)
+            
+            # Show menu at cursor position (or center of focused widget)
+            if focus_widget:
+                # Get cursor rectangle if it's a text editor
+                if hasattr(focus_widget, 'cursorRect'):
+                    cursor_rect = focus_widget.cursorRect()
+                    pos = focus_widget.mapToGlobal(cursor_rect.bottomLeft())
+                else:
+                    # Fallback to center of widget
+                    pos = focus_widget.mapToGlobal(focus_widget.rect().center())
+            else:
+                # Fallback to mouse cursor position
+                pos = QCursor.pos()
+            
+            menu.exec(pos)
+            
+        except Exception as e:
+            self.log(f"❌ Error opening QuickMenu: {e}")
     
     def refresh_shortcut_enabled_states(self):
         """Refresh enabled/disabled states and key bindings of all global shortcuts from shortcut manager.
@@ -14029,7 +14098,7 @@ class SupervertalerQt(QMainWindow):
         prefs_layout.addLayout(quickmenu_context_layout)
         
         quickmenu_context_info = QLabel(
-            "  ⓘ When using {{DOCUMENT_CONTEXT}} placeholder in QuickMenu prompts.\n"
+            "  ⓘ When using {{SOURCE+TARGET_CONTEXT}} or {{SOURCE_CONTEXT}} placeholders in QuickMenu prompts.\n"
             "  0% = disabled, 50% = half the document (default), 100% = entire document.\n"
             "  Limit: maximum 100 segments for performance."
         )
@@ -28298,6 +28367,20 @@ class SupervertalerQt(QMainWindow):
         # Full processing for non-arrow-key navigation (click, etc.)
         self._on_cell_selected_full(current_row, current_col, previous_row, previous_col)
     
+    def _center_row_in_viewport(self, row: int):
+        """Center the given row vertically in the visible table viewport.
+        
+        Uses Qt's built-in scrollTo() with PositionAtCenter hint.
+        """
+        if row < 0 or row >= self.table.rowCount():
+            return
+        
+        # Get the model index for any cell in this row (use column 0)
+        index = self.table.model().index(row, 0)
+        if index.isValid():
+            # Use Qt's built-in centering - PositionAtCenter puts the item in the center of the viewport
+            self.table.scrollTo(index, QAbstractItemView.ScrollHint.PositionAtCenter)
+    
     def _on_cell_selected_minimal(self, current_row, previous_row):
         """Minimal UI update for fast arrow key navigation - just highlight and scroll"""
         try:
@@ -28319,7 +28402,7 @@ class SupervertalerQt(QMainWindow):
                 
                 # Auto-center if enabled
                 if getattr(self, 'auto_center_active_segment', False) and not getattr(self, 'filtering_active', False):
-                    self.table.scrollToItem(current_id_item, QTableWidget.ScrollHint.PositionAtCenter)
+                    self._center_row_in_viewport(current_row)
         except Exception as e:
             if self.debug_mode_enabled:
                 self.log(f"Error in minimal cell selection: {e}")
@@ -28364,7 +28447,7 @@ class SupervertalerQt(QMainWindow):
                     current_id_item.setForeground(QColor("white"))
                 
                 if getattr(self, 'auto_center_active_segment', False) and not getattr(self, 'filtering_active', False):
-                    self.table.scrollToItem(current_id_item, QTableWidget.ScrollHint.PositionAtCenter)
+                    self._center_row_in_viewport(current_row)
             
             if not self.current_project or current_row < 0:
                 return
@@ -37720,7 +37803,9 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         - {{SELECTION}} or {{SOURCE_TEXT}} - The selected text
         - {{SOURCE_LANGUAGE}} - Source language name
         - {{TARGET_LANGUAGE}} - Target language name
-        - {{DOCUMENT_CONTEXT}} - Surrounding segments from the project for context
+        - {{SOURCE+TARGET_CONTEXT}} - Project segments with both source and target (for proofreading)
+        - {{SOURCE_CONTEXT}} - Project segments with source only (for translation questions)
+        - {{TARGET_CONTEXT}} - Project segments with target only (for consistency/style analysis)
         """
         if not hasattr(self, 'prompt_manager_qt') or not self.prompt_manager_qt:
             raise RuntimeError("Prompt manager not available")
@@ -37738,21 +37823,41 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         if not prompt_content:
             raise RuntimeError("Prompt content is empty")
 
-        # Build document context if requested
-        document_context = ""
-        if "{{DOCUMENT_CONTEXT}}" in prompt_content and hasattr(self, 'current_project') and self.current_project:
-            document_context = self._build_quickmenu_document_context()
-            self.log(f"🔍 QuickMenu: Built document context ({len(document_context)} characters)")
+        # Build document context if requested (three variants)
+        source_target_context = ""
+        source_only_context = ""
+        target_only_context = ""
+        
+        has_source_target = "{{SOURCE+TARGET_CONTEXT}}" in prompt_content
+        has_source_only = "{{SOURCE_CONTEXT}}" in prompt_content
+        has_target_only = "{{TARGET_CONTEXT}}" in prompt_content
+        
+        if (has_source_target or has_source_only or has_target_only) and hasattr(self, 'current_project') and self.current_project:
+            if has_source_target:
+                source_target_context = self._build_quickmenu_document_context(mode="both")
+                self.log(f"🔍 QuickMenu: Built SOURCE+TARGET context ({len(source_target_context)} chars)")
+            if has_source_only:
+                source_only_context = self._build_quickmenu_document_context(mode="source")
+                self.log(f"🔍 QuickMenu: Built SOURCE_ONLY context ({len(source_only_context)} chars)")
+            if has_target_only:
+                target_only_context = self._build_quickmenu_document_context(mode="target")
+                self.log(f"🔍 QuickMenu: Built TARGET_ONLY context ({len(target_only_context)} chars)")
         else:
-            if "{{DOCUMENT_CONTEXT}}" in prompt_content:
-                self.log("⚠️ QuickMenu: {{DOCUMENT_CONTEXT}} requested but no project loaded")
+            if has_source_target:
+                self.log("⚠️ QuickMenu: {{SOURCE+TARGET_CONTEXT}} requested but no project loaded")
+            if has_source_only:
+                self.log("⚠️ QuickMenu: {{SOURCE_CONTEXT}} requested but no project loaded")
+            if has_target_only:
+                self.log("⚠️ QuickMenu: {{TARGET_CONTEXT}} requested but no project loaded")
 
         # Replace placeholders in the prompt content
         prompt_content = prompt_content.replace("{{SOURCE_LANGUAGE}}", source_lang)
         prompt_content = prompt_content.replace("{{TARGET_LANGUAGE}}", target_lang)
         prompt_content = prompt_content.replace("{{SOURCE_TEXT}}", source_text)
         prompt_content = prompt_content.replace("{{SELECTION}}", source_text)  # Alternative placeholder
-        prompt_content = prompt_content.replace("{{DOCUMENT_CONTEXT}}", document_context)
+        prompt_content = prompt_content.replace("{{SOURCE+TARGET_CONTEXT}}", source_target_context)
+        prompt_content = prompt_content.replace("{{SOURCE_CONTEXT}}", source_only_context)
+        prompt_content = prompt_content.replace("{{TARGET_CONTEXT}}", target_only_context)
         
         # Debug: Log the final prompt being sent
         self.log(f"📝 QuickMenu: Final prompt ({len(prompt_content)} chars):")
@@ -37766,8 +37871,14 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         
         return prompt_content
     
-    def _build_quickmenu_document_context(self) -> str:
+    def _build_quickmenu_document_context(self, mode: str = "both") -> str:
         """Build document context for QuickMenu prompts.
+        
+        Args:
+            mode: One of:
+                - "both": Include both source and target text (for proofreading)
+                - "source": Include only source text (for translation/terminology questions)
+                - "target": Include only target text (for consistency/style analysis)
         
         Returns a formatted string with segments from the project for context.
         Uses the 'quickmenu_context_segments' setting (default: 50% of total segments).
@@ -37794,18 +37905,26 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             # Get segments (from start of document)
             context_segments = self.current_project.segments[:num_segments]
             
-            # Format segments
+            # Format segments based on mode
             context_parts = []
-            context_parts.append(f"=== DOCUMENT CONTEXT ===")
+            mode_labels = {"both": "SOURCE + TARGET", "source": "SOURCE ONLY", "target": "TARGET ONLY"}
+            context_parts.append(f"=== DOCUMENT CONTEXT ({mode_labels.get(mode, 'UNKNOWN')}) ===")
             context_parts.append(f"(Showing {num_segments} of {total_segments} segments - {context_percent}%)")
             context_parts.append("")
             
             for seg in context_segments:
-                # Source text
-                context_parts.append(f"[{seg.id}] {seg.source}")
-                # Target text if available
-                if seg.target and seg.target.strip():
-                    context_parts.append(f"    → {seg.target}")
+                if mode == "both":
+                    # Source + Target
+                    context_parts.append(f"[{seg.id}] {seg.source}")
+                    if seg.target and seg.target.strip():
+                        context_parts.append(f"    → {seg.target}")
+                elif mode == "source":
+                    # Source only
+                    context_parts.append(f"[{seg.id}] {seg.source}")
+                elif mode == "target":
+                    # Target only (skip empty targets)
+                    if seg.target and seg.target.strip():
+                        context_parts.append(f"[{seg.id}] {seg.target}")
                 context_parts.append("")  # Blank line between segments
             
             return "\n".join(context_parts)
@@ -44484,7 +44603,7 @@ class SuperlookupTab(QWidget):
                 try:
                     # Use multiple methods to ensure cleanup
                     # Method 1: Kill by window title
-                    subprocess.run(['taskkill', '/F', '/FI', 'WINDOWTITLE eq superlookup_hotkey.ahk*'],
+                    subprocess.run(['taskkill', '/F', '/FI', 'WINDOWTITLE eq supervertaler_hotkeys.ahk*'],
                                  capture_output=True, creationflags=subprocess.CREATE_NO_WINDOW)
                     
                     # Method 2: Kill AutoHotkey processes more aggressively
@@ -44496,7 +44615,7 @@ class SuperlookupTab(QWidget):
                     try:
                         for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
                             try:
-                                if 'superlookup_hotkey' in ' '.join(proc.cmdline() or []):
+                                if 'supervertaler_hotkeys' in ' '.join(proc.cmdline() or []):
                                     proc.kill()
                             except:
                                 pass
@@ -44509,8 +44628,8 @@ class SuperlookupTab(QWidget):
             ahk_exe, source = self._find_autohotkey_executable()
             
             if not ahk_exe:
-                print("[Superlookup] AutoHotkey not found.")
-                print("[Superlookup] Global hotkey (Ctrl+Alt+L) will not be available.")
+                print("[Hotkeys] AutoHotkey not found.")
+                print("[Hotkeys] Global hotkeys (Ctrl+Alt+L, Shift+Shift) will not be available.")
                 self.hotkey_registered = False
                 # Show setup dialog (deferred to avoid blocking startup) - unless user opted out
                 if self.main_window and hasattr(self.main_window, 'general_settings'):
@@ -44520,11 +44639,11 @@ class SuperlookupTab(QWidget):
                     QTimer.singleShot(2000, self._show_autohotkey_setup_dialog)
                 return
             
-            print(f"[Superlookup] Found AutoHotkey at: {ahk_exe} (source: {source})")
+            print(f"[Hotkeys] Found AutoHotkey at: {ahk_exe} (source: {source})")
             
-            ahk_script = Path(__file__).parent / "superlookup_hotkey.ahk"
-            print(f"[Superlookup] Looking for script at: {ahk_script}")
-            print(f"[Superlookup] Script exists: {ahk_script.exists()}")
+            ahk_script = Path(__file__).parent / "supervertaler_hotkeys.ahk"
+            print(f"[Hotkeys] Looking for script at: {ahk_script}")
+            print(f"[Hotkeys] Script exists: {ahk_script.exists()}")
             
             if ahk_script.exists():
                 # Start AHK script in background (hidden)
@@ -44532,16 +44651,16 @@ class SuperlookupTab(QWidget):
                                                    creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0)
                 # Store in global variable for atexit cleanup
                 _ahk_process = self.ahk_process
-                print(f"[Superlookup] AHK hotkey registered: Ctrl+Alt+L")
+                print(f"[Hotkeys] AHK hotkeys registered (Ctrl+Alt+L, Shift+Shift)")
                 
                 # Start file watcher
                 self.start_file_watcher()
                 self.hotkey_registered = True
             else:
-                print(f"[Superlookup] AHK script not found: {ahk_script}")
+                print(f"[Hotkeys] AHK script not found: {ahk_script}")
                 self.hotkey_registered = False
         except Exception as e:
-            print(f"[Superlookup] Could not start AHK hotkey: {e}")
+            print(f"[Hotkeys] Could not start AHK hotkeys: {e}")
             self.hotkey_registered = False
     
     def start_file_watcher(self):

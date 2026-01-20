@@ -555,6 +555,21 @@ class ShortcutManager:
             "action": "add_word_to_dictionary",
             "context": "grid_editor"
         },
+        "editor_open_quickmenu": {
+            "category": "Editor",
+            "description": "Open QuickMenu for AI prompt actions",
+            "default": "Alt+K",
+            "action": "open_quickmenu",
+            "context": "grid_editor"
+        },
+        "editor_show_context_menu_double_shift": {
+            "category": "Editor",
+            "description": "Show context menu (double-tap Shift)",
+            "default": "",  # Requires AutoHotkey script: supervertaler_hotkeys.ahk
+            "action": "show_context_menu_double_shift",
+            "context": "grid_editor",
+            "note": "Requires AutoHotkey. Run supervertaler_hotkeys.ahk for this feature."
+        },
         
         # Filter Operations
         "filter_selected_text": {

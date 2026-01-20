@@ -2,7 +2,77 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.129 (January 19, 2026)
+**Current Version:** v1.9.131 (January 20, 2026)
+
+## ⌨️ Alt+K QuickMenu Shortcut (v1.9.131) - January 20, 2026
+
+**Direct QuickMenu Access via Keyboard**
+
+Added Alt+K keyboard shortcut to open the QuickMenu popup directly without right-clicking:
+
+**How It Works:**
+1. Press Alt+K while in the grid (source or target cell)
+2. QuickMenu popup appears at cursor position
+3. Use Up/Down arrows to navigate prompts
+4. Press Enter to expand a prompt's actions
+5. Select "Run (show response)" or "Run and replace target"
+
+**Benefits:**
+- Faster workflow - no mouse needed
+- Quick access to AI prompt actions
+- Works from both source and target cells
+- Menu appears at cursor position for easy navigation
+
+**Files Modified:**
+- `modules/shortcut_manager.py` - Added `editor_open_quickmenu` shortcut definition
+- `Supervertaler.py` - Added `open_quickmenu()` method, registered Alt+K shortcut
+
+---
+
+## ✨ Context Placeholders & Auto-Center Fix (v1.9.130) - January 20, 2026
+
+**Three Context Placeholders for QuickMenu Prompts**
+
+Split the `{{DOCUMENT_CONTEXT}}` placeholder into three specialized variants for better AI prompt control:
+
+| Placeholder | Purpose | Output |
+|-------------|---------|--------|
+| `{{SOURCE+TARGET_CONTEXT}}` | Proofreading prompts | Both source and target text |
+| `{{SOURCE_CONTEXT}}` | Translation/terminology questions | Source text only |
+| `{{TARGET_CONTEXT}}` | Consistency/style analysis | Target text only |
+
+**Why Three Placeholders?**
+- **Proofreading**: Needs both source and target to verify translations
+- **Translation questions**: Only needs source (showing MT translations would mislead the AI)
+- **Style analysis**: Only needs target text to analyze consistency
+
+**🎯 Auto-Center Active Segment Fix**
+
+Fixed "Keep Active Segment Centered" feature using Qt's built-in centering:
+- **Previous issue**: Manual viewport calculations were unreliable across different screen sizes
+- **Solution**: Use `table.scrollTo(index, QAbstractItemView.ScrollHint.PositionAtCenter)`
+- **Result**: Active segment now reliably centers in the viewport during navigation
+
+**⌨️ Double-Tap Shift Context Menu**
+
+New keyboard shortcut for faster right-click menu access (via AutoHotkey):
+- **Double-tap Shift**: Opens context menu at cursor position
+- **Works in Supervertaler only**: Won't interfere with other applications
+- **Requires AutoHotkey**: Part of `supervertaler_hotkeys.ahk` script
+
+**🔧 Script Rename**
+
+Renamed AHK script for clarity:
+- `superlookup_hotkey.ahk` → `supervertaler_hotkeys.ahk`
+- Now handles multiple hotkeys: Ctrl+Alt+L (Superlookup) + Shift+Shift (context menu)
+
+**Files Modified:**
+- `Supervertaler.py` - Context placeholder handling, auto-center fix, AHK script references
+- `modules/unified_prompt_manager_qt.py` - Updated Placeholders reference tab
+- `modules/shortcut_manager.py` - Added double-shift shortcut documentation
+- `supervertaler_hotkeys.ahk` - New combined hotkey script
+
+---
 
 ## 🐛 QuickMenu Document Context Bug Fix (v1.9.129) - January 19, 2026
 
