@@ -1,4 +1,4 @@
-# 🚀 Supervertaler v1.9.138
+# 🚀 Supervertaler v1.9.140
 
 [![PyPI version](https://badge.fury.io/py/supervertaler.svg)](https://pypi.org/project/Supervertaler/)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
@@ -6,7 +6,13 @@
 
 AI-enhanced CAT tool with multi-LLM support (GPT-4, Claude, Gemini, Ollama), innovative Superlookup concordance system offering access to multiple terminology sources (TMs, glossaries, web resources, etc.), and seamless CAT tool integration (memoQ, Trados, CafeTran, Phrase).
 
-**Current Version:** v1.9.138 (January 20, 2026)
+**Current Version:** v1.9.140 (January 20, 2026)
+
+### FIXED in v1.9.140 - 🐛 Glossary Add No Longer Triggers TM Search
+
+**Performance Fix ([#118](https://github.com/michaelbeijer/Supervertaler/issues/118)):** Adding a term to a glossary was unnecessarily triggering a full TM search. Now uses targeted refresh that only updates glossary display - TM results stay cached.
+
+**Also:** Renamed "Voice OFF" → "Voice Commands OFF" and "Dictate" → "Dictation" for clarity.
 
 ### FIXED in v1.9.138 - 🏷️ Termview Punctuated Terms & Auto-Sizing Columns
 

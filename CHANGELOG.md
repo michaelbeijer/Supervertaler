@@ -2,7 +2,29 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.138 (January 20, 2026)
+**Current Version:** v1.9.140 (January 20, 2026)
+
+## 🐛 Fix: Adding Glossary Term No Longer Triggers TM Search (v1.9.140) - January 20, 2026
+
+**Performance Fix ([#118](https://github.com/michaelbeijer/Supervertaler/issues/118)):** Adding a term to a glossary was unnecessarily triggering a full Translation Memory search, causing delays.
+
+**The Problem:**
+- When adding a term via Ctrl+E, Ctrl+Q, or Ctrl+Shift+1/2, the app cleared BOTH caches and called `on_cell_selected()`
+- This triggered a complete TM search even though adding a glossary term doesn't change the source/target text
+
+**The Fix:**
+- Created new targeted method `_refresh_termbase_display_for_current_segment()`
+- Only clears the termbase cache (not TM cache)
+- Updates TermView widget with fresh glossary matches
+- Updates Translation Results panel's Termbases section only
+- Re-highlights termbase matches in source cell
+- TM results remain untouched
+
+**Also in this release:**
+- 🎤 Renamed "Voice OFF/ON" button to "Voice Commands OFF/ON" for clarity
+- 🎤 Renamed "Dictate" button to "Dictation"
+
+---
 
 ## 📐 Auto-Sizing Segment Number Column (v1.9.138) - January 20, 2026
 

@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.138"
+__version__ = "1.9.140"
 __phase__ = "0.9"
 __release_date__ = "2026-01-20"
 __edition__ = "Qt"
@@ -59,6 +59,24 @@ def get_resource_path(relative_path: str) -> Path:
         # Running in development
         base_path = Path(__file__).parent
     return base_path / relative_path
+
+
+def get_user_data_path() -> Path:
+    """
+    Get the path to user data directory.
+    
+    In frozen builds (EXE): 'user_data' folder next to the EXE
+    In development: 'user_data' folder next to the script
+    
+    The build process copies user_data directly next to the EXE for easy access.
+    """
+    if getattr(sys, 'frozen', False):
+        # Frozen build: user_data is next to the EXE (copied by build script)
+        return Path(sys.executable).parent / "user_data"
+    else:
+        # Development: user_data next to script
+        return Path(__file__).parent / "user_data"
+
 import threading
 import time  # For delays in Superlookup
 import re
@@ -5146,9 +5164,26 @@ class SupervertalerQt(QMainWindow):
         # Superlookup detached window
         self.lookup_detached_window = None
         
-        # Database Manager for Termbases
+        # ============================================================================
+        # USER DATA PATH INITIALIZATION
+        # ============================================================================
+        # Set up user data paths - handles both development and frozen (EXE) builds
+        # In frozen builds, user_data is copied directly next to the EXE by the build script.
         from modules.database_manager import DatabaseManager
-        self.user_data_path = Path("user_data_private" if ENABLE_PRIVATE_FEATURES else "user_data")
+        
+        if ENABLE_PRIVATE_FEATURES:
+            # Developer mode: use private folder (git-ignored)
+            self.user_data_path = Path(__file__).parent / "user_data_private"
+        else:
+            # Normal mode: use the helper function
+            self.user_data_path = get_user_data_path()
+        
+        # Ensure user_data directory exists (creates empty folder if missing)
+        self.user_data_path.mkdir(parents=True, exist_ok=True)
+        
+        print(f"[Data Paths] User data: {self.user_data_path}")
+        
+        # Database Manager for Termbases
         self.db_manager = DatabaseManager(
             db_path=str(self.user_data_path / "Translation_Resources" / "supervertaler.db"),
             log_callback=self.log
@@ -10478,6 +10513,109 @@ class SupervertalerQt(QMainWindow):
                     f"Error testing segmentation:\n\n{e}"
                 )
     
+    def _refresh_termbase_display_for_current_segment(self):
+        """Refresh only termbase/glossary display for the current segment.
+        
+        This is a targeted refresh that does NOT trigger a TM search.
+        Use this after adding a term to a glossary to update the display
+        without the overhead of re-searching translation memories.
+        """
+        current_row = self.table.currentRow()
+        if current_row < 0 or not self.current_project:
+            return
+        
+        # Get the segment from the grid (use ID from cell, not row index)
+        id_item = self.table.item(current_row, 0)
+        if not id_item:
+            return
+        
+        try:
+            segment_id = int(id_item.text())
+        except (ValueError, AttributeError):
+            return
+        
+        segment = next((seg for seg in self.current_project.segments if seg.id == segment_id), None)
+        if not segment:
+            return
+        
+        # Clear only the termbase cache for this segment (NOT the TM cache)
+        with self.termbase_cache_lock:
+            if segment.id in self.termbase_cache:
+                del self.termbase_cache[segment.id]
+                self.log(f"🗑️ Cleared termbase cache for segment {segment.id}")
+        
+        # Search for fresh termbase matches
+        termbase_matches = self.find_termbase_matches_in_source(segment.source)
+        
+        # Update termbase cache
+        with self.termbase_cache_lock:
+            self.termbase_cache[segment.id] = termbase_matches
+        
+        # Update TermView widget
+        if hasattr(self, 'termview_widget') and self.termview_widget:
+            try:
+                # Convert termbase matches to list format for termview
+                termbase_list = [
+                    {
+                        'source_term': match.get('source_term', ''),
+                        'target_term': match.get('target_term', ''),
+                        'termbase_name': match.get('termbase_name', ''),
+                        'ranking': match.get('ranking', 99),
+                        'is_project_termbase': match.get('is_project_termbase', False),
+                        'term_id': match.get('term_id'),
+                        'termbase_id': match.get('termbase_id'),
+                        'notes': match.get('notes', '')
+                    }
+                    for match in termbase_matches.values() if isinstance(match, dict)
+                ] if isinstance(termbase_matches, dict) else []
+                
+                # Get NT matches
+                nt_matches = self.find_nt_matches_in_source(segment.source)
+                self.termview_widget.update_with_matches(segment.source, termbase_list, nt_matches)
+            except Exception as e:
+                self.log(f"Error updating termview: {e}")
+        
+        # Update Translation Results panel termbase section (without touching TM)
+        if hasattr(self, 'results_panels'):
+            for panel in self.results_panels:
+                try:
+                    # Get the existing matches from the panel and update only Termbases
+                    if hasattr(panel, 'current_matches') and panel.current_matches:
+                        # Convert termbase matches to TranslationMatch format
+                        from modules.translation_results_panel import TranslationMatch
+                        tb_matches = []
+                        for match_data in termbase_matches.values():
+                            if isinstance(match_data, dict):
+                                tb_match = TranslationMatch(
+                                    source=match_data.get('source_term', ''),
+                                    target=match_data.get('target_term', ''),
+                                    relevance=100.0,
+                                    match_type='Termbase',
+                                    provider=match_data.get('termbase_name', 'Glossary'),
+                                    metadata={
+                                        'termbase_name': match_data.get('termbase_name', ''),
+                                        'ranking': match_data.get('ranking', 99),
+                                        'is_project_termbase': match_data.get('is_project_termbase', False),
+                                        'term_id': match_data.get('term_id'),
+                                        'termbase_id': match_data.get('termbase_id'),
+                                        'notes': match_data.get('notes', '')
+                                    }
+                                )
+                                tb_matches.append(tb_match)
+                        
+                        # Update just the Termbases section
+                        panel.current_matches['Termbases'] = tb_matches
+                        panel.set_matches(panel.current_matches)
+                except Exception as e:
+                    self.log(f"Error updating results panel termbases: {e}")
+        
+        # Re-highlight termbase matches in the source cell
+        source_widget = self.table.cellWidget(current_row, 2)
+        if source_widget and hasattr(source_widget, 'rehighlight'):
+            source_widget.rehighlight()
+        
+        self.log(f"🔄 Refreshed termbase display for segment {segment.id} (TM untouched)")
+    
     def add_term_pair_to_termbase(self, source_text: str, target_text: str):
         """Add a term pair to active termbase(s) with metadata dialog"""
         # Check if we have a current project
@@ -10618,26 +10756,8 @@ class SupervertalerQt(QMainWindow):
 
             QMessageBox.information(self, "Term Added", f"Successfully added term pair to {success_count} glossary(s):\\n\\nSource: {source_text}\\nTarget: {target_text}\\n\\nDomain: {metadata['domain'] or '(none)'}")
             
-            # Refresh translation results to show new termbase match immediately
-            current_row = self.table.currentRow()
-            if current_row >= 0 and current_row < len(self.current_project.segments):
-                segment = self.current_project.segments[current_row]
-                
-                # Clear BOTH caches for this segment to force refresh
-                with self.translation_matches_cache_lock:
-                    if segment.id in self.translation_matches_cache:
-                        del self.translation_matches_cache[segment.id]
-                        self.log(f"🗑️ Cleared translation matches cache for segment {segment.id}")
-                
-                with self.termbase_cache_lock:
-                    if segment.id in self.termbase_cache:
-                        del self.termbase_cache[segment.id]
-                        self.log(f"🗑️ Cleared termbase cache for segment {segment.id}")
-                
-                # Trigger lookup refresh by simulating segment change
-                self._last_selected_row = -1  # Reset to force refresh
-                self.on_cell_selected(current_row, self.table.currentColumn(), -1, -1)
-                self.log(f"🔄 Triggered refresh for segment {segment.id}")
+            # Refresh termbase display (NOT TM - that would be wasteful)
+            self._refresh_termbase_display_for_current_segment()
             
             # IMPORTANT: Refresh the termbase list UI if it's currently open to update term counts
             # Find the termbase tab and call its refresh function
@@ -10757,23 +10877,8 @@ class SupervertalerQt(QMainWindow):
                 else:
                     self.statusBar().showMessage(f"✓ Added: {source_text} → {target_text} (to {success_count} termbases)", 3000)
             
-            # Refresh translation results to show new termbase match immediately
-            current_row = self.table.currentRow()
-            if current_row >= 0 and current_row < len(self.current_project.segments):
-                segment = self.current_project.segments[current_row]
-                
-                # Clear BOTH caches for this segment to force refresh
-                with self.translation_matches_cache_lock:
-                    if segment.id in self.translation_matches_cache:
-                        del self.translation_matches_cache[segment.id]
-                
-                with self.termbase_cache_lock:
-                    if segment.id in self.termbase_cache:
-                        del self.termbase_cache[segment.id]
-                
-                # Trigger lookup refresh by simulating segment change
-                self._last_selected_row = -1  # Reset to force refresh
-                self.on_cell_selected(current_row, self.table.currentColumn(), -1, -1)
+            # Refresh termbase display (NOT TM - that would be wasteful)
+            self._refresh_termbase_display_for_current_segment()
             
             # Refresh termbase list UI if open
             if hasattr(self, 'termbase_tab_refresh_callback') and self.termbase_tab_refresh_callback:
@@ -10892,17 +10997,8 @@ class SupervertalerQt(QMainWindow):
                 self.log(f"✓ Added to '{target_termbase['name']}': {source_text} → {target_text}")
                 self.statusBar().showMessage(f"✓ Added to '{target_termbase['name']}': {source_text} → {target_text}", 3000)
                 
-                # Refresh caches and display
-                if current_row < len(self.current_project.segments):
-                    segment = self.current_project.segments[current_row]
-                    with self.translation_matches_cache_lock:
-                        if segment.id in self.translation_matches_cache:
-                            del self.translation_matches_cache[segment.id]
-                    with self.termbase_cache_lock:
-                        if segment.id in self.termbase_cache:
-                            del self.termbase_cache[segment.id]
-                    self._last_selected_row = -1
-                    self.on_cell_selected(current_row, self.table.currentColumn(), -1, -1)
+                # Refresh termbase display (NOT TM - that would be wasteful)
+                self._refresh_termbase_display_for_current_segment()
                 
                 if hasattr(self, 'termbase_tab_refresh_callback') and self.termbase_tab_refresh_callback:
                     self.termbase_tab_refresh_callback()
@@ -16144,7 +16240,7 @@ class SupervertalerQt(QMainWindow):
         # Update status bar indicator (always visible when active)
         if hasattr(self, 'alwayson_indicator_label'):
             if status == "listening" or status == "waiting":
-                self.alwayson_indicator_label.setText("🎤 VOICE ON")
+                self.alwayson_indicator_label.setText("🎤 VOICE COMMANDS ON")
                 self.alwayson_indicator_label.setStyleSheet("font-size: 11px; font-weight: bold; color: #2E7D32; background-color: #C8E6C9; padding: 2px 6px; border-radius: 3px;")
                 self.alwayson_indicator_label.setToolTip("Always-on voice listening ACTIVE\nClick to stop")
                 self.alwayson_indicator_label.show()
@@ -16164,7 +16260,7 @@ class SupervertalerQt(QMainWindow):
         # Update grid toolbar button (if exists)
         if hasattr(self, 'grid_alwayson_btn'):
             if status == "listening" or status == "waiting":
-                self.grid_alwayson_btn.setText("🎧 Voice ON")
+                self.grid_alwayson_btn.setText("🎧 Voice Commands ON")
                 self.grid_alwayson_btn.setChecked(True)
                 self.grid_alwayson_btn.setStyleSheet("""
                     QPushButton {
@@ -16207,7 +16303,7 @@ class SupervertalerQt(QMainWindow):
                     }
                 """)
             else:  # stopped or other
-                self.grid_alwayson_btn.setText("🎧 Voice OFF")
+                self.grid_alwayson_btn.setText("🎧 Voice Commands OFF")
                 self.grid_alwayson_btn.setChecked(False)
                 self.grid_alwayson_btn.setStyleSheet("""
                     QPushButton {
@@ -18269,14 +18365,14 @@ class SupervertalerQt(QMainWindow):
         preview_prompt_btn.clicked.connect(self._preview_combined_prompt_from_grid)
         toolbar_layout.addWidget(preview_prompt_btn)
         
-        dictate_btn = QPushButton("🎤 Dictate")
+        dictate_btn = QPushButton("🎤 Dictation")
         dictate_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 4px 8px; border: none; outline: none;")
         dictate_btn.clicked.connect(self.start_voice_dictation)
         dictate_btn.setToolTip("Start/stop voice dictation (F9)")
         toolbar_layout.addWidget(dictate_btn)
         
         # Always-On Voice toggle button
-        alwayson_btn = QPushButton("🎧 Voice OFF")
+        alwayson_btn = QPushButton("🎧 Voice Commands OFF")
         alwayson_btn.setCheckable(True)
         alwayson_btn.setChecked(False)
         alwayson_btn.setStyleSheet("""
@@ -19180,7 +19276,7 @@ class SupervertalerQt(QMainWindow):
         clear_btn.clicked.connect(self.clear_tab_target)
 
         # Voice dictation button
-        dictate_btn = QPushButton("🎤 Dictate (F9)")
+        dictate_btn = QPushButton("🎤 Dictation (F9)")
         dictate_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold;")
         dictate_btn.clicked.connect(self.start_voice_dictation)
         dictate_btn.setToolTip("Click or press F9 to start/stop voice dictation")

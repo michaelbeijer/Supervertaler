@@ -12,14 +12,8 @@ a = Analysis(
         ('modules', 'modules'),
         ('assets', 'assets'),
 
-        # Ship only the "clean"/default parts of user_data (avoid caches, local DBs, cookies)
-        ('user_data/dictionaries', 'user_data/dictionaries'),
-        ('user_data/Prompt_Library', 'user_data/Prompt_Library'),
-        ('user_data/Translation_Resources', 'user_data/Translation_Resources'),
-        ('user_data/shortcuts.json', 'user_data/shortcuts.json'),
-        ('user_data/voice_commands.json', 'user_data/voice_commands.json'),
-        ('user_data/voice_scripts', 'user_data/voice_scripts'),
-        ('user_data/translation_memory.db', 'user_data/translation_memory.db'),
+        # NOTE: user_data is copied POST-BUILD by build_windows_release.ps1
+        # This keeps it next to the EXE (not inside _internal/) for easy editing.
 
         ('README.md', '.'),
         ('CHANGELOG.md', '.'),

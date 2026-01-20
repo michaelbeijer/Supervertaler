@@ -69,6 +69,48 @@ function Build-One($flavor, $venvDir, $specPath, $zipSuffix, $extras) {
   Write-Host "=== Building $flavor EXE via $specPath ===" -ForegroundColor Cyan
   & $py -m PyInstaller --noconfirm --clean $specPath
 
+  # Copy user_data directly next to the EXE (not inside _internal/)
+  # This makes dictionaries, prompts, and settings easily accessible to users.
+  Write-Host "=== Copying user_data to $distDir ===" -ForegroundColor Cyan
+  $userDataSrc = "user_data"
+  $userDataDest = Join-Path $distDir "user_data"
+  if (Test-Path $userDataDest) { Remove-Item -Recurse -Force $userDataDest }
+  
+  # Create user_data structure with only the files we want to ship
+  New-Item -ItemType Directory -Path $userDataDest -Force | Out-Null
+  
+  # Copy dictionaries (Hunspell files)
+  if (Test-Path "$userDataSrc\dictionaries") {
+    Copy-Item -Recurse "$userDataSrc\dictionaries" "$userDataDest\dictionaries"
+    Write-Host "  - Copied dictionaries"
+  }
+  
+  # Copy Prompt_Library (default prompts)
+  if (Test-Path "$userDataSrc\Prompt_Library") {
+    Copy-Item -Recurse "$userDataSrc\Prompt_Library" "$userDataDest\Prompt_Library"
+    Write-Host "  - Copied Prompt_Library"
+  }
+  
+  # Copy Translation_Resources
+  if (Test-Path "$userDataSrc\Translation_Resources") {
+    Copy-Item -Recurse "$userDataSrc\Translation_Resources" "$userDataDest\Translation_Resources"
+    Write-Host "  - Copied Translation_Resources"
+  }
+  
+  # Copy voice_scripts
+  if (Test-Path "$userDataSrc\voice_scripts") {
+    Copy-Item -Recurse "$userDataSrc\voice_scripts" "$userDataDest\voice_scripts"
+    Write-Host "  - Copied voice_scripts"
+  }
+  
+  # Copy individual files
+  @("shortcuts.json", "voice_commands.json", "translation_memory.db") | ForEach-Object {
+    if (Test-Path "$userDataSrc\$_") {
+      Copy-Item "$userDataSrc\$_" "$userDataDest\$_"
+      Write-Host "  - Copied $_"
+    }
+  }
+
   $zipPath = "dist\Supervertaler-v$version-Windows-$zipSuffix.zip"
 
   Write-Host "=== Zipping $flavor to $zipPath ===" -ForegroundColor Cyan
