@@ -2,7 +2,26 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.141 (January 20, 2026)
+**Current Version:** v1.9.142 (January 20, 2026)
+
+## 🐛 Fix: Error When Editing Glossary Entry from Termview (v1.9.142) - January 20, 2026
+
+**Bug Fix:** After editing a glossary entry via right-click → Edit in Termview, an error would occur preventing proper refresh.
+
+**Error in Logs:**
+```
+Error refreshing segment matches: SupervertalerQt.on_cell_selected() missing 2 required positional arguments: 'previous_row' and 'previous_col'
+```
+
+**Root Cause:**
+- The `_refresh_current_segment_matches()` method was calling `on_cell_selected(current_row, 2)` with only 2 arguments
+- But `on_cell_selected()` requires 4 arguments: `current_row`, `current_col`, `previous_row`, `previous_col`
+
+**The Fix:**
+- Simplified `_refresh_current_segment_matches()` to use the targeted `_refresh_termbase_display_for_current_segment()` method
+- This method already handles termbase cache clearing and display refresh correctly
+
+---
 
 ## 🐛 Fix: Termview Blank After Adding Glossary Term (v1.9.141) - January 20, 2026
 

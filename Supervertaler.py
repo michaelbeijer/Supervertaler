@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.141"
+__version__ = "1.9.142"
 __phase__ = "0.9"
 __release_date__ = "2026-01-20"
 __edition__ = "Qt"
@@ -36050,23 +36050,8 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
     def _refresh_current_segment_matches(self):
         """Refresh termbase matches for the current segment (after edit/delete)"""
         try:
-            current_row = self.table.currentRow()
-            if current_row >= 0 and self.current_project and self.current_project.segments:
-                # Get the actual segment index
-                segment_idx = current_row
-                if hasattr(self, 'current_page') and hasattr(self, 'items_per_page'):
-                    segment_idx = (self.current_page - 1) * self.items_per_page + current_row
-                
-                if 0 <= segment_idx < len(self.current_project.segments):
-                    segment = self.current_project.segments[segment_idx]
-                    
-                    # Clear termbase cache for this segment
-                    segment_id = id(segment)
-                    if hasattr(self, 'termbase_cache') and segment_id in self.termbase_cache:
-                        del self.termbase_cache[segment_id]
-                    
-                    # Trigger refresh by re-selecting the cell
-                    self.on_cell_selected(current_row, 2)
+            # Use the targeted refresh method that doesn't trigger TM search
+            self._refresh_termbase_display_for_current_segment()
         except Exception as e:
             self.log(f"✗ Error refreshing segment matches: {e}")
     
