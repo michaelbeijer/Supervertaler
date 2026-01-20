@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.131"
+__version__ = "1.9.132"
 __phase__ = "0.9"
 __release_date__ = "2026-01-19"
 __edition__ = "Qt"
@@ -6532,9 +6532,10 @@ class SupervertalerQt(QMainWindow):
         supercleaner_action.triggered.connect(lambda: self._navigate_to_tool("Supercleaner"))
         tools_menu.addAction(supercleaner_action)
         
-        superlookup_action = QAction("🔍 Super&lookup...", self)
-        superlookup_action.setShortcut("Ctrl+K")
-        superlookup_action.triggered.connect(self._go_to_superlookup)
+        superlookup_action = QAction("🔍 Super&lookup (Ctrl+K)...", self)
+        # Note: Actual Ctrl+K shortcut handled by QShortcut in setup_global_shortcuts()
+        # which calls show_concordance_search() for proper selection capture
+        superlookup_action.triggered.connect(self.show_concordance_search)
         tools_menu.addAction(superlookup_action)
         
         supervoice_action = QAction("🎤 Super&voice...", self)

@@ -2,7 +2,28 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.131 (January 20, 2026)
+**Current Version:** v1.9.132 (January 20, 2026)
+
+## 🐛 Ctrl+K Superlookup Shortcut Fix (v1.9.132) - January 20, 2026
+
+**Fixed: Ctrl+K was not working**
+
+The Ctrl+K shortcut to open Superlookup with selected text was broken due to a duplicate shortcut conflict:
+
+**Root Cause:**
+- A QShortcut (global) was registered for Ctrl+K → `show_concordance_search()` (correct)
+- A QAction menu item ALSO had `setShortcut("Ctrl+K")` → `_go_to_superlookup()` (wrong handler)
+- When both claimed the same key, Qt's behavior was unpredictable
+
+**The Fix:**
+- Removed duplicate shortcut from menu action
+- Menu item still shows "(Ctrl+K)" in label for discoverability
+- Now connects to `show_concordance_search()` for consistent behavior
+
+**Files Modified:**
+- `Supervertaler.py` - Removed duplicate Ctrl+K binding from Tools menu
+
+---
 
 ## ⌨️ Alt+K QuickMenu Shortcut (v1.9.131) - January 20, 2026
 

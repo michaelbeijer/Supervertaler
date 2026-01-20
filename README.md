@@ -6,7 +6,7 @@
 
 AI-enhanced CAT tool with multi-LLM support (GPT-4, Claude, Gemini, Ollama), innovative Superlookup concordance system offering access to multiple terminology sources (TMs, glossaries, web resources, etc.), and seamless CAT tool integration (memoQ, Trados, CafeTran, Phrase).
 
-**Current Version:** v1.9.131 (January 20, 2026)
+**Current Version:** v1.9.132 (January 20, 2026)
 
 ### ENHANCED in v1.9.128 - 📝 Placeholders Tab Layout Optimization
 
