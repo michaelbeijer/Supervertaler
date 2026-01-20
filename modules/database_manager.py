@@ -1312,6 +1312,10 @@ class DatabaseManager:
         # Note: termbase_id is stored as TEXT in termbase_terms but INTEGER in termbases
         # Use CAST to ensure proper comparison
         # IMPORTANT: Join with termbase_activation to get the ACTUAL priority for this project
+        # CRITICAL FIX: Also match when search_term starts with the glossary term
+        # This handles cases like searching for "ca." when glossary has "ca." 
+        # AND searching for "ca" when glossary has "ca."
+        # We also strip trailing punctuation from glossary terms for comparison
         query = """
             SELECT 
                 t.id, t.source_term, t.target_term, t.termbase_id, t.priority, 
@@ -1329,19 +1333,30 @@ class DatabaseManager:
                 LOWER(t.source_term) = LOWER(?) OR 
                 LOWER(t.source_term) LIKE LOWER(?) OR 
                 LOWER(t.source_term) LIKE LOWER(?) OR 
-                LOWER(t.source_term) LIKE LOWER(?)
+                LOWER(t.source_term) LIKE LOWER(?) OR
+                LOWER(RTRIM(t.source_term, '.!?,;:')) = LOWER(?) OR
+                LOWER(?) LIKE LOWER(t.source_term) || '%' OR
+                LOWER(?) = LOWER(RTRIM(t.source_term, '.!?,;:'))
             )
             AND (ta.is_active = 1 OR tb.is_project_termbase = 1)
         """
-        # Exact match, word at start, word at end, word in middle
-        # Use LOWER() for case-insensitive matching (handles "Edelmetalen" = "edelmetalen")
-        # IMPORTANT: project_id must be first param for the LEFT JOIN ta.project_id = ? above
+        # Matching patterns:
+        # 1. Exact match: source_term = search_term
+        # 2. Glossary term starts with search: source_term LIKE "search_term %"
+        # 3. Glossary term ends with search: source_term LIKE "% search_term"
+        # 4. Glossary term contains search: source_term LIKE "% search_term %"
+        # 5. Glossary term (stripped) = search_term: RTRIM(source_term) = search_term (handles "ca." = "ca")
+        # 6. Search starts with glossary term: search_term LIKE source_term || '%' 
+        # 7. Search = glossary term stripped: search_term = RTRIM(source_term)
         params = [
             project_id if project_id else 0,  # Use 0 if no project (won't match any activation records)
             search_term,
             f"{search_term} %",
             f"% {search_term}",
-            f"% {search_term} %"
+            f"% {search_term} %",
+            search_term,  # For RTRIM comparison
+            search_term,  # For reverse LIKE
+            search_term   # For reverse RTRIM comparison
         ]
         
         # Language filters - if term has no language, use termbase language for filtering

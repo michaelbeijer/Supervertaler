@@ -750,7 +750,10 @@ class TermviewWidget(QWidget):
                 if not source_term or not target_term:
                     continue
                 
-                key = source_term.lower()
+                # Strip punctuation from key to match lookup normalization
+                # This ensures "ca." in glossary matches "ca." token stripped to "ca"
+                PUNCT_CHARS_FOR_KEY = '.,;:!?\"\'\u201C\u201D\u201E\u00AB\u00BB\u2018\u2019\u201A\u2039\u203A()[]'
+                key = source_term.lower().strip(PUNCT_CHARS_FOR_KEY)
                 if key not in matches_dict:
                     matches_dict[key] = []
                 
@@ -803,7 +806,8 @@ class TermviewWidget(QWidget):
         
         # Comprehensive set of quote and punctuation characters to strip
         # Using Unicode escapes to avoid encoding issues
-        PUNCT_CHARS = '.,;:!?\"\'\u201C\u201D\u201E\u00AB\u00BB\u2018\u2019\u201A\u2039\u203A'
+        # Include brackets for terms like "(typisch)" to match "typisch"
+        PUNCT_CHARS = '.,;:!?\"\'\u201C\u201D\u201E\u00AB\u00BB\u2018\u2019\u201A\u2039\u203A()[]'
         
         # Track which terms have already been assigned shortcuts (avoid duplicates)
         assigned_shortcuts = set()

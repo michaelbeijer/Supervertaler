@@ -1,4 +1,4 @@
-# 🚀 Supervertaler v1.9.128
+# 🚀 Supervertaler v1.9.138
 
 [![PyPI version](https://badge.fury.io/py/supervertaler.svg)](https://pypi.org/project/Supervertaler/)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
@@ -6,7 +6,17 @@
 
 AI-enhanced CAT tool with multi-LLM support (GPT-4, Claude, Gemini, Ollama), innovative Superlookup concordance system offering access to multiple terminology sources (TMs, glossaries, web resources, etc.), and seamless CAT tool integration (memoQ, Trados, CafeTran, Phrase).
 
-**Current Version:** v1.9.132 (January 20, 2026)
+**Current Version:** v1.9.138 (January 20, 2026)
+
+### FIXED in v1.9.138 - 🏷️ Termview Punctuated Terms & Auto-Sizing Columns
+
+**Termview Fix:** Glossary terms with punctuation (like "ca." or "(typisch)") now correctly appear in the Termview pane. Previously they were found but not displayed due to a key normalization mismatch.
+
+**Grid UX:** Segment number column now auto-sizes based on font size and segment count - no more truncated numbers!
+
+### FIXED in v1.9.137 - 🔧 Termview Race Condition
+
+**Glossary terms now appear immediately:** Fixed timing bug where Termview showed "No glossary matches" until you pressed F5. Now updates correctly when navigating segments.
 
 ### ENHANCED in v1.9.128 - 📝 Placeholders Tab Layout Optimization
 

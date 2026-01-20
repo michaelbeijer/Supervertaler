@@ -2,7 +2,131 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.132 (January 20, 2026)
+**Current Version:** v1.9.138 (January 20, 2026)
+
+## 📐 Auto-Sizing Segment Number Column (v1.9.138) - January 20, 2026
+
+**Grid UX Improvement:** The segment number column (#) now automatically sizes itself based on:
+- The current font size (scales when you zoom in/out)
+- The number of segments in the project (fits 3-digit, 4-digit numbers, etc.)
+
+Uses Qt font metrics to calculate the exact pixel width needed. No more truncated numbers or wasted space!
+
+**Also in this release:**
+- Status column made slightly narrower (70px → 60px)
+
+---
+
+## 🏷️ Termview Punctuated Terms Fix (v1.9.138) - January 20, 2026
+
+**Fixed: Glossary terms with punctuation now appear in Termview**
+
+Glossary entries like "ca." (with period) or "typisch" (when appearing in parentheses as "(typisch)") were found by the termbase search (grid showed green highlighting) but did NOT appear in the Termview pane.
+
+**Root Cause - Key Mismatch:**
+- `matches_dict` keys were built using the raw source term: `"ca."` (with period)
+- But lookup stripped punctuation from tokens: `"ca."` → `"ca"`
+- Result: `matches_dict.get("ca")` returned nothing because the key was `"ca."`
+
+**The Fix:**
+- When building `matches_dict`, keys are now normalized by stripping punctuation
+- Both the dictionary keys and lookup keys now use the same normalization
+- Added brackets `()[]` to punctuation chars so "(typisch)" matches "typisch"
+
+**Files Modified:**
+- `modules/termview_widget.py` - Normalize punctuation in `matches_dict` keys and lookup
+
+---
+
+## 🔧 Termview Race Condition Fix (v1.9.137) - January 20, 2026
+
+**Fixed: Glossary terms now appear in Termview pane**
+
+When navigating to a segment, the Termview pane showed "No glossary matches" even though:
+- The grid highlighted terms in green (glossary highlighting worked)
+- Force Refresh (F5) would then show the terms correctly
+
+**Root Cause - Timing/Race Condition:**
+- `update_tab_segment_editor()` was called EARLY in the cell selection process
+- It tried to read from `termbase_cache[segment_id]` to update Termview
+- But the termbase search (`find_termbase_matches_in_source()`) hadn't run yet!
+- Result: Termview called with empty list before matches were found
+
+**The Fix:**
+1. Removed premature Termview update from `update_tab_segment_editor()` 
+2. Termview is now updated ONLY after the termbase search completes in `_on_cell_selected_full()`
+3. Also fixed: Termview now updates even when no matches found (shows "No matches" state)
+
+**Files Modified:**
+- `Supervertaler.py` - Removed premature Termview update, fixed condition to always update Termview
+- `modules/termview_widget.py` - Removed debug logging
+
+---
+
+## 📚 Glossary Matching Fix for Punctuation (v1.9.136) - January 20, 2026
+
+**Fixed: Glossary terms with trailing punctuation now match correctly**
+
+Glossary entries like "ca." (with period), "psi", and "typisch" were not being found in the Termview window when they appeared in source text like "ca. 2,2 (270 psi)".
+
+**Root Cause:**
+- When tokenizing source text, punctuation was stripped from words ("ca." → "ca")
+- The database search then looked for "ca" but the glossary had "ca." — no match
+- Short terms in parentheses like "(psi)" were also affected
+
+**The Fix:**
+1. Now searches for BOTH the stripped word AND the original word with punctuation
+2. Database query enhanced with reverse matching: finds glossary terms where the search word matches the term with trailing punctuation stripped
+3. Handles entries like "ca.", "gew.%", "psi", etc.
+
+**Files Modified:**
+- `Supervertaler.py` - Enhanced `find_termbase_matches_in_source()` to search with original punctuation
+- `modules/database_manager.py` - Enhanced `search_termbases()` with punctuation-tolerant matching
+
+---
+
+## 🔍 Filter Now Searches Entire Document (v1.9.135) - January 20, 2026
+
+**Fixed: Filter Source/Target boxes now search across ALL pages**
+
+Previously, the Filter Source and Filter Target boxes above the grid would only search within the currently visible page. If the text you were looking for was on a different page, it wouldn't be found.
+
+Now, filtering searches through the **entire document** regardless of pagination. When a filter is active, ALL matching rows are displayed (pagination is temporarily ignored). When you clear the filter, normal pagination resumes.
+
+**Files Modified:**
+- `Supervertaler.py` - Fixed `_apply_pagination_to_grid()` to show all filter matches
+
+---
+
+## 🔊 Fuzzy TM Match Sound Effect (v1.9.134) - January 20, 2026
+
+**New sound effect option: "Fuzzy TM match found"**
+
+Plays when navigating to a segment and a fuzzy TM match (50-99%) is found, but NO 100% match exists.
+
+**Access:** Settings → General → Sound Effects → "Fuzzy TM match found"
+
+Disabled by default (set to "None"). Works with the same sound options as other effects.
+
+---
+
+## 🔊 New Sound Effects (v1.9.133) - January 20, 2026
+
+**Two new sound effect options added:**
+
+1. **Segment confirmed** - Plays when you confirm a segment with Ctrl+Enter
+2. **100% TM match alert** - Plays when navigating to a segment and a 100% TM match is found and auto-inserted
+
+**Access:** Settings → General → Sound Effects
+
+Both sounds are disabled by default (set to "None"). Users can configure them to any of the available Windows system sounds:
+- OK, Asterisk, Exclamation, Hand, Question
+- Windows .wav files: Restore, Navigation Start, Speech Disambiguation, etc.
+
+**Files Modified:**
+- `Supervertaler.py` - Added sound effect options and trigger points
+
+---
 
 ## 🐛 Ctrl+K Superlookup Shortcut Fix (v1.9.132) - January 20, 2026
 

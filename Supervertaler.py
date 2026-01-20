@@ -3,8 +3,8 @@ Supervertaler
 =============
 The Ultimate Translation Workbench.
 Modern PyQt6 interface with specialised modules to handle any problem.
-Version: 1.9.123 (QuickMenu now supports generic AI tasks)
-Release Date: January 19, 2026
+Version: 1.9.136 (Glossary matching fix for punctuation)
+Release Date: January 20, 2026
 Framework: PyQt6
 
 This is the modern edition of Supervertaler using PyQt6 framework.
@@ -34,9 +34,9 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.132"
+__version__ = "1.9.138"
 __phase__ = "0.9"
-__release_date__ = "2026-01-19"
+__release_date__ = "2026-01-20"
 __edition__ = "Qt"
 
 import sys
@@ -126,7 +126,7 @@ try:
         QScrollArea, QSizePolicy, QSlider, QToolButton, QAbstractItemView
     )
     from PyQt6.QtCore import Qt, QSize, QTimer, pyqtSignal, QObject, QUrl
-    from PyQt6.QtGui import QFont, QAction, QKeySequence, QIcon, QTextOption, QColor, QDesktopServices, QTextCharFormat, QTextCursor, QBrush, QSyntaxHighlighter, QPalette, QTextBlockFormat, QCursor
+    from PyQt6.QtGui import QFont, QAction, QKeySequence, QIcon, QTextOption, QColor, QDesktopServices, QTextCharFormat, QTextCursor, QBrush, QSyntaxHighlighter, QPalette, QTextBlockFormat, QCursor, QFontMetrics
     from PyQt6.QtWidgets import QStyleOptionViewItem, QStyle
     from PyQt6.QtCore import QRectF
     from PyQt6.QtNetwork import QNetworkAccessManager, QNetworkRequest, QNetworkReply
@@ -5331,21 +5331,11 @@ class SupervertalerQt(QMainWindow):
                         self.settings_tabs.setCurrentIndex(i)
                         break
             
-            # Save the preference to ui_preferences.json (where load_general_settings reads from)
+            # Save the preference to general_settings.json (where load_general_settings reads from)
             if dont_show_checkbox.isChecked():
-                prefs_file = self.user_data_path / "ui_preferences.json"
-                prefs = {}
-                if prefs_file.exists():
-                    try:
-                        with open(prefs_file, 'r') as f:
-                            prefs = json.load(f)
-                    except:
-                        pass
-                if 'general_settings' not in prefs:
-                    prefs['general_settings'] = {}
-                prefs['general_settings']['first_run_completed'] = True
-                with open(prefs_file, 'w', encoding='utf-8') as f:
-                    json.dump(prefs, f, indent=2)
+                settings = self.load_general_settings()
+                settings['first_run_completed'] = True
+                self.save_general_settings(settings)
                 self.log("✅ First-run welcome completed (won't show again)")
             else:
                 self.log("✅ First-run welcome shown (will show again next time)")
@@ -14484,6 +14474,21 @@ class SupervertalerQt(QMainWindow):
         sound_event_combos['glossary_term_error'] = make_sound_combo(default_term_error)
         event_rows.addRow("Glossary add error:", sound_event_combos['glossary_term_error'])
 
+        # Segment confirmed (Ctrl+Enter)
+        default_segment_confirmed = sound_effects_map.get('segment_confirmed', 'none')
+        sound_event_combos['segment_confirmed'] = make_sound_combo(default_segment_confirmed)
+        event_rows.addRow("Segment confirmed:", sound_event_combos['segment_confirmed'])
+
+        # 100% TM match found
+        default_tm_100_match = sound_effects_map.get('tm_100_percent_match', 'none')
+        sound_event_combos['tm_100_percent_match'] = make_sound_combo(default_tm_100_match)
+        event_rows.addRow("100% TM match alert:", sound_event_combos['tm_100_percent_match'])
+
+        # Fuzzy TM match found (< 100%)
+        default_tm_fuzzy_match = sound_effects_map.get('tm_fuzzy_match', 'none')
+        sound_event_combos['tm_fuzzy_match'] = make_sound_combo(default_tm_fuzzy_match)
+        event_rows.addRow("Fuzzy TM match found:", sound_event_combos['tm_fuzzy_match'])
+
         sound_layout.addLayout(event_rows)
 
         sound_note = QLabel("💡 Uses Windows system beeps (no audio files).")
@@ -18542,9 +18547,11 @@ class SupervertalerQt(QMainWindow):
     def _apply_pagination_to_grid(self):
         """Show/hide rows based on current page, optionally constrained by active filters.
 
-        IMPORTANT: QTableWidget has only one hidden flag per row. Pagination and filtering
-        must be combined into a single visibility decision; otherwise switching pages can
-        accidentally unhide rows that filters intended to hide.
+        IMPORTANT: When a text filter is active (Filter Source/Target boxes), we show ALL
+        matching rows across the entire document, ignoring pagination. This ensures users
+        can find content regardless of which page they're on.
+        
+        When no filter is active, normal pagination applies.
         """
         if not self.current_project or not self.current_project.segments:
             return
@@ -18556,28 +18563,38 @@ class SupervertalerQt(QMainWindow):
         if not hasattr(self, 'grid_page_size'):
             self.grid_page_size = 50
         
-        # Calculate which rows should be visible
-        if self.grid_page_size >= 999999:
-            # "All" mode - show everything
-            start_row = 0
-            end_row = total_segments
-        else:
-            start_row = self.grid_current_page * self.grid_page_size
-            end_row = min(start_row + self.grid_page_size, total_segments)
-        
         # If a text filter (Filter Source/Target) is active, it will populate an allowlist
         # of row indices that are allowed to be visible.
         filter_allowlist = getattr(self, '_active_text_filter_rows', None)
-
-        # Batch show/hide for performance
-        self.table.setUpdatesEnabled(False)
-        try:
-            for row in range(total_segments):
-                in_page = start_row <= row < end_row
-                allowed_by_filter = True if filter_allowlist is None else (row in filter_allowlist)
-                self.table.setRowHidden(row, not (in_page and allowed_by_filter))
-        finally:
-            self.table.setUpdatesEnabled(True)
+        
+        # When a filter is active, show ALL matching rows (ignore pagination)
+        # When no filter is active, apply normal pagination
+        if filter_allowlist is not None:
+            # Filter mode: show all matching rows across the entire document
+            self.table.setUpdatesEnabled(False)
+            try:
+                for row in range(total_segments):
+                    self.table.setRowHidden(row, row not in filter_allowlist)
+            finally:
+                self.table.setUpdatesEnabled(True)
+        else:
+            # Normal pagination mode
+            if self.grid_page_size >= 999999:
+                # "All" mode - show everything
+                start_row = 0
+                end_row = total_segments
+            else:
+                start_row = self.grid_current_page * self.grid_page_size
+                end_row = min(start_row + self.grid_page_size, total_segments)
+            
+            # Batch show/hide for performance
+            self.table.setUpdatesEnabled(False)
+            try:
+                for row in range(total_segments):
+                    in_page = start_row <= row < end_row
+                    self.table.setRowHidden(row, not in_page)
+            finally:
+                self.table.setUpdatesEnabled(True)
         
         # Update pagination UI
         self._update_pagination_ui()
@@ -18860,11 +18877,12 @@ class SupervertalerQt(QMainWindow):
         header.setStretchLastSection(False)  # Don't auto-stretch last section (we use Stretch mode for Source/Target)
         
         # Set initial column widths - give Source and Target equal space
-        self.table.setColumnWidth(0, 40)   # ID - compact, fits up to 3 digits comfortably
+        # ID column width will be auto-adjusted by _update_segment_column_width() after segments load
+        self.table.setColumnWidth(0, 35)   # ID - temporary, auto-adjusts to fit content
         self.table.setColumnWidth(1, 40)   # Type - narrower
         self.table.setColumnWidth(2, 400)  # Source
         self.table.setColumnWidth(3, 400)  # Target
-        self.table.setColumnWidth(4, 70)   # Status
+        self.table.setColumnWidth(4, 60)   # Status - compact
         
         # Enable word wrap in cells (both display and edit mode)
         self.table.setWordWrap(True)
@@ -27642,6 +27660,37 @@ class SupervertalerQt(QMainWindow):
                 target_widget = self.table.cellWidget(row, 3)
                 if target_widget and isinstance(target_widget, EditableGridTextEditor):
                     target_widget.setFont(font)
+        
+        # Adjust segment number column width based on font size
+        self._update_segment_column_width()
+    
+    def _update_segment_column_width(self):
+        """Adjust segment number column width to fit the largest segment number.
+        
+        Uses font metrics to calculate exact width needed for the highest segment number.
+        """
+        if not hasattr(self, 'table') or not self.table:
+            return
+        
+        # Get the highest segment number we need to display
+        max_segment = self.table.rowCount()
+        if max_segment == 0:
+            max_segment = 1
+        
+        # Use font metrics to calculate exact width needed
+        font = QFont(self.default_font_family, self.default_font_size)
+        fm = QFontMetrics(font)
+        
+        # Measure the width of the largest number (as string)
+        text_width = fm.horizontalAdvance(str(max_segment))
+        
+        # Add padding (10px on each side = 20px total)
+        new_width = text_width + 20
+        
+        # Ensure minimum width for very small numbers
+        new_width = max(30, new_width)
+        
+        self.table.setColumnWidth(0, new_width)
     
     def set_font_family(self, family_name: str):
         """Set font family from menu"""
@@ -28599,11 +28648,21 @@ class SupervertalerQt(QMainWindow):
                                     if best_match:
                                         self.log(f"✨ CACHE: Auto-inserting 100% TM match into segment {segment.id} at row {current_row}")
                                         self._auto_insert_tm_match(segment, best_match.target, current_row)
+                                        # Play 100% TM match alert sound
+                                        self._play_sound_effect('tm_100_percent_match')
                                     else:
                                         relevances = [(tm.relevance, type(tm.relevance).__name__) for tm in cached_matches.get("TM", [])]
                                         self.log(f"⚠️ CACHE: No 100% match found. All relevances: {relevances}")
                                 else:
                                     self.log(f"⚠️ CACHE: Target not empty ('{segment.target}') - skipping auto-insert")
+                            
+                            # 🔊 Play fuzzy match sound if fuzzy matches found from cache (but not 100%)
+                            if tm_count > 0:
+                                tm_matches = cached_matches.get("TM", [])
+                                has_100_match = any(float(tm.relevance) >= 99.5 for tm in tm_matches)
+                                has_fuzzy_match = any(float(tm.relevance) < 99.5 and float(tm.relevance) >= 50 for tm in tm_matches)
+                                if has_fuzzy_match and not has_100_match:
+                                    self._play_sound_effect('tm_fuzzy_match')
                             
                             # Skip the slow lookup below, we already have everything
                             # Continue to prefetch trigger at the end
@@ -28634,29 +28693,29 @@ class SupervertalerQt(QMainWindow):
                                 # Store in cache for future access (thread-safe) - EVEN IF EMPTY
                                 with self.termbase_cache_lock:
                                     self.termbase_cache[segment_id] = stored_matches
-                                    
-                                # Update Termview with the newly cached matches
-                                if stored_matches and hasattr(self, 'termview_widget') and self.current_project:
-                                    try:
-                                        # Convert dict format to list format
-                                        termbase_matches = [
-                                            {
-                                                'source_term': match_data.get('source', ''),
-                                                'target_term': match_data.get('translation', ''),
-                                                'termbase_name': match_data.get('termbase_name', ''),
-                                                'ranking': match_data.get('ranking', 99),
-                                                'is_project_termbase': match_data.get('is_project_termbase', False),
-                                                'term_id': match_data.get('term_id'),
-                                                'termbase_id': match_data.get('termbase_id'),
-                                                'notes': match_data.get('notes', '')
-                                            }
-                                            for match_data in stored_matches.values()
-                                        ]
-                                        # Also get NT matches
-                                        nt_matches = self.find_nt_matches_in_source(segment.source)
-                                        self.termview_widget.update_with_matches(segment.source, termbase_matches, nt_matches)
-                                    except Exception as e:
-                                        self.log(f"Error refreshing termview: {e}")
+                            
+                            # CRITICAL FIX: Always update Termview (even with empty results) - show "No matches" state
+                            if hasattr(self, 'termview_widget') and self.current_project:
+                                try:
+                                    # Convert dict format to list format
+                                    termbase_matches = [
+                                        {
+                                            'source_term': match_data.get('source', ''),
+                                            'target_term': match_data.get('translation', ''),
+                                            'termbase_name': match_data.get('termbase_name', ''),
+                                            'ranking': match_data.get('ranking', 99),
+                                            'is_project_termbase': match_data.get('is_project_termbase', False),
+                                            'term_id': match_data.get('term_id'),
+                                            'termbase_id': match_data.get('termbase_id'),
+                                            'notes': match_data.get('notes', '')
+                                        }
+                                        for match_data in stored_matches.values()
+                                    ] if stored_matches else []
+                                    # Also get NT matches
+                                    nt_matches = self.find_nt_matches_in_source(segment.source)
+                                    self.termview_widget.update_with_matches(segment.source, termbase_matches, nt_matches)
+                                except Exception as e:
+                                    self.log(f"Error refreshing termview: {e}")
 
                             # Store in widget for backwards compatibility
                             if source_widget and hasattr(source_widget, 'termbase_matches'):
@@ -31168,8 +31227,9 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             
             # Comprehensive set of quote and punctuation characters to strip
             # Includes: straight quotes, curly quotes (left/right), German quotes, guillemets, single quotes
+            # ALSO includes parentheses, brackets, and braces for terms like "(typisch)" or "[example]"
             # Using explicit characters to avoid encoding issues
-            PUNCT_CHARS = '.,!?;:\"\'\u201C\u201D\u201E\u00AB\u00BB\u2018\u2019\u201A\u2039\u203A'
+            PUNCT_CHARS = '.,!?;:\"\'\u201C\u201D\u201E\u00AB\u00BB\u2018\u2019\u201A\u2039\u203A()[]{}' 
             
             for word in words:
                 # Remove punctuation including quotes (preserve internal punctuation like "gew.%")
@@ -31184,13 +31244,26 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                 # Get project ID for termbase priority lookup
                 project_id = self.current_project.id if self.current_project and hasattr(self.current_project, 'id') else None
                 
-                termbase_results = self.db_manager.search_termbases(
-                    clean_word,
-                    source_lang=source_lang_code,
-                    target_lang=target_lang_code,
-                    project_id=project_id,
-                    min_length=2
-                )
+                # CRITICAL FIX: Search for BOTH the cleaned word AND the original word with punctuation
+                # This allows glossary entries like "ca." to match source text "ca." where
+                # the tokenized/cleaned version is "ca" but the glossary entry has the period
+                words_to_search = [clean_word]
+                # Also try searching with trailing punctuation (for entries like "ca.", "gew.%")
+                original_word_stripped_leading = word.lstrip(PUNCT_CHARS)
+                if original_word_stripped_leading != clean_word and len(original_word_stripped_leading) >= 2:
+                    words_to_search.append(original_word_stripped_leading)
+                
+                termbase_results = []
+                for search_word in words_to_search:
+                    results = self.db_manager.search_termbases(
+                        search_word,
+                        source_lang=source_lang_code,
+                        target_lang=target_lang_code,
+                        project_id=project_id,
+                        min_length=2
+                    )
+                    if results:
+                        termbase_results.extend(results)
                 
                 if termbase_results:
                     for result in termbase_results:
@@ -35650,6 +35723,9 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
 
         self.update_progress_stats()
 
+        # Play sound effect for segment confirmation
+        self._play_sound_effect('segment_confirmed')
+
         if segment.target and segment.target.strip():
             try:
                 self.save_segment_to_activated_tms(segment.source, segment.target)
@@ -35999,41 +36075,8 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                 except Exception as e:
                     self.log(f"Error updating tabbed panel: {e}")
         
-        # Update Termview widget - pass termbase matches from Translation Results
-        if hasattr(self, 'termview_widget') and self.current_project:
-            try:
-                # Get termbase matches from the segment's cached data if available
-                termbase_matches = []
-                if hasattr(self, 'termbase_cache') and segment_id in self.termbase_cache:
-                    cached_matches = self.termbase_cache[segment_id]
-                    
-                    # Convert dict format to list format expected by Termview
-                    if isinstance(cached_matches, dict):
-                        termbase_matches = [
-                            {
-                                'source_term': source_key,  # Use dict key as source term
-                                'target_term': match_data.get('translation', ''),
-                                'termbase_name': match_data.get('termbase_name', ''),
-                                'ranking': match_data.get('ranking', 99),
-                                'is_project_termbase': match_data.get('is_project_termbase', False),
-                                'target_synonyms': match_data.get('target_synonyms', []),
-                                'term_id': match_data.get('term_id'),
-                                'termbase_id': match_data.get('termbase_id')
-                            }
-                            for source_key, match_data in cached_matches.items()
-                        ]
-                    else:
-                        # Already in list format (shouldn't happen, but handle it)
-                        termbase_matches = cached_matches
-                
-                # Also get NT matches
-                nt_matches = self.find_nt_matches_in_source(source_text)
-                
-                self.termview_widget.update_with_matches(source_text, termbase_matches, nt_matches)
-            except Exception as e:
-                self.log(f"Error updating termview: {e}")
-                import traceback
-                self.log(f"Traceback: {traceback.format_exc()}")
+        # NOTE: Termview is updated AFTER termbase search completes in _on_cell_selected_full
+        # Do NOT update Termview here - the cache may not be populated yet
     
     # ========================================================================
     # UTILITY
@@ -40447,6 +40490,14 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                                 
                                 if best_match:
                                     self._auto_insert_tm_match(segment, best_match.target, None)  # Let function find row
+                                    # Play 100% TM match alert sound
+                                    self._play_sound_effect('tm_100_percent_match')
+                        
+                        # 🔊 Play fuzzy match sound if fuzzy matches found (but not 100%)
+                        has_100_match = any(float(tm.relevance) >= 99.5 for tm in matches_dict["TM"])
+                        has_fuzzy_match = any(float(tm.relevance) < 99.5 and float(tm.relevance) >= 50 for tm in matches_dict["TM"])
+                        if has_fuzzy_match and not has_100_match:
+                            self._play_sound_effect('tm_fuzzy_match')
                 except Exception as e:
                     self.log(f"Error in delayed TM search: {e}")
             
