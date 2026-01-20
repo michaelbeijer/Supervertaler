@@ -2,7 +2,37 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.143 (January 20, 2026)
+**Current Version:** v1.9.144 (January 20, 2026)
+
+## ✨ Enhanced Compare Panel Diff Highlighting (v1.9.144) - January 20, 2026
+
+**Improvement:** The Compare Panel now shows a complete diff with additions, deletions, and changes - matching what professional CAT tools display.
+
+**Before:**
+- Only showed text that was **different** (in red)
+- Didn't show what was **added** in the current segment
+- Hard to understand what changed between TM source and current source
+
+**After:**
+- **Red with strikethrough**: Text in TM that was changed/deleted in current segment
+- **Green background**: Text in current segment that was added (not in TM)
+- **Normal text**: Identical text in both
+
+**Example:**
+```
+Current: In een derde aspect betreft de huidige uitvinding het gebruik van een dichtingskit...
+TM:      In een tweede aspect betreft de huidige uitvinding een dichtingskit...
+
+Compare Panel now shows:
+In een [tweede→derde] aspect betreft de huidige uitvinding [+het gebruik van] een dichtingskit...
+```
+
+**Technical:**
+- Changed from character-level to word-level diffing for better readability
+- Additions shown inline in green where they would appear
+- Deletions shown with strikethrough so you can see what was removed
+
+---
 
 ## 🐛 Fix: Deleting Glossary Entry from Termview (v1.9.143) - January 20, 2026
 

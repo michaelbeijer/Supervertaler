@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.143"
+__version__ = "1.9.144"
 __phase__ = "0.9"
 __release_date__ = "2026-01-20"
 __edition__ = "Qt"
@@ -27114,7 +27114,14 @@ class SupervertalerQt(QMainWindow):
         self.set_compare_panel_matches(segment_id, current_source, tm_matches, mt_matches)
     
     def _set_compare_panel_text_with_diff(self, text_edit: QTextEdit, current: str, tm_source: str):
-        """Set text with diff highlighting (deletions in red, additions in green)"""
+        """
+        Set text with diff highlighting showing TM source with:
+        - Normal text: identical to current
+        - Red strikethrough: text in TM but changed/missing in current (deletions)
+        - Green background: text in current but not in TM (additions)
+        
+        This displays the TM source but annotates it to show what changed.
+        """
         import difflib
         
         text_edit.clear()
@@ -27122,25 +27129,51 @@ class SupervertalerQt(QMainWindow):
         
         # Create formatters
         normal_format = QTextCharFormat()
+        
+        # Red with strikethrough for TM text that was changed/deleted in current
         delete_format = QTextCharFormat()
-        delete_format.setBackground(QColor("#ffcccc"))  # Light red for deletions
-        delete_format.setForeground(QColor("#cc0000"))
+        delete_format.setBackground(QColor("#ffcccc"))  # Light red background
+        delete_format.setForeground(QColor("#cc0000"))  # Dark red text
+        delete_format.setFontStrikeOut(True)  # Strikethrough
         
-        # Use SequenceMatcher to find differences
-        matcher = difflib.SequenceMatcher(None, current, tm_source)
+        # Green for text that was added in current (not in TM)
+        add_format = QTextCharFormat()
+        add_format.setBackground(QColor("#ccffcc"))  # Light green background
+        add_format.setForeground(QColor("#006600"))  # Dark green text
         
+        # Use SequenceMatcher to find differences at word level for better readability
+        current_words = current.split()
+        tm_words = tm_source.split()
+        
+        matcher = difflib.SequenceMatcher(None, current_words, tm_words)
+        
+        result_parts = []
         for tag, i1, i2, j1, j2 in matcher.get_opcodes():
             if tag == 'equal':
-                cursor.insertText(tm_source[j1:j2], normal_format)
+                # Same in both - show normally
+                result_parts.append(('normal', ' '.join(tm_words[j1:j2])))
             elif tag == 'replace':
-                # Show the TM text (what's different from current)
-                cursor.insertText(tm_source[j1:j2], delete_format)
+                # Different text - show TM version in red strikethrough, then current version in green
+                result_parts.append(('delete', ' '.join(tm_words[j1:j2])))
+                result_parts.append(('add', ' '.join(current_words[i1:i2])))
             elif tag == 'insert':
-                # Text in TM but not in current
-                cursor.insertText(tm_source[j1:j2], delete_format)
+                # Text in TM but not in current - show in red strikethrough
+                result_parts.append(('delete', ' '.join(tm_words[j1:j2])))
             elif tag == 'delete':
-                # Text in current but not in TM - don't show in TM source box
-                pass
+                # Text in current but not in TM - show in green (it's an addition)
+                result_parts.append(('add', ' '.join(current_words[i1:i2])))
+        
+        # Now render the parts with proper spacing
+        for i, (part_type, text) in enumerate(result_parts):
+            if i > 0:
+                cursor.insertText(' ', normal_format)  # Space between parts
+            
+            if part_type == 'normal':
+                cursor.insertText(text, normal_format)
+            elif part_type == 'delete':
+                cursor.insertText(text, delete_format)
+            elif part_type == 'add':
+                cursor.insertText(text, add_format)
         
         text_edit.setTextCursor(cursor)
     
