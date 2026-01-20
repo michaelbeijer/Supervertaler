@@ -2,7 +2,31 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.144 (January 20, 2026)
+**Current Version:** v1.9.145 (January 20, 2026)
+
+## ✨ memoQ-Style Track Changes in Compare Panel (v1.9.145) - January 20, 2026
+
+**Improvement:** Changed Compare Panel diff highlighting to match memoQ's "Track changes view" style.
+
+**New Styling (memoQ-style):**
+- **Deletions**: Red text + strikethrough (~~deleted~~)
+- **Insertions**: Red text + underline (<u>inserted</u>)
+- **Unchanged**: Normal text
+
+This is cleaner and more familiar to translators who use Word's track changes or memoQ.
+
+**Example:**
+```
+Current: In een derde aspect betreft de huidige uitvinding het gebruik van een dichtingskit...
+TM:      In een tweede aspect betreft de huidige uitvinding een dichtingskit...
+
+Compare Panel shows:
+In een ~~tweede~~ derde aspect betreft de huidige uitvinding het gebruik van een dichtingskit...
+        ^^^^^^^^  ^^^^^^                                      ^^^^^^^^^^^^^^^^
+        red+strike red+under                                  red+underline
+```
+
+---
 
 ## ✨ Enhanced Compare Panel Diff Highlighting (v1.9.144) - January 20, 2026
 
