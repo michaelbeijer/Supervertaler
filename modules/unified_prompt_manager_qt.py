@@ -1707,7 +1707,7 @@ class UnifiedPromptManagerQt:
         self.editor_quickmenu_in_grid_cb = CheckmarkCheckBox("Show in Grid right-click menu")
         quickmenu_layout.addWidget(self.editor_quickmenu_in_grid_cb, 2)
 
-        self.editor_quickmenu_in_quickmenu_cb = CheckmarkCheckBox("Show in QuickMenu")
+        self.editor_quickmenu_in_quickmenu_cb = CheckmarkCheckBox("Show in QuickMenu (system-wide)")
         quickmenu_layout.addWidget(self.editor_quickmenu_in_quickmenu_cb, 1)
 
         layout.addLayout(quickmenu_layout)
@@ -1760,26 +1760,7 @@ class UnifiedPromptManagerQt:
             item.setFlags(item.flags() | Qt.ItemFlag.ItemIsDragEnabled)
             favorites_root.addChild(item)
         
-        # QuickMenu section (legacy kind name: quick_run)
-        quick_run_root = QTreeWidgetItem(["⚡ QuickMenu"])
-        # Special node: not draggable/droppable
-        quick_run_root.setData(0, Qt.ItemDataRole.UserRole, {'type': 'special', 'kind': 'quick_run'})
-        quick_run_root.setExpanded(False)
-        font = quick_run_root.font(0)
-        font.setBold(True)
-        quick_run_root.setFont(0, font)
-        self.tree_widget.addTopLevelItem(quick_run_root)
-        
-        quickmenu_items = self.library.get_quickmenu_prompts() if hasattr(self.library, 'get_quickmenu_prompts') else self.library.get_quick_run_prompts()
-        self.log_message(f"🔍 DEBUG: QuickMenu count: {len(quickmenu_items)}")
-        for path, label in quickmenu_items:
-            item = QTreeWidgetItem([label])
-            item.setData(0, Qt.ItemDataRole.UserRole, {'type': 'prompt', 'path': path})
-            # Quick Run entries are shortcuts, but allow dragging to move the actual prompt file.
-            item.setFlags(item.flags() | Qt.ItemFlag.ItemIsDragEnabled)
-            quick_run_root.addChild(item)
-        
-        # Library folders
+        # Library folders (QuickMenu parent folder removed - folder hierarchy now defines menu structure)
         self.log_message(f"🔍 DEBUG: Building tree from {self.unified_library_dir}")
         self._build_tree_recursive(None, self.unified_library_dir, "")
         
