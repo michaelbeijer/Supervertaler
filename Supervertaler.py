@@ -6051,7 +6051,7 @@ class SupervertalerQt(QMainWindow):
                     quickmenu_items = lib.get_quickmenu_grid_prompts() or []
             
             if not quickmenu_items:
-                self.log("⚠️ No QuickMenu prompts available. Add prompts with 'Show in Supervertaler QuickMenu' enabled.")
+                self.log("⚠️ No QuickMenu prompts available. Add prompts with 'Show in QuickMenu' enabled.")
                 return
             
             # Find the currently focused widget (source or target cell)

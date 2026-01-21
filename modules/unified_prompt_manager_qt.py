@@ -1704,10 +1704,10 @@ class UnifiedPromptManagerQt:
         self.editor_quickmenu_label_input.setPlaceholderText("Label shown in QuickMenu")
         quickmenu_layout.addWidget(self.editor_quickmenu_label_input, 2)
 
-        self.editor_quickmenu_in_grid_cb = CheckmarkCheckBox("Show in Grid right-click QuickMenu")
+        self.editor_quickmenu_in_grid_cb = CheckmarkCheckBox("Show in Grid right-click menu")
         quickmenu_layout.addWidget(self.editor_quickmenu_in_grid_cb, 2)
 
-        self.editor_quickmenu_in_quickmenu_cb = CheckmarkCheckBox("Show in Supervertaler QuickMenu")
+        self.editor_quickmenu_in_quickmenu_cb = CheckmarkCheckBox("Show in QuickMenu")
         quickmenu_layout.addWidget(self.editor_quickmenu_in_quickmenu_cb, 1)
 
         layout.addLayout(quickmenu_layout)
