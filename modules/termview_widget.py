@@ -752,7 +752,9 @@ class TermviewWidget(QWidget):
                 
                 # Strip punctuation from key to match lookup normalization
                 # This ensures "ca." in glossary matches "ca." token stripped to "ca"
-                PUNCT_CHARS_FOR_KEY = '.,;:!?\"\'\u201C\u201D\u201E\u00AB\u00BB\u2018\u2019\u201A\u2039\u203A()[]'
+                # NOTE: Do NOT strip () and [] from key - they are part of Dutch "Nederbrackets"
+                # like "(natuur)steen" which means "stone and/or natural stone"
+                PUNCT_CHARS_FOR_KEY = '.,;:!?\"\'\u201C\u201D\u201E\u00AB\u00BB\u2018\u2019\u201A\u2039\u203A'
                 key = source_term.lower().strip(PUNCT_CHARS_FOR_KEY)
                 if key not in matches_dict:
                     matches_dict[key] = []
@@ -806,8 +808,9 @@ class TermviewWidget(QWidget):
         
         # Comprehensive set of quote and punctuation characters to strip
         # Using Unicode escapes to avoid encoding issues
-        # Include brackets for terms like "(typisch)" to match "typisch"
-        PUNCT_CHARS = '.,;:!?\"\'\u201C\u201D\u201E\u00AB\u00BB\u2018\u2019\u201A\u2039\u203A()[]'
+        # NOTE: Do NOT strip () and [] - they are part of Dutch "Nederbrackets"
+        # like "(natuur)steen" which means "stone and/or natural stone"
+        PUNCT_CHARS = '.,;:!?\"\'\u201C\u201D\u201E\u00AB\u00BB\u2018\u2019\u201A\u2039\u203A'
         
         # Track which terms have already been assigned shortcuts (avoid duplicates)
         assigned_shortcuts = set()
@@ -893,7 +896,8 @@ class TermviewWidget(QWidget):
             # Extract all words from the text to search
             # Use the same token pattern as we use for display
             # Includes / for unit-style terms like kg/l, m/s, etc.
-            token_pattern = re.compile(r'(?<!\w)[\w.,%-/]+(?!\w)', re.UNICODE)
+            # Includes () for Dutch "Nederbrackets" like "(natuur)steen", "(her)configureren"
+            token_pattern = re.compile(r'(?<!\w)[\w.,%-/()]+(?!\w)', re.UNICODE)
             tokens = [match.group() for match in token_pattern.finditer(text)]
             
             # Also check for multi-word phrases (up to 8 words)
@@ -953,13 +957,19 @@ class TermviewWidget(QWidget):
                     normalized_term = source_lower.rstrip(PUNCT_CHARS).lstrip(PUNCT_CHARS)
                     
                     # Use word boundaries to match complete words/phrases only
-                    if ' ' in source_term:
+                    # For terms with brackets (Dutch Nederbrackets like "(natuur)steen"),
+                    # use lookahead/lookbehind instead of \b since ( is not a word character
+                    has_brackets = '(' in normalized_term or ')' in normalized_term
+                    if has_brackets:
+                        # Use negative lookahead/lookbehind for word characters
+                        pattern = r'(?<!\w)' + re.escape(normalized_term) + r'(?!\w)'
+                    elif ' ' in source_term:
                         # Multi-word term - must exist as exact phrase
                         pattern = r'\b' + re.escape(normalized_term) + r'\b'
                     else:
                         # Single word
                         pattern = r'\b' + re.escape(normalized_term) + r'\b'
-                    
+
                     # Try matching on normalized text first, then original
                     if not re.search(pattern, normalized_text) and not re.search(pattern, text_lower):
                         continue  # Skip - term not actually in segment
@@ -1016,9 +1026,10 @@ class TermviewWidget(QWidget):
             if ' ' in term:  # Only process multi-word terms in first pass
                 # Use regex with word boundaries to find term
                 term_escaped = re.escape(term)
-                
-                # Check if term has punctuation - use different pattern
-                if any(char in term for char in ['.', '%', ',', '-', '/']):
+
+                # Check if term has punctuation or brackets - use different pattern
+                # Brackets are part of Dutch Nederbrackets like "(natuur)steen"
+                if any(char in term for char in ['.', '%', ',', '-', '/', '(', ')']):
                     pattern = r'(?<!\w)' + term_escaped + r'(?!\w)'
                 else:
                     pattern = r'\b' + term_escaped + r'\b'
@@ -1051,7 +1062,8 @@ class TermviewWidget(QWidget):
         # Enhanced pattern to capture words, numbers, and combinations like "gew.%", "0,1", "kg/l", etc.
         # Use (?<!\w) and (?!\w) instead of \b to handle punctuation properly
         # Includes / for unit-style terms like kg/l, m/s, etc.
-        token_pattern = re.compile(r'(?<!\w)[\w.,%-/]+(?!\w)', re.UNICODE)
+        # Includes () for Dutch "Nederbrackets" like "(natuur)steen", "(her)configureren"
+        token_pattern = re.compile(r'(?<!\w)[\w.,%-/()]+(?!\w)', re.UNICODE)
         
         for match in token_pattern.finditer(text):
             word_start = match.start()
@@ -1106,15 +1118,20 @@ class TermviewWidget(QWidget):
                 
                 # Check if this term actually exists in the current segment
                 source_lower = source_term.lower()
-                
+
                 # Use word boundaries to match complete words/phrases only
-                if ' ' in source_term:
+                # For terms with brackets (Dutch Nederbrackets like "(natuur)steen"),
+                # use lookahead/lookbehind instead of \b since ( is not a word character
+                has_brackets = '(' in source_lower or ')' in source_lower
+                if has_brackets:
+                    pattern = r'(?<!\w)' + re.escape(source_lower) + r'(?!\w)'
+                elif ' ' in source_term:
                     # Multi-word term - must exist as exact phrase
                     pattern = r'\b' + re.escape(source_lower) + r'\b'
                 else:
                     # Single word
                     pattern = r'\b' + re.escape(source_lower) + r'\b'
-                
+
                 if re.search(pattern, segment_lower):
                     filtered_results.append(result)
             
