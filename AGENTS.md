@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** January 21, 2026 | **Version:** v1.9.148
+> **Last Updated:** January 21, 2026 | **Version:** v1.9.148-beta
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.148 (January 2026) |
+| **Version** | v1.9.148-beta (January 2026) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -1202,6 +1202,41 @@ Reduced segment ID column width for more compact display:
 
 **Files Modified:**
 - `Supervertaler.py` - Fixed `apply_filters()` iteration logic, notes export in `_export_review_table()`, column width in grid initialization
+
+---
+
+### January 21, 2026 - Prompt Library Reorganization (v1.9.148-beta)
+
+**📁 QuickMenu Prompt Organization & Title Case Folders**
+
+Reorganized the prompt library structure for better menu appearance and user experience:
+
+**Changes Made:**
+1. **Moved QuickMenu prompts** from `quickmenu_prompts/` to `Translation Help/` folder
+   - Define.svprompt
+   - Explain (in general).svprompt
+   - Explain (within project context).svprompt
+   - Translate selection in context of current project.svprompt
+
+2. **Deleted empty example folders**: Web Searches/, Text Processing/, quickmenu_prompts/
+
+3. **Renamed to Title Case**: `proofreading/` → `Proofreading/`
+
+**Final Structure** (all title case for menu appearance):
+```
+user_data_private/prompt_library/
+├── Domain Expertise/
+├── Proofreading/
+├── Project Prompts/
+├── Style Guides/
+└── Translation Help/  ← QuickMenu prompts here
+```
+
+**Design Decision**: Folder names use title case because they will become menu names in the future QuickMenu system. Action-oriented naming (Translation Help, Proofreading, Style Guides) creates intuitive menu hierarchies.
+
+**Files Modified:**
+- `user_data_private/prompt_library/` - Folder reorganization (gitignored)
+- `AGENTS.md` - Documentation update
 
 ---
 
