@@ -2,7 +2,32 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.145 (January 20, 2026)
+**Current Version:** v1.9.146 (January 21, 2026)
+
+## 🔑 Gemini/Google API Key Alias Fix (v1.9.146) - January 21, 2026
+
+**Bug Fix:** Fixed "Gemini API Key Missing" error when users had `google=...` instead of `gemini=...` in their api_keys.txt file.
+
+**The Problem:**
+- Users could use either `google=YOUR_KEY` or `gemini=YOUR_KEY` in api_keys.txt
+- Some code paths only checked for `gemini`, others only for `google`
+- This caused confusing "API Key Missing" dialogs even when keys were properly configured
+
+**The Solution:**
+- Added **automatic normalization** in `load_api_keys()` - if either `google` or `gemini` is set, both keys are now populated
+- Users can use either name interchangeably
+- Fixed 6+ locations where the alias wasn't being handled correctly:
+  - Single segment translation (Ctrl+T)
+  - Batch translation
+  - QuickMenu prompts
+  - Async LLM fetch for Translation Results panel
+  - Proofreading (also fixed `anthropic` → `claude` provider name bug)
+
+**For Users:**
+- Both `google=YOUR_KEY` and `gemini=YOUR_KEY` now work identically
+- No action needed - existing api_keys.txt files will continue to work
+
+---
 
 ## ✨ memoQ-Style Track Changes in Compare Panel (v1.9.145) - January 20, 2026
 
