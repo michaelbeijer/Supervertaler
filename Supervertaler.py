@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.146"
+__version__ = "1.9.147"
 __phase__ = "0.9"
 __release_date__ = "2026-01-20"
 __edition__ = "Qt"
@@ -65,17 +65,157 @@ def get_user_data_path() -> Path:
     """
     Get the path to user data directory.
     
-    In frozen builds (EXE): 'user_data' folder next to the EXE
-    In development: 'user_data' folder next to the script
+    This function returns a PERSISTENT location for user data that survives
+    pip upgrades and reinstalls. The location varies by context:
     
-    The build process copies user_data directly next to the EXE for easy access.
+    1. FROZEN BUILDS (Windows EXE): 'user_data' folder next to the EXE
+       - This allows the EXE to be portable (copy folder = copy everything)
+       - Path: C:/SomeFolder/Supervertaler/user_data/
+    
+    2. PIP INSTALLS: Platform-specific user data directory
+       - Windows: %LOCALAPPDATA%/Supervertaler/ (e.g., C:/Users/John/AppData/Local/Supervertaler/)
+       - macOS:   ~/Library/Application Support/Supervertaler/
+       - Linux:   ~/.local/share/Supervertaler/ (XDG_DATA_HOME)
+       - This location persists across pip upgrades!
+    
+    3. DEVELOPMENT MODE: 'user_data' or 'user_data_private' next to script
+       - Developers can use ENABLE_PRIVATE_FEATURES to use user_data_private/
+    
+    The key insight: pip installs wipe site-packages on upgrade, so we MUST
+    store user data outside the package directory for pip users.
     """
     if getattr(sys, 'frozen', False):
-        # Frozen build: user_data is next to the EXE (copied by build script)
+        # =====================================================================
+        # FROZEN BUILD (EXE): Keep data next to executable for portability
+        # =====================================================================
+        # Users can copy the entire folder to a USB drive and it works.
+        # The build script copies user_data/ next to Supervertaler.exe
         return Path(sys.executable).parent / "user_data"
+    
+    # Check if we're running from site-packages (pip install)
+    script_path = Path(__file__).resolve()
+    is_pip_install = "site-packages" in str(script_path)
+    
+    if is_pip_install:
+        # =================================================================
+        # PIP INSTALL: Use platform-specific persistent location
+        # =================================================================
+        # This survives pip upgrades because it's OUTSIDE site-packages!
+        try:
+            from platformdirs import user_data_dir
+            return Path(user_data_dir("Supervertaler", "MichaelBeijer"))
+        except ImportError:
+            # Fallback if platformdirs not available (shouldn't happen)
+            if sys.platform == 'win32':
+                base = Path(os.environ.get('LOCALAPPDATA', os.path.expanduser('~')))
+                return base / "Supervertaler"
+            elif sys.platform == 'darwin':
+                return Path.home() / "Library" / "Application Support" / "Supervertaler"
+            else:
+                # Linux/BSD - follow XDG spec
+                xdg_data = os.environ.get('XDG_DATA_HOME', os.path.expanduser('~/.local/share'))
+                return Path(xdg_data) / "Supervertaler"
     else:
-        # Development: user_data next to script
+        # =================================================================
+        # DEVELOPMENT MODE: Use folder next to script
+        # =================================================================
         return Path(__file__).parent / "user_data"
+
+
+def migrate_user_data_if_needed(new_path: Path) -> bool:
+    """
+    Migrate user data from old location (inside site-packages) to new location.
+    
+    This handles the transition for existing pip users whose data was stored
+    inside the package directory (which gets wiped on upgrade).
+    
+    Returns True if migration was performed, False otherwise.
+    """
+    import shutil
+    
+    # Only migrate for pip installs (frozen builds keep data next to EXE)
+    if getattr(sys, 'frozen', False):
+        return False
+    
+    # Check if we're in a pip install
+    script_path = Path(__file__).resolve()
+    if "site-packages" not in str(script_path):
+        return False  # Development mode, no migration needed
+    
+    # Old location: user_data folder inside the package in site-packages
+    old_path = script_path.parent / "user_data"
+    
+    # If old location doesn't exist or is empty, no migration needed
+    if not old_path.exists():
+        return False
+    
+    # Check if old location has actual content (not just empty dirs)
+    old_has_content = False
+    for item in old_path.rglob('*'):
+        if item.is_file():
+            old_has_content = True
+            break
+    
+    if not old_has_content:
+        return False
+    
+    # If new location already has content, don't overwrite (user may have set up fresh)
+    new_has_content = False
+    if new_path.exists():
+        for item in new_path.rglob('*'):
+            if item.is_file():
+                new_has_content = True
+                break
+    
+    if new_has_content:
+        # Both have content - log but don't migrate (user may have set up manually)
+        print(f"[Migration] Both old and new data locations have content:")
+        print(f"  Old: {old_path}")
+        print(f"  New: {new_path}")
+        print(f"[Migration] Keeping new location. Old data preserved in site-packages.")
+        return False
+    
+    # Perform migration
+    print(f"[Migration] Migrating user data from old location...")
+    print(f"  From: {old_path}")
+    print(f"  To:   {new_path}")
+    
+    try:
+        # Ensure new path parent exists
+        new_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        # Copy entire directory tree (use copy, not move, for safety)
+        if new_path.exists():
+            # Merge into existing empty directory
+            for item in old_path.iterdir():
+                dest = new_path / item.name
+                if item.is_dir():
+                    shutil.copytree(item, dest, dirs_exist_ok=True)
+                else:
+                    shutil.copy2(item, dest)
+        else:
+            shutil.copytree(old_path, new_path)
+        
+        print(f"[Migration] ✅ Successfully migrated user data!")
+        print(f"[Migration] Your API keys, TMs, glossaries, and prompts are now in:")
+        print(f"  {new_path}")
+        
+        # Leave a marker file in the old location so users know what happened
+        marker = old_path / "_MIGRATED_TO_NEW_LOCATION.txt"
+        marker.write_text(
+            f"Your Supervertaler data has been migrated to a persistent location:\n"
+            f"{new_path}\n\n"
+            f"This location survives pip upgrades.\n"
+            f"You can safely delete this old folder.\n"
+            f"Migration date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+        )
+        
+        return True
+        
+    except Exception as e:
+        print(f"[Migration] ⚠️ Error during migration: {e}")
+        print(f"[Migration] Your data is still in: {old_path}")
+        return False
 
 import threading
 import time  # For delays in Superlookup
@@ -5167,16 +5307,24 @@ class SupervertalerQt(QMainWindow):
         # ============================================================================
         # USER DATA PATH INITIALIZATION
         # ============================================================================
-        # Set up user data paths - handles both development and frozen (EXE) builds
-        # In frozen builds, user_data is copied directly next to the EXE by the build script.
+        # User data is stored in a PERSISTENT location that survives pip upgrades:
+        # - Windows: %LOCALAPPDATA%\Supervertaler\
+        # - macOS:   ~/Library/Application Support/Supervertaler/
+        # - Linux:   ~/.local/share/Supervertaler/
+        # - EXE:     user_data/ folder next to executable (portable mode)
+        # - Dev:     user_data_private/ or user_data/ next to script
         from modules.database_manager import DatabaseManager
         
         if ENABLE_PRIVATE_FEATURES:
             # Developer mode: use private folder (git-ignored)
             self.user_data_path = Path(__file__).parent / "user_data_private"
         else:
-            # Normal mode: use the helper function
+            # Normal mode: use the helper function (handles pip vs EXE vs dev)
             self.user_data_path = get_user_data_path()
+        
+        # Migrate old data from site-packages to new persistent location (pip users)
+        # This is a one-time migration for users upgrading from older versions
+        migrate_user_data_if_needed(self.user_data_path)
         
         # Ensure user_data directory exists (creates empty folder if missing)
         self.user_data_path.mkdir(parents=True, exist_ok=True)

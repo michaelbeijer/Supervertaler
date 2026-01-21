@@ -2,7 +2,48 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.146 (January 21, 2026)
+**Current Version:** v1.9.147 (January 21, 2026)
+
+## 📁 Persistent User Data Location (v1.9.147) - January 21, 2026
+
+**Major Enhancement:** User data (API keys, TMs, glossaries, prompts, settings) now persists across pip upgrades!
+
+**The Problem:**
+- When users ran `pip install --upgrade supervertaler`, their data was wiped
+- This happened because user_data/ was stored inside the pip package directory
+- pip replaces the entire package directory on upgrade, deleting all user files
+- Users reported losing API keys, TMs, glossaries, and prompts after every update
+
+**The Solution:**
+User data is now stored in a **platform-specific persistent location** that lives OUTSIDE the pip package:
+
+| Platform | Location |
+|----------|----------|
+| **Windows** | `%LOCALAPPDATA%\MichaelBeijer\Supervertaler\` (e.g., `C:\Users\John\AppData\Local\MichaelBeijer\Supervertaler\`) |
+| **macOS** | `~/Library/Application Support/Supervertaler/` |
+| **Linux** | `~/.local/share/Supervertaler/` (follows XDG spec) |
+| **Windows EXE** | `user_data/` folder next to the executable (portable mode) |
+| **Development** | `user_data/` or `user_data_private/` next to the script |
+
+**Automatic Migration:**
+- On first run after upgrade, existing data is automatically migrated from the old location
+- A marker file is left in the old location explaining where data went
+- No user action required - just upgrade and everything moves automatically
+
+**What This Means for Users:**
+- ✅ API keys persist across pip upgrades
+- ✅ Translation Memories are preserved
+- ✅ Glossaries (termbases) are preserved
+- ✅ Custom prompts are preserved
+- ✅ All settings are preserved
+- ✅ Windows EXE users unaffected (already portable)
+
+**Technical Details:**
+- Uses `platformdirs` library for cross-platform path handling
+- Added `migrate_user_data_if_needed()` function for one-time migration
+- Migration is safe: copies (not moves) and only runs if old location has content
+
+---
 
 ## 🔑 Gemini/Google API Key Alias Fix (v1.9.146) - January 21, 2026
 

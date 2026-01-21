@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** January 21, 2026 | **Version:** v1.9.146
+> **Last Updated:** January 21, 2026 | **Version:** v1.9.147
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.146 (January 2026) |
+| **Version** | v1.9.147 (January 2026) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -717,38 +717,94 @@ pytest tests/
 
 ## 🔑 API Keys
 
-**Unified Loading System with Dev-First Priority:**
+**Unified Loading System with Persistent Storage:**
 
-The app now uses a **dual-path** API key loading system:
+API keys are stored in the persistent user data location (see Installation section).
 
-1. **Priority 1**: `user_data_private/api_keys.txt` (Dev mode - gitignored, never synced)
-2. **Priority 2**: `user_data/api_keys.txt` (User mode - ships with app)
+**User Data Locations (v1.9.147+):**
+
+| Platform | API Keys File Location |
+|----------|------------------------|
+| **Windows (pip)** | `%LOCALAPPDATA%\MichaelBeijer\Supervertaler\api_keys.txt` |
+| **macOS (pip)** | `~/Library/Application Support/Supervertaler/api_keys.txt` |
+| **Linux (pip)** | `~/.local/share/Supervertaler/api_keys.txt` |
+| **Windows EXE** | `user_data\api_keys.txt` (next to executable) |
+| **Development** | `user_data_private\api_keys.txt` (git-ignored) |
 
 **For Developers (running from source):**
 - Store keys in: `user_data_private/api_keys.txt`
 - This location is fully gitignored and will **never** be uploaded to GitHub
 - All features (translation, AI Assistant, tests) will find keys here
 
-**For End Users (pip install or .exe):**
-- Store keys in: `user_data/api_keys.txt`
-- The app auto-creates this location on first run
+**For End Users (pip install):**
+- Store keys in the platform-specific location shown above
+- The app prints the exact path on startup: `[Data Paths] User data: ...`
+- Keys now persist across pip upgrades!
+
+**For Windows EXE Users:**
+- Store keys in: `user_data\api_keys.txt` (same folder as Supervertaler.exe)
+- Portable: copy the entire folder to keep all your data
 
 **Format:**
 ```
 openai=sk-...
 claude=sk-ant-...
 google=AI...
+gemini=AI...
 deepl=...
 ```
 
+**Note:** `google=` and `gemini=` are aliases - both work identically (v1.9.146+).
+
 **Implementation Details:**
-- `Supervertaler.py` line ~39407: `load_api_keys()` method checks dev path first
-- `modules/unified_prompt_manager_qt.py` line ~2824: AI Assistant uses parent app's loader
+- `Supervertaler.py`: `load_api_keys()` method reads from user_data_path
+- Automatic normalization: if `google` is set, `gemini` is also populated (and vice versa)
 - All API key loading now unified through main app's method
 
 ---
 
 ## 🔄 Recent Development History
+
+### January 21, 2026 - Persistent User Data Location (v1.9.147)
+
+**📁 User Data Now Survives pip Upgrades**
+
+Major enhancement to store user data in a platform-specific persistent location outside the pip package directory.
+
+**The Problem:**
+- pip installs wipe and replace the entire package directory on upgrade
+- User data (API keys, TMs, glossaries, prompts) was stored inside that directory
+- Every `pip install --upgrade supervertaler` wiped all user data
+- Multiple user reports of lost API keys, TMs, and glossaries after updates
+
+**The Solution:**
+User data is now stored in persistent platform-specific locations:
+
+| Platform | Location |
+|----------|----------|
+| **Windows** | `%LOCALAPPDATA%\MichaelBeijer\Supervertaler\` |
+| **macOS** | `~/Library/Application Support/Supervertaler/` |
+| **Linux** | `~/.local/share/Supervertaler/` (XDG_DATA_HOME) |
+| **Windows EXE** | `user_data\` next to executable (unchanged, portable) |
+| **Development** | `user_data\` or `user_data_private\` next to script |
+
+**Automatic Migration:**
+- `migrate_user_data_if_needed()` function runs on startup
+- Detects old data in site-packages and copies to new location
+- Leaves marker file in old location explaining where data went
+- Safe: copies (not moves) and only runs if needed
+
+**Implementation:**
+- Added `platformdirs>=4.0.0` dependency for cross-platform paths
+- Rewrote `get_user_data_path()` function with site-packages detection
+- Added migration function with safety checks
+
+**Files Modified:**
+- `Supervertaler.py` - `get_user_data_path()`, `migrate_user_data_if_needed()`, init section
+- `pyproject.toml` - Added platformdirs dependency
+- `CHANGELOG.md`, `README.md`, `docs/index.html`, `AGENTS.md` - Version updates
+
+---
 
 ### January 21, 2026 - Glossary Bug Fixes & Compare Panel Enhancement (v1.9.141-145)
 
@@ -3671,4 +3727,4 @@ An intelligent proofreading system that uses LLMs to verify translation quality.
 ---
 
 *This file replaces the previous CLAUDE.md and PROJECT_CONTEXT.md files.*
-*Last updated: January 21, 2026 - v1.9.146*
+*Last updated: January 21, 2026 - v1.9.147*

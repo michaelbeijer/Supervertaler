@@ -1,4 +1,4 @@
-# 🚀 Supervertaler v1.9.146
+# 🚀 Supervertaler v1.9.147
 
 [![PyPI version](https://badge.fury.io/py/supervertaler.svg)](https://pypi.org/project/Supervertaler/)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
@@ -6,7 +6,20 @@
 
 AI-enhanced CAT tool with multi-LLM support (GPT-4, Claude, Gemini, Ollama), innovative Superlookup concordance system offering access to multiple terminology sources (TMs, glossaries, web resources, etc.), and seamless CAT tool integration (memoQ, Trados, CafeTran, Phrase).
 
-**Current Version:** v1.9.146 (January 21, 2026)
+**Current Version:** v1.9.147 (January 21, 2026)
+
+### NEW in v1.9.147 - 📁 Persistent User Data Location
+
+**No More Data Loss on Upgrade!** User data (API keys, TMs, glossaries, prompts, settings) is now stored in a persistent location that survives `pip install --upgrade`:
+
+| Platform | User Data Location |
+|----------|-------------------|
+| **Windows** | `%LOCALAPPDATA%\MichaelBeijer\Supervertaler\` |
+| **macOS** | `~/Library/Application Support/Supervertaler/` |
+| **Linux** | `~/.local/share/Supervertaler/` |
+| **Windows EXE** | `user_data\` next to executable (portable) |
+
+Existing data is automatically migrated on first run after upgrade.
 
 ### FIXED in v1.9.146 - 🔑 Gemini/Google API Key Alias
 
