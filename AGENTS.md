@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** January 20, 2026 | **Version:** v1.9.138
+> **Last Updated:** January 21, 2026 | **Version:** v1.9.145
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.130 (January 2026) |
+| **Version** | v1.9.145 (January 2026) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -749,6 +749,44 @@ deepl=...
 ---
 
 ## 🔄 Recent Development History
+
+### January 21, 2026 - Glossary Bug Fixes & Compare Panel Enhancement (v1.9.141-145)
+
+**🐛 Glossary/Termview Bug Fixes**
+
+Fixed chain of bugs related to glossary management after Alt+Down term addition:
+
+| Version | Issue | Fix |
+|---------|-------|-----|
+| **v1.9.141** | Termview goes blank after adding term ("list index out of range") | Fixed dict key mismatch: `source_term`→`source`, `target_term`→`translation` in `_refresh_termbase_display_for_current_segment()` |
+| **v1.9.142** | Edit glossary entry error ("on_cell_selected() missing 2 required positional arguments") | Simplified `_refresh_current_segment_matches()` to use `_refresh_termbase_display_for_current_segment()` instead of calling `on_cell_selected()` |
+| **v1.9.143** | Delete glossary entry error ("'DatabaseManager' object has no attribute 'get_connection'") | Changed to use `self.termbase_mgr.delete_term(term_id)` instead of non-existent database method |
+
+**Key Method - Data Structure:**
+- `find_termbase_matches_in_source()` returns dict with keys: `source`, `translation`, `termbase_name`, `priority`, etc.
+- NOT `source_term` / `target_term` as previously assumed
+
+**🎨 Compare Panel memoQ-Style Diff (v1.9.144-145)**
+
+Enhanced `_set_compare_panel_text_with_diff()` to show word-level differences like memoQ's "Track changes view":
+
+| Element | Style |
+|---------|-------|
+| **Deletions** | Red text (#CC0000) with strikethrough |
+| **Insertions** | Red text (#CC0000) with underline |
+| **Unchanged** | Normal text |
+
+**Implementation:**
+- Uses `difflib.SequenceMatcher` for word-level diffing
+- Words split by whitespace for readable diffs
+- Applied to both TM Source and TM Target compare boxes
+- Matches professional CAT tool behavior
+
+**Files Modified:**
+- `Supervertaler.py` - All bug fixes and Compare Panel enhancement
+- `CHANGELOG.md` - Added v1.9.141-145 entries
+
+---
 
 ### January 20, 2026 - Context Placeholders & Auto-Center Fix (v1.9.130)
 
@@ -3633,4 +3671,4 @@ An intelligent proofreading system that uses LLMs to verify translation quality.
 ---
 
 *This file replaces the previous CLAUDE.md and PROJECT_CONTEXT.md files.*
-*Last updated: January 14, 2026 - v1.9.104*
+*Last updated: January 21, 2026 - v1.9.145*
