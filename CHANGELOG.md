@@ -2,9 +2,9 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.148 (January 21, 2026)
+**Current Version:** v1.9.148-beta (January 21, 2026)
 
-## 📁 User-Choosable Data Folder Location (v1.9.148) - January 21, 2026
+## 📁 User-Choosable Data Folder Location (v1.9.148-beta) - January 21, 2026
 
 **Major Enhancement:** Users now choose where to store their data on first run!
 

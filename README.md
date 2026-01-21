@@ -1,4 +1,4 @@
-# 🚀 Supervertaler v1.9.148
+# 🚀 Supervertaler v1.9.148-beta
 
 [![PyPI version](https://badge.fury.io/py/supervertaler.svg)](https://pypi.org/project/Supervertaler/)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
@@ -6,9 +6,9 @@
 
 AI-enhanced CAT tool with multi-LLM support (GPT-4, Claude, Gemini, Ollama), innovative Superlookup concordance system offering access to multiple terminology sources (TMs, glossaries, web resources, etc.), and seamless CAT tool integration (memoQ, Trados, CafeTran, Phrase).
 
-**Current Version:** v1.9.148 (January 21, 2026)
+**Current Version:** v1.9.148-beta (January 21, 2026)
 
-### NEW in v1.9.148 - 📁 User-Choosable Data Folder
+### NEW in v1.9.148-beta - 📁 User-Choosable Data Folder
 
 **Your Data, Your Location!** On first run, you choose where to store your data (API keys, TMs, glossaries, prompts). Default is a visible folder in your home directory:
 
