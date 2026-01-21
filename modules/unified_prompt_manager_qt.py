@@ -544,8 +544,8 @@ class UnifiedPromptManagerQt:
         self.log = parent_app.log if hasattr(parent_app, 'log') else print
         
         # Paths
-        self.prompt_library_dir = self.user_data_path / "Prompt_Library"
-        # Use Prompt_Library directly, not Prompt_Library/Library
+        self.prompt_library_dir = self.user_data_path / "prompt_library"
+        # Use prompt_library directly, not prompt_library/Library
         self.unified_library_dir = self.prompt_library_dir
 
         # Run migration if needed
@@ -579,7 +579,7 @@ class UnifiedPromptManagerQt:
         self._cached_document_markdown: Optional[str] = None  # Cached markdown conversion of current document
 
         # Initialize Attachment Manager
-        ai_assistant_dir = self.user_data_path / "AI_Assistant"
+        ai_assistant_dir = self.user_data_path / "ai_assistant"
         self.attachment_manager = AttachmentManager(
             base_dir=str(ai_assistant_dir),
             log_callback=self.log_message
@@ -3548,7 +3548,7 @@ Output complete ACTION."""
         """
         Save the markdown conversion of the current document.
 
-        Saves to: user_data_private/AI_Assistant/current_document/
+        Saves to: user_data_private/ai_assistant/current_document/
 
         Args:
             original_path: Original document file path
@@ -3556,7 +3556,7 @@ Output complete ACTION."""
         """
         try:
             # Create directory for current document markdown
-            doc_dir = self.user_data_path / "AI_Assistant" / "current_document"
+            doc_dir = self.user_data_path / "ai_assistant" / "current_document"
             doc_dir.mkdir(parents=True, exist_ok=True)
 
             # Create filename based on original

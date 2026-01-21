@@ -1,0 +1,5 @@
+2026/01/12-03:10:20.474 9cac Reusing MANIFEST C:\Dev\Supervertaler\user_data\web_cache\WebStorage\8\IndexedDB\indexeddb.leveldb/MANIFEST-000001
+2026/01/12-03:10:20.479 9cac Recovering log #20
+2026/01/12-03:10:20.480 9cac Reusing old log C:\Dev\Supervertaler\user_data\web_cache\WebStorage\8\IndexedDB\indexeddb.leveldb/000020.log 
+2026/01/12-03:10:21.487 2b1c Manual compaction at level-0 from '\x00\x0f\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x10\x00\x00\x00' @ 0 : 0; will stop at (end)
+2026/01/12-03:10:22.349 2b1c Manual compaction at level-0 from '\x00\x10\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x11\x00\x00\x00' @ 0 : 0; will stop at (end)

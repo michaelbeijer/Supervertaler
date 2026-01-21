@@ -35,14 +35,14 @@ class ConfigManager:
     REQUIRED_FOLDERS = [
         # Note: Old numbered folders (1_System_Prompts, 2_Domain_Prompts, etc.) are deprecated
         # Migration moves them to unified Library structure
-        "Prompt_Library/Domain Expertise",
-        "Prompt_Library/Project Prompts",
-        "Prompt_Library/Style Guides",
-        "Translation_Resources/Termbases",
-        "Translation_Resources/TMs",
-        "Translation_Resources/Non-translatables",
-        "Translation_Resources/Segmentation_rules",
-        "Projects",
+        "prompt_library/domain_expertise",
+        "prompt_library/project_prompts",
+        "prompt_library/style_guides",
+        "resources/termbases",
+        "resources/tms",
+        "resources/non_translatables",
+        "resources/segmentation_rules",
+        "projects",
     ]
     
     def __init__(self):
@@ -268,8 +268,8 @@ class ConfigManager:
         Get the full path to a subfolder in user_data.
         
         Example:
-            config.get_subfolder_path('Translation_Resources/TMs')
-            -> '/home/user/Supervertaler_Data/Translation_Resources/TMs'
+            config.get_subfolder_path('resources/tms')
+            -> '/home/user/Supervertaler/resources/tms'
         """
         user_data_path = self.get_user_data_path()
         full_path = os.path.join(user_data_path, subfolder)

@@ -172,7 +172,7 @@ class NonTranslatablesManager:
         Initialize manager.
         
         Args:
-            base_path: Base path for NT files (typically user_data/Translation_Resources/Non-translatables)
+            base_path: Base path for NT files (typically user_data/resources/non_translatables)
             log_callback: Optional logging function
         """
         self.base_path = Path(base_path)

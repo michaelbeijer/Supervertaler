@@ -2,9 +2,53 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.147 (January 21, 2026)
+**Current Version:** v1.9.148 (January 21, 2026)
+
+## 📁 User-Choosable Data Folder Location (v1.9.148) - January 21, 2026
+
+**Major Enhancement:** Users now choose where to store their data on first run!
+
+**What Changed (from v1.9.147):**
+- v1.9.147 stored data in hidden AppData folders - users couldn't easily find/backup their data
+- v1.9.148 uses visible, accessible locations that users control
+
+**The New System:**
+
+| Platform | Default Location |
+|----------|------------------|
+| **Windows** | `C:\Users\Username\Supervertaler\` |
+| **macOS** | `~/Supervertaler/` |
+| **Linux** | `~/Supervertaler/` |
+
+**Key Features:**
+- **First-run dialog** lets users choose their data folder location
+- **Default is visible** in home folder - easy to find and backup
+- **Settings → General** includes "Change..." button to relocate data anytime
+- **Auto-recovery** if config pointer is deleted but data exists at default location
+- **Unified system** - ALL users (pip, EXE, dev) use the same approach
+
+**How It Works:**
+1. On first run, a dialog asks where to store data
+2. User choice is saved to a small config pointer file:
+   - Windows: `%APPDATA%\Supervertaler\config.json`
+   - macOS: `~/Library/Application Support/Supervertaler/config.json`
+   - Linux: `~/.config/Supervertaler/config.json`
+3. This pointer just contains: `{"user_data_path": "C:\\Users\\John\\Supervertaler"}`
+4. If pointer is deleted, app auto-recovers by checking the default location
+
+**Benefits:**
+- ✅ Data is visible and easy to find
+- ✅ Easy to backup (just copy the folder)
+- ✅ User has full control over location
+- ✅ Can use cloud folders (OneDrive, Dropbox, etc.)
+- ✅ Survives pip upgrades
+- ✅ Works identically for all installation types
+
+---
 
 ## 📁 Persistent User Data Location (v1.9.147) - January 21, 2026
+
+*Note: v1.9.148 improves on this by using visible locations and adding user choice.*
 
 **Major Enhancement:** User data (API keys, TMs, glossaries, prompts, settings) now persists across pip upgrades!
 
@@ -12,36 +56,6 @@ All notable changes to Supervertaler are documented in this file.
 - When users ran `pip install --upgrade supervertaler`, their data was wiped
 - This happened because user_data/ was stored inside the pip package directory
 - pip replaces the entire package directory on upgrade, deleting all user files
-- Users reported losing API keys, TMs, glossaries, and prompts after every update
-
-**The Solution:**
-User data is now stored in a **platform-specific persistent location** that lives OUTSIDE the pip package:
-
-| Platform | Location |
-|----------|----------|
-| **Windows** | `%LOCALAPPDATA%\MichaelBeijer\Supervertaler\` (e.g., `C:\Users\John\AppData\Local\MichaelBeijer\Supervertaler\`) |
-| **macOS** | `~/Library/Application Support/Supervertaler/` |
-| **Linux** | `~/.local/share/Supervertaler/` (follows XDG spec) |
-| **Windows EXE** | `user_data/` folder next to the executable (portable mode) |
-| **Development** | `user_data/` or `user_data_private/` next to the script |
-
-**Automatic Migration:**
-- On first run after upgrade, existing data is automatically migrated from the old location
-- A marker file is left in the old location explaining where data went
-- No user action required - just upgrade and everything moves automatically
-
-**What This Means for Users:**
-- ✅ API keys persist across pip upgrades
-- ✅ Translation Memories are preserved
-- ✅ Glossaries (termbases) are preserved
-- ✅ Custom prompts are preserved
-- ✅ All settings are preserved
-- ✅ Windows EXE users unaffected (already portable)
-
-**Technical Details:**
-- Uses `platformdirs` library for cross-platform path handling
-- Added `migrate_user_data_if_needed()` function for one-time migration
-- Migration is safe: copies (not moves) and only runs if old location has content
 
 ---
 

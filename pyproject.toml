@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "supervertaler"
-version = "1.9.147"
+version = "1.9.148"
 description = "Professional AI-powered translation workbench with multi-LLM support, glossary system, TM, spellcheck, voice commands, and PyQt6 interface. Batteries included (core)."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -91,9 +91,6 @@ dependencies = [
     
     # Basic Spellchecking (lightweight, works offline)
     "pyspellchecker>=0.7.0",
-
-    # Cross-platform user data directory handling
-    "platformdirs>=4.0.0",
 
     # Voice dictation/commands
     "sounddevice>=0.4.6",

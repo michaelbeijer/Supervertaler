@@ -1205,9 +1205,9 @@ Michael Beijer, a professional translator, created Supervertaler to:
 - **Google Gemini:** Check current API terms for data retention
 
 **Local Storage:**
-- Projects: `user_data/Projects/`
-- TMs: `user_data/tm/`
-- Termbases: `user_data/termbases/`
+- Projects: `user_data/projects/`
+- TMs: `user_data/resources/`
+- Termbases: `user_data/resources/`
 - All data remains on your machine
 
 **No Telemetry:**

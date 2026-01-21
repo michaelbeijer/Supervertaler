@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** January 21, 2026 | **Version:** v1.9.147
+> **Last Updated:** January 21, 2026 | **Version:** v1.9.148
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.147 (January 2026) |
+| **Version** | v1.9.148 (January 2026) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -721,15 +721,15 @@ pytest tests/
 
 API keys are stored in the persistent user data location (see Installation section).
 
-**User Data Locations (v1.9.147+):**
+**User Data Locations (v1.9.148+):**
 
-| Platform | API Keys File Location |
-|----------|------------------------|
-| **Windows (pip)** | `%LOCALAPPDATA%\MichaelBeijer\Supervertaler\api_keys.txt` |
-| **macOS (pip)** | `~/Library/Application Support/Supervertaler/api_keys.txt` |
-| **Linux (pip)** | `~/.local/share/Supervertaler/api_keys.txt` |
-| **Windows EXE** | `user_data\api_keys.txt` (next to executable) |
-| **Development** | `user_data_private\api_keys.txt` (git-ignored) |
+| Platform | Default Data Folder | API Keys File |
+|----------|---------------------|---------------|
+| **All Users (default)** | `~/Supervertaler/` | `~/Supervertaler/api_keys.txt` |
+| **Windows (default)** | `C:\Users\Username\Supervertaler\` | `...\Supervertaler\api_keys.txt` |
+| **Development** | `user_data_private\` (git-ignored) | `user_data_private\api_keys.txt` |
+
+**Note:** Users can choose their own data folder location on first run or via Settings → General → Data Folder Location.
 
 **For Developers (running from source):**
 - Store keys in: `user_data_private/api_keys.txt`
@@ -737,13 +737,14 @@ API keys are stored in the persistent user data location (see Installation secti
 - All features (translation, AI Assistant, tests) will find keys here
 
 **For End Users (pip install):**
-- Store keys in the platform-specific location shown above
+- On first run, choose where to store your data (default: `~/Supervertaler/`)
+- Store API keys in: `[your-data-folder]/api_keys.txt`
 - The app prints the exact path on startup: `[Data Paths] User data: ...`
-- Keys now persist across pip upgrades!
+- Keys persist across pip upgrades!
 
 **For Windows EXE Users:**
-- Store keys in: `user_data\api_keys.txt` (same folder as Supervertaler.exe)
-- Portable: copy the entire folder to keep all your data
+- Same as pip users - choose your data folder on first run
+- Default is visible in your home folder: `C:\Users\Username\Supervertaler\`
 
 **Format:**
 ```
@@ -765,6 +766,55 @@ deepl=...
 
 ## 🔄 Recent Development History
 
+### January 21, 2026 - User-Choosable Data Folder (v1.9.148)
+
+**📁 Your Data, Your Location**
+
+Complete redesign of user data storage to give users full control over where their data lives.
+
+**What Changed from v1.9.147:**
+- v1.9.147 stored data in hidden system folders (AppData)
+- v1.9.148 uses a visible folder in your home directory by default
+- Users can now choose their own location on first run
+
+**Default Data Locations:**
+
+| Platform | Default Location |
+|----------|-----------------|
+| **Windows** | `C:\Users\Username\Supervertaler\` |
+| **macOS** | `~/Supervertaler/` |
+| **Linux** | `~/Supervertaler/` |
+
+**Key Features:**
+- **First-Run Dialog**: Choose your data folder when you first launch
+- **Settings Integration**: Change location anytime via Settings → General → "📁 Data Folder Location"
+- **Auto-Recovery**: If config pointer is deleted, app recovers by checking default location
+- **Unified System**: Same behavior for pip users, EXE users, and developers
+
+**How It Works:**
+- Config pointer file stores your chosen path (in standard config location)
+- Data stored in visible, easily-accessible folder
+- Easy to backup - just copy the folder!
+
+**Config Pointer Locations:**
+- Windows: `%APPDATA%\Supervertaler\config.json`
+- macOS: `~/Library/Application Support/Supervertaler/config.json`
+- Linux: `~/.config/Supervertaler/config.json`
+
+**Implementation:**
+- Removed `platformdirs` dependency (no longer needed)
+- New functions: `get_config_pointer_path()`, `get_default_user_data_path()`, `save_user_data_path()`, `load_user_data_path_from_config()`
+- Rewrote `get_user_data_path()` with unified resolution logic
+- Added `_show_data_location_dialog()` for first-run folder picker
+- Added `_reinitialize_with_new_data_path()` for runtime location changes
+
+**Files Modified:**
+- `Supervertaler.py` - New data path system, first-run dialog, Settings integration
+- `pyproject.toml` - Removed platformdirs dependency
+- `CHANGELOG.md`, `README.md`, `docs/index.html`, `AGENTS.md` - Version updates
+
+---
+
 ### January 21, 2026 - Persistent User Data Location (v1.9.147)
 
 **📁 User Data Now Survives pip Upgrades**
@@ -777,22 +827,8 @@ Major enhancement to store user data in a platform-specific persistent location 
 - Every `pip install --upgrade supervertaler` wiped all user data
 - Multiple user reports of lost API keys, TMs, and glossaries after updates
 
-**The Solution:**
-User data is now stored in persistent platform-specific locations:
-
-| Platform | Location |
-|----------|----------|
-| **Windows** | `%LOCALAPPDATA%\MichaelBeijer\Supervertaler\` |
-| **macOS** | `~/Library/Application Support/Supervertaler/` |
-| **Linux** | `~/.local/share/Supervertaler/` (XDG_DATA_HOME) |
-| **Windows EXE** | `user_data\` next to executable (unchanged, portable) |
-| **Development** | `user_data\` or `user_data_private\` next to script |
-
-**Automatic Migration:**
-- `migrate_user_data_if_needed()` function runs on startup
-- Detects old data in site-packages and copies to new location
-- Leaves marker file in old location explaining where data went
-- Safe: copies (not moves) and only runs if needed
+**The Solution (v1.9.147):**
+User data stored in platform-specific hidden locations. Note: This was superseded by v1.9.148 which uses visible user-choosable locations instead.
 
 **Implementation:**
 - Added `platformdirs>=4.0.0` dependency for cross-platform paths
@@ -3727,4 +3763,4 @@ An intelligent proofreading system that uses LLMs to verify translation quality.
 ---
 
 *This file replaces the previous CLAUDE.md and PROJECT_CONTEXT.md files.*
-*Last updated: January 21, 2026 - v1.9.147*
+*Last updated: January 21, 2026 - v1.9.148*

@@ -45,11 +45,12 @@ def _clear_corrupted_cache(storage_path: str):
 class ChatColumn(QWidget):
     """A column containing a chat interface with web browser"""
 
-    def __init__(self, title, url, header_color, parent=None):
+    def __init__(self, title, url, header_color, parent=None, user_data_path=None):
         super().__init__(parent)
         self.title = title
         self.url = url
         self.header_color = header_color
+        self.user_data_path = user_data_path  # Store user data path
         self.init_ui()
 
     def init_ui(self):
@@ -102,12 +103,14 @@ class ChatColumn(QWidget):
         profile_name = f"superbrowser_{self.title.lower()}"
         self.profile = QWebEngineProfile(profile_name, self)
         
-        # Set persistent storage path (use same pattern as main app)
-        # Check if running in dev mode (private data folder)
-        dev_mode_marker = os.path.join(os.path.dirname(__file__), "..", ".supervertaler.local")
-        base_folder = "user_data_private" if os.path.exists(dev_mode_marker) else "user_data"
-        
-        storage_path = os.path.join(os.path.dirname(__file__), "..", base_folder, "superbrowser_profiles", profile_name)
+        # Set persistent storage path using user_data_path from parent
+        if self.user_data_path:
+            storage_path = os.path.join(str(self.user_data_path), "superbrowser_profiles", profile_name)
+        else:
+            # Fallback to script directory if user_data_path not provided
+            dev_mode_marker = os.path.join(os.path.dirname(__file__), "..", ".supervertaler.local")
+            base_folder = "user_data_private" if os.path.exists(dev_mode_marker) else "user_data"
+            storage_path = os.path.join(os.path.dirname(__file__), "..", base_folder, "superbrowser_profiles", profile_name)
         os.makedirs(storage_path, exist_ok=True)
         
         # Clear potentially corrupted cache to prevent Chromium errors
@@ -166,9 +169,10 @@ class SuperbrowserWidget(QWidget):
     and concurrent interaction with different AI models.
     """
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, user_data_path=None):
         super().__init__(parent)
         self.parent_window = parent
+        self.user_data_path = user_data_path  # Store user data path for profiles
         
         # Default URLs for AI chat interfaces
         self.chatgpt_url = "https://chatgpt.com/"
@@ -257,10 +261,10 @@ class SuperbrowserWidget(QWidget):
         splitter = QSplitter(Qt.Orientation.Horizontal)
         splitter.setHandleWidth(3)
 
-        # Create chat columns
-        self.chatgpt_column = ChatColumn("ChatGPT", self.chatgpt_url, "#10a37f", self)
-        self.claude_column = ChatColumn("Claude", self.claude_url, "#c17c4f", self)
-        self.gemini_column = ChatColumn("Gemini", self.gemini_url, "#4285f4", self)
+        # Create chat columns - pass user_data_path for profile storage
+        self.chatgpt_column = ChatColumn("ChatGPT", self.chatgpt_url, "#10a37f", self, user_data_path=self.user_data_path)
+        self.claude_column = ChatColumn("Claude", self.claude_url, "#c17c4f", self, user_data_path=self.user_data_path)
+        self.gemini_column = ChatColumn("Gemini", self.gemini_url, "#4285f4", self, user_data_path=self.user_data_path)
 
         # Add columns to splitter
         splitter.addWidget(self.chatgpt_column)

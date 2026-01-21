@@ -1,0 +1,6 @@
+2026/01/15-23:52:05.305 1ec Creating DB C:\Dev\Supervertaler\user_data\web_cache\WebStorage\27\IndexedDB\indexeddb.leveldb since it was missing.
+2026/01/15-23:52:05.318 1ec Reusing MANIFEST C:\Dev\Supervertaler\user_data\web_cache\WebStorage\27\IndexedDB\indexeddb.leveldb/MANIFEST-000001
+2026/01/15-23:52:14.437 1ec Level-0 table #5: started
+2026/01/15-23:52:14.444 1ec Level-0 table #5: 460 bytes OK
+2026/01/15-23:52:14.447 1ec Delete type=0 #3
+2026/01/15-23:52:14.449 1ec Manual compaction at level-0 from (begin) .. (end); will stop at (end)

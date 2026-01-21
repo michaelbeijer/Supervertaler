@@ -35,7 +35,7 @@ else:
     print(f"No dictionaries at {dict_path}")
 
 # Check prompts
-prompts_path = user_path / 'Prompt_Library'
+prompts_path = user_path / 'prompt_library'
 if prompts_path.exists():
     prompts = list(prompts_path.rglob('*.svprompt'))
     print(f"Prompts: {len(prompts)} found")

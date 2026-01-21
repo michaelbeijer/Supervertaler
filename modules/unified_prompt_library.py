@@ -30,7 +30,7 @@ class UnifiedPromptLibrary:
         Initialize the Unified Prompt Library.
         
         Args:
-            library_dir: Path to unified library directory (user_data/Prompt_Library/Library)
+            library_dir: Path to unified library directory (user_data/prompt_library)
             log_callback: Function to call for logging messages
         """
         self.library_dir = Path(library_dir) if library_dir else None

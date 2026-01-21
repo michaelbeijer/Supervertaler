@@ -8,8 +8,8 @@ import sqlite3
 from pathlib import Path
 
 # Update both databases
-for db_path in ['user_data/Translation_Resources/supervertaler.db',
-                'user_data_private/Translation_Resources/supervertaler.db']:
+for db_path in ['user_data/resources/supervertaler.db',
+                'user_data_private/resources/supervertaler.db']:
     if not Path(db_path).exists():
         print(f"❌ {db_path} does not exist - skipping")
         continue

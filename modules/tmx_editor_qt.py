@@ -2655,7 +2655,7 @@ if __name__ == "__main__":
         os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".supervertaler.local")
     )
     user_data_path = Path("user_data_private" if ENABLE_PRIVATE_FEATURES else "user_data")
-    db_path = user_data_path / "Translation_Resources" / "supervertaler.db"
+    db_path = user_data_path / "resources" / "supervertaler.db"
     
     # Ensure database directory exists
     db_path.parent.mkdir(parents=True, exist_ok=True)

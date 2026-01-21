@@ -34,9 +34,9 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.147"
+__version__ = "1.9.148"
 __phase__ = "0.9"
-__release_date__ = "2026-01-20"
+__release_date__ = "2026-01-21"
 __edition__ = "Qt"
 
 import sys
@@ -61,161 +61,148 @@ def get_resource_path(relative_path: str) -> Path:
     return base_path / relative_path
 
 
+def get_config_pointer_path() -> Path:
+    """
+    Get path to the config pointer file that stores the user's chosen data location.
+    
+    This is stored in a standard config location:
+    - Windows: %APPDATA%/Supervertaler/config.json
+    - macOS:   ~/Library/Application Support/Supervertaler/config.json
+    - Linux:   ~/.config/Supervertaler/config.json
+    
+    This small file just contains a pointer to where the real data lives.
+    """
+    if sys.platform == 'win32':
+        # Windows: %APPDATA% (Roaming, syncs across machines on domain)
+        appdata = os.environ.get('APPDATA', os.path.expanduser('~'))
+        return Path(appdata) / "Supervertaler" / "config.json"
+    elif sys.platform == 'darwin':
+        # macOS: ~/Library/Application Support/
+        return Path.home() / "Library" / "Application Support" / "Supervertaler" / "config.json"
+    else:
+        # Linux/BSD: ~/.config/ (XDG_CONFIG_HOME)
+        xdg_config = os.environ.get('XDG_CONFIG_HOME', os.path.expanduser('~/.config'))
+        return Path(xdg_config) / "Supervertaler" / "config.json"
+
+
+def get_default_user_data_path() -> Path:
+    """
+    Get the DEFAULT user data path (visible in home folder).
+    
+    - Windows: C:/Users/Username/Supervertaler/
+    - macOS:   ~/Supervertaler/
+    - Linux:   ~/Supervertaler/
+    
+    This is intentionally a visible, easily-accessible location.
+    """
+    return Path.home() / "Supervertaler"
+
+
+def save_user_data_path(path: Path) -> None:
+    """Save the user's chosen data path to the config pointer file."""
+    pointer_path = get_config_pointer_path()
+    pointer_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    config = {"user_data_path": str(path)}
+    with open(pointer_path, 'w', encoding='utf-8') as f:
+        json.dump(config, f, indent=2)
+
+
+def load_user_data_path_from_config() -> Optional[Path]:
+    """
+    Load the user's chosen data path from config pointer file.
+    Returns None if no config exists or path is invalid.
+    """
+    pointer_path = get_config_pointer_path()
+    
+    if not pointer_path.exists():
+        return None
+    
+    try:
+        with open(pointer_path, 'r', encoding='utf-8') as f:
+            config = json.load(f)
+        
+        path_str = config.get('user_data_path')
+        if path_str:
+            return Path(path_str)
+    except (json.JSONDecodeError, OSError):
+        pass
+    
+    return None
+
+
 def get_user_data_path() -> Path:
     """
     Get the path to user data directory.
     
-    This function returns a PERSISTENT location for user data that survives
-    pip upgrades and reinstalls. The location varies by context:
+    Resolution order:
+    1. Check config pointer file for user's saved preference
+    2. If pointer missing, check if default location has data (auto-recover)
+    3. If nothing found, return default (first-run dialog will be shown later)
     
-    1. FROZEN BUILDS (Windows EXE): 'user_data' folder next to the EXE
-       - This allows the EXE to be portable (copy folder = copy everything)
-       - Path: C:/SomeFolder/Supervertaler/user_data/
+    All users (EXE, pip, dev) use the same unified system:
+    - Default: ~/Supervertaler/ (visible in home folder)
+    - User can choose custom location on first run
+    - Config pointer remembers their choice
     
-    2. PIP INSTALLS: Platform-specific user data directory
-       - Windows: %LOCALAPPDATA%/Supervertaler/ (e.g., C:/Users/John/AppData/Local/Supervertaler/)
-       - macOS:   ~/Library/Application Support/Supervertaler/
-       - Linux:   ~/.local/share/Supervertaler/ (XDG_DATA_HOME)
-       - This location persists across pip upgrades!
-    
-    3. DEVELOPMENT MODE: 'user_data' or 'user_data_private' next to script
-       - Developers can use ENABLE_PRIVATE_FEATURES to use user_data_private/
-    
-    The key insight: pip installs wipe site-packages on upgrade, so we MUST
-    store user data outside the package directory for pip users.
+    This ensures data survives pip upgrades, EXE updates, and is easy to find/backup.
     """
-    if getattr(sys, 'frozen', False):
-        # =====================================================================
-        # FROZEN BUILD (EXE): Keep data next to executable for portability
-        # =====================================================================
-        # Users can copy the entire folder to a USB drive and it works.
-        # The build script copies user_data/ next to Supervertaler.exe
-        return Path(sys.executable).parent / "user_data"
+    # 1. Check if user has a saved preference
+    saved_path = load_user_data_path_from_config()
+    if saved_path and saved_path.exists():
+        return saved_path
     
-    # Check if we're running from site-packages (pip install)
-    script_path = Path(__file__).resolve()
-    is_pip_install = "site-packages" in str(script_path)
-    
-    if is_pip_install:
-        # =================================================================
-        # PIP INSTALL: Use platform-specific persistent location
-        # =================================================================
-        # This survives pip upgrades because it's OUTSIDE site-packages!
+    # 2. Check if default location has data (auto-recovery if pointer deleted)
+    default_path = get_default_user_data_path()
+    if default_path.exists():
+        # Check if it has actual content
+        has_content = False
         try:
-            from platformdirs import user_data_dir
-            return Path(user_data_dir("Supervertaler", "MichaelBeijer"))
-        except ImportError:
-            # Fallback if platformdirs not available (shouldn't happen)
-            if sys.platform == 'win32':
-                base = Path(os.environ.get('LOCALAPPDATA', os.path.expanduser('~')))
-                return base / "Supervertaler"
-            elif sys.platform == 'darwin':
-                return Path.home() / "Library" / "Application Support" / "Supervertaler"
-            else:
-                # Linux/BSD - follow XDG spec
-                xdg_data = os.environ.get('XDG_DATA_HOME', os.path.expanduser('~/.local/share'))
-                return Path(xdg_data) / "Supervertaler"
-    else:
-        # =================================================================
-        # DEVELOPMENT MODE: Use folder next to script
-        # =================================================================
-        return Path(__file__).parent / "user_data"
+            for item in default_path.iterdir():
+                if item.is_file() or (item.is_dir() and any(item.iterdir())):
+                    has_content = True
+                    break
+        except OSError:
+            pass
+        
+        if has_content:
+            # Auto-recover: recreate the pointer file
+            save_user_data_path(default_path)
+            print(f"[Data Paths] Auto-recovered config pointer to: {default_path}")
+            return default_path
+    
+    # 3. Return default path (first-run dialog will be shown by MainWindow)
+    # Don't create folder yet - let the dialog handle that
+    return default_path
 
 
-def migrate_user_data_if_needed(new_path: Path) -> bool:
+def needs_first_run_data_dialog() -> bool:
     """
-    Migrate user data from old location (inside site-packages) to new location.
+    Check if we need to show the first-run data location dialog.
     
-    This handles the transition for existing pip users whose data was stored
-    inside the package directory (which gets wiped on upgrade).
+    Returns True if:
+    - No config pointer file exists, AND
+    - Default data location doesn't have existing content
     
-    Returns True if migration was performed, False otherwise.
+    This means it's truly a fresh install.
     """
-    import shutil
-    
-    # Only migrate for pip installs (frozen builds keep data next to EXE)
-    if getattr(sys, 'frozen', False):
+    # If config pointer exists, user has already chosen a location
+    pointer_path = get_config_pointer_path()
+    if pointer_path.exists():
         return False
     
-    # Check if we're in a pip install
-    script_path = Path(__file__).resolve()
-    if "site-packages" not in str(script_path):
-        return False  # Development mode, no migration needed
+    # If default location has content, we auto-recovered (no dialog needed)
+    default_path = get_default_user_data_path()
+    if default_path.exists():
+        try:
+            for item in default_path.iterdir():
+                if item.is_file() or (item.is_dir() and any(item.iterdir())):
+                    return False  # Has content, no dialog needed
+        except OSError:
+            pass
     
-    # Old location: user_data folder inside the package in site-packages
-    old_path = script_path.parent / "user_data"
-    
-    # If old location doesn't exist or is empty, no migration needed
-    if not old_path.exists():
-        return False
-    
-    # Check if old location has actual content (not just empty dirs)
-    old_has_content = False
-    for item in old_path.rglob('*'):
-        if item.is_file():
-            old_has_content = True
-            break
-    
-    if not old_has_content:
-        return False
-    
-    # If new location already has content, don't overwrite (user may have set up fresh)
-    new_has_content = False
-    if new_path.exists():
-        for item in new_path.rglob('*'):
-            if item.is_file():
-                new_has_content = True
-                break
-    
-    if new_has_content:
-        # Both have content - log but don't migrate (user may have set up manually)
-        print(f"[Migration] Both old and new data locations have content:")
-        print(f"  Old: {old_path}")
-        print(f"  New: {new_path}")
-        print(f"[Migration] Keeping new location. Old data preserved in site-packages.")
-        return False
-    
-    # Perform migration
-    print(f"[Migration] Migrating user data from old location...")
-    print(f"  From: {old_path}")
-    print(f"  To:   {new_path}")
-    
-    try:
-        # Ensure new path parent exists
-        new_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        # Copy entire directory tree (use copy, not move, for safety)
-        if new_path.exists():
-            # Merge into existing empty directory
-            for item in old_path.iterdir():
-                dest = new_path / item.name
-                if item.is_dir():
-                    shutil.copytree(item, dest, dirs_exist_ok=True)
-                else:
-                    shutil.copy2(item, dest)
-        else:
-            shutil.copytree(old_path, new_path)
-        
-        print(f"[Migration] ✅ Successfully migrated user data!")
-        print(f"[Migration] Your API keys, TMs, glossaries, and prompts are now in:")
-        print(f"  {new_path}")
-        
-        # Leave a marker file in the old location so users know what happened
-        marker = old_path / "_MIGRATED_TO_NEW_LOCATION.txt"
-        marker.write_text(
-            f"Your Supervertaler data has been migrated to a persistent location:\n"
-            f"{new_path}\n\n"
-            f"This location survives pip upgrades.\n"
-            f"You can safely delete this old folder.\n"
-            f"Migration date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
-        )
-        
-        return True
-        
-    except Exception as e:
-        print(f"[Migration] ⚠️ Error during migration: {e}")
-        print(f"[Migration] Your data is still in: {old_path}")
-        return False
+    # Truly a fresh install - need to show dialog
+    return True
 
 import threading
 import time  # For delays in Superlookup
@@ -5307,43 +5294,48 @@ class SupervertalerQt(QMainWindow):
         # ============================================================================
         # USER DATA PATH INITIALIZATION
         # ============================================================================
-        # User data is stored in a PERSISTENT location that survives pip upgrades:
-        # - Windows: %LOCALAPPDATA%\Supervertaler\
-        # - macOS:   ~/Library/Application Support/Supervertaler/
-        # - Linux:   ~/.local/share/Supervertaler/
-        # - EXE:     user_data/ folder next to executable (portable mode)
-        # - Dev:     user_data_private/ or user_data/ next to script
+        # ALL users (EXE, pip, dev) now use a unified system:
+        # - Default location: ~/Supervertaler/ (visible in home folder)
+        # - User can choose custom location on first run
+        # - Config pointer stores their choice at standard config location
+        # - Auto-recovery if pointer is deleted but data exists at default location
         from modules.database_manager import DatabaseManager
+        
+        # Check if this is first run BEFORE getting the path
+        # (so we know whether to show the data location dialog later)
+        self._needs_data_location_dialog = needs_first_run_data_dialog()
         
         if ENABLE_PRIVATE_FEATURES:
             # Developer mode: use private folder (git-ignored)
             self.user_data_path = Path(__file__).parent / "user_data_private"
+            self._needs_data_location_dialog = False  # Dev mode doesn't need dialog
         else:
-            # Normal mode: use the helper function (handles pip vs EXE vs dev)
+            # Normal mode: use unified system (same for pip, EXE, etc.)
             self.user_data_path = get_user_data_path()
         
-        # Migrate old data from site-packages to new persistent location (pip users)
-        # This is a one-time migration for users upgrading from older versions
-        migrate_user_data_if_needed(self.user_data_path)
-        
         # Ensure user_data directory exists (creates empty folder if missing)
-        self.user_data_path.mkdir(parents=True, exist_ok=True)
+        # BUT only if we're not going to show the dialog (which will create the chosen folder)
+        if not self._needs_data_location_dialog:
+            self.user_data_path.mkdir(parents=True, exist_ok=True)
         
         print(f"[Data Paths] User data: {self.user_data_path}")
         
         # Database Manager for Termbases
         self.db_manager = DatabaseManager(
-            db_path=str(self.user_data_path / "Translation_Resources" / "supervertaler.db"),
+            db_path=str(self.user_data_path / "resources" / "supervertaler.db"),
             log_callback=self.log
         )
-        self.db_manager.connect()
+        # Only connect if we're not showing the dialog (which will create the folder)
+        # If dialog is needed, we'll connect after user chooses location
+        if not self._needs_data_location_dialog:
+            self.db_manager.connect()
         
         # TM Database - Initialize early so Superlookup works without a project loaded
         from modules.translation_memory import TMDatabase
         self.tm_database = TMDatabase(
             source_lang=None,  # Will be set when project is loaded
             target_lang=None,  # Will be set when project is loaded
-            db_path=str(self.user_data_path / "Translation_Resources" / "supervertaler.db"),
+            db_path=str(self.user_data_path / "resources" / "supervertaler.db"),
             log_callback=self.log
         )
         
@@ -5460,10 +5452,183 @@ class SupervertalerQt(QMainWindow):
             from PyQt6.QtCore import QTimer
             QTimer.singleShot(2000, lambda: self._check_for_new_models(force=False))  # 2 second delay
         
-        # First-run check - show Features tab to new users
-        if not general_settings.get('first_run_completed', False):
+        # First-run check - show data location dialog, then Features tab
+        if self._needs_data_location_dialog:
+            from PyQt6.QtCore import QTimer
+            QTimer.singleShot(300, self._show_data_location_dialog)
+        elif not general_settings.get('first_run_completed', False):
             from PyQt6.QtCore import QTimer
             QTimer.singleShot(500, self._show_first_run_welcome)
+    
+    def _show_data_location_dialog(self):
+        """Show dialog to let user choose their data folder location on first run."""
+        try:
+            from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, 
+                                         QPushButton, QLineEdit, QFileDialog, QDialogButtonBox)
+            
+            dialog = QDialog(self)
+            dialog.setWindowTitle("Choose Data Folder Location")
+            dialog.setMinimumWidth(550)
+            dialog.setModal(True)
+            
+            layout = QVBoxLayout(dialog)
+            layout.setSpacing(15)
+            
+            # Title
+            title_label = QLabel("<h2>📁 Choose Your Data Folder</h2>")
+            layout.addWidget(title_label)
+            
+            # Explanation
+            msg_label = QLabel(
+                "Supervertaler stores your data in a folder of your choice, which contains things like:<br><br>"
+                "• API keys<br>"
+                "• Translation memories<br>"
+                "• Glossaries<br>"
+                "• Prompts<br>"
+                "• Settings<br><br>"
+                "Choose a location that's easy to find and backup.<br>"
+                "You can change this later in Settings → General."
+            )
+            msg_label.setWordWrap(True)
+            layout.addWidget(msg_label)
+            
+            # Path input with browse button
+            path_layout = QHBoxLayout()
+            
+            path_edit = QLineEdit()
+            default_path = get_default_user_data_path()
+            path_edit.setText(str(default_path))
+            path_edit.setMinimumWidth(350)
+            path_layout.addWidget(path_edit)
+            
+            browse_btn = QPushButton("Browse...")
+            def browse_folder():
+                folder = QFileDialog.getExistingDirectory(
+                    dialog, 
+                    "Choose Data Folder",
+                    str(Path.home())
+                )
+                if folder:
+                    # Append "Supervertaler" if user didn't include it
+                    folder_path = Path(folder)
+                    if folder_path.name != "Supervertaler":
+                        folder_path = folder_path / "Supervertaler"
+                    path_edit.setText(str(folder_path))
+            
+            browse_btn.clicked.connect(browse_folder)
+            path_layout.addWidget(browse_btn)
+            
+            layout.addLayout(path_layout)
+            
+            # Tip
+            tip_label = QLabel(
+                "💡 <b>Tip:</b> The default location is in your home folder, "
+                "making it easy to find and backup."
+            )
+            tip_label.setWordWrap(True)
+            tip_label.setStyleSheet("color: #666;")
+            layout.addWidget(tip_label)
+            
+            # Buttons
+            button_layout = QHBoxLayout()
+            
+            default_btn = QPushButton("Use Default")
+            default_btn.clicked.connect(lambda: path_edit.setText(str(default_path)))
+            button_layout.addWidget(default_btn)
+            
+            button_layout.addStretch()
+            
+            ok_btn = QPushButton("OK")
+            ok_btn.setDefault(True)
+            ok_btn.clicked.connect(dialog.accept)
+            button_layout.addWidget(ok_btn)
+            
+            layout.addLayout(button_layout)
+            
+            # Show dialog
+            if dialog.exec() == QDialog.DialogCode.Accepted:
+                chosen_path = Path(path_edit.text())
+                
+                # Create the folder
+                chosen_path.mkdir(parents=True, exist_ok=True)
+                
+                # Save the choice to config pointer
+                save_user_data_path(chosen_path)
+                
+                # Update our path if different from what we initialized with
+                if chosen_path != self.user_data_path:
+                    self.user_data_path = chosen_path
+                    # Re-initialize managers with new path
+                    self._reinitialize_with_new_data_path()
+                else:
+                    # Same path, but we still need to connect database (it was deferred)
+                    if hasattr(self, 'db_manager') and self.db_manager and not self.db_manager.connection:
+                        self.db_manager.connect()
+                
+                self.log(f"📁 Data folder set to: {chosen_path}")
+                
+                # Now show the features welcome dialog
+                from PyQt6.QtCore import QTimer
+                QTimer.singleShot(300, self._show_first_run_welcome)
+            else:
+                # User cancelled - use default anyway
+                default_path.mkdir(parents=True, exist_ok=True)
+                save_user_data_path(default_path)
+                self.log(f"📁 Using default data folder: {default_path}")
+                
+        except Exception as e:
+            self.log(f"⚠️ Data location dialog error: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    def _reinitialize_with_new_data_path(self):
+        """Re-initialize managers after user changes data path."""
+        try:
+            # Close existing database connection
+            if hasattr(self, 'db_manager') and self.db_manager:
+                self.db_manager.close()
+            
+            # Re-initialize database manager
+            from modules.database_manager import DatabaseManager
+            self.db_manager = DatabaseManager(
+                db_path=str(self.user_data_path / "resources" / "supervertaler.db"),
+                log_callback=self.log
+            )
+            self.db_manager.connect()
+            
+            # Re-initialize TM database
+            from modules.translation_memory import TMDatabase
+            self.tm_database = TMDatabase(
+                source_lang=None,
+                target_lang=None,
+                db_path=str(self.user_data_path / "resources" / "supervertaler.db"),
+                log_callback=self.log
+            )
+            
+            # Re-initialize TM metadata manager
+            from modules.tm_metadata_manager import TMMetadataManager
+            self.tm_metadata_mgr = TMMetadataManager(self.db_manager, self.log)
+            
+            # Update other managers
+            self.spellcheck_manager = get_spellcheck_manager(str(self.user_data_path))
+            self.fr_history = FindReplaceHistory(str(self.user_data_path))
+            self.shortcut_manager = ShortcutManager(Path(self.user_data_path) / "shortcuts.json")
+            self.voice_command_manager = VoiceCommandManager(self.user_data_path, main_window=self)
+            
+            # Update theme manager
+            from modules.theme_manager import ThemeManager
+            self.theme_manager = ThemeManager(self.user_data_path)
+            self.theme_manager.apply_theme(QApplication.instance())
+            
+            # Update recent projects file path
+            self.recent_projects_file = self.user_data_path / "recent_projects.json"
+            
+            self.log(f"✅ Re-initialized all managers with new data path")
+            
+        except Exception as e:
+            self.log(f"⚠️ Error re-initializing managers: {e}")
+            import traceback
+            traceback.print_exc()
     
     def _show_first_run_welcome(self):
         """Show welcome message and Features tab on first run."""
@@ -7112,7 +7277,7 @@ class SupervertalerQt(QMainWindow):
         layout.addWidget(desc)
         
         # Initialize NT manager
-        nt_path = self.user_data_path / "Translation_Resources" / "Non-translatables"
+        nt_path = self.user_data_path / "resources" / "non_translatables"
         nt_path.mkdir(parents=True, exist_ok=True)
         self.nt_manager = NonTranslatablesManager(str(nt_path), self.log)
         
@@ -8456,7 +8621,7 @@ class SupervertalerQt(QMainWindow):
         from modules.superbrowser import SuperbrowserWidget
 
         # Create and return the Superbrowser widget
-        superbrowser_widget = SuperbrowserWidget(parent=self)
+        superbrowser_widget = SuperbrowserWidget(parent=self, user_data_path=self.user_data_path)
 
         return superbrowser_widget
 
@@ -8743,7 +8908,7 @@ class SupervertalerQt(QMainWindow):
             
             # Create new Superlookup instance for detached window
             # Or move the existing one - better to create new to avoid widget parenting issues
-            detached_lookup = SuperlookupTab(self.lookup_detached_window)
+            detached_lookup = SuperlookupTab(self.lookup_detached_window, user_data_path=self.user_data_path)
             
             # Explicitly copy theme_manager reference
             detached_lookup.theme_manager = self.theme_manager
@@ -8880,7 +9045,7 @@ class SupervertalerQt(QMainWindow):
         # Superdocs removed (online GitBook will be used instead)
 
         print("[DEBUG] About to create SuperlookupTab...")
-        lookup_tab = SuperlookupTab(self)
+        lookup_tab = SuperlookupTab(self, user_data_path=self.user_data_path)
         print("[DEBUG] SuperlookupTab created successfully")
         self.lookup_tab = lookup_tab  # Store reference for later use
         modules_tabs.addTab(lookup_tab, "🔍 Superlookup")
@@ -10507,7 +10672,7 @@ class SupervertalerQt(QMainWindow):
                 if reply2 == QMessageBox.StandardButton.Yes and self.tm_database:
                     # Clear TM entries
                     import sqlite3
-                    db_path = self.user_data_path / "Translation_Resources" / "supervertaler.db"
+                    db_path = self.user_data_path / "resources" / "supervertaler.db"
                     conn = sqlite3.connect(str(db_path))
                     cursor = conn.cursor()
                     cursor.execute("DELETE FROM translation_units")
@@ -14408,7 +14573,7 @@ class SupervertalerQt(QMainWindow):
         auto_markdown_cb.setChecked(general_settings.get('auto_generate_markdown', False))
         auto_markdown_cb.setToolTip(
             "Automatically convert imported documents to markdown format\n"
-            "for AI Assistant access in user_data_private/AI_Assistant/current_document/"
+            "for AI Assistant access in user_data_private/ai_assistant/current_document/"
         )
         behavior_layout.addWidget(auto_markdown_cb)
         
@@ -14620,7 +14785,7 @@ class SupervertalerQt(QMainWindow):
     
     def _create_general_settings_tab(self):
         """Create General Settings tab content"""
-        from PyQt6.QtWidgets import QCheckBox, QGroupBox, QPushButton
+        from PyQt6.QtWidgets import QCheckBox, QGroupBox, QPushButton, QLineEdit, QFileDialog
         
         tab = QWidget()
         layout = QVBoxLayout(tab)
@@ -14649,6 +14814,119 @@ class SupervertalerQt(QMainWindow):
         
         startup_group.setLayout(startup_layout)
         layout.addWidget(startup_group)
+
+        # Data Folder Location group
+        data_folder_group = QGroupBox("📁 Data Folder Location")
+        data_folder_layout = QVBoxLayout()
+        
+        data_folder_info = QLabel(
+            "Your translation memories, glossaries, prompts, and settings are stored here:"
+        )
+        data_folder_info.setWordWrap(True)
+        data_folder_layout.addWidget(data_folder_info)
+        
+        # Path display with browse button
+        path_row = QHBoxLayout()
+        
+        data_path_edit = QLineEdit()
+        data_path_edit.setText(str(self.user_data_path))
+        data_path_edit.setReadOnly(True)
+        data_path_edit.setToolTip("Current data folder location")
+        path_row.addWidget(data_path_edit)
+        
+        change_path_btn = QPushButton("Change...")
+        change_path_btn.setToolTip("Choose a different location for your data folder")
+        
+        def change_data_path():
+            """Let user change their data folder location."""
+            from PyQt6.QtWidgets import QMessageBox
+            
+            folder = QFileDialog.getExistingDirectory(
+                self, 
+                "Choose New Data Folder Location",
+                str(Path.home())
+            )
+            if folder:
+                folder_path = Path(folder)
+                # Append "Supervertaler" if user didn't include it
+                if folder_path.name != "Supervertaler":
+                    folder_path = folder_path / "Supervertaler"
+                
+                # Warn if switching to a folder with existing data
+                if folder_path.exists() and folder_path != self.user_data_path:
+                    has_content = any(folder_path.iterdir())
+                    if has_content:
+                        reply = QMessageBox.question(
+                            self,
+                            "Existing Data Found",
+                            f"The folder already contains data:\n{folder_path}\n\n"
+                            "Do you want to use this existing data?",
+                            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel
+                        )
+                        if reply != QMessageBox.StandardButton.Yes:
+                            return
+                
+                # Create the folder
+                folder_path.mkdir(parents=True, exist_ok=True)
+                
+                # Ask if they want to copy existing data
+                if self.user_data_path.exists() and self.user_data_path != folder_path:
+                    reply = QMessageBox.question(
+                        self,
+                        "Copy Existing Data?",
+                        f"Would you like to copy your existing data to the new location?\n\n"
+                        f"From: {self.user_data_path}\n"
+                        f"To: {folder_path}\n\n"
+                        "This will NOT delete the original data.",
+                        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+                    )
+                    if reply == QMessageBox.StandardButton.Yes:
+                        import shutil
+                        try:
+                            for item in self.user_data_path.iterdir():
+                                dest = folder_path / item.name
+                                if item.is_dir():
+                                    shutil.copytree(item, dest, dirs_exist_ok=True)
+                                else:
+                                    shutil.copy2(item, dest)
+                            self.log(f"✅ Copied data to new location")
+                        except Exception as e:
+                            QMessageBox.warning(self, "Copy Error", f"Failed to copy data: {e}")
+                
+                # Save the new path
+                save_user_data_path(folder_path)
+                data_path_edit.setText(str(folder_path))
+                
+                # Update and reinitialize
+                self.user_data_path = folder_path
+                self._reinitialize_with_new_data_path()
+                
+                QMessageBox.information(
+                    self,
+                    "Data Folder Changed",
+                    f"Data folder changed to:\n{folder_path}\n\n"
+                    "All managers have been reinitialized."
+                )
+        
+        change_path_btn.clicked.connect(change_data_path)
+        path_row.addWidget(change_path_btn)
+        
+        open_folder_btn = QPushButton("Open")
+        open_folder_btn.setToolTip("Open this folder in your file manager")
+        open_folder_btn.clicked.connect(lambda: os.startfile(str(self.user_data_path)) if sys.platform == 'win32' 
+                                         else subprocess.run(['xdg-open' if sys.platform == 'linux' else 'open', str(self.user_data_path)]))
+        path_row.addWidget(open_folder_btn)
+        
+        data_folder_layout.addLayout(path_row)
+        
+        data_folder_tip = QLabel(
+            "💡 This folder persists across updates. Back it up regularly!"
+        )
+        data_folder_tip.setStyleSheet("color: #666; font-size: 9pt;")
+        data_folder_layout.addWidget(data_folder_tip)
+        
+        data_folder_group.setLayout(data_folder_layout)
+        layout.addWidget(data_folder_group)
 
         # Sound Effects group
         sound_group = QGroupBox("🔊 Sound Effects")
@@ -16685,7 +16963,7 @@ class SupervertalerQt(QMainWindow):
             prompt_text = self.prompt_manager_qt.get_system_template(mode_key)
         else:
             # Fallback: load from JSON file
-            system_prompts_file = self.user_data_path / "Prompt_Library" / "system_prompts_layer1.json"
+            system_prompts_file = self.user_data_path / "prompt_library" / "system_prompts_layer1.json"
             if system_prompts_file.exists():
                 import json
                 with open(system_prompts_file, 'r', encoding='utf-8') as f:
@@ -16714,7 +16992,7 @@ class SupervertalerQt(QMainWindow):
 
         # Always save to JSON file
         import json
-        system_prompts_file = self.user_data_path / "Prompt_Library" / "system_prompts_layer1.json"
+        system_prompts_file = self.user_data_path / "prompt_library" / "system_prompts_layer1.json"
         system_prompts_file.parent.mkdir(parents=True, exist_ok=True)
 
         # Load existing prompts
@@ -36760,7 +37038,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             file_path, _ = QFileDialog.getOpenFileName(
                 dialog,
                 "Select TMX File",
-                str(self.user_data_path / "Translation_Resources"),
+                str(self.user_data_path / "resources"),
                 "TMX Files (*.tmx);;All Files (*.*)"
             )
             if file_path:
@@ -41333,9 +41611,10 @@ class SuperlookupTab(QWidget):
     Works anywhere on your computer: in CAT tools, browsers, Word, any text box
     """
     
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, user_data_path=None):
         super().__init__(parent)
         self.main_window = parent  # Store reference to main window for database access
+        self.user_data_path = user_data_path  # Store user data path for web cache
         
         print("[Superlookup] SuperlookupTab.__init__ called")
         
@@ -42043,7 +42322,11 @@ class SuperlookupTab(QWidget):
             self.web_engine_available = True
             
             # Create persistent profile for login/cookie storage
-            storage_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'user_data', 'web_cache')
+            if self.user_data_path:
+                storage_path = os.path.join(str(self.user_data_path), 'web_cache')
+            else:
+                # Fallback to script directory if user_data_path not provided
+                storage_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'user_data', 'web_cache')
             os.makedirs(storage_path, exist_ok=True)
             self.web_profile = QWebEngineProfile("SuperlookupProfile", self)
             self.web_profile.setPersistentStoragePath(storage_path)

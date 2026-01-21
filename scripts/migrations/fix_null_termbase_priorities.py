@@ -7,7 +7,7 @@ This ensures all active termbases have a priority value (1, 2, 3, etc.) so the s
 import sqlite3
 import sys
 
-def fix_null_priorities(db_path='user_data_private/Translation_Resources/supervertaler.db'):
+def fix_null_priorities(db_path='user_data_private/resources/supervertaler.db'):
     """Set default priorities for termbase activations that have NULL priority"""
     try:
         conn = sqlite3.connect(db_path)
@@ -71,7 +71,7 @@ def fix_null_priorities(db_path='user_data_private/Translation_Resources/superve
         return False
 
 if __name__ == '__main__':
-    db_path = 'user_data_private/Translation_Resources/supervertaler.db'
+    db_path = 'user_data_private/resources/supervertaler.db'
     if len(sys.argv) > 1:
         db_path = sys.argv[1]
     

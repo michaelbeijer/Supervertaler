@@ -29,7 +29,7 @@ class PromptLibraryMigration:
     def __init__(self, prompt_library_dir: str, log_callback=None):
         """
         Args:
-            prompt_library_dir: Path to user_data/Prompt_Library
+            prompt_library_dir: Path to user_data/prompt_library
             log_callback: Function for logging
         """
         self.prompt_library_dir = Path(prompt_library_dir)
