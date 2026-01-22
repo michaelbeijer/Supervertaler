@@ -158,8 +158,8 @@ class SuperlookupEngine:
                 # Convert to LookupResult format (limit results)
                 for match in matches[:max_results]:
                     results.append(LookupResult(
-                        source=match.get('source', ''),
-                        target=match.get('target', ''),
+                        source=match.get('source_text', ''),
+                        target=match.get('target_text', ''),
                         match_percent=100,  # Concordance = contains the text
                         source_type='tm',
                         metadata={

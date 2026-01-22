@@ -1124,6 +1124,13 @@ class DatabaseManager:
         Uses FTS5 full-text search for fast matching on millions of segments.
         Falls back to LIKE queries if FTS5 fails.
         
+        LANGUAGE-AWARE SEARCH:
+        When source_lang and target_lang are specified, this performs intelligent column swapping:
+        - Searches for query text in BOTH source and target columns
+        - If found in source_lang column, returns as-is (source→target)
+        - If found in target_lang column, SWAPS columns (target→source)
+        - This allows searching for Dutch text in an EN→NL TM and getting English translation
+        
         Args:
             query: Text to search for
             tm_ids: List of TM IDs to search (None = all)
@@ -1140,6 +1147,10 @@ class DatabaseManager:
         fts_query = query.replace('"', '""')
         # Wrap in quotes for phrase search
         fts_query = f'"{fts_query}"'
+        
+        # LANGUAGE-AWARE SEARCH: When languages specified, search in BOTH columns
+        # and swap if needed. This allows finding Dutch text in EN→NL TM and getting English translation.
+        use_smart_language_search = (source_langs or target_langs) and direction == 'both'
         
         try:
             # Use FTS5 for fast full-text search
@@ -1171,20 +1182,60 @@ class DatabaseManager:
                 fts_sql += f" AND tu.tm_id IN ({placeholders})"
                 params.extend(tm_ids)
             
-            # Add language filters (support for list of variants)
-            if source_langs:
-                placeholders = ','.join('?' * len(source_langs))
-                fts_sql += f" AND tu.source_lang IN ({placeholders})"
-                params.extend(source_langs)
-            if target_langs:
-                placeholders = ','.join('?' * len(target_langs))
-                fts_sql += f" AND tu.target_lang IN ({placeholders})"
-                params.extend(target_langs)
+            # SMART LANGUAGE FILTERING: Only filter when NOT doing smart language search
+            # (smart search needs both columns to decide which to swap)
+            if not use_smart_language_search:
+                # Add language filters (support for list of variants)
+                if source_langs:
+                    placeholders = ','.join('?' * len(source_langs))
+                    fts_sql += f" AND tu.source_lang IN ({placeholders})"
+                    params.extend(source_langs)
+                if target_langs:
+                    placeholders = ','.join('?' * len(target_langs))
+                    fts_sql += f" AND tu.target_lang IN ({placeholders})"
+                    params.extend(target_langs)
             
             fts_sql += " ORDER BY tu.modified_date DESC LIMIT 100"
             
             self.cursor.execute(fts_sql, params)
-            return [dict(row) for row in self.cursor.fetchall()]
+            raw_results = [dict(row) for row in self.cursor.fetchall()]
+            
+            # SMART LANGUAGE SWAPPING: If language filters specified, swap columns when needed
+            if use_smart_language_search:
+                processed_results = []
+                for row in raw_results:
+                    # Check if we need to swap columns
+                    # If source_langs specified and row's source_lang matches -> keep as-is
+                    # If source_langs specified and row's target_lang matches -> SWAP
+                    should_swap = False
+                    
+                    if source_langs and target_langs:
+                        # Both filters specified - check if columns are reversed
+                        if row.get('source_lang') in target_langs and row.get('target_lang') in source_langs:
+                            should_swap = True
+                    elif source_langs:
+                        # Only source filter - swap if query lang is in target
+                        if row.get('target_lang') in source_langs:
+                            should_swap = True
+                    elif target_langs:
+                        # Only target filter - swap if query lang is in source
+                        if row.get('source_lang') in target_langs:
+                            should_swap = True
+                    
+                    if should_swap:
+                        # Create swapped version
+                        swapped_row = row.copy()
+                        swapped_row['source_text'] = row['target_text']
+                        swapped_row['target_text'] = row['source_text']
+                        swapped_row['source_lang'] = row['target_lang']
+                        swapped_row['target_lang'] = row['source_lang']
+                        processed_results.append(swapped_row)
+                    else:
+                        processed_results.append(row)
+                
+                return processed_results
+            else:
+                return raw_results
             
         except Exception as e:
             # Fallback to LIKE query if FTS5 fails (e.g., index not built)
