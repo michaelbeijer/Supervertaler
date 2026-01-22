@@ -401,7 +401,7 @@ class TMDatabase:
     
     def load_tmx_file(self, filepath: str, src_lang: str, tgt_lang: str, 
                       tm_name: str = None, read_only: bool = False, 
-                      strip_variants: bool = True) -> tuple[str, int]:
+                      strip_variants: bool = True, progress_callback=None) -> tuple[str, int]:
         """
         Load TMX file into a new custom TM
         
@@ -412,6 +412,7 @@ class TMDatabase:
             tm_name: Custom name for TM (default: filename)
             read_only: Make TM read-only
             strip_variants: Match base languages ignoring regional variants (default: True)
+            progress_callback: Optional callback function(current, total, message) for progress updates
         
         Returns: (tm_id, entry_count)
         """
@@ -423,16 +424,18 @@ class TMDatabase:
         self.add_custom_tm(tm_name, tm_id, read_only=read_only)
         
         # Load TMX content
-        loaded_count = self._load_tmx_into_db(filepath, src_lang, tgt_lang, tm_id, strip_variants=strip_variants)
+        loaded_count = self._load_tmx_into_db(filepath, src_lang, tgt_lang, tm_id, 
+                                             strip_variants=strip_variants, 
+                                             progress_callback=progress_callback)
         
         self.log(f"✓ Loaded {loaded_count} entries from {os.path.basename(filepath)}")
         
         return tm_id, loaded_count
     
     def _load_tmx_into_db(self, filepath: str, src_lang: str, tgt_lang: str, tm_id: str, 
-                          strip_variants: bool = False) -> int:
+                          strip_variants: bool = False, progress_callback=None) -> int:
         """
-        Internal: Load TMX content into database
+        Internal: Load TMX content into database with chunked processing
         
         Args:
             filepath: Path to TMX file
@@ -440,12 +443,24 @@ class TMDatabase:
             tgt_lang: Target target language code  
             tm_id: TM identifier
             strip_variants: If True, match base languages ignoring regional variants
+            progress_callback: Optional callback function(current, total, message) for progress updates
         """
         loaded_count = 0
+        chunk_size = 1000  # Process in chunks for responsiveness
+        chunk_buffer = []
         
         try:
+            # First pass: count total TUs for progress bar
+            if progress_callback:
+                progress_callback(0, 0, "Counting translation units...")
+            
             tree = ET.parse(filepath)
             root = tree.getroot()
+            total_tus = len(root.findall('.//tu'))
+            
+            if progress_callback:
+                progress_callback(0, total_tus, f"Processing 0 / {total_tus:,} entries...")
+            
             xml_ns = "http://www.w3.org/XML/1998/namespace"
             
             # Normalize language codes
@@ -458,6 +473,7 @@ class TMDatabase:
                 src_base = get_base_lang_code(src_lang_normalized)
                 tgt_base = get_base_lang_code(tgt_lang_normalized)
             
+            processed = 0
             for tu in root.findall('.//tu'):
                 src_text, tgt_text = None, None
                 
@@ -488,14 +504,43 @@ class TMDatabase:
                                 tgt_text = text
                 
                 if src_text and tgt_text:
+                    chunk_buffer.append((src_text, tgt_text))
+                    loaded_count += 1
+                    
+                    # Process chunk when buffer is full
+                    if len(chunk_buffer) >= chunk_size:
+                        for src, tgt in chunk_buffer:
+                            self.db.add_translation_unit(
+                                source=src,
+                                target=tgt,
+                                source_lang=src_lang_normalized,
+                                target_lang=tgt_lang_normalized,
+                                tm_id=tm_id
+                            )
+                        chunk_buffer.clear()
+                        
+                        # Update progress
+                        if progress_callback:
+                            progress_callback(processed + 1, total_tus, 
+                                            f"Processing {loaded_count:,} / {total_tus:,} entries...")
+                
+                processed += 1
+            
+            # Process remaining entries in buffer
+            if chunk_buffer:
+                for src, tgt in chunk_buffer:
                     self.db.add_translation_unit(
-                        source=src_text,
-                        target=tgt_text,
+                        source=src,
+                        target=tgt,
                         source_lang=src_lang_normalized,
                         target_lang=tgt_lang_normalized,
                         tm_id=tm_id
                     )
-                    loaded_count += 1
+                chunk_buffer.clear()
+            
+            # Final progress update
+            if progress_callback:
+                progress_callback(total_tus, total_tus, f"Completed: {loaded_count:,} entries imported")
             
             return loaded_count
         except Exception as e:

@@ -6732,7 +6732,7 @@ class SupervertalerQt(QMainWindow):
         go_resources_action.triggered.connect(lambda: self.main_tabs.setCurrentIndex(1) if hasattr(self, 'main_tabs') else None)
         nav_menu.addAction(go_resources_action)
         
-        go_prompt_manager_action = QAction("🤖 &Prompt Manager", self)
+        go_prompt_manager_action = QAction("⚡ &QuickMenu", self)
         go_prompt_manager_action.triggered.connect(lambda: self.main_tabs.setCurrentIndex(2) if hasattr(self, 'main_tabs') else None)
         nav_menu.addAction(go_prompt_manager_action)
         
@@ -7211,13 +7211,13 @@ class SupervertalerQt(QMainWindow):
         resources_tab = self.create_resources_tab()
         self.main_tabs.addTab(resources_tab, "🗂️ Resources")
         
-        # ===== 3. PROMPT MANAGER TAB =====
-        # Unified Prompt Library + AI Assistant
+        # ===== 3. QUICKMENU TAB =====
+        # Unified QuickMenu system: folder structure = menu hierarchy for in-app + global access
         from modules.unified_prompt_manager_qt import UnifiedPromptManagerQt
         prompt_widget = QWidget()
         self.prompt_manager_qt = UnifiedPromptManagerQt(self, standalone=False)
         self.prompt_manager_qt.create_tab(prompt_widget)
-        self.main_tabs.addTab(prompt_widget, "🤖 Prompt Manager")
+        self.main_tabs.addTab(prompt_widget, "⚡ QuickMenu")
         
         # Keep backward compatibility reference
         self.document_views_widget = self.main_tabs
@@ -9489,58 +9489,139 @@ class SupervertalerQt(QMainWindow):
                     # Show progress dialog
                     from PyQt6.QtWidgets import QProgressDialog
                     from PyQt6.QtCore import Qt
+                    import time
                     
-                    progress = QProgressDialog("Importing TMX file...", None, 0, 0, self)
+                    # Create progress dialog with cancel button
+                    progress = QProgressDialog("Counting translation units...", "Cancel", 0, 100, self)
                     progress.setWindowTitle("TMX Import")
                     progress.setWindowModality(Qt.WindowModality.WindowModal)
                     progress.setMinimumDuration(0)
+                    progress.setAutoClose(False)
+                    progress.setAutoReset(False)
                     progress.setValue(0)
                     progress.show()
                     QApplication.processEvents()
+                    
+                    # Track if user cancelled
+                    cancelled = False
+                    start_time = time.time()
+                    
+                    def update_progress(current, total, message):
+                        nonlocal cancelled
+                        if progress.wasCanceled():
+                            cancelled = True
+                            return
+                        
+                        if total > 0:
+                            percentage = int((current / total) * 100)
+                            progress.setValue(percentage)
+                            
+                            # Calculate time stats
+                            elapsed = time.time() - start_time
+                            if current > 0:
+                                rate = current / elapsed
+                                remaining = (total - current) / rate if rate > 0 else 0
+                                
+                                # Format message with stats
+                                time_info = f" (~{int(remaining/60)}m {int(remaining%60)}s remaining)" if remaining > 10 else ""
+                                progress.setLabelText(f"{message}\nRate: {int(rate):,} entries/sec{time_info}")
+                            else:
+                                progress.setLabelText(message)
+                        else:
+                            progress.setLabelText(message)
+                        
+                        QApplication.processEvents()
                     
                     if choice == 'import_strip':
                         # Import with variant stripping
                         tm_id, count = self.tm_database.load_tmx_file(
                             file_path, source_lang, target_lang, 
-                            tm_name=None, read_only=False
+                            tm_name=None, read_only=False, progress_callback=update_progress
                         )
                         progress.close()
-                        self.log(f"Imported {count} entries (variants stripped: {compat['tmx_source']}, {compat['tmx_target']} → {source_lang}, {target_lang})")
-                        QMessageBox.information(
-                            self, "Import Complete",
-                            f"TMX imported successfully!\n\nEntries: {count}\n"
-                            f"Mapped: {compat['tmx_source']}, {compat['tmx_target']} → {source_lang}, {target_lang}"
-                        )
+                        
+                        if not cancelled:
+                            self.log(f"Imported {count} entries (variants stripped: {compat['tmx_source']}, {compat['tmx_target']} → {source_lang}, {target_lang})")
+                            QMessageBox.information(
+                                self, "Import Complete",
+                                f"TMX imported successfully!\n\nEntries: {count:,}\n"
+                                f"Mapped: {compat['tmx_source']}, {compat['tmx_target']} → {source_lang}, {target_lang}"
+                            )
+                        else:
+                            self.log("TMX import cancelled by user")
+                            QMessageBox.information(self, "Import Cancelled", f"Import stopped.\n\nPartial entries may have been imported: {count:,}")
                     elif choice == 'create_new':
                         # Create new TM with variant languages
                         tm_id, count = self.tm_database.load_tmx_file(
                             file_path, compat['tmx_source'], compat['tmx_target'],
-                            tm_name=None, read_only=False
+                            tm_name=None, read_only=False, progress_callback=update_progress
                         )
                         progress.close()
-                        self.log(f"Created new TM with variants: {compat['tmx_source']}, {compat['tmx_target']}")
-                        QMessageBox.information(
-                            self, "Import Complete", 
-                            f"New TM created!\n\nTM ID: {tm_id}\nEntries: {count}\n"
-                            f"Languages: {compat['tmx_source']}, {compat['tmx_target']}"
-                        )
+                        
+                        if not cancelled:
+                            self.log(f"Created new TM with variants: {compat['tmx_source']}, {compat['tmx_target']}")
+                            QMessageBox.information(
+                                self, "Import Complete", 
+                                f"New TM created!\n\nTM ID: {tm_id}\nEntries: {count:,}\n"
+                                f"Languages: {compat['tmx_source']}, {compat['tmx_target']}"
+                            )
+                        else:
+                            self.log("TMX import cancelled by user")
+                            QMessageBox.information(self, "Import Cancelled", f"Import stopped.\n\nPartial entries may have been imported: {count:,}")
                 else:
-                    # Exact match - proceed normally with progress
+                    # Exact match - proceed normally with real-time progress
                     from PyQt6.QtWidgets import QProgressDialog
                     from PyQt6.QtCore import Qt
+                    import time
                     
-                    progress = QProgressDialog("Importing TMX file...", None, 0, 0, self)
+                    progress = QProgressDialog("Counting translation units...", "Cancel", 0, 100, self)
                     progress.setWindowTitle("TMX Import")
                     progress.setWindowModality(Qt.WindowModality.WindowModal)
                     progress.setMinimumDuration(0)
+                    progress.setAutoClose(False)
+                    progress.setAutoReset(False)
                     progress.setValue(0)
                     progress.show()
                     QApplication.processEvents()
                     
-                    tm_id, count = self.tm_database.load_tmx_file(file_path, source_lang, target_lang)
+                    cancelled = False
+                    start_time = time.time()
+                    
+                    def update_progress(current, total, message):
+                        nonlocal cancelled
+                        if progress.wasCanceled():
+                            cancelled = True
+                            return
+                        
+                        if total > 0:
+                            percentage = int((current / total) * 100)
+                            progress.setValue(percentage)
+                            
+                            # Calculate time stats
+                            elapsed = time.time() - start_time
+                            if current > 0:
+                                rate = current / elapsed
+                                remaining = (total - current) / rate if rate > 0 else 0
+                                
+                                # Format message with stats
+                                time_info = f" (~{int(remaining/60)}m {int(remaining%60)}s remaining)" if remaining > 10 else ""
+                                progress.setLabelText(f"{message}\nRate: {int(rate):,} entries/sec{time_info}")
+                            else:
+                                progress.setLabelText(message)
+                        else:
+                            progress.setLabelText(message)
+                        
+                        QApplication.processEvents()
+                    
+                    tm_id, count = self.tm_database.load_tmx_file(file_path, source_lang, target_lang, progress_callback=update_progress)
                     progress.close()
-                    self.log(f"Successfully imported {count} entries from TMX file")
-                    QMessageBox.information(self, "Import Complete", f"TMX imported!\n\nEntries: {count}\nTM ID: {tm_id}")
+                    
+                    if not cancelled:
+                        self.log(f"Successfully imported {count} entries from TMX file")
+                        QMessageBox.information(self, "Import Complete", f"TMX imported!\n\nEntries: {count:,}\nTM ID: {tm_id}")
+                    else:
+                        self.log("TMX import cancelled by user")
+                        QMessageBox.information(self, "Import Cancelled", f"Import stopped.\n\nPartial entries may have been imported: {count:,}")
             
         except Exception as e:
             self.log(f"Error importing TMX file: {e}")
@@ -13771,29 +13852,66 @@ class SupervertalerQt(QMainWindow):
                     if reply != QMessageBox.StandardButton.Yes:
                         return
                 
-                # Import into existing TM with progress dialog
+                # Import into existing TM with real-time progress dialog
                 from PyQt6.QtWidgets import QProgressDialog
                 from PyQt6.QtCore import Qt
+                import time
                 
-                progress = QProgressDialog("Importing TMX file...", None, 0, 0, self)
+                progress = QProgressDialog("Counting translation units...", "Cancel", 0, 100, self)
                 progress.setWindowTitle("TMX Import")
                 progress.setWindowModality(Qt.WindowModality.WindowModal)
                 progress.setMinimumDuration(0)
+                progress.setAutoClose(False)
+                progress.setAutoReset(False)
                 progress.setValue(0)
                 progress.show()
                 QApplication.processEvents()
                 
+                cancelled = False
+                start_time = time.time()
+                
+                def update_progress(current, total, message):
+                    nonlocal cancelled
+                    if progress.wasCanceled():
+                        cancelled = True
+                        return
+                    
+                    if total > 0:
+                        percentage = int((current / total) * 100)
+                        progress.setValue(percentage)
+                        
+                        # Calculate time stats
+                        elapsed = time.time() - start_time
+                        if current > 0:
+                            rate = current / elapsed
+                            remaining = (total - current) / rate if rate > 0 else 0
+                            
+                            # Format message with stats
+                            time_info = f" (~{int(remaining/60)}m {int(remaining%60)}s remaining)" if remaining > 10 else ""
+                            progress.setLabelText(f"{message}\nRate: {int(rate):,} entries/sec{time_info}")
+                        else:
+                            progress.setLabelText(message)
+                    else:
+                        progress.setLabelText(message)
+                    
+                    QApplication.processEvents()
+                
                 count = self.tm_database._load_tmx_into_db(
-                    filepath, tm_src_lang, tm_tgt_lang, target_tm_id, strip_variants=strip_variants
+                    filepath, tm_src_lang, tm_tgt_lang, target_tm_id, 
+                    strip_variants=strip_variants, progress_callback=update_progress
                 )
                 
                 progress.close()
                 
-                # Update entry count
-                tm_metadata_mgr.update_entry_count(target_tm_id)
-                self.log(f"Imported {count} entries into TM '{target_tm_id}'")
-                
-                QMessageBox.information(self, "Success", f"TMX imported successfully into TM '{target_tm_id}'!\n\nEntries imported: {count}")
+                if not cancelled:
+                    # Update entry count
+                    tm_metadata_mgr.update_entry_count(target_tm_id)
+                    self.log(f"Imported {count} entries into TM '{target_tm_id}'")
+                    
+                    QMessageBox.information(self, "Success", f"TMX imported successfully into TM '{target_tm_id}'!\n\nEntries imported: {count:,}")
+                else:
+                    self.log(f"TMX import cancelled by user. Partial import: {count} entries")
+                    QMessageBox.information(self, "Import Cancelled", f"Import stopped.\n\nPartial entries imported: {count:,}")
                 refresh_callback()
             else:
                 QMessageBox.critical(self, "Error", "TM database not available")
@@ -36771,7 +36889,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             subtab_name: Name of the sub-tab to navigate to (e.g., "AI Settings")
         """
         if hasattr(self, 'main_tabs'):
-            # Main tabs: Grid=0, Resources=1, Prompt Manager=2, Tools=3, Settings=4
+            # Main tabs: Grid=0, Resources=1, QuickMenu=2, Tools=3, Settings=4
             self.main_tabs.setCurrentIndex(4)
             
             # Navigate to specific sub-tab if requested
@@ -36792,7 +36910,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
     def _go_to_superlookup(self):
         """Navigate to Superlookup in Tools tab"""
         if hasattr(self, 'main_tabs'):
-            # Main tabs: Grid=0, Resources=1, Prompt Manager=2, Tools=3, Settings=4
+            # Main tabs: Grid=0, Resources=1, QuickMenu=2, Tools=3, Settings=4
             self.main_tabs.setCurrentIndex(3)  # Switch to Tools tab
             # Then switch to Superlookup sub-tab
             if hasattr(self, 'modules_tabs'):
@@ -36805,7 +36923,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
     def _navigate_to_tool(self, tool_name: str):
         """Navigate to a specific tool in the Tools tab"""
         if hasattr(self, 'main_tabs'):
-            # Main tabs: Grid=0, Resources=1, Prompt Manager=2, Tools=3, Settings=4
+            # Main tabs: Grid=0, Resources=1, QuickMenu=2, Tools=3, Settings=4
             self.main_tabs.setCurrentIndex(3)  # Switch to Tools tab
             # Then switch to the specific tool sub-tab
             if hasattr(self, 'modules_tabs'):
@@ -45357,7 +45475,7 @@ class SuperlookupTab(QWidget):
             print(f"[Superlookup] Has main_tabs: {hasattr(main_window, 'main_tabs')}")
             
             # Switch to Tools tab (main_tabs index 3)
-            # Tab structure: Grid=0, Resources=1, Prompt Manager=2, Tools=3, Settings=4
+            # Tab structure: Grid=0, Resources=1, QuickMenu=2, Tools=3, Settings=4
             if hasattr(main_window, 'main_tabs'):
                 print(f"[Superlookup] Current main_tab index: {main_window.main_tabs.currentIndex()}")
                 main_window.main_tabs.setCurrentIndex(3)  # Tools tab

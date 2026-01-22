@@ -640,7 +640,7 @@ class UnifiedPromptManagerQt:
 
         # Tab 1: Prompt Library
         library_tab = self._create_prompt_library_tab()
-        self.sub_tabs.addTab(library_tab, "📚 Prompt Library")
+        self.sub_tabs.addTab(library_tab, "📚 Library")
 
         # Tab 2: AI Assistant (placeholder for now)
         assistant_tab = self._create_ai_assistant_tab()
@@ -694,7 +694,7 @@ class UnifiedPromptManagerQt:
         layout.setSpacing(5)
         
         # Title
-        title = QLabel("🤖 Prompt Manager")
+        title = QLabel("⚡ QuickMenu")
         title.setStyleSheet("font-size: 16pt; font-weight: bold; color: #1976D2;")
         layout.addWidget(title, 0)
         
@@ -1546,7 +1546,7 @@ class UnifiedPromptManagerQt:
     
     def _create_active_config_panel(self) -> QGroupBox:
         """Create active prompt configuration panel"""
-        group = QGroupBox("Active Configuration")
+        group = QGroupBox("Active Prompt")
         layout = QVBoxLayout()
         
         # Mode info (read-only, auto-selected)
@@ -1704,10 +1704,10 @@ class UnifiedPromptManagerQt:
         self.editor_quickmenu_label_input.setPlaceholderText("Label shown in QuickMenu")
         quickmenu_layout.addWidget(self.editor_quickmenu_label_input, 2)
 
-        self.editor_quickmenu_in_grid_cb = CheckmarkCheckBox("Show in Grid right-click menu")
+        self.editor_quickmenu_in_grid_cb = CheckmarkCheckBox("Show in QuickMenu (in-app)")
         quickmenu_layout.addWidget(self.editor_quickmenu_in_grid_cb, 2)
 
-        self.editor_quickmenu_in_quickmenu_cb = CheckmarkCheckBox("Show in QuickMenu (system-wide)")
+        self.editor_quickmenu_in_quickmenu_cb = CheckmarkCheckBox("Show in QuickMenu (global)")
         quickmenu_layout.addWidget(self.editor_quickmenu_in_quickmenu_cb, 1)
 
         layout.addLayout(quickmenu_layout)
