@@ -2,7 +2,40 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.148-beta (January 21, 2026)
+**Current Version:** v1.9.149-beta (January 22, 2026)
+
+## 🔍 Superlookup Language-Aware Search Enhancement (v1.9.149-beta) - January 22, 2026
+
+**Major Enhancement:** Superlookup TM search now intelligently handles language filters!
+
+**What Changed:**
+- **Intuitive Language Filters**: "From: Dutch → To: English" now means "Search FOR Dutch text and show me English translations"
+- **Smart Column Detection**: Searches ALL TMs regardless of their stored direction (NL→EN or EN→NL)
+- **Automatic Swapping**: Finds text in either column and automatically presents results in the correct order
+- **More Powerful Than Traditional CAT Tools**: Unlike memoQ/Trados that only search one TM direction, Supervertaler finds matches everywhere
+
+**How It Works:**
+1. Set "From: Dutch → To: English"
+2. Search for Dutch text
+3. System searches both NL→EN TMs (source column) AND EN→NL TMs (target column)
+4. Results automatically shown with Dutch in source, English in target
+
+**UI Simplification:**
+- **Removed Direction radio buttons** (Both/Source/Target) - always searches both columns now
+- Cleaner, faster interface for translators
+- Language dropdowns are all you need
+
+**Technical Details:**
+- Language filters no longer restrict which TMs are searched
+- Post-processing validates search text is in the correct language column
+- Smart swapping ensures results always match user's requested language direction
+
+**Files Modified:**
+- `modules/database_manager.py` - Smart language-aware concordance search
+- `modules/superlookup.py` - Column name handling
+- `Supervertaler.py` - Removed Direction controls, simplified UI
+
+---
 
 ## 📁 User-Choosable Data Folder Location (v1.9.148-beta) - January 21, 2026
 

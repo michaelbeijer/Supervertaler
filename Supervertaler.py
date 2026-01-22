@@ -13,7 +13,7 @@ For the classic tkinter edition, see Supervertaler_tkinter.py
 Key Features:
 - Complete Translation Matching: Termbase + TM + MT + Multi-LLM
 - Project Termbases: Dedicated terminology per project with automatic extraction
-- Supervoice: AI-powered voice dictation (100+ languages via OpenAI Whisper)
+- Supervoice: AI-enhanced voice dictation (100+ languages via OpenAI Whisper)
 - Superimage: Extract images from DOCX files with preview
 - Google Cloud Translation API integration
 - Multi-LLM Support: OpenAI GPT, Claude, Google Gemini
@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.148-beta"
+__version__ = "1.9.149-beta"
 __phase__ = "0.9"
 __release_date__ = "2026-01-21"
 __edition__ = "Qt"
@@ -30171,7 +30171,7 @@ class SupervertalerQt(QMainWindow):
         layout = QVBoxLayout(dialog)
         
         # Header
-        header = QLabel("<h3>✅ AI-Powered Translation Proofreading</h3>")
+        header = QLabel("<h3>✅ AI-Enhanced Translation Proofreading</h3>")
         layout.addWidget(header)
         
         info_label = QLabel(
@@ -37942,7 +37942,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         layout.addWidget(title)
 
         # Description
-        desc = QLabel("<p><b>AI-powered tool for translators & writers</b></p>")
+        desc = QLabel("<p><b>AI-enhanced tool for translators & writers</b></p>")
         desc.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(desc)
 
@@ -41904,30 +41904,9 @@ class SuperlookupTab(QWidget):
         
         layout.addLayout(search_row)
         
-        # Options row (direction + language filters) - compact single line
+        # Options row (language filters only) - compact single line
         options_layout = QHBoxLayout()
         options_layout.setSpacing(8)
-        
-        # Search direction selector
-        direction_label = QLabel("Direction:")
-        direction_label.setStyleSheet("font-weight: bold; font-size: 9pt;")
-        options_layout.addWidget(direction_label)
-        
-        self.direction_both = CheckmarkRadioButton("Both")
-        self.direction_both.setChecked(True)  # Default
-        self.direction_both.setToolTip("Search in both source and target text (bidirectional)")
-        options_layout.addWidget(self.direction_both)
-        
-        self.direction_source = CheckmarkRadioButton("Source")
-        self.direction_source.setToolTip("Search only in source language text")
-        options_layout.addWidget(self.direction_source)
-        
-        self.direction_target = CheckmarkRadioButton("Target")
-        self.direction_target.setToolTip("Search only in target language text")
-        options_layout.addWidget(self.direction_target)
-        
-        # Spacer
-        options_layout.addSpacing(15)
         
         # Language filter dropdowns
         from_label = QLabel("From:")
@@ -43708,17 +43687,10 @@ class SuperlookupTab(QWidget):
     def get_search_direction(self):
         """Get the current search direction setting.
         
-        Returns:
-            'both' - bidirectional search (source and target)
-            'source' - search source text only
-            'target' - search target text only
+        Always returns 'both' for maximum search coverage.
+        Smart language swapping ensures results are always shown in correct order.
         """
-        if hasattr(self, 'direction_source') and self.direction_source.isChecked():
-            return 'source'
-        elif hasattr(self, 'direction_target') and self.direction_target.isChecked():
-            return 'target'
-        else:
-            return 'both'
+        return 'both'
     
     def _on_language_changed(self):
         """Handle language dropdown change - update Web Resources info"""

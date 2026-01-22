@@ -376,7 +376,7 @@ python Supervertaler.py
 - 📊 **Smart Status** - Manual edits reset status requiring confirmation
 
 **v1.4.0 - Supervoice Voice Dictation + Detachable Log:**
-- 🎤 **Supervoice Voice Dictation** - AI-powered hands-free translation input
+- 🎤 **Supervoice Voice Dictation** - AI-enhanced hands-free translation input
 - 🌍 **100+ Languages** - OpenAI Whisper supports virtually any language
 - ⌨️ **F9 Global Hotkey** - Press-to-start, press-to-stop recording anywhere
 - 🎚️ **5 Model Sizes** - Tiny to Large (balance speed vs accuracy)
@@ -426,7 +426,7 @@ python Supervertaler.py
 - 🔍 **Superlookup** - System-wide search with global hotkey (Ctrl+Alt+L)
 - 📝 **TMX Editor** - Professional translation memory editor with database support
 - 🧹 **AutoFingers** - Automated translation pasting for memoQ with tag cleaning
-- 🔧 **PDF Rescue** - AI-powered OCR for poorly formatted PDFs
+- 🔧 **PDF Rescue** - AI-enhanced OCR for poorly formatted PDFs
 - 🔧 **Encoding Repair Tool** - Detect and fix text encoding corruption (mojibake)
 - 💾 **Translation Memory** - Fuzzy matching with TMX import/export
 - 📚 **Multiple Termbases** - Glossary support per project
@@ -487,7 +487,7 @@ For comprehensive project information, see [PROJECT_CONTEXT.md](PROJECT_CONTEXT.
 - 🤖 **LLM Integration** - OpenAI GPT-4/5, Anthropic Claude, Google Gemini
 - 🎯 **Context-aware Translation** - Full document understanding
 - 📚 **Unified Prompt Library** - System Prompts + Custom Instructions
-- 🆘 **PDF Rescue** - AI-powered OCR for badly-formatted PDFs
+- 🆘 **PDF Rescue** - AI-enhanced OCR for badly-formatted PDFs
 - ✅ **CAT Features** - Segment editing, grid pagination, dual selection
 - 📝 **TMX Editor** - Professional translation memory editor
 - 🔗 **CAT Tool Integration** - memoQ, CafeTran, Trados Studio

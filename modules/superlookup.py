@@ -157,9 +157,13 @@ class SuperlookupEngine:
                 
                 # Convert to LookupResult format (limit results)
                 for match in matches[:max_results]:
+                    # Use 'source' and 'target' keys (matches database column names)
+                    source_text = match.get('source', '')
+                    target_text = match.get('target', '')
+                    print(f"[Superlookup] Extracted: source='{source_text[:50]}...', target='{target_text[:50]}...'")
                     results.append(LookupResult(
-                        source=match.get('source_text', ''),
-                        target=match.get('target_text', ''),
+                        source=source_text,
+                        target=target_text,
                         match_percent=100,  # Concordance = contains the text
                         source_type='tm',
                         metadata={
