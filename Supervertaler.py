@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.151"
+__version__ = "1.9.152"
 __phase__ = "0.9"
 __release_date__ = "2026-01-21"
 __edition__ = "Qt"
@@ -11586,10 +11586,15 @@ class SupervertalerQt(QMainWindow):
                 except Exception as e:
                     self.log(f"Error updating results panel termbases: {e}")
         
+        # OPTIMIZATION: Skip full rehighlight for quick-add performance
+        # The TermView widget already shows the updated matches, and full rehighlight
+        # is expensive for long segments (runs spellcheck, tag detection, termbase highlighting)
+        # The highlighting will update automatically on next segment navigation
+        # 
         # Re-highlight termbase matches in the source cell
-        source_widget = self.table.cellWidget(current_row, 2)
-        if source_widget and hasattr(source_widget, 'rehighlight'):
-            source_widget.rehighlight()
+        # source_widget = self.table.cellWidget(current_row, 2)
+        # if source_widget and hasattr(source_widget, 'rehighlight'):
+        #     source_widget.rehighlight()
         
         self.log(f"🔄 Refreshed termbase display for segment {segment.id} (TM untouched)")
     
@@ -11974,11 +11979,84 @@ class SupervertalerQt(QMainWindow):
                 self.log(f"✓ Added to '{target_termbase['name']}': {source_text} → {target_text}")
                 self.statusBar().showMessage(f"✓ Added to '{target_termbase['name']}': {source_text} → {target_text}", 3000)
                 
-                # Refresh termbase display (NOT TM - that would be wasteful)
-                self._refresh_termbase_display_for_current_segment()
+                # OPTIMIZATION: Directly add the new term to cache and TermView instead of full search
+                # This avoids the 5-6 second delay from searching all words in long patent segments
+                current_row = self.table.currentRow()
+                if current_row >= 0 and self.current_project:
+                    id_item = self.table.item(current_row, 0)
+                    if id_item:
+                        try:
+                            segment_id = int(id_item.text())
+                            segment = next((seg for seg in self.current_project.segments if seg.id == segment_id), None)
+                            
+                            if segment:
+                                # Create match entry for the new term
+                                new_match = {
+                                    'source': source_text,
+                                    'translation': target_text,
+                                    'priority': 99,
+                                    'ranking': glossary_rank,  # Use the priority rank we just added to
+                                    'forbidden': False,
+                                    'is_project_termbase': False,
+                                    'term_id': term_id,
+                                    'termbase_id': target_termbase['id'],
+                                    'termbase_name': target_termbase['name'],
+                                    'domain': '',
+                                    'notes': '',
+                                    'project': '',
+                                    'client': '',
+                                    'target_synonyms': []
+                                }
+                                
+                                # Add to cache directly
+                                with self.termbase_cache_lock:
+                                    if segment_id not in self.termbase_cache:
+                                        self.termbase_cache[segment_id] = {}
+                                    # Use term_id as key to avoid duplicates
+                                    self.termbase_cache[segment_id][term_id] = new_match
+                                    self.log(f"⚡ Added term directly to cache (instant update)")
+                                
+                                # Update TermView widget with the new term
+                                if hasattr(self, 'termview_widget') and self.termview_widget:
+                                    # Get current matches from cache
+                                    with self.termbase_cache_lock:
+                                        cached_matches = self.termbase_cache.get(segment_id, {})
+                                    
+                                    # Convert to list format for TermView
+                                    termbase_list = [
+                                        {
+                                            'source_term': match.get('source', ''),
+                                            'target_term': match.get('translation', ''),
+                                            'termbase_name': match.get('termbase_name', ''),
+                                            'ranking': match.get('ranking', 99),
+                                            'is_project_termbase': match.get('is_project_termbase', False),
+                                            'term_id': match.get('term_id'),
+                                            'termbase_id': match.get('termbase_id'),
+                                            'notes': match.get('notes', '')
+                                        }
+                                        for match in cached_matches.values() if isinstance(match, dict)
+                                    ]
+                                    
+                                    # Get NT matches
+                                    nt_matches = self.find_nt_matches_in_source(segment.source)
+                                    self.termview_widget.update_with_matches(segment.source, termbase_list, nt_matches)
+                                    self.log(f"✅ TermView updated instantly with new term")
+                                
+                                # Update source cell highlighting with updated cache
+                                # Call the highlighting function directly with the new matches
+                                self.highlight_source_with_termbase(current_row, segment.source, cached_matches)
+                                self.log(f"✅ Source highlighting updated with new term")
+                        
+                        except Exception as e:
+                            self.log(f"⚠️  Quick cache update failed, falling back to full search: {e}")
+                            # Fallback to full refresh if something goes wrong
+                            self._refresh_termbase_display_for_current_segment()
                 
-                if hasattr(self, 'termbase_tab_refresh_callback') and self.termbase_tab_refresh_callback:
-                    self.termbase_tab_refresh_callback()
+                # OPTIMIZATION: Skip refreshing the entire termbase table UI (slow)
+                # We're just adding ONE term to ONE glossary - no need to rebuild the whole table
+                # The term count will update naturally when user switches segments or tabs
+                # if hasattr(self, 'termbase_tab_refresh_callback') and self.termbase_tab_refresh_callback:
+                #     self.termbase_tab_refresh_callback()
             else:
                 self._play_sound_effect('glossary_term_duplicate')
                 self.statusBar().showMessage(f"Term already exists in '{target_termbase['name']}'", 3000)
@@ -38660,7 +38738,11 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                 for tab in self.superbrowser_tabs.values():
                     try:
                         if hasattr(tab, 'web_view'):
+                            # Stop any loading/rendering
+                            tab.web_view.stop()
+                            # Clear page to release resources
                             tab.web_view.setPage(None)
+                            tab.web_view.setUrl(QUrl('about:blank'))
                             tab.web_view.deleteLater()
                     except:
                         pass
@@ -38669,15 +38751,23 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             if hasattr(self, 'web_views'):
                 for resource_id, web_view in list(self.web_views.items()):
                     try:
+                        web_view.stop()
                         web_view.setPage(None)
+                        web_view.setUrl(QUrl('about:blank'))
                         web_view.deleteLater()
                     except:
                         pass
                 self.web_views.clear()
             
-            # Process events to ensure deleteLater() completes
+            # Process events multiple times to ensure cleanup completes
             from PyQt6.QtWidgets import QApplication
-            QApplication.processEvents()
+            from PyQt6.QtCore import QUrl
+            for _ in range(3):
+                QApplication.processEvents()
+                
+            # Small delay to allow Qt to finish cleanup
+            import time
+            time.sleep(0.1)
         except:
             pass
     

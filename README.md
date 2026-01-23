@@ -1,4 +1,4 @@
-# 🚀 Supervertaler v1.9.149-beta
+# 🚀 Supervertaler v1.9.152
 
 [![PyPI version](https://badge.fury.io/py/supervertaler.svg)](https://pypi.org/project/Supervertaler/)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
@@ -6,9 +6,15 @@
 
 AI-enhanced CAT tool with multi-LLM support (GPT-4, Claude, Gemini, Ollama), innovative Superlookup concordance system offering access to multiple terminology sources (TMs, glossaries, web resources, etc.), and seamless CAT tool integration (memoQ, Trados, CafeTran, Phrase).
 
-**Current Version:** v1.9.149-beta (January 22, 2026)
+**Current Version:** v1.9.152 (January 23, 2026)
 
-### NEW in v1.9.149-beta - 🔍 Superlookup Language-Aware Search
+### NEW in v1.9.152 - ⚡ Instant Glossary Updates
+
+**Lightning-Fast Term Addition:** Adding terms to glossaries now feels instant! When you add a term with Alt+Shift+Up/Down, it appears immediately in TermView AND the source highlighting updates instantly - no more 5-6 second delays.
+
+**What Changed:** Instead of searching the entire segment again after adding a term (50+ database queries for long patent sentences), we now add the new term directly to the cache and update the display. The result: instant visual feedback that makes building glossaries during translation feel smooth and responsive.
+
+### v1.9.151 - 🔍 TM Pre-Translation Fixed
 
 **Intuitive Language Filters:** "From: Dutch → To: English" now means what you'd expect - "Search FOR Dutch text and show me English translations"! Searches ALL TMs regardless of their stored direction (NL→EN or EN→NL) and automatically presents results in the correct order.
 

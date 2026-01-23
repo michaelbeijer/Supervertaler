@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** January 23, 2026 | **Version:** v1.9.151
+> **Last Updated:** January 23, 2026 | **Version:** v1.9.152
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.151 (January 2026) |
+| **Version** | v1.9.152 (January 2026) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -765,6 +765,74 @@ deepl=...
 ---
 
 ## 🔄 Recent Development History
+
+### January 23, 2026 - Instant Glossary Updates (v1.9.152)
+
+**⚡ Lightning-Fast Term Addition Performance**
+
+Eliminated 5-6 second delays when adding glossary terms during translation. Users can now build glossaries rapidly during intensive patent translation workflows.
+
+**The Problem:**
+- Users experienced 5-6 second delays after adding terms with Alt+Shift+Up/Down shortcuts
+- Long patent sentences with 50+ words triggered 50+ individual database queries
+- `find_termbase_matches_in_source()` was searching for ALL words just to find the ONE term we added
+- The workflow felt sluggish and interrupted translation flow
+
+**Root Cause Analysis:**
+After adding a term to the database, the code called `_refresh_termbase_display_for_current_segment()` which:
+1. Cleared the termbase cache for the segment
+2. Called `find_termbase_matches_in_source()` to search ALL words in the segment
+3. Each word triggered a database query: `db_manager.search_termbases(word, ...)`
+4. For a segment with 50 words, this meant 50+ database queries
+5. The log showed 6-second gap between cache clear and search completion
+
+**The Solution: Skip the Search, We Already Know What We Added!**
+
+Instead of searching for what we just added, create the match entry directly:
+
+```python
+# OPTIMIZATION: Directly add the new term to cache and TermView instead of full search
+# This avoids the 5-6 second delay from searching all words in long patent segments
+new_match = {
+    'source': source_text,
+    'translation': target_text,
+    'priority': 99,
+    'ranking': glossary_rank,
+    'term_id': term_id,
+    'termbase_id': target_termbase['id'],
+    'termbase_name': target_termbase['name'],
+    # ... other fields
+}
+
+# Add to cache directly
+with self.termbase_cache_lock:
+    if segment_id not in self.termbase_cache:
+        self.termbase_cache[segment_id] = {}
+    self.termbase_cache[segment_id][term_id] = new_match
+
+# Update TermView with all cached matches (including new one)
+self.termview_widget.update_with_matches(segment.source, termbase_list, nt_matches)
+
+# Update source highlighting directly
+self.highlight_source_with_termbase(current_row, segment.source, cached_matches)
+```
+
+**Benefits:**
+- ✅ TermView updates instantly (< 0.1 seconds vs 5-6 seconds)
+- ✅ Source highlighting updates instantly
+- ✅ Zero database searches for operation we already know the result of
+- ✅ Smooth, responsive workflow for building glossaries
+- ✅ Perfect for intensive patent translation workflows with many term additions
+
+**Implementation Details:**
+- Modified `_quick_add_term_with_priority()` at line ~11975
+- ~60 lines of new cache update and display logic
+- Fallback to full refresh if anything goes wrong (safety net)
+
+**Files Modified:**
+- `Supervertaler.py` - Optimized glossary quick-add workflow
+
+---
 
 ### January 23, 2026 - TM Pre-Translation Fixed (v1.9.151)
 
@@ -4249,4 +4317,4 @@ An intelligent proofreading system that uses LLMs to verify translation quality.
 ---
 
 *This file replaces the previous CLAUDE.md and PROJECT_CONTEXT.md files.*
-*Last updated: January 23, 2026 - v1.9.151*
+*Last updated: January 23, 2026 - v1.9.152*

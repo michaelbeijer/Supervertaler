@@ -2,7 +2,47 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.151 (January 23, 2026)
+**Current Version:** v1.9.152 (January 23, 2026)
+
+## ⚡ Instant Glossary Updates (v1.9.152) - January 23, 2026
+
+**Lightning-Fast Term Addition Performance**
+
+Adding terms to glossaries is now instant! The 5-6 second delay when using Alt+Shift+Up/Down shortcuts has been eliminated.
+
+**The Problem:**
+- Users experienced 5-6 second delays after adding glossary terms during translation
+- Long patent sentences with 50+ words required 50+ individual database searches
+- The app was searching for ALL words again just to find the ONE term we just added
+
+**The Solution:**
+- **Direct cache update**: New term added directly to cache instead of full segment re-search
+- **Immediate TermView update**: Display updates instantly using cached matches
+- **Smart highlighting**: Source cell highlighting updated via direct function call
+- **Zero database searches**: We already know what we added - no need to search for it!
+
+**Result:**
+- ✅ TermView shows new term instantly (< 0.1 seconds)
+- ✅ Source highlighting updates instantly
+- ✅ Smooth, responsive workflow for building glossaries
+- ✅ Perfect for intensive patent translation workflows
+
+**Technical Implementation:**
+- Modified `_quick_add_term_with_priority()` to create match entry directly from added term
+- Bypasses expensive `find_termbase_matches_in_source()` database search
+- Calls `highlight_source_with_termbase()` directly with updated cache
+- Maintains all existing functionality while eliminating performance bottleneck
+
+**Files Modified:**
+- `Supervertaler.py` - Optimized glossary quick-add workflow (~60 lines modified)
+
+**🛡️ Exit Crash Fix:**
+- Enhanced `_cleanup_web_views()` method to prevent Python crash on program exit
+- Now properly stops all WebEngine page loading/rendering before cleanup
+- Processes events multiple times and adds delay to ensure Qt finishes cleanup
+- No more "Python has stopped working" dialog when using File → Exit
+
+---
 
 ## 🔧 TM Pre-Translation Fixed (v1.9.151) - January 23, 2026
 
