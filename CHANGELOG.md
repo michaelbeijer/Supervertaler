@@ -2,7 +2,28 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.149-beta (January 22, 2026)
+**Current Version:** v1.9.151 (January 23, 2026)
+
+## 🔧 TM Pre-Translation Fixed (v1.9.151) - January 23, 2026
+
+**Critical Fix:** "Pre-translate from TM" batch operation now correctly finds TM matches!
+
+**What Was Broken:**
+- Running Edit → Batch Operations → Pre-translate from TM found 0 matches
+- Even when a 100% TM match was clearly visible in the Compare Panel
+- Issue: SQLite databases cannot be shared across threads
+
+**Root Cause:**
+The `PreTranslationWorker` ran in a background thread, but SQLite connections created in the main thread cannot be used in other threads. This caused a `sqlite3.ProgrammingError`.
+
+**The Fix:**
+- TM pre-translation now runs **on the main thread** (same as the Compare Panel)
+- Uses `QProgressDialog` to show progress and keep UI responsive
+- Uses the **exact same database methods** that work for segment navigation
+- No more SQLite threading errors!
+
+**Before:** "Pre-translate from TM" → 0 matches found
+**After:** "Pre-translate from TM" → Correctly finds all TM matches
 
 ## 🔍 Superlookup Language-Aware Search Enhancement (v1.9.149-beta) - January 22, 2026
 
@@ -25,6 +46,11 @@ All notable changes to Supervertaler are documented in this file.
 - Cleaner, faster interface for translators
 - Language dropdowns are all you need
 
+**UI Polish:**
+- **Renamed "QuickMenu" tab to "Prompt Manager"** - Better clarity for new users looking for translation prompts
+- **Sub-tab renamed**: "Library" → "Prompt Library"
+- Resolves confusion about where to find prompts for single-segment and batch translation
+
 **Technical Details:**
 - Language filters no longer restrict which TMs are searched
 - Post-processing validates search text is in the correct language column
@@ -33,7 +59,8 @@ All notable changes to Supervertaler are documented in this file.
 **Files Modified:**
 - `modules/database_manager.py` - Smart language-aware concordance search
 - `modules/superlookup.py` - Column name handling
-- `Supervertaler.py` - Removed Direction controls, simplified UI
+- `Supervertaler.py` - Removed Direction controls, simplified UI, renamed QuickMenu to Prompt Manager
+- `modules/unified_prompt_manager_qt.py` - Updated tab and header labels
 
 ---
 

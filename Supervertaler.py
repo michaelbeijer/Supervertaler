@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.149-beta"
+__version__ = "1.9.151"
 __phase__ = "0.9"
 __release_date__ = "2026-01-21"
 __edition__ = "Qt"
@@ -270,7 +270,7 @@ try:
         QFrame, QListWidget, QListWidgetItem, QStackedWidget, QTreeWidget, QTreeWidgetItem,
         QScrollArea, QSizePolicy, QSlider, QToolButton, QAbstractItemView
     )
-    from PyQt6.QtCore import Qt, QSize, QTimer, pyqtSignal, QObject, QUrl
+    from PyQt6.QtCore import Qt, QSize, QTimer, pyqtSignal, QObject, QUrl, QThread
     from PyQt6.QtGui import QFont, QAction, QKeySequence, QIcon, QTextOption, QColor, QDesktopServices, QTextCharFormat, QTextCursor, QBrush, QSyntaxHighlighter, QPalette, QTextBlockFormat, QCursor, QFontMetrics
     from PyQt6.QtWidgets import QStyleOptionViewItem, QStyle
     from PyQt6.QtCore import QRectF
@@ -5157,6 +5157,587 @@ class AdvancedFiltersDialog(QDialog):
         
         return filters
 
+# ============================================================================
+# BATCH TRANSLATION WORKER & PROGRESS DIALOG
+# ============================================================================
+
+class PreTranslationWorker(QThread):
+    """Background worker thread for batch translation."""
+    
+    # Signals
+    progress_update = pyqtSignal(int, int, str, bool, float)  # current, total, message, success, elapsed_time
+    translation_complete = pyqtSignal(int, int)  # success_count, error_count
+    translation_error = pyqtSignal(str)  # error_message
+    retry_needed = pyqtSignal(list)  # empty_segments list of (row_index, segment)
+    
+    def __init__(self, parent_app, segments, provider_type, provider_name, model, tm_exact_only=False, prompt_manager=None, retry_enabled=False, retry_pass=0, tm_ids=None):
+        super().__init__()
+        self.parent_app = parent_app
+        self.segments = segments
+        self.provider_type = provider_type
+        self.provider_name = provider_name
+        self.model = model
+        self.tm_exact_only = tm_exact_only
+        self.prompt_manager = prompt_manager
+        self.retry_enabled = retry_enabled
+        self.retry_pass = retry_pass
+        self.max_retries = 5
+        self._cancelled = False
+        self.tm_ids = tm_ids  # Activated TM IDs for TM pre-translation
+        self.success_count = 0
+        self.error_count = 0
+    
+    def run(self):
+        """Main translation loop - runs in background thread."""
+        import time
+        import re
+        
+        # For TM provider, create thread-local database connection
+        # SQLite connections can't be shared across threads
+        self._thread_local_db = None
+        if self.provider_type == 'TM' and hasattr(self.parent_app, 'tm_database') and self.parent_app.tm_database:
+            try:
+                import sqlite3
+                db_path = self.parent_app.tm_database.db_path
+                self._thread_local_db = sqlite3.connect(db_path)
+                self._thread_local_db.row_factory = sqlite3.Row
+                print(f"✓ Created thread-local database connection for TM pre-translation")
+            except Exception as e:
+                print(f"❌ Failed to create thread-local DB connection: {e}")
+                self._thread_local_db = None
+        
+        try:
+            # For TM and MT, process segments individually
+            if self.provider_type in ['TM', 'MT']:
+                for idx, (row_index, segment) in enumerate(self.segments):
+                    if self._cancelled:
+                        break
+                    
+                    try:
+                        start_time = time.time()
+                        
+                        # Get translation
+                        if self.provider_type == 'TM':
+                            translation = self._translate_from_tm(segment)
+                        else:  # MT
+                            translation = self._translate_with_mt(segment)
+                        
+                        elapsed = time.time() - start_time
+                        
+                        if translation:
+                            segment.target = translation
+                            segment.status = "Translated"
+                            
+                            preview = segment.source[:50] + ("..." if len(segment.source) > 50 else "")
+                            message = f"[{idx+1}/{len(self.segments)}] ✓ {preview} ({elapsed:.1f}s)"
+                            self.progress_update.emit(idx + 1, len(self.segments), message, True, elapsed)
+                            self.success_count += 1
+                        else:
+                            preview = segment.source[:50] + ("..." if len(self.segments) > 50 else "")
+                            message = f"[{idx+1}/{len(self.segments)}] ⊘ No match found: {preview}"
+                            self.progress_update.emit(idx + 1, len(self.segments), message, False, elapsed)
+                            self.error_count += 1
+                    
+                    except Exception as e:
+                        preview = segment.source[:50] + ("..." if len(segment.source) > 50 else "")
+                        message = f"[{idx+1}/{len(self.segments)}] ✗ ERROR: {preview} - {str(e)}"
+                        self.progress_update.emit(idx + 1, len(self.segments), message, False, 0)
+                        self.error_count += 1
+        
+            # For LLM, process in batches
+            else:
+                # Get batch size from settings
+                general_prefs = self.parent_app.load_general_settings()
+                batch_size = general_prefs.get('batch_size', 20)
+                
+                # Split segments into batches
+                total_batches = (len(self.segments) + batch_size - 1) // batch_size
+                
+                for batch_num in range(total_batches):
+                    if self._cancelled:
+                        break
+                    
+                    start_idx = batch_num * batch_size
+                    end_idx = min((batch_num + 1) * batch_size, len(self.segments))
+                    batch_segments = self.segments[start_idx:end_idx]
+                    
+                    try:
+                        start_time = time.time()
+                    
+                        # Translate entire batch
+                        batch_translations = self._translate_batch_with_llm(batch_segments)
+                    
+                        elapsed = time.time() - start_time
+                    
+                        # Process results
+                        for (row_index, segment), translation in zip(batch_segments, batch_translations):
+                            absolute_idx = start_idx + batch_segments.index((row_index, segment))
+                            
+                            if translation:
+                                segment.target = translation
+                                segment.status = "Translated"
+                                
+                                preview = segment.source[:50] + ("..." if len(segment.source) > 50 else "")
+                                message = f"[{absolute_idx+1}/{len(self.segments)}] ✓ {preview}"
+                                self.progress_update.emit(absolute_idx + 1, len(self.segments), message, True, elapsed / len(batch_segments))
+                                self.success_count += 1
+                            else:
+                                preview = segment.source[:50] + ("..." if len(segment.source) > 50 else "")
+                                message = f"[{absolute_idx+1}/{len(self.segments)}] ⊘ No translation: {preview}"
+                                self.progress_update.emit(absolute_idx + 1, len(self.segments), message, False, elapsed / len(batch_segments))
+                                self.error_count += 1
+                
+                    except Exception as e:
+                        import traceback
+                        error_details = traceback.format_exc()
+                        print(f"❌ Batch processing error: {e}")
+                        print(f"❌ Full traceback:\n{error_details}")
+                        # Mark entire batch as failed
+                        for row_index, segment in batch_segments:
+                            absolute_idx = start_idx + batch_segments.index((row_index, segment))
+                            preview = segment.source[:50] + ("..." if len(segment.source) > 50 else "")
+                            message = f"[{absolute_idx+1}/{len(self.segments)}] ✗ BATCH ERROR: {str(e)}"
+                            self.progress_update.emit(absolute_idx + 1, len(self.segments), message, False, 0)
+                            self.error_count += 1
+        
+            # Check if retry is needed (for LLM mode with retry option enabled)
+            if self.retry_enabled and self.provider_type == 'LLM' and self.retry_pass < self.max_retries:
+                # Count segments that are still empty after this pass
+                empty_segments_after = []
+                for row_index, seg in self.segments:
+                    if not seg.target or not seg.target.strip():
+                        empty_segments_after.append((row_index, seg))
+                
+                if empty_segments_after:
+                    # Emit retry_needed signal with list of empty segments
+                    self.retry_needed.emit(empty_segments_after)
+                    # Still emit completion for UI updates
+                    self.translation_complete.emit(self.success_count, self.error_count)
+                    return
+        
+            # Emit completion
+            self.translation_complete.emit(self.success_count, self.error_count)
+        
+        finally:
+            # Clean up thread-local database connection
+            if self._thread_local_db:
+                try:
+                    self._thread_local_db.close()
+                    print(f"✓ Closed thread-local database connection")
+                except:
+                    pass
+    
+    def cancel(self):
+        """Request cancellation of translation job."""
+        self._cancelled = True
+    
+    def _translate_from_tm(self, segment):
+        """Translate a single segment using TM.
+        
+        Uses thread-local database connection to avoid SQLite threading errors.
+        """
+        try:
+            print(f"🔍 TM PRE-TRANSLATE: Searching for: '{segment.source[:50]}...'")
+            print(f"🔍 TM PRE-TRANSLATE: Using tm_ids: {self.tm_ids}")
+            print(f"🔍 TM PRE-TRANSLATE: Exact only: {self.tm_exact_only}")
+            
+            # Use thread-local database connection
+            if not self._thread_local_db:
+                print(f"❌ TM PRE-TRANSLATE: No thread-local database connection!")
+                return None
+            
+            # Create a thread-local DatabaseManager for TM operations
+            # This avoids SQLite threading errors
+            from modules.database_manager import DatabaseManager
+            
+            # Get db_path from parent_app's tm_database
+            db_path = self.parent_app.tm_database.db_path
+            
+            # Create a thread-local DatabaseManager
+            thread_local_tm = DatabaseManager(db_path=db_path, log_callback=print)
+            thread_local_tm.connection = self._thread_local_db
+            thread_local_tm.cursor = self._thread_local_db.cursor()
+            
+            if self.tm_exact_only:
+                # Exact matches only - use hash lookup
+                match = thread_local_tm.get_exact_match(segment.source, tm_ids=self.tm_ids)
+                print(f"🔍 TM PRE-TRANSLATE: Exact match result: {match}")
+                if match:
+                    return match.get('target_text', '')
+                return None
+            else:
+                # Fuzzy matching enabled - use activated TM IDs
+                matches = thread_local_tm.search_all(
+                    segment.source, 
+                    tm_ids=self.tm_ids, 
+                    enabled_only=False, 
+                    max_matches=1
+                )
+                print(f"🔍 TM PRE-TRANSLATE: Fuzzy matches: {matches}")
+                if matches and len(matches) > 0:
+                    match = matches[0]
+                    match_pct = match.get('match_pct', 0)
+                    print(f"🔍 TM PRE-TRANSLATE: Best match pct: {match_pct}")
+                    if match_pct >= 70:  # Accept matches 70% and above
+                        return match.get('target', '')
+                return None
+        except Exception as e:
+            print(f"TM translation error: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
+    
+    def _translate_with_mt(self, segment):
+        """Translate a single segment using MT."""
+        # This would call parent_app's MT methods
+        # Implementation depends on which MT provider is selected
+        try:
+            # Get source/target languages
+            source_lang = getattr(self.parent_app.current_project, 'source_lang', 'en')
+            target_lang = getattr(self.parent_app.current_project, 'target_lang', 'nl')
+            
+            # Load API keys
+            api_keys = self.parent_app.load_api_keys()
+            
+            # Call appropriate MT service
+            if self.provider_name == 'Google Translate':
+                return self.parent_app.call_google_translate(segment.source, source_lang, target_lang, api_keys.get('google_translate'))
+            elif self.provider_name == 'DeepL':
+                return self.parent_app.call_deepl(segment.source, source_lang, target_lang, api_keys.get('deepl'))
+            # Add other MT providers as needed
+            return None
+        except Exception as e:
+            print(f"MT translation error: {e}")
+            return None
+    
+    def _translate_with_llm(self, segment):
+        """Translate a single segment using LLM."""
+        try:
+            from modules.llm_clients import LLMClient
+            
+            # Get source/target languages
+            source_lang = getattr(self.parent_app.current_project, 'source_lang', 'en')
+            target_lang = getattr(self.parent_app.current_project, 'target_lang', 'nl')
+            
+            # Load API keys
+            api_keys = self.parent_app.load_api_keys()
+            api_key = api_keys.get(self.provider_name) or (api_keys.get('google') if self.provider_name == 'gemini' else None)
+            
+            # Build custom prompt from prompt library
+            custom_prompt = None
+            if self.prompt_manager:
+                try:
+                    full_prompt = self.prompt_manager.build_final_prompt(
+                        source_text=segment.source,
+                        source_lang=source_lang,
+                        target_lang=target_lang,
+                        mode="single"
+                    )
+                    # Extract just the instruction part (without the source text section)
+                    if "**SOURCE TEXT:**" in full_prompt:
+                        custom_prompt = full_prompt.split("**SOURCE TEXT:**")[0].strip()
+                    elif "Translate the following" in full_prompt:
+                        custom_prompt = full_prompt.split("Translate the following")[0].strip()
+                    else:
+                        custom_prompt = full_prompt
+                except Exception as e:
+                    print(f"Warning: Could not build custom prompt: {e}")
+                    custom_prompt = None
+            
+            # Create client
+            client = LLMClient(
+                api_key=api_key,
+                provider=self.provider_name,
+                model=self.model
+            )
+            
+            # Translate with custom prompt
+            result = client.translate(
+                text=segment.source,
+                source_lang=source_lang,
+                target_lang=target_lang,
+                custom_prompt=custom_prompt
+            )
+            
+            return result
+        except Exception as e:
+            print(f"LLM translation error: {e}")
+            return None
+    
+    def _translate_batch_with_llm(self, batch_segments):
+        """Translate multiple segments in one LLM call (batch mode)."""
+        try:
+            from modules.llm_clients import LLMClient
+            import re
+            import traceback
+            
+            print(f"🚀 _translate_batch_with_llm: Starting batch of {len(batch_segments)} segments")
+            
+            # Get source/target languages
+            source_lang = getattr(self.parent_app.current_project, 'source_lang', 'en')
+            target_lang = getattr(self.parent_app.current_project, 'target_lang', 'nl')
+            print(f"🚀 Languages: {source_lang} → {target_lang}")
+            
+            # Load API keys
+            api_keys = self.parent_app.load_api_keys()
+            api_key = api_keys.get(self.provider_name) or (api_keys.get('google') if self.provider_name == 'gemini' else None)
+            
+            # Build batch prompt
+            batch_prompt_parts = []
+            
+            # Get base prompt from prompt library
+            base_prompt = None
+            if self.prompt_manager and batch_segments:
+                try:
+                    first_segment = batch_segments[0][1]
+                    full_prompt = self.prompt_manager.build_final_prompt(
+                        source_text=first_segment.source,
+                        source_lang=source_lang,
+                        target_lang=target_lang,
+                        mode="single"
+                    )
+                    # Extract just the instruction part
+                    if "**SOURCE TEXT:**" in full_prompt:
+                        base_prompt = full_prompt.split("**SOURCE TEXT:**")[0].strip()
+                    elif "Translate the following" in full_prompt:
+                        base_prompt = full_prompt.split("Translate the following")[0].strip()
+                    else:
+                        base_prompt = full_prompt
+                except Exception:
+                    base_prompt = None
+            
+            if base_prompt:
+                batch_prompt_parts.append(base_prompt)
+            else:
+                batch_prompt_parts.append(f"Translate the following text segments from {source_lang} to {target_lang}.")
+            
+            # Add batch instructions
+            batch_prompt_parts.append(f"\n**SEGMENTS TO TRANSLATE ({len(batch_segments)} segments):**")
+            batch_prompt_parts.append("\n⚠️ CRITICAL INSTRUCTIONS:")
+            batch_prompt_parts.append(f"1. You must provide EXACTLY one translation per segment")
+            batch_prompt_parts.append(f"2. You MUST translate ALL {len(batch_segments)} segments")
+            batch_prompt_parts.append("3. Format: Each translation MUST start with its segment number, a period, then the translation")
+            batch_prompt_parts.append("4. NO explanations, NO commentary, ONLY the numbered translations\n")
+            
+            batch_prompt_parts.append("**SEGMENTS TO TRANSLATE:**\n")
+            
+            # Add all segments
+            for row_index, seg in batch_segments:
+                batch_prompt_parts.append(f"{seg.id}. {seg.source}")
+            
+            batch_prompt_parts.append("\n**YOUR TRANSLATIONS (numbered list):**")
+            batch_prompt_parts.append("Begin your translations now:")
+            
+            batch_prompt = "\n".join(batch_prompt_parts)
+            
+            # Create client
+            client = LLMClient(
+                api_key=api_key,
+                provider=self.provider_name,
+                model=self.model
+            )
+            
+            # Call LLM with batch prompt (no custom_prompt parameter - it's all in the text)
+            result = client.translate(
+                text=batch_prompt,
+                source_lang=source_lang,
+                target_lang=target_lang,
+                custom_prompt=None  # We built the full prompt already
+            )
+            
+            # Parse the numbered response
+            translations = []
+            if result:
+                lines = result.split('\n')
+                translation_map = {}
+                
+                for line in lines:
+                    # Match "123. Translation text"
+                    match = re.match(r'^(\d+)\.\s*(.+)$', line.strip())
+                    if match:
+                        seg_id = int(match.group(1))
+                        translation = match.group(2).strip()
+                        translation_map[seg_id] = translation
+                
+                # Extract translations in order
+                for row_index, seg in batch_segments:
+                    translation = translation_map.get(seg.id, None)
+                    translations.append(translation)
+            else:
+                # No result - all segments failed
+                translations = [None] * len(batch_segments)
+            
+            return translations
+            
+        except Exception as e:
+            import traceback
+            error_details = traceback.format_exc()
+            print(f"❌ Batch LLM translation error: {e}")
+            print(f"❌ Full traceback:\n{error_details}")
+            # Return list of None for all segments
+            return [None] * len(batch_segments)
+
+
+class LiveProgressDialog(QDialog):
+    """Progress dialog with live console output."""
+    
+    def __init__(self, parent, total_segments, provider_info):
+        super().__init__(parent)
+        self.total_segments = total_segments
+        self.provider_info = provider_info
+        self.start_time = time.time()
+        self.segment_times = []  # Track processing times for estimation
+        
+        self.setWindowTitle("Batch Translation Progress")
+        self.setMinimumSize(800, 600)
+        
+        # Main layout
+        layout = QVBoxLayout(self)
+        
+        # Header
+        header_label = QLabel(f"<h3>🚀 Translating {total_segments} segment{'s' if total_segments != 1 else ''}</h3>")
+        layout.addWidget(header_label)
+        
+        # Provider info
+        provider_label = QLabel(provider_info)
+        provider_label.setStyleSheet("color: #666; padding: 5px 0;")
+        layout.addWidget(provider_label)
+        
+        # Progress info section
+        info_layout = QHBoxLayout()
+        self.progress_label = QLabel("0/0 (0%)")
+        self.time_label = QLabel("Elapsed: 0:00 | Remaining: --:--")
+        self.speed_label = QLabel("Speed: -- seg/min")
+        info_layout.addWidget(self.progress_label)
+        info_layout.addStretch()
+        info_layout.addWidget(self.time_label)
+        info_layout.addWidget(self.speed_label)
+        layout.addLayout(info_layout)
+        
+        # Progress bar
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setMaximum(total_segments)
+        layout.addWidget(self.progress_bar)
+        
+        # Console output
+        console_label = QLabel("<b>Console Output:</b>")
+        layout.addWidget(console_label)
+        
+        self.console = QTextEdit()
+        self.console.setReadOnly(True)
+        self.console.setFont(QFont("Consolas", 9))
+        self.console.setStyleSheet("""
+            QTextEdit {
+                background-color: #1e1e1e;
+                color: #d4d4d4;
+                border: 1px solid #3c3c3c;
+            }
+        """)
+        layout.addWidget(self.console)
+        
+        # Statistics
+        self.stats_label = QLabel("✓ Success: 0  |  ✗ Errors: 0")
+        self.stats_label.setStyleSheet("padding: 5px 0; font-weight: bold;")
+        layout.addWidget(self.stats_label)
+        
+        # Button section
+        button_layout = QHBoxLayout()
+        self.cancel_btn = QPushButton("Cancel")
+        self.cancel_btn.clicked.connect(self.reject)
+        button_layout.addStretch()
+        button_layout.addWidget(self.cancel_btn)
+        layout.addLayout(button_layout)
+        
+        # Timer for elapsed time updates
+        self.timer = QTimer()
+        self.timer.timeout.connect(self._update_time_display)
+        self.timer.start(1000)  # Update every second
+        
+        # Initial console message
+        self.add_console_line(f"Starting batch translation: {total_segments} segments", True)
+        self.add_console_line(provider_info, True)
+        self.add_console_line("-" * 80, True)
+    
+    def add_console_line(self, message, is_success=True):
+        """Add a line to the console with color coding."""
+        cursor = self.console.textCursor()
+        cursor.movePosition(QTextCursor.MoveOperation.End)
+        
+        # Set text color
+        fmt = cursor.charFormat()
+        if is_success:
+            fmt.setForeground(QColor("#4ec9b0"))  # Greenish (VS Code style)
+        else:
+            fmt.setForeground(QColor("#f48771"))  # Reddish (VS Code style)
+        
+        cursor.setCharFormat(fmt)
+        cursor.insertText(message + "\n")
+        
+        # Auto-scroll to bottom
+        self.console.setTextCursor(cursor)
+        self.console.ensureCursorVisible()
+    
+    def update_progress(self, current, total, elapsed_seconds, success_count, error_count):
+        """Update progress bar and labels."""
+        self.progress_bar.setValue(current)
+        
+        # Update progress label
+        percent = int((current / total) * 100) if total > 0 else 0
+        self.progress_label.setText(f"{current}/{total} ({percent}%)")
+        
+        # Update statistics
+        self.stats_label.setText(f"✓ Success: {success_count}  |  ✗ Errors: {error_count}")
+        
+        # Track timing
+        if elapsed_seconds > 0:
+            self.segment_times.append(elapsed_seconds)
+        
+        # Calculate speed and estimate remaining time
+        if len(self.segment_times) > 0:
+            avg_time = sum(self.segment_times) / len(self.segment_times)
+            speed = 60 / avg_time if avg_time > 0 else 0
+            remaining_segments = total - current
+            remaining_seconds = remaining_segments * avg_time
+            
+            # Update labels
+            self.speed_label.setText(f"Speed: {speed:.1f} seg/min")
+            
+            remaining_str = self._format_time(remaining_seconds)
+            elapsed_str = self._format_time(time.time() - self.start_time)
+            self.time_label.setText(f"Elapsed: {elapsed_str} | Remaining: {remaining_str}")
+    
+    def _update_time_display(self):
+        """Update elapsed time display (called every second)."""
+        if self.progress_bar.value() < self.total_segments:
+            elapsed = time.time() - self.start_time
+            current_text = self.time_label.text()
+            # Update only elapsed portion
+            if " | " in current_text:
+                remaining_part = current_text.split(" | ")[1]
+                self.time_label.setText(f"Elapsed: {self._format_time(elapsed)} | {remaining_part}")
+    
+    @staticmethod
+    def _format_time(seconds):
+        """Format seconds as MM:SS."""
+        minutes = int(seconds // 60)
+        secs = int(seconds % 60)
+        return f"{minutes}:{secs:02d}"
+    
+    def show_completion_message(self, success_count, error_count):
+        """Show completion summary in console."""
+        self.add_console_line("", True)  # Blank line
+        self.add_console_line("=" * 80, True)
+        self.add_console_line(f"Translation Complete!", True)
+        self.add_console_line(f"✓ Success: {success_count}", True)
+        if error_count > 0:
+            self.add_console_line(f"✗ Errors: {error_count}", False)
+        total_time = time.time() - self.start_time
+        self.add_console_line(f"Total time: {self._format_time(total_time)}", True)
+        self.add_console_line("=" * 80, True)
+        
+        # Change button to "Close"
+        self.cancel_btn.setText("Close")
+
 
 # ============================================================================
 # MAIN WINDOW
@@ -7211,13 +7792,13 @@ class SupervertalerQt(QMainWindow):
         resources_tab = self.create_resources_tab()
         self.main_tabs.addTab(resources_tab, "🗂️ Resources")
         
-        # ===== 3. QUICKMENU TAB =====
-        # Unified QuickMenu system: folder structure = menu hierarchy for in-app + global access
+        # ===== 3. PROMPT MANAGER TAB =====
+        # Unified prompt system: folder structure = menu hierarchy for in-app + global access
         from modules.unified_prompt_manager_qt import UnifiedPromptManagerQt
         prompt_widget = QWidget()
         self.prompt_manager_qt = UnifiedPromptManagerQt(self, standalone=False)
         self.prompt_manager_qt.create_tab(prompt_widget)
-        self.main_tabs.addTab(prompt_widget, "⚡ QuickMenu")
+        self.main_tabs.addTab(prompt_widget, "📝 Prompt Manager")
         
         # Keep backward compatibility reference
         self.document_views_widget = self.main_tabs
@@ -14597,8 +15178,8 @@ class SupervertalerQt(QMainWindow):
         
         prefs_layout.addSpacing(10)
         
-        # QuickMenu document context
-        quickmenu_context_label = QLabel("<b>QuickMenu Document Context:</b>")
+        # Document context for AI prompts
+        quickmenu_context_label = QLabel("<b>Document Context (for AI prompts):</b>")
         prefs_layout.addWidget(quickmenu_context_label)
         
         quickmenu_context_percent = general_prefs.get('quickmenu_context_percent', 50)
@@ -14636,10 +15217,29 @@ class SupervertalerQt(QMainWindow):
         
         prefs_layout.addSpacing(5)
         
-        # Check TM before API call
-        check_tm_cb = CheckmarkCheckBox("Check TM before API call")
-        check_tm_cb.setChecked(check_tm_before_api)
-        prefs_layout.addWidget(check_tm_cb)
+        # Check TM before API call - with fuzzy or exact mode (single-segment translation only)
+        tm_check_label = QLabel("<b>Check TM before single-segment AI translation (Ctrl+T):</b>")
+        prefs_layout.addWidget(tm_check_label)
+        
+        # Get current settings
+        check_tm_exact_only = general_prefs.get('check_tm_exact_only', False)
+        
+        # Radio buttons for TM check mode
+        tm_no_check_rb = CheckmarkRadioButton("Don't check TM - always call AI")
+        tm_fuzzy_rb = CheckmarkRadioButton("Check TM first (including fuzzy matches)")
+        tm_exact_rb = CheckmarkRadioButton("Check TM first (only 100% matches - faster)")
+        
+        # Set initial state
+        if not check_tm_before_api:
+            tm_no_check_rb.setChecked(True)
+        elif check_tm_exact_only:
+            tm_exact_rb.setChecked(True)
+        else:
+            tm_fuzzy_rb.setChecked(True)
+        
+        prefs_layout.addWidget(tm_no_check_rb)
+        prefs_layout.addWidget(tm_fuzzy_rb)
+        prefs_layout.addWidget(tm_exact_rb)
         
         prefs_layout.addSpacing(5)
         
@@ -14776,7 +15376,7 @@ class SupervertalerQt(QMainWindow):
             tab.ollama_status_widget,
             openai_enable_cb, claude_enable_cb, gemini_enable_cb, ollama_enable_cb,
             batch_size_spin, surrounding_spin, full_context_cb, context_slider,
-            check_tm_cb, auto_propagate_cb, delay_spin,
+            tm_no_check_rb, tm_fuzzy_rb, tm_exact_rb, auto_propagate_cb, delay_spin,
             ollama_keepwarm_cb,
             llm_matching_cb, auto_markdown_cb, llm_spin,
             quickmenu_context_slider
@@ -17834,7 +18434,7 @@ class SupervertalerQt(QMainWindow):
                                    ollama_status_widget,
                                    openai_enable_cb, claude_enable_cb, gemini_enable_cb, ollama_enable_cb,
                                    batch_size_spin, surrounding_spin, full_context_cb, context_slider,
-                                   check_tm_cb, auto_propagate_cb,
+                                   tm_no_check_rb, tm_fuzzy_rb, tm_exact_rb, auto_propagate_cb,
                                    delay_spin):
         """Save LLM settings from UI"""
         # Determine selected provider
@@ -17887,7 +18487,9 @@ class SupervertalerQt(QMainWindow):
         general_prefs['surrounding_segments'] = surrounding_spin.value()
         general_prefs['use_full_context'] = full_context_cb.isChecked()
         general_prefs['context_window_size'] = context_slider.value()
-        general_prefs['check_tm_before_api'] = check_tm_cb.isChecked()
+        # Save TM check mode settings
+        general_prefs['check_tm_before_api'] = not tm_no_check_rb.isChecked()
+        general_prefs['check_tm_exact_only'] = tm_exact_rb.isChecked()
         general_prefs['auto_propagate_100'] = auto_propagate_cb.isChecked()
         general_prefs['lookup_delay'] = delay_spin.value()
         self.save_general_settings(general_prefs)
@@ -17903,7 +18505,7 @@ class SupervertalerQt(QMainWindow):
                                    ollama_status_widget,
                                    openai_enable_cb, claude_enable_cb, gemini_enable_cb, ollama_enable_cb,
                                    batch_size_spin, surrounding_spin, full_context_cb, context_slider,
-                                   check_tm_cb, auto_propagate_cb, delay_spin,
+                                   tm_no_check_rb, tm_fuzzy_rb, tm_exact_rb, auto_propagate_cb, delay_spin,
                                    ollama_keepwarm_cb,
                                    llm_matching_cb, auto_markdown_cb, llm_spin,
                                    quickmenu_context_slider):
@@ -17966,7 +18568,9 @@ class SupervertalerQt(QMainWindow):
         general_prefs['use_full_context'] = full_context_cb.isChecked()
         general_prefs['context_window_size'] = context_slider.value()
         general_prefs['quickmenu_context_percent'] = quickmenu_context_slider.value()
-        general_prefs['check_tm_before_api'] = check_tm_cb.isChecked()
+        # Save TM check mode settings
+        general_prefs['check_tm_before_api'] = not tm_no_check_rb.isChecked()
+        general_prefs['check_tm_exact_only'] = tm_exact_rb.isChecked()
         general_prefs['auto_propagate_100'] = auto_propagate_cb.isChecked()
         general_prefs['lookup_delay'] = delay_spin.value()
         general_prefs['ollama_keepwarm'] = ollama_keepwarm_cb.isChecked()
@@ -38233,6 +38837,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             # Check TM before API call if enabled
             general_prefs = self.load_general_settings()
             check_tm_before_api = general_prefs.get('check_tm_before_api', True)
+            check_tm_exact_only = general_prefs.get('check_tm_exact_only', False)
             tm_match = None
             
             if check_tm_before_api and self.tm_database:
@@ -38244,10 +38849,18 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                         tm_ids = self.tm_metadata_mgr.get_active_tm_ids(project_id)
                 
                 try:
-                    matches = self.tm_database.search_all(segment.source, tm_ids=tm_ids, enabled_only=False, max_matches=1)
-                    if matches and matches[0].get('match_pct', 0) == 100:
-                        tm_match = matches[0].get('target', '')
-                        self.log(f"✓ Found 100% TM match for segment #{segment.id}")
+                    if check_tm_exact_only:
+                        # Use exact match only (faster - O(1) hash lookup)
+                        exact_match = self.tm_database.get_exact_match(segment.source, tm_ids=tm_ids)
+                        if exact_match:
+                            tm_match = exact_match.get('target_text', '')
+                            self.log(f"✓ Found 100% TM match (exact) for segment #{segment.id}")
+                    else:
+                        # Use fuzzy search (includes 100% matches)
+                        matches = self.tm_database.search_all(segment.source, tm_ids=tm_ids, enabled_only=False, max_matches=1)
+                        if matches and matches[0].get('match_pct', 0) == 100:
+                            tm_match = matches[0].get('target', '')
+                            self.log(f"✓ Found 100% TM match for segment #{segment.id}")
                 except Exception as e:
                     self.log(f"⚠ TM check error: {e}")
             
@@ -39021,6 +39634,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             translation_provider_type = getattr(self, '_batch_provider_type', 'LLM')
             translation_provider_name = getattr(self, '_batch_provider_name', 'openai')
             model = getattr(self, '_batch_model', 'gpt-4o')
+            tm_exact_only = getattr(self, '_batch_tm_exact_only', False)  # Retrieve TM exact-only setting
             api_keys = self.load_api_keys()
             settings = self.load_llm_settings()
             llm_provider = settings.get('provider', 'openai')
@@ -39056,6 +39670,26 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             tm_checkbox = CheckmarkCheckBox("📖 TM (Translation Memory) - Pre-translate from activated TMs")
             tm_checkbox.setChecked(False)
             provider_layout.addWidget(tm_checkbox)
+            
+            # TM Exact Matches Only sub-option (indented to show it's related to TM)
+            tm_exact_only_checkbox = CheckmarkCheckBox("       ⚡ Exact matches only (faster - skips fuzzy matching)")
+            tm_exact_only_checkbox.setEnabled(False)  # Disabled until TM is selected
+            tm_exact_only_checkbox.setToolTip(
+                "Only search for 100% exact matches using fast hash lookup.\n"
+                "Skips fuzzy matching which can take several seconds per segment.\n"
+                "Recommended for large documents when you have a good TM."
+            )
+            # Add left margin to create visual hierarchy
+            tm_exact_only_checkbox.setStyleSheet("QCheckBox { margin-left: 20px; }")
+            provider_layout.addWidget(tm_exact_only_checkbox)
+            
+            # Enable/disable exact-only option based on TM selection
+            def on_tm_selection_changed(checked):
+                tm_exact_only_checkbox.setEnabled(checked)
+                if not checked:
+                    tm_exact_only_checkbox.setChecked(False)
+            
+            tm_checkbox.toggled.connect(on_tm_selection_changed)
 
             llm_checkbox = CheckmarkCheckBox("🤖 LLM (AI) - Use configured LLM provider (GPT, Claude, Gemini)")
             llm_checkbox.setChecked(True)  # Default to LLM
@@ -39175,9 +39809,14 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             use_tm = tm_checkbox.isChecked()
             use_mt = mt_checkbox.isChecked()
             retry_until_complete = retry_checkbox.isChecked()
+            tm_exact_only = tm_exact_only_checkbox.isChecked()  # NEW: Get exact-only setting
         
             # Store retry setting for recursive calls
             self._batch_retry_enabled = retry_until_complete
+            self._batch_tm_exact_only = tm_exact_only  # Store for retry passes
+            
+            # Initialize model variable (will be set to actual model if LLM is selected)
+            model = None
 
             if use_tm:
                 # Use Translation Memory
@@ -39192,7 +39831,8 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                     )
                     return
             
-                self.log("📖 Using Translation Memory for batch pre-translation")
+                mode_str = " (Exact matches only)" if tm_exact_only else " (with fuzzy matching)"
+                self.log(f"📖 Using Translation Memory for batch pre-translation{mode_str}")
             
             elif use_mt:
                 # Use MT provider
@@ -39233,6 +39873,246 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                 self._batch_provider_name = translation_provider_name
                 self._batch_model = model
 
+        # All segments go to translation - TM pre-translation should be done separately
+        # via "Edit → Batch Operations → Pre-translate from TM" before AI translation
+        segments_needing_translation = segments_to_translate
+
+        # Create provider info string for dialog
+        if translation_provider_type == 'MT':
+            provider_info = f"Provider: {translation_provider_name} (Machine Translation)"
+        elif translation_provider_type == 'TM':
+            mode = "Exact matches only" if tm_exact_only else "with fuzzy matching"
+            provider_info = f"Provider: Translation Memory ({mode})"
+        else:
+            provider_info = f"Provider: {translation_provider_name.title()} | Model: {model}"
+
+        # Get retry settings
+        retry_pass = getattr(self, '_batch_retry_pass', 0)
+        retry_enabled = getattr(self, '_batch_retry_enabled', False)
+        
+        # =====================================================================
+        # TM PRE-TRANSLATION - Run on main thread (no SQLite threading issues)
+        # Uses the same database methods as the Compare Panel
+        # =====================================================================
+        if translation_provider_type == 'TM':
+            # Get activated TM IDs for TM pre-translation
+            tm_ids = None
+            if hasattr(self, 'tm_metadata_mgr') and self.tm_metadata_mgr and self.current_project:
+                project_id = self.current_project.id if hasattr(self.current_project, 'id') else None
+                if project_id:
+                    tm_ids = self.tm_metadata_mgr.get_active_tm_ids(project_id)
+            
+            if not tm_ids:
+                QMessageBox.warning(
+                    self, "No TMs Activated",
+                    "No Translation Memories are activated for reading.\n\n"
+                    "Please go to Project Resources → Translation Memories and enable "
+                    "the 'Read' checkbox for the TMs you want to use."
+                )
+                return
+            
+            self.log(f"📖 Pre-translate from TM: Using activated TMs: {tm_ids}")
+            
+            # Create progress dialog for TM pre-translation
+            progress = QProgressDialog(
+                f"Pre-translating {len(segments_needing_translation)} segments from TM...",
+                "Cancel", 0, len(segments_needing_translation), self
+            )
+            progress.setWindowTitle("TM Pre-Translation")
+            progress.setWindowModality(Qt.WindowModality.WindowModal)
+            progress.setMinimumDuration(0)  # Show immediately
+            progress.show()
+            QApplication.processEvents()
+            
+            success_count = 0
+            no_match_count = 0
+            
+            for idx, (row_index, segment) in enumerate(segments_needing_translation):
+                if progress.wasCanceled():
+                    break
+                
+                progress.setValue(idx)
+                progress.setLabelText(f"Searching TM for segment {idx + 1}/{len(segments_needing_translation)}...")
+                QApplication.processEvents()
+                
+                try:
+                    match = None
+                    
+                    if tm_exact_only:
+                        # Exact match only - use hash lookup (fast)
+                        match = self.tm_database.get_exact_match(segment.source, tm_ids=tm_ids)
+                        print(f"DEBUG get_exact_match returned: type={type(match)}, value={match}")
+                        if match and isinstance(match, dict):
+                            segment.target = match.get('target_text', '')
+                            segment.status = "Translated"
+                            success_count += 1
+                            self.log(f"   ✓ Segment {row_index + 1}: 100% exact match found")
+                        else:
+                            no_match_count += 1
+                    else:
+                        # Fuzzy matching enabled - get best match ≥70%
+                        matches = self.tm_database.search_all(
+                            segment.source,
+                            tm_ids=tm_ids,
+                            enabled_only=False,
+                            max_matches=1
+                        )
+                        if matches and len(matches) > 0:
+                            best_match = matches[0]
+                            match_pct = best_match.get('match_pct', 0)
+                            if match_pct >= 70:
+                                segment.target = best_match.get('target', '')
+                                segment.status = "Translated"
+                                success_count += 1
+                                self.log(f"   ✓ Segment {row_index + 1}: {match_pct}% match found")
+                            else:
+                                no_match_count += 1
+                        else:
+                            no_match_count += 1
+                    
+                    # Update grid immediately
+                    if segment.target:
+                        target_widget = self.table.cellWidget(row_index, 3)
+                        if target_widget and isinstance(target_widget, EditableGridTextEditor):
+                            target_widget.setPlainText(segment.target)
+                        self.update_status_icon(row_index, segment.status)
+                        QApplication.processEvents()
+                        
+                except Exception as e:
+                    self.log(f"   ✗ Segment {row_index + 1}: Error - {str(e)}")
+                    no_match_count += 1
+            
+            progress.setValue(len(segments_needing_translation))
+            progress.close()
+            
+            # Show completion message
+            self.log(f"═══════════════════════════════════════════════════════════")
+            self.log(f"✓ TM Pre-Translation Complete")
+            self.log(f"   Translated: {success_count} | No match: {no_match_count}")
+            self.log(f"═══════════════════════════════════════════════════════════")
+            
+            QMessageBox.information(
+                self, "TM Pre-Translation Complete",
+                f"Pre-translation from TM complete.\n\n"
+                f"✓ Translated: {success_count}\n"
+                f"⊘ No match: {no_match_count}"
+            )
+            
+            self.project_modified = True
+            self.update_window_title()
+            self.auto_resize_rows()
+            self.update_progress_stats()
+            return  # Exit - TM pre-translation is complete
+        
+        # =====================================================================
+        # LLM/MT TRANSLATION - Uses background worker thread
+        # =====================================================================
+        
+        # Create worker and dialog
+        # Note: TM pre-translation is now handled on main thread above,
+        # so we don't pass tm_ids to the worker anymore
+        worker = PreTranslationWorker(
+            self, 
+            segments_needing_translation,  # Use filtered segments after TM pre-check
+            translation_provider_type, 
+            translation_provider_name, 
+            model if translation_provider_type == 'LLM' else None,
+            tm_exact_only=tm_exact_only,
+            prompt_manager=self.prompt_manager_qt if hasattr(self, 'prompt_manager_qt') else None,
+            retry_enabled=retry_enabled,
+            retry_pass=retry_pass,
+            tm_ids=None  # TM pre-translation now on main thread
+        )
+        dialog = LiveProgressDialog(self, len(segments_needing_translation), provider_info)
+        
+        # Track success/error counts for dialog updates
+        success_count = 0
+        error_count = 0
+        
+        # Connect signals
+        def handle_progress_update(current, total, message, success, elapsed_time):
+            nonlocal success_count, error_count
+            if success:
+                success_count += 1
+            else:
+                error_count += 1
+            dialog.add_console_line(message, success)
+            dialog.update_progress(current, total, elapsed_time, success_count, error_count)
+            
+            # Update grid immediately for successful translations
+            if success and current <= len(segments_needing_translation):
+                row_index, segment = segments_needing_translation[current - 1]
+                if row_index < self.table.rowCount():
+                    target_widget = self.table.cellWidget(row_index, 3)
+                    if target_widget and isinstance(target_widget, EditableGridTextEditor):
+                        target_widget.setPlainText(segment.target)
+                    else:
+                        self.table.setItem(row_index, 3, QTableWidgetItem(segment.target))
+                    self.update_status_icon(row_index, segment.status)
+        
+        def handle_translation_complete(final_success_count, final_error_count):
+            dialog.show_completion_message(final_success_count, final_error_count)
+            self.project_modified = True
+            self.update_window_title()
+            self.auto_resize_rows()
+            self.update_progress_stats()
+            
+            # Check if this is the final pass (no retry pending)
+            if not hasattr(self, '_pending_retry'):
+                # Log completion
+                self.log(f"═══════════════════════════════════════════════════════════")
+                self.log(f"✓ Batch Translation Complete")
+                self.log(f"   Translated: {final_success_count} | Failed: {final_error_count}")
+                self.log(f"═══════════════════════════════════════════════════════════")
+                
+                # Clear retry settings
+                if hasattr(self, '_batch_retry_pass'):
+                    delattr(self, '_batch_retry_pass')
+                if hasattr(self, '_batch_retry_enabled'):
+                    delattr(self, '_batch_retry_enabled')
+        
+        def handle_retry_needed(empty_segments_after):
+            retry_count = len(empty_segments_after)
+            current_pass = worker.retry_pass
+            next_pass = current_pass + 2  # +2 because pass 0 is "first pass", so pass 1 is "retry 2"
+            
+            # Log retry
+            self.log(f"🔄 Retry pass {next_pass}: {retry_count} segment(s) still empty, retrying...")
+            
+            # Update retry pass counter
+            self._batch_retry_pass = current_pass + 1
+            self._pending_retry = True  # Flag to prevent completion message
+            
+            # Close current dialog
+            dialog.accept()
+            
+            # Recursively call translate_batch with only empty segments
+            # Clear the pending flag before recursion
+            if hasattr(self, '_pending_retry'):
+                delattr(self, '_pending_retry')
+            
+            self.translate_batch(
+                segments_with_rows=empty_segments_after,
+                scope_description=f"empty segment(s) (retry {next_pass})"
+            )
+        
+        worker.progress_update.connect(handle_progress_update)
+        worker.translation_complete.connect(handle_translation_complete)
+        worker.retry_needed.connect(handle_retry_needed)
+        
+        # Connect cancel button
+        dialog.rejected.connect(worker.cancel)
+        
+        # Start worker and show dialog
+        worker.start()
+        dialog.exec()
+        
+        # Wait for worker to finish
+        worker.wait()
+        
+        return  # Exit - new implementation replaces all the code below
+
+        # ===== OLD BLOCKING IMPLEMENTATION BELOW (DISABLED) =====
         # Create progress dialog
         progress = QDialog(self)
         progress.setWindowTitle("Batch Translation Progress")
@@ -39305,11 +40185,16 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             # Check TM before API calls if enabled (can save significant API costs!)
             general_prefs = self.load_general_settings()
             check_tm_before_api = general_prefs.get('check_tm_before_api', True)
+            check_tm_exact_only = general_prefs.get('check_tm_exact_only', False)
             tm_matches_found = 0
             segments_needing_translation = []
             
             if check_tm_before_api and self.tm_database:
                 self.log(f"🔍 Pre-checking TM for 100% matches before API calls...")
+                if check_tm_exact_only:
+                    self.log(f"   Using EXACT match mode (faster - hash lookup)")
+                else:
+                    self.log(f"   Using FUZZY match mode (includes 100% matches)")
                 
                 # Get activated TM IDs for current project
                 tm_ids = None
@@ -39319,36 +40204,69 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                         tm_ids = self.tm_metadata_mgr.get_active_tm_ids(project_id)
                         if tm_ids:
                             self.log(f"   Using activated TMs: {tm_ids}")
-                
-                # Check each segment against TM
-                for row_index, segment in segments_to_translate:
-                    try:
-                        matches = self.tm_database.search_all(segment.source, tm_ids=tm_ids, enabled_only=False, max_matches=1)
-                        if matches and matches[0].get('match_pct', 0) == 100:
-                            # Found 100% match - auto-insert it
-                            tm_match = matches[0].get('target', '')
-                            segment.target = tm_match
-                            segment.status = "translated"
-                            tm_matches_found += 1
-                            
-                            # Update grid immediately
-                            if row_index < self.table.rowCount():
-                                target_widget = self.table.cellWidget(row_index, 3)
-                                if target_widget and isinstance(target_widget, EditableGridTextEditor):
-                                    target_widget.setPlainText(tm_match)
-                                else:
-                                    self.table.setItem(row_index, 3, QTableWidgetItem(tm_match))
-                                self.update_status_icon(row_index, "translated")
-                            
-                            translated_count += 1
-                            self.log(f"   ✓ TM 100%: Segment #{segment.id}")
                         else:
-                            # No 100% match - needs translation
+                            self.log(f"   ⚠ No TMs activated - skipping TM pre-check")
+                
+                # Skip TM pre-check if no TMs are activated
+                if tm_ids is None or (isinstance(tm_ids, list) and len(tm_ids) == 0):
+                    self.log(f"   Skipping TM pre-check (no activated TMs)")
+                    segments_needing_translation = segments_to_translate
+                else:
+                    # Check each segment against TM
+                    for row_index, segment in segments_to_translate:
+                        try:
+                            if check_tm_exact_only:
+                                # Use exact match only (faster - O(1) hash lookup)
+                                exact_match = self.tm_database.get_exact_match(segment.source, tm_ids=tm_ids)
+                                if exact_match:
+                                    # Found 100% exact match - auto-insert it
+                                    tm_match = exact_match.get('target_text', '')
+                                    segment.target = tm_match
+                                    segment.status = "translated"
+                                    tm_matches_found += 1
+                                    
+                                    # Update grid immediately
+                                    if row_index < self.table.rowCount():
+                                        target_widget = self.table.cellWidget(row_index, 3)
+                                        if target_widget and isinstance(target_widget, EditableGridTextEditor):
+                                            target_widget.setPlainText(tm_match)
+                                        else:
+                                            self.table.setItem(row_index, 3, QTableWidgetItem(tm_match))
+                                        self.update_status_icon(row_index, "translated")
+                                    
+                                    translated_count += 1
+                                    self.log(f"   ✓ TM 100%: Segment #{segment.id}")
+                                else:
+                                    # No exact match - needs translation
+                                    segments_needing_translation.append((row_index, segment))
+                            else:
+                                # Use fuzzy search (includes 100% matches)
+                                matches = self.tm_database.search_all(segment.source, tm_ids=tm_ids, enabled_only=False, max_matches=1)
+                                if matches and matches[0].get('match_pct', 0) == 100:
+                                    # Found 100% match - auto-insert it
+                                    tm_match = matches[0].get('target', '')
+                                    segment.target = tm_match
+                                    segment.status = "translated"
+                                    tm_matches_found += 1
+                                    
+                                    # Update grid immediately
+                                    if row_index < self.table.rowCount():
+                                        target_widget = self.table.cellWidget(row_index, 3)
+                                        if target_widget and isinstance(target_widget, EditableGridTextEditor):
+                                            target_widget.setPlainText(tm_match)
+                                        else:
+                                            self.table.setItem(row_index, 3, QTableWidgetItem(tm_match))
+                                        self.update_status_icon(row_index, "translated")
+                                    
+                                    translated_count += 1
+                                    self.log(f"   ✓ TM 100%: Segment #{segment.id}")
+                                else:
+                                    # No 100% match - needs translation
+                                    segments_needing_translation.append((row_index, segment))
+                        except Exception as e:
+                            # TM check failed - add to translation queue
                             segments_needing_translation.append((row_index, segment))
-                    except Exception as e:
-                        # TM check failed - add to translation queue
-                        segments_needing_translation.append((row_index, segment))
-                        self.log(f"   ⚠ TM check error for segment #{segment.id}: {e}")
+                            self.log(f"   ⚠ TM check error for segment #{segment.id}: {e}")
                 
                 self.log(f"✓ TM pre-check complete: {tm_matches_found} 100% matches found, {len(segments_needing_translation)} segments need translation")
                 self.log(f"   API calls saved: {tm_matches_found} (cost savings!)")
@@ -41093,9 +42011,14 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                     
                     self.log(f"🚀 DELAYED TM SEARCH: Using TM IDs: {tm_ids}")
                     
-                    # Search using TMDatabase (includes bidirectional + base language matching)
-                    # Pass enabled_only=False to bypass the hardcoded tm_metadata filter
-                    all_tm_matches = self.tm_database.search_all(segment.source, tm_ids=tm_ids, enabled_only=False, max_matches=10)
+                    # Skip TM search if no TMs are activated
+                    if tm_ids is not None and isinstance(tm_ids, list) and len(tm_ids) == 0:
+                        self.log(f"🚀 DELAYED TM SEARCH: Skipping (no TMs activated)")
+                        all_tm_matches = []
+                    else:
+                        # Search using TMDatabase (includes bidirectional + base language matching)
+                        # Pass enabled_only=False to bypass the hardcoded tm_metadata filter
+                        all_tm_matches = self.tm_database.search_all(segment.source, tm_ids=tm_ids, enabled_only=False, max_matches=10)
                     
                     self.log(f"🚀 DELAYED TM SEARCH: Found {len(all_tm_matches)} matches")
                     
@@ -46674,6 +47597,21 @@ class AutoFingersWidget(QWidget):
 
 def main():
     """Application entry point"""
+    # Install global exception handler to catch unhandled exceptions
+    import traceback
+    
+    def global_exception_handler(exc_type, exc_value, exc_traceback):
+        """Global exception handler - prints full traceback before crashing"""
+        print("\n" + "="*60)
+        print("🚨 UNHANDLED EXCEPTION - FULL TRACEBACK:")
+        print("="*60)
+        traceback.print_exception(exc_type, exc_value, exc_traceback)
+        print("="*60 + "\n")
+        # Call the default handler
+        sys.__excepthook__(exc_type, exc_value, exc_traceback)
+    
+    sys.excepthook = global_exception_handler
+    
     # Suppress Chromium/QtWebEngine verbose error output (cache errors, GPU warnings, JS console)
     # These are harmless but alarming to users - websites emit tons of CSP/permissions noise
     os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = "--disable-logging --log-level=3 --enable-logging=stderr --v=-1"

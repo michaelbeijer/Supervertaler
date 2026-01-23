@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** January 21, 2026 | **Version:** v1.9.148-beta
+> **Last Updated:** January 23, 2026 | **Version:** v1.9.151
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.148-beta (January 2026) |
+| **Version** | v1.9.151 (January 2026) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -765,6 +765,457 @@ deepl=...
 ---
 
 ## 🔄 Recent Development History
+
+### January 23, 2026 - TM Pre-Translation Fixed (v1.9.151)
+
+**🔧 Critical Fix: "Pre-translate from TM" Now Works**
+
+User reported that "Pre-translate from TM" batch operation found no matches, despite visible 100% TM match in Compare Panel.
+
+**Root Cause: SQLite Thread Safety**
+
+The `PreTranslationWorker` ran in a background QThread, but SQLite connections created in the main thread cannot be used in other threads. This caused:
+```
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread.
+The object was created in thread id 28960 and this is thread id 15536.
+```
+
+**User's Key Insight:**
+> "What I don't understand is you can't get Batch Translate to look up exact matches in the TM. However, all I need to do is move to the next segment, and if there is a match, it is shown in the Compare panel. Can't you just use the same system that the Compare panel uses to find these matches?"
+
+**The Fix:**
+Instead of trying to work around SQLite threading (creating thread-local connections), the TM pre-translation now runs **on the main thread** - exactly like the Compare Panel does.
+
+**Implementation (Line ~39894-39996):**
+```python
+# TM PRE-TRANSLATION - Run on main thread (no SQLite threading issues)
+# Uses the same database methods as the Compare Panel
+if translation_provider_type == 'TM':
+    # Get activated TM IDs
+    tm_ids = self.tm_metadata_mgr.get_active_tm_ids(project_id)
+    
+    # Create progress dialog for TM pre-translation
+    progress = QProgressDialog(...)
+    
+    for idx, (row_index, segment) in enumerate(segments_needing_translation):
+        if tm_exact_only:
+            match = self.tm_database.get_exact_match(segment.source, tm_ids=tm_ids)
+        else:
+            matches = self.tm_database.search_all(segment.source, tm_ids=tm_ids, ...)
+        
+        # Update segment and grid immediately
+        if segment.target:
+            target_widget.setPlainText(segment.target)
+            self.update_status_icon(row_index, segment.status)
+            QApplication.processEvents()  # Keep UI responsive
+    
+    return  # TM pre-translation handled, exit
+```
+
+**Benefits of Main Thread Approach:**
+- ✅ Uses exact same database connection as Compare Panel
+- ✅ No SQLite threading errors
+- ✅ Simpler code - no thread-local connection workarounds
+- ✅ QProgressDialog with processEvents() keeps UI responsive
+- ✅ Reliable and predictable behavior
+
+**Files Modified:**
+- `Supervertaler.py` - Rewrote TM pre-translation path (lines 39894-40004)
+
+**Key Learning:**
+When a background worker has SQLite threading issues, consider whether the operation really needs a background thread. For TM lookups (fast database queries), running on the main thread with periodic `processEvents()` is simpler and more reliable.
+
+---
+
+### January 22, 2026 - CRITICAL: Batch Translation Crash Investigation (v1.9.149-beta) - RESOLVED
+
+**🚨 Multiple Crash Issues During Production Testing**
+
+User discovered critical crashes when testing batch translation feature on 9-segment patent file. This session involved extensive debugging of three separate crash scenarios.
+
+---
+
+**CRASH #1: Empty TM IDs When No TMs Activated (FIXED)**
+
+**Symptoms:**
+- User imported new project → all resources auto-deactivated (by design)
+- Started batch translate → immediate crash
+- Error: Crash in TM database search with empty `tm_ids=[]`
+
+**Root Cause:**
+When no TMs are activated at all, `get_active_tm_ids()` returns empty list `[]`. The TM database search methods (`get_exact_match()`, `search_all()`) don't handle empty lists gracefully and crash.
+
+**Fix Applied (Line ~39833):**
+```python
+# Skip TM pre-check if no TMs are activated
+if tm_ids is None or (isinstance(tm_ids, list) and len(tm_ids) == 0):
+    self.log(f"   Skipping TM pre-check (no activated TMs)")
+    segments_needing_translation = segments_to_translate
+else:
+    # Check each segment against TM
+    for row_index, segment in segments_to_translate:
+        ...
+```
+
+**Location:** Supervertaler.py, batch translate TM pre-check (line ~39807-39907)
+
+---
+
+**CRASH #2: User Had TMs Activated But Only "Write" Enabled (FIXED)**
+
+**Symptoms:**
+- User activated 2 TMs in Project Resources
+- Started batch translate → still crashed
+- Same error: empty `tm_ids=[]` despite TMs being activated
+
+**User's Key Insight:**
+> "wait, maybe they were set to write but not read"
+
+**Root Cause Discovery:**
+The TM activation system has TWO checkboxes:
+- **"Read" checkbox**: Enables TM for searching/matching during translation
+- **"Write" checkbox**: Enables saving new translations to TM
+
+`get_active_tm_ids()` in `modules/tm_metadata_manager.py` **ONLY returns TMs where `ta.is_active = 1`** (Read checkbox enabled):
+
+```python
+# Line 366-399 in tm_metadata_manager.py
+SELECT tm.tm_id FROM translation_memories tm 
+INNER JOIN tm_activation ta ON tm.id = ta.tm_id 
+WHERE ta.project_id = ? AND ta.is_active = 1  # <-- Read checkbox
+```
+
+When user had only "Write" enabled, method returned empty list `[]` → crash.
+
+**Fix Applied (Line 41935-41941):**
+Added same empty list validation to delayed TM search (segment navigation):
+```python
+# Skip TM search if no TMs are activated
+if tm_ids is not None and isinstance(tm_ids, list) and len(tm_ids) == 0:
+    self.log(f"🚀 DELAYED TM SEARCH: Skipping (no TMs activated)")
+    all_tm_matches = []
+else:
+    all_tm_matches = self.tm_database.search_all(...)
+```
+
+**Location:** Supervertaler.py, delayed TM search (line ~41920-41945)
+
+---
+
+**CRASH #3: Second Batch Translate Code Path Missing Fix (FIXED)**
+
+**Symptoms:**
+- After fixing crashes #1 and #2, user tested again
+- Still crashed during batch translate
+- Same error pattern but different code location
+
+**Root Cause:**
+There are **TWO separate batch translate code paths** in Supervertaler.py:
+1. **Line ~39819**: First batch translate location (had the fix)
+2. **Line ~40122**: Second batch translate location (MISSING the fix)
+
+The second location was missing the empty `tm_ids` validation, causing crashes when it was the active code path.
+
+**Fix Applied (Line 40140-40145):**
+Added empty list validation to second batch translate location:
+```python
+# Skip TM pre-check if no TMs are activated
+if tm_ids is None or (isinstance(tm_ids, list) and len(tm_ids) == 0):
+    self.log(f"   Skipping TM pre-check (no activated TMs)")
+    segments_needing_translation = segments_to_translate
+else:
+    # Check each segment against TM
+    for row_index, segment in segments_to_translate:
+        try:
+            if check_tm_exact_only:
+                ...
+```
+
+**Indentation Issue:** Had to fix multiple indentation errors in the try/except blocks when adding the else clause.
+
+**Location:** Supervertaler.py, second batch translate TM pre-check (line ~40122-40200)
+
+---
+
+**CRASH #4: Unknown Error During LLM Translation (CURRENT ISSUE - INVESTIGATING)**
+
+**Symptoms:**
+- After fixing all three crashes above, user tested with 2 TMs properly activated (Read checkbox enabled)
+- TM pre-check completed successfully (found 0 matches, didn't crash)
+- Batch translation started with Gemini API
+- Crash during actual LLM translation inside PreTranslationWorker thread
+- Console shows: "Unhandled Python exception" with no details
+
+**Log Output Analysis:**
+```
+[LOG] ✓ Activated TM 42 for project 1947053659
+[LOG] ✅ TM 42 set to readable
+[LOG] ✓ Activated TM 52 for project 1947053659
+[LOG] ✅ TM 52 set to readable
+[LOG] 📊 Project has 8 segments → Will translate ALL of them
+[LOG] 🚀 DELAYED TM SEARCH: Using TM IDs: ['patents', 'brants_carr_001_be_wo']
+[Batch translate dialog appears, user clicks Confirm & Next]
+Unhandled Python exception
+```
+
+**Problem:** QThread exceptions don't print to console by default - they're silently swallowed!
+
+**Debug Logging Added (Line ~5416, ~5514, ~5291):**
+Added comprehensive error logging to PreTranslationWorker:
+
+1. **In `_translate_batch_with_llm()` method:**
+   ```python
+   import traceback
+   
+   print(f"🚀 _translate_batch_with_llm: Starting batch of {len(batch_segments)} segments")
+   print(f"🚀 Languages: {source_lang} → {target_lang}")
+   
+   # ... at end of method ...
+   except Exception as e:
+       import traceback
+       error_details = traceback.format_exc()
+       print(f"❌ Batch LLM translation error: {e}")
+       print(f"❌ Full traceback:\n{error_details}")
+   ```
+
+2. **In `run()` method's batch processing:**
+   ```python
+   except Exception as e:
+       import traceback
+       error_details = traceback.format_exc()
+       print(f"❌ Batch processing error: {e}")
+       print(f"❌ Full traceback:\n{error_details}")
+   ```
+
+**Next Steps:**
+- User needs to run batch translate again with debug logging active
+- Console will now show FULL Python traceback when crash occurs
+- Once we see the exact error message and line number, we can fix the root cause
+
+**Suspected Issues:**
+- Gemini API authentication/key problem
+- Missing attribute access in worker thread
+- Threading race condition
+- API response parsing error
+
+---
+
+**Summary of Fixes Applied:**
+
+| Location | Issue | Status |
+|----------|-------|--------|
+| Line ~39833 | Empty tm_ids validation (first batch translate) | ✅ FIXED |
+| Line 41935 | Empty tm_ids validation (delayed TM search) | ✅ FIXED |
+| Line 40140 | Empty tm_ids validation (second batch translate) | ✅ FIXED |
+| Line 5416 | Debug logging in _translate_batch_with_llm | ✅ ADDED |
+| Line 5291 | Debug logging in run() batch processing | ✅ ADDED |
+| Line 5316 | Wrong dict key 'target' → 'target_text' | ✅ FIXED |
+| Line 38801 | Wrong dict key 'target' → 'target_text' | ✅ FIXED |
+| Line 39860 | Wrong dict key 'target' → 'target_text' | ✅ FIXED |
+| Line 40163 | Wrong dict key 'target' → 'target_text' | ✅ FIXED |
+| Line 39761 | Store tm_exact_only for retry passes | ✅ FIXED |
+| Line 39583 | Retrieve tm_exact_only in retry path | ✅ FIXED |
+
+**Files Modified:**
+- `Supervertaler.py` (47,639 lines total):
+  - Lines 39807-39907: First batch translate TM pre-check (added empty list check)
+  - Lines 40122-40200: Second batch translate TM pre-check (added empty list check + fixed indentation)
+  - Lines 41920-41945: Delayed TM search (added empty list check)
+  - Lines 5164-5550: PreTranslationWorker class (added debug logging)
+  - Line 39761: Store `_batch_tm_exact_only` for retry passes
+  - Line 39583: Retrieve `tm_exact_only` from stored setting in retry path
+
+**Key Learnings:**
+
+1. **TM Activation System:**
+   - "Read" checkbox: Enables TM for searching/matching
+   - "Write" checkbox: Enables saving translations to TM
+   - Users must enable "Read" to use TM during translation
+   - `get_active_tm_ids()` only returns "Read"-enabled TMs
+
+2. **Empty List Handling:**
+   - Always validate `tm_ids` before calling TM database methods
+   - Empty list `[]` is different from `None`
+   - Need to check: `if tm_ids is None or (isinstance(tm_ids, list) and len(tm_ids) == 0):`
+
+3. **QThread Exception Handling:**
+   - Exceptions in QThread don't print to console automatically
+   - Need explicit traceback logging in worker threads
+   - Use `import traceback` and `traceback.format_exc()` for full error details
+
+4. **Multiple Code Paths:**
+   - Batch translate has TWO separate implementations
+   - When fixing bugs, search for ALL occurrences of similar patterns
+   - Use `grep_search` to find duplicate code paths
+
+5. **Retry Pass Variable Scope:**
+   - When recursive calls skip dialog, locally-scoped variables from dialog are undefined
+   - Must store settings as instance variables (`self._batch_*`) before dialog
+   - Retry path must retrieve all needed settings with `getattr(self, '_batch_*', default)`
+
+**Testing Checklist for Next Agent:**
+- [ ] Run batch translate with no TMs activated → should log "Skipping TM pre-check"
+- [ ] Run batch translate with TMs only "Write" enabled → should log "Skipping TM pre-check"
+- [ ] Run batch translate with TMs "Read" enabled → should work normally
+- [ ] Run batch translate → let retry trigger for empty segments → should not crash
+- [ ] Check console for full error traceback when crash occurs
+- [ ] Fix root cause based on traceback information
+
+---
+
+**CRASH #4: Wrong Dictionary Key in TM Exact Match (FIXED)**
+
+**Symptoms:**
+- User ran batch translate with 2 TMs properly activated (Read + Write enabled)
+- TM pre-check crashed with: `'str' object has no attribute 'get'`
+- Console showed repeated error for segments #3-9
+- Error occurred when calling `exact_match.get('target', '')`
+
+**Root Cause Discovery:**
+The crash message was misleading - it wasn't that `exact_match` was a string, it was that `.get()` was being called on a string KEY!
+
+**The Problem:**
+- `get_exact_match()` returns raw database row as dict: `{'source_text': '...', 'target_text': '...', ...}`
+- But the code was calling `exact_match.get('target', '')` - using wrong key name!
+- Column name in database is **`target_text`**, not `target`
+- When dict doesn't have 'target' key, `.get()` returns default empty string
+- But the error message suggested the dict itself was the problem
+
+**Database Column Names vs Return Keys:**
+```python
+# What get_exact_match() returns (raw database columns):
+exact_match = {
+    'source_text': 'source text here',  # ← Column name
+    'target_text': 'target text here',  # ← Column name
+    'tm_id': 'patent_tm',
+    ...
+}
+
+# What search_all() returns (transformed keys):
+matches = [{
+    'source': 'source text here',  # ← Transformed from source_text
+    'target': 'target text here',  # ← Transformed from target_text
+    'match_pct': 100,
+    ...
+}]
+```
+
+**Why search_all() Worked:**
+The `search_all()` method transforms the column names from `source_text`/`target_text` to `source`/`target` before returning. But `get_exact_match()` returns the raw database row unchanged!
+
+**Fix Applied (4 locations):**
+Changed `.get('target', '')` to `.get('target_text', '')` in:
+1. Line 5316: PreTranslationWorker thread TM lookup
+2. Line 39860: First batch translate TM pre-check
+3. Line 40163: Second batch translate TM pre-check
+4. Line 38801: Auto-confirm 100% matches (Ctrl+Enter navigation)
+
+```python
+# BEFORE (wrong key):
+exact_match = self.tm_database.get_exact_match(segment.source, tm_ids=tm_ids)
+if exact_match:
+    tm_match = exact_match.get('target', '')  # ← Wrong key!
+
+# AFTER (correct key):
+exact_match = self.tm_database.get_exact_match(segment.source, tm_ids=tm_ids)
+if exact_match:
+    tm_match = exact_match.get('target_text', '')  # ← Correct database column name
+```
+
+**Location:** Supervertaler.py lines 5316, 38801, 39860, 40163
+
+**Lesson Learned:**
+Always check what keys are actually in the dictionary returned by database methods. Don't assume the keys match other methods' return formats!
+
+---
+
+**CRASH #5: Retry Pass Missing tm_exact_only Variable (FIXED)**
+
+**Symptoms:**
+- User ran batch translate, 7/8 segments translated successfully
+- 1 segment remained empty, triggering retry mechanism
+- Crash with: `UnboundLocalError: cannot access local variable 'tm_exact_only' where it is not associated with a value`
+- Traceback pointed to line 39961: `tm_exact_only=tm_exact_only`
+
+**Root Cause:**
+When `handle_retry_needed()` calls `translate_batch()` recursively for retry:
+1. The dialog is skipped (because `is_retry_pass = True`)
+2. But `tm_exact_only` was only set from the dialog checkbox in the `else` block
+3. The retry path retrieved other settings (`_batch_provider_type`, `_batch_model`) but NOT `tm_exact_only`
+4. Result: Variable undefined when passed to `PreTranslationWorker`
+
+**Fix Applied (2 locations):**
+1. **Store setting** at line 39761: `self._batch_tm_exact_only = tm_exact_only`
+2. **Retrieve setting** at line 39583: `tm_exact_only = getattr(self, '_batch_tm_exact_only', False)`
+
+```python
+# STORING (after dialog, line 39761):
+self._batch_retry_enabled = retry_until_complete
+self._batch_tm_exact_only = tm_exact_only  # NEW: Store for retry passes
+
+# RETRIEVING (retry path, line 39583):
+if is_retry_pass:
+    translation_provider_type = getattr(self, '_batch_provider_type', 'LLM')
+    translation_provider_name = getattr(self, '_batch_provider_name', 'openai')
+    model = getattr(self, '_batch_model', 'gpt-4o')
+    tm_exact_only = getattr(self, '_batch_tm_exact_only', False)  # NEW: Retrieve
+```
+
+**Result:** Retry mechanism now works correctly with stored settings from first pass.
+
+---
+
+**ARCHITECTURAL DECISION: TM Pre-Check REMOVED from Batch Translation (v1.9.150)**
+
+After user testing confirmed batch AI translation and retry work correctly, but TM pre-check continued to show errors for every segment, the user made an architectural decision:
+
+**User's Insight:**
+> "pre-translating against a TM and translating using AI at the same time is asking for trouble"
+
+**Decision:** Remove TM pre-check from AI batch translation entirely.
+
+**Rationale:**
+- Mixing TM lookup with AI translation in one operation adds complexity
+- TM pre-translation is a separate workflow step
+- User should run "Pre-translate from TM" first, THEN "Batch Translate" with AI
+- Simpler, clearer, more maintainable
+
+**Code Removed (~117 lines from `translate_batch()`):**
+```python
+# REMOVED - Was checking TM before API calls:
+if translation_provider_type in ['LLM', 'MT']:
+    if check_tm_before_api and self.tm_database:
+        # ... TM lookup code for each segment ...
+
+# REPLACED WITH simple pass-through:
+segments_needing_translation = segments_to_translate
+```
+
+**Settings UI Updated (line ~15167):**
+- Label changed: "Check TM before API call" → "Check TM before single-segment AI translation (Ctrl+T)"
+- Clarifies the setting ONLY affects single-segment translation (Ctrl+T), not batch
+
+**What Still Uses TM Check:**
+- `translate_current_segment()` (Ctrl+T) - Single-segment translation can still check TM first
+- Auto-confirm 100% matches during navigation (Ctrl+Enter) - Still uses TM lookup
+
+**New Recommended Workflow for Users:**
+1. **Import project** → All segments need translation
+2. **Run "Pre-translate from TM"** (Edit → Batch Operations → Pre-translate from TM) → Fills in TM matches
+3. **Run "Batch Translate"** with AI → Translates remaining empty segments
+
+**Result:** Cleaner separation of concerns, simpler code, no more TM pre-check errors.
+
+---
+
+**Current State (v1.9.150):**
+- ✅ All previous crash fixes in place
+- ✅ TM pre-check REMOVED from batch translation
+- ✅ Settings UI updated to clarify single-segment scope
+- ✅ Syntax validated
+- ✅ Ready for user testing
+
+---
 
 ### January 21, 2026 - User-Choosable Data Folder (v1.9.148)
 
@@ -3798,4 +4249,4 @@ An intelligent proofreading system that uses LLMs to verify translation quality.
 ---
 
 *This file replaces the previous CLAUDE.md and PROJECT_CONTEXT.md files.*
-*Last updated: January 21, 2026 - v1.9.148*
+*Last updated: January 23, 2026 - v1.9.151*
