@@ -3,8 +3,8 @@ Supervertaler
 =============
 The Ultimate Translation Workbench.
 Modern PyQt6 interface with specialised modules to handle any problem.
-Version: 1.9.136 (Glossary matching fix for punctuation)
-Release Date: January 20, 2026
+Version: 1.9.153 (Tab Layout Reorganization)
+Release Date: January 23, 2026
 Framework: PyQt6
 
 This is the modern edition of Supervertaler using PyQt6 framework.
@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.152"
+__version__ = "1.9.153"
 __phase__ = "0.9"
 __release_date__ = "2026-01-21"
 __edition__ = "Qt"
@@ -6028,6 +6028,13 @@ class SupervertalerQt(QMainWindow):
         QApplication.instance().processEvents()  # Allow UI to finish initializing
         self.load_font_sizes_from_preferences()
         
+        # Restore Termview under grid visibility state
+        if hasattr(self, 'bottom_tabs'):
+            termview_visible = general_settings.get('termview_under_grid_visible', True)
+            self.bottom_tabs.setVisible(termview_visible)
+            if hasattr(self, 'termview_visible_action'):
+                self.termview_visible_action.setChecked(termview_visible)
+        
         # Auto-check for new models if enabled in settings
         if general_settings.get('auto_check_models', True):
             from PyQt6.QtCore import QTimer
@@ -6608,11 +6615,14 @@ class SupervertalerQt(QMainWindow):
     
     def focus_segment_notes(self):
         """Switch to Segment Note tab and focus the notes editor so user can start typing immediately"""
-        if not hasattr(self, 'bottom_tabs'):
+        if not hasattr(self, 'right_tabs'):
             return
         
-        # Switch to Segment note tab (index 1)
-        self.bottom_tabs.setCurrentIndex(1)
+        # Find the Segment Note tab in right_tabs by looking for the tab with "Segment note" in its text
+        for i in range(self.right_tabs.count()):
+            if "Segment note" in self.right_tabs.tabText(i):
+                self.right_tabs.setCurrentIndex(i)
+                break
         
         # Focus the notes editor so user can start typing
         if hasattr(self, 'bottom_notes_edit'):
@@ -7394,6 +7404,16 @@ class SupervertalerQt(QMainWindow):
         compare_zoom_reset_action = QAction("Compare Panel Zoom &Reset", self)
         compare_zoom_reset_action.triggered.connect(self.compare_panel_zoom_reset)
         compare_zoom_menu.addAction(compare_zoom_reset_action)
+
+        view_menu.addSeparator()
+        
+        # Termview visibility toggle
+        self.termview_visible_action = QAction("🔍 &Termview Under Grid", self)
+        self.termview_visible_action.setCheckable(True)
+        self.termview_visible_action.setChecked(True)  # Default: visible
+        self.termview_visible_action.triggered.connect(self.toggle_termview_under_grid)
+        self.termview_visible_action.setToolTip("Show/hide the Termview panel under the grid")
+        view_menu.addAction(self.termview_visible_action)
 
         view_menu.addSeparator()
 
@@ -11488,6 +11508,22 @@ class SupervertalerQt(QMainWindow):
                     f"Error testing segmentation:\n\n{e}"
                 )
     
+    def _update_both_termviews(self, source_text, termbase_list, nt_matches):
+        """Update both Termview instances (one under grid, one in right panel) with the same data."""
+        # Update left Termview (under grid)
+        if hasattr(self, 'termview_widget') and self.termview_widget:
+            try:
+                self.termview_widget.update_with_matches(source_text, termbase_list, nt_matches)
+            except Exception as e:
+                self.log(f"Error updating left termview: {e}")
+        
+        # Update right Termview (in right panel)
+        if hasattr(self, 'termview_widget_right') and self.termview_widget_right:
+            try:
+                self.termview_widget_right.update_with_matches(source_text, termbase_list, nt_matches)
+            except Exception as e:
+                self.log(f"Error updating right termview: {e}")
+    
     def _refresh_termbase_display_for_current_segment(self):
         """Refresh only termbase/glossary display for the current segment.
         
@@ -11547,7 +11583,9 @@ class SupervertalerQt(QMainWindow):
                 
                 # Get NT matches
                 nt_matches = self.find_nt_matches_in_source(segment.source)
-                self.termview_widget.update_with_matches(segment.source, termbase_list, nt_matches)
+                
+                # Update both Termview widgets (left and right)
+                self._update_both_termviews(segment.source, termbase_list, nt_matches)
             except Exception as e:
                 self.log(f"Error updating termview: {e}")
         
@@ -12039,8 +12077,10 @@ class SupervertalerQt(QMainWindow):
                                     
                                     # Get NT matches
                                     nt_matches = self.find_nt_matches_in_source(segment.source)
-                                    self.termview_widget.update_with_matches(segment.source, termbase_list, nt_matches)
-                                    self.log(f"✅ TermView updated instantly with new term")
+                                    
+                                    # Update both Termview widgets (left and right)
+                                    self._update_both_termviews(segment.source, termbase_list, nt_matches)
+                                    self.log(f"✅ Both TermView widgets updated instantly with new term")
                                 
                                 # Update source cell highlighting with updated cache
                                 # Call the highlighting function directly with the new matches
@@ -19682,16 +19722,18 @@ class SupervertalerQt(QMainWindow):
         self.bottom_notes_edit.textChanged.connect(self._on_bottom_notes_changed)
         notes_layout.addWidget(self.bottom_notes_edit)
         
-        # Add tabs
+        # Add only Termview tab to bottom_tabs (Segment Note and Session Log will be in right panel)
         bottom_tabs.addTab(self.termview_widget, "🔍 Termview")
-        bottom_tabs.addTab(notes_widget, "📝 Segment note")
-        bottom_tabs.addTab(session_log_widget, "📋 Session Log")
         
         # Default to Termview tab (index 0)
         bottom_tabs.setCurrentIndex(0)
         
         # Store reference to bottom_tabs for later access
         self.bottom_tabs = bottom_tabs
+        
+        # Store notes_widget and session_log_widget for adding to right panel later
+        self._notes_widget_for_right_panel = notes_widget
+        self._session_log_widget_for_right_panel = session_log_widget
         
         # Create a container for the left side that will hold everything
         left_container = QWidget()
@@ -19719,6 +19761,9 @@ class SupervertalerQt(QMainWindow):
         left_container_layout.addWidget(left_vertical_splitter)
         left_vertical_splitter.setHandleWidth(8)
         left_vertical_splitter.setChildrenCollapsible(False)
+        
+        # Allow left panel to shrink smaller so right panel can expand
+        left_container.setMinimumWidth(400)  # Allow grid to shrink to 400px minimum
         
         # Add left side to main horizontal splitter
         main_horizontal_splitter.addWidget(left_container)
@@ -19777,6 +19822,30 @@ class SupervertalerQt(QMainWindow):
         preview_widget = self._create_preview_tab()
         right_tabs.addTab(preview_widget, "📄 Preview")
         preview_tab_index = tab_index
+        tab_index += 1
+        
+        # Tab 4: Segment Note (moved from bottom panel)
+        right_tabs.addTab(self._notes_widget_for_right_panel, "📝 Segment note")
+        tab_index += 1
+        
+        # Tab 5: Session Log (moved from bottom panel)
+        right_tabs.addTab(self._session_log_widget_for_right_panel, "📋 Session Log")
+        tab_index += 1
+        
+        # Tab 6: Second Termview instance (duplicate of the one under grid)
+        self.termview_widget_right = TermviewWidget(self, db_manager=self.db_manager, log_callback=self.log, theme_manager=self.theme_manager)
+        self.termview_widget_right.term_insert_requested.connect(self.insert_termview_text)
+        self.termview_widget_right.edit_entry_requested.connect(self._on_termview_edit_entry)
+        self.termview_widget_right.delete_entry_requested.connect(self._on_termview_delete_entry)
+        
+        # Apply same font settings to right Termview
+        font_settings = self.load_general_settings()
+        termview_family = font_settings.get('termview_font_family', 'Segoe UI')
+        termview_size = font_settings.get('termview_font_size', 10)
+        termview_bold = font_settings.get('termview_font_bold', False)
+        self.termview_widget_right.set_font_settings(termview_family, termview_size, termview_bold)
+        
+        right_tabs.addTab(self.termview_widget_right, "🔍 Termview")
         
         # Set default selected tab based on visibility settings
         # Priority: Compare Panel > Translation Results > Preview
@@ -19790,7 +19859,15 @@ class SupervertalerQt(QMainWindow):
         # Store reference for later use
         self.right_tabs = right_tabs
         
+        # Allow right panel to expand larger for better splitter flexibility
+        right_tabs.setMinimumWidth(250)  # Prevent complete collapse
+        right_tabs.setMaximumWidth(16777215)  # Remove maximum width constraint (Qt max = 16777215)
+        
         main_horizontal_splitter.addWidget(right_tabs)
+        
+        # Set stretch factors so both sides can resize freely
+        main_horizontal_splitter.setStretchFactor(0, 7)  # Left panel gets 70% weight
+        main_horizontal_splitter.setStretchFactor(1, 3)  # Right panel gets 30% weight
         
         # Set horizontal splitter proportions: Grid area larger, results smaller
         # Give more space to the grid+editor on the left
@@ -28939,6 +29016,24 @@ class SupervertalerQt(QMainWindow):
         """Clear all rows from grid"""
         self.table.setRowCount(0)
     
+    def toggle_termview_under_grid(self):
+        """Show/hide the Termview panel under the grid for maximum vertical space"""
+        if not hasattr(self, 'bottom_tabs'):
+            return
+        
+        # Toggle visibility
+        is_visible = self.bottom_tabs.isVisible()
+        self.bottom_tabs.setVisible(not is_visible)
+        
+        # Update menu action checkmark
+        if hasattr(self, 'termview_visible_action'):
+            self.termview_visible_action.setChecked(not is_visible)
+        
+        # Save state to settings
+        settings = self.load_general_settings()
+        settings['termview_under_grid_visible'] = not is_visible
+        self.save_general_settings(settings)
+    
     def auto_resize_rows(self):
         """Auto-resize all rows to fit content - Compact version"""
         if not hasattr(self, 'table') or not self.table:
@@ -29977,7 +30072,9 @@ class SupervertalerQt(QMainWindow):
                                     ]
                                     # Also get NT matches (fresh, not cached - they may have changed)
                                     nt_matches = self.find_nt_matches_in_source(segment.source)
-                                    self.termview_widget.update_with_matches(segment.source, termbase_matches, nt_matches)
+                                    
+                                    # Update both Termview widgets (left and right)
+                                    self._update_both_termviews(segment.source, termbase_matches, nt_matches)
                                 except Exception as e:
                                     self.log(f"Error updating termview from cache: {e}")
                             
@@ -30069,7 +30166,9 @@ class SupervertalerQt(QMainWindow):
                                     ] if stored_matches else []
                                     # Also get NT matches
                                     nt_matches = self.find_nt_matches_in_source(segment.source)
-                                    self.termview_widget.update_with_matches(segment.source, termbase_matches, nt_matches)
+                                    
+                                    # Update both Termview widgets (left and right)
+                                    self._update_both_termviews(segment.source, termbase_matches, nt_matches)
                                 except Exception as e:
                                     self.log(f"Error refreshing termview: {e}")
 
@@ -33766,7 +33865,8 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                         'termbase_id': match_info.get('termbase_id'),
                         'notes': match_info.get('notes', '')
                     })
-                self.termview_widget.update_with_matches(segment.source, tb_list, nt_matches)
+                # Update both Termview widgets
+                self._update_both_termviews(segment.source, tb_list, nt_matches)
                 self.log("   ✓ TermView updated")
             except Exception as e:
                 self.log(f"   ⚠️ TermView update error: {e}")
