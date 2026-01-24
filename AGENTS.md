@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** January 23, 2026 | **Version:** v1.9.152
+> **Last Updated:** January 23, 2026 | **Version:** v1.9.153
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.152 (January 2026) |
+| **Version** | v1.9.153 (January 2026) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -765,6 +765,58 @@ deepl=...
 ---
 
 ## 🔄 Recent Development History
+
+### January 23, 2026 - Tab Layout Reorganization (v1.9.153)
+
+**📐 Phase 1: Dual Termview & Right Panel Consolidation**
+
+Implemented major UI reorganization to improve translation workflow by consolidating tabs and reducing visual clutter.
+
+**The Changes:**
+
+1. **Termview Under Grid** (Preserved):
+   - Original Termview remains below the grid
+   - User can collapse/hide it via splitter if desired
+   - Quick access to glossary terms while editing
+
+2. **Second Termview in Right Panel** (NEW):
+   - Created duplicate TermviewWidget instance: `self.termview_widget_right`
+   - Both Termviews update simultaneously when segments change
+   - New helper method: `_update_both_termviews(source_text, termbase_list, nt_matches)`
+   - Replaced all 5 direct `termview_widget.update_with_matches()` calls with helper
+
+3. **Segment Note & Session Log Moved**:
+   - Moved from bottom_tabs to right_tabs
+   - Now alongside Translation Results, Compare Panel, Preview
+   - Consolidated resources in one location
+
+4. **Updated Tab Structure**:
+   - **Left panel**: Grid + Termview (single tab)
+   - **Right panel**: Translation Results, Compare Panel, Preview, Segment Note, Session Log, Termview (6 tabs)
+
+5. **Ctrl+N Shortcut Updated**:
+   - Now searches right_tabs for "Segment note" tab by name
+   - Works regardless of which tabs are shown/hidden
+   - Still focuses notes editor for immediate typing
+
+**Implementation Details:**
+- Line 11494: `_update_both_termviews()` helper method
+- Line 19686-19698: Bottom tabs now only contains Termview
+- Line 19766-19795: Right tabs now includes Segment Note, Session Log, and second Termview
+- Line 6609: `focus_segment_notes()` updated to search right_tabs
+- 5 locations updated to use helper: quick-add term, on_cell_selected (2x), highlight_source_with_termbase
+
+**Future Enhancement (Phase 2 - Not Yet Implemented):**
+User requested advanced docking functionality:
+- Drag tabs to dock vertically in right panel
+- Any two tabs visible simultaneously while translating
+- Requires QDockWidget architecture (similar to VS Code/Qt Creator)
+- Complex implementation - would need to replace QTabWidget with QMainWindow + QDockWidgets
+
+**Files Modified:**
+- `Supervertaler.py` - All UI reorganization and Termview updates
+
+---
 
 ### January 23, 2026 - Instant Glossary Updates (v1.9.152)
 
@@ -4317,4 +4369,4 @@ An intelligent proofreading system that uses LLMs to verify translation quality.
 ---
 
 *This file replaces the previous CLAUDE.md and PROJECT_CONTEXT.md files.*
-*Last updated: January 23, 2026 - v1.9.152*
+*Last updated: January 23, 2026 - v1.9.153*

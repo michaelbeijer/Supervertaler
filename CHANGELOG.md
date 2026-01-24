@@ -2,7 +2,41 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.152 (January 23, 2026)
+**Current Version:** v1.9.153 (January 23, 2026)
+
+## 📐 Tab Layout Reorganization (v1.9.153) - January 23, 2026
+
+**Better Workflow Organization**
+
+Redesigned the tab layout to consolidate resources and improve translation workflow:
+
+**What Changed:**
+- **Termview stays under grid**: Original position preserved for quick glossary access
+- **Second Termview in right panel**: Duplicate instance so you can see terms while viewing other tabs
+- **Segment Note moved**: Now in right panel alongside Compare Panel and Preview
+- **Session Log moved**: Also in right panel for better organization
+- **Simultaneous updates**: Both Termview instances update together automatically
+
+**New Tab Structure:**
+- **Left panel**: Grid + Termview (collapsible)
+- **Right panel**: Translation Results, Compare Panel, Preview, Segment Note, Session Log, Termview (6 tabs)
+
+**Benefits:**
+- ✅ All reference materials (TM, glossary, notes) in one location
+- ✅ Grid area cleaner - just grid + glossary
+- ✅ Two Termview instances let you see terms while using other tabs
+- ✅ Ctrl+N shortcut still works to jump to Segment Note tab
+
+**Implementation:**
+- New helper method: `_update_both_termviews()` - updates both instances simultaneously
+- Updated 5 locations where Termview gets updated
+- Modified tab creation code to reorganize layout
+- Updated Ctrl+N shortcut to find tab by name (works regardless of tab visibility)
+
+**Future Enhancement (Phase 2):**
+User requested advanced docking: ability to drag tabs to dock them vertically in the right panel (like VS Code). This would require QDockWidget architecture - a significant refactor planned for future version.
+
+---
 
 ## ⚡ Instant Glossary Updates (v1.9.152) - January 23, 2026
 
