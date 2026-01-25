@@ -640,7 +640,7 @@ class UnifiedPromptManagerQt:
 
         # Tab 1: Prompt Library
         library_tab = self._create_prompt_library_tab()
-        self.sub_tabs.addTab(library_tab, "📚 Library")
+        self.sub_tabs.addTab(library_tab, "📚 Prompt Library")
 
         # Tab 2: AI Assistant (placeholder for now)
         assistant_tab = self._create_ai_assistant_tab()
@@ -694,7 +694,7 @@ class UnifiedPromptManagerQt:
         layout.setSpacing(5)
         
         # Title
-        title = QLabel("⚡ QuickMenu")
+        title = QLabel("📝 Prompt Manager")
         title.setStyleSheet("font-size: 16pt; font-weight: bold; color: #1976D2;")
         layout.addWidget(title, 0)
         

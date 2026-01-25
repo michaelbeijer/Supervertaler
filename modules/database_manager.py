@@ -840,11 +840,15 @@ class DatabaseManager:
             bidirectional: If True, search both directions (nl→en AND en→nl)
         
         Returns: List of matches with similarity scores
+        
+        Note: When multiple TMs are provided, searches each TM separately to ensure
+        good matches from smaller TMs aren't pushed out by BM25 keyword ranking
+        from larger TMs. Results are merged and sorted by actual similarity.
         """
         # For better FTS5 matching, tokenize the query and escape special chars
         # FTS5 special characters: " ( ) - : , . ! ? 
         import re
-        from modules.tmx_generator import get_base_lang_code
+        from modules.tmx_generator import get_base_lang_code, get_lang_match_variants
         
         # Strip HTML/XML tags from source for clean text search
         text_without_tags = re.sub(r'<[^>]+>', '', source)
@@ -883,7 +887,48 @@ class DatabaseManager:
         src_base = get_base_lang_code(source_lang) if source_lang else None
         tgt_base = get_base_lang_code(target_lang) if target_lang else None
         
-        # Use FTS5 for initial candidate retrieval (fast)
+        # MULTI-TM FIX: Search each TM separately to avoid BM25 ranking issues
+        # When a large TM is combined with a small TM, the large TM's many keyword matches
+        # push down genuinely similar sentences from the small TM
+        tms_to_search = tm_ids if tm_ids else [None]  # None means search all TMs together
+        
+        all_results = []
+        
+        for tm_id in tms_to_search:
+            # Search this specific TM (or all if tm_id is None)
+            tm_results = self._search_single_tm_fuzzy(
+                source, fts_query, [tm_id] if tm_id else None,
+                threshold, max_results, src_base, tgt_base, 
+                source_lang, target_lang, bidirectional
+            )
+            all_results.extend(tm_results)
+            print(f"[DEBUG] search_fuzzy_matches: TM '{tm_id}' returned {len(tm_results)} matches")
+        
+        # Deduplicate by source_text (keep highest similarity for each unique source)
+        seen = {}
+        for result in all_results:
+            key = result['source_text']
+            if key not in seen or result['similarity'] > seen[key]['similarity']:
+                seen[key] = result
+        
+        deduped_results = list(seen.values())
+        
+        # Sort ALL results by similarity (highest first) - this ensures the 76% match
+        # appears before 40% matches regardless of which TM they came from
+        deduped_results.sort(key=lambda x: x['similarity'], reverse=True)
+        
+        print(f"[DEBUG] search_fuzzy_matches: Final merged results: {len(deduped_results)} matches")
+        return deduped_results[:max_results]
+    
+    def _search_single_tm_fuzzy(self, source: str, fts_query: str, tm_ids: List[str],
+                                 threshold: float, max_results: int,
+                                 src_base: str, tgt_base: str,
+                                 source_lang: str, target_lang: str,
+                                 bidirectional: bool) -> List[Dict]:
+        """Search a single TM (or all TMs if tm_ids is None) for fuzzy matches"""
+        from modules.tmx_generator import get_lang_match_variants
+        
+        # Build query for this TM
         query = """
             SELECT tu.*, 
                    bm25(translation_units_fts) as relevance
@@ -893,13 +938,12 @@ class DatabaseManager:
         """
         params = [fts_query]
         
-        if tm_ids:
+        if tm_ids and tm_ids[0] is not None:
             placeholders = ','.join('?' * len(tm_ids))
             query += f" AND tu.tm_id IN ({placeholders})"
             params.extend(tm_ids)
         
         # Use flexible language matching (matches 'nl', 'nl-NL', 'Dutch', etc.)
-        from modules.tmx_generator import get_lang_match_variants
         if src_base:
             src_variants = get_lang_match_variants(source_lang)
             src_conditions = []
@@ -920,19 +964,15 @@ class DatabaseManager:
                 params.append(f"{variant}-%")
             query += f" AND ({' OR '.join(tgt_conditions)})"
         
-        # Get more candidates than needed for proper scoring (increase limit for long segments)
-        # Long segments need MANY more candidates because BM25 ranking may push down
-        # the truly similar entries in favor of entries matching more search terms
-        candidate_limit = max(500, max_results * 50)
+        # Per-TM candidate limit (smaller since we're searching each TM separately)
+        candidate_limit = max(200, max_results * 20)
         query += f" ORDER BY relevance DESC LIMIT {candidate_limit}"
-        
-        print(f"[DEBUG] search_fuzzy_matches: Executing query (limit={candidate_limit})...")
         
         try:
             self.cursor.execute(query, params)
             all_rows = self.cursor.fetchall()
         except Exception as e:
-            print(f"[DEBUG] search_fuzzy_matches: SQL ERROR: {e}")
+            print(f"[DEBUG] _search_single_tm_fuzzy: SQL ERROR: {e}")
             return []
         
         results = []
@@ -948,8 +988,6 @@ class DatabaseManager:
                 match_dict['match_pct'] = int(similarity * 100)
                 results.append(match_dict)
         
-        print(f"[DEBUG] search_fuzzy_matches: After threshold filter ({threshold}): {len(results)} matches")
-        
         # If bidirectional, also search reverse direction
         if bidirectional and src_base and tgt_base:
             query = """
@@ -961,13 +999,12 @@ class DatabaseManager:
             """
             params = [fts_query]
             
-            if tm_ids:
+            if tm_ids and tm_ids[0] is not None:
                 placeholders = ','.join('?' * len(tm_ids))
                 query += f" AND tu.tm_id IN ({placeholders})"
                 params.extend(tm_ids)
             
             # Reversed language filters with flexible matching
-            # For reverse: TM target_lang should match our source_lang, TM source_lang should match our target_lang
             src_variants = get_lang_match_variants(source_lang)
             tgt_variants = get_lang_match_variants(target_lang)
             
@@ -991,26 +1028,27 @@ class DatabaseManager:
             
             query += f" ORDER BY relevance DESC LIMIT {max_results * 5}"
             
-            self.cursor.execute(query, params)
-            
-            for row in self.cursor.fetchall():
-                match_dict = dict(row)
-                # Calculate similarity against target_text (since we're reversing)
-                similarity = self.calculate_similarity(source, match_dict['target_text'])
+            try:
+                self.cursor.execute(query, params)
                 
-                # Only include matches above threshold
-                if similarity >= threshold:
-                    # Swap source/target for reverse match
-                    match_dict['source_text'], match_dict['target_text'] = match_dict['target_text'], match_dict['source_text']
-                    match_dict['source_lang'], match_dict['target_lang'] = match_dict['target_lang'], match_dict['source_lang']
-                    match_dict['similarity'] = similarity
-                    match_dict['match_pct'] = int(similarity * 100)
-                    match_dict['reverse_match'] = True
-                    results.append(match_dict)
+                for row in self.cursor.fetchall():
+                    match_dict = dict(row)
+                    # Calculate similarity against target_text (since we're reversing)
+                    similarity = self.calculate_similarity(source, match_dict['target_text'])
+                    
+                    # Only include matches above threshold
+                    if similarity >= threshold:
+                        # Swap source/target for reverse match
+                        match_dict['source_text'], match_dict['target_text'] = match_dict['target_text'], match_dict['source_text']
+                        match_dict['source_lang'], match_dict['target_lang'] = match_dict['target_lang'], match_dict['source_lang']
+                        match_dict['similarity'] = similarity
+                        match_dict['match_pct'] = int(similarity * 100)
+                        match_dict['reverse_match'] = True
+                        results.append(match_dict)
+            except Exception as e:
+                print(f"[DEBUG] _search_single_tm_fuzzy (reverse): SQL ERROR: {e}")
         
-        # Sort by similarity (highest first) and limit results
-        results.sort(key=lambda x: x['similarity'], reverse=True)
-        return results[:max_results]
+        return results
     
     def search_all(self, source: str, tm_ids: List[str] = None, enabled_only: bool = True,
                    threshold: float = 0.75, max_results: int = 10) -> List[Dict]:

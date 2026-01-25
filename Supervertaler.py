@@ -19539,29 +19539,6 @@ class SupervertalerQt(QMainWindow):
         tab_seg_info.setStyleSheet("font-weight: bold;")
         toolbar_layout.addWidget(tab_seg_info)
         
-        # TM/Termbase toggle button
-        tm_toggle_btn = QPushButton("🔍 TM ON")
-        tm_toggle_btn.setCheckable(True)
-        tm_toggle_btn.setChecked(True)
-        tm_toggle_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #4CAF50;
-                color: white;
-                font-weight: bold;
-                padding: 4px 8px;
-                border-radius: 3px;
-            }
-            QPushButton:checked {
-                background-color: #4CAF50;
-            }
-            QPushButton:!checked {
-                background-color: #757575;
-            }
-        """)
-        tm_toggle_btn.setToolTip("Toggle TM and Glossary lookups")
-        tm_toggle_btn.clicked.connect(lambda checked: self.toggle_tm_from_editor(checked, tm_toggle_btn))
-        toolbar_layout.addWidget(tm_toggle_btn)
-        
         # Tag View toggle button
         tag_view_btn = QPushButton("🏷️ Tags OFF")
         tag_view_btn.setCheckable(True)
@@ -19600,17 +19577,6 @@ class SupervertalerQt(QMainWindow):
         
         toolbar_layout.addWidget(QLabel("|"))  # Separator
         
-        # Action buttons
-        copy_btn = QPushButton("📋 Copy")
-        copy_btn.setToolTip("Copy Source → Target")
-        copy_btn.clicked.connect(self.copy_source_to_grid_target)
-        toolbar_layout.addWidget(copy_btn)
-        
-        clear_btn = QPushButton("🗑️ Clear")
-        clear_btn.setToolTip("Clear Target")
-        clear_btn.clicked.connect(self.clear_grid_target)
-        toolbar_layout.addWidget(clear_btn)
-        
         preview_prompt_btn = QPushButton("🧪 Preview Prompts")
         preview_prompt_btn.setToolTip("Preview the complete assembled prompt\n(System Prompt + Custom Prompts + current segment)")
         preview_prompt_btn.setStyleSheet("background-color: #9C27B0; color: white; font-weight: bold; padding: 4px 8px; border: none; outline: none;")
@@ -19645,11 +19611,6 @@ class SupervertalerQt(QMainWindow):
         self.grid_alwayson_btn = alwayson_btn  # Store reference
         
         toolbar_layout.addStretch()
-        
-        save_btn = QPushButton("💾 Save")
-        save_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 4px 8px; border: none; outline: none;")
-        save_btn.clicked.connect(self.save_grid_segment)
-        toolbar_layout.addWidget(save_btn)
         
         save_next_btn = QPushButton("✓ Confirm && Next")
         save_next_btn.setStyleSheet("background-color: #2196F3; color: white; font-weight: bold; padding: 4px 8px; border: none; outline: none;")
@@ -20465,35 +20426,6 @@ class SupervertalerQt(QMainWindow):
         tab_seg_info = QLabel("Select a segment to edit")
         tab_seg_info.setStyleSheet("font-weight: bold; font-size: 11pt;")
         info_layout.addWidget(tab_seg_info, stretch=1)
-
-        # TM/Glossary toggle button
-        tm_toggle_btn = QPushButton("🔍 TM/Glossary ON")
-        tm_toggle_btn.setCheckable(True)
-        tm_toggle_btn.setChecked(True)  # Start enabled
-        tm_toggle_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #4CAF50;
-                color: white;
-                font-weight: bold;
-                padding: 5px 10px;
-                border-radius: 3px;
-            }
-            QPushButton:checked {
-                background-color: #4CAF50;
-            }
-            QPushButton:!checked {
-                background-color: #757575;
-            }
-            QPushButton:hover {
-                opacity: 0.9;
-            }
-        """)
-        tm_toggle_btn.setToolTip("Toggle TM and Glossary lookups when clicking segments (speeds up editing)")
-        tm_toggle_btn.clicked.connect(lambda checked: self.toggle_tm_from_editor(checked, tm_toggle_btn))
-        info_layout.addWidget(tm_toggle_btn)
-
-        # Store reference to button for updates from Settings
-        editor_widget.tm_toggle_btn = tm_toggle_btn
 
         # Status selector
         from modules.statuses import STATUSES
@@ -28174,11 +28106,15 @@ class SupervertalerQt(QMainWindow):
             nav_html = f"(<span style='font-size:8px'>{idx}/{total}</span>)"
             self.match_panel_tm_nav_label.setText(nav_html)
         
-        # Update TM Source text
-        source_text = match.get('source', '')
-        self.match_panel_tm_source.setPlainText(source_text)
+        # Update TM Source text with diff highlighting
+        tm_source_text = match.get('source', '')
+        current_source = getattr(self, 'match_panel_current_source', '')
+        if tm_source_text and current_source:
+            self._set_compare_panel_text_with_diff(self.match_panel_tm_source, current_source, tm_source_text)
+        else:
+            self.match_panel_tm_source.setPlainText(tm_source_text or "(No TM match)")
         
-        # Update TM Target text
+        # Update TM Target text (no diff highlighting needed for target)
         target_text = match.get('target', '')
         self.match_panel_tm_target.setPlainText(target_text)
         
@@ -28451,6 +28387,7 @@ class SupervertalerQt(QMainWindow):
         # Always update Match Panel with TM matches
         self.match_panel_tm_matches = tm_matches or []
         self.match_panel_tm_index = 0
+        self.match_panel_current_source = current_source  # Store for diff highlighting
         self._update_match_panel_tm_display()
         
         # Update Compare Panel if it exists (legacy support)
@@ -33998,6 +33935,18 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                 except Exception as e:
                     self.log(f"   ⚠️ Panel update error: {e}")
             self.log("   ✓ Translation Results panel updated")
+        
+        # 7b. Update Match Panel with TM matches
+        tm_matches_for_panel = []
+        for tm_match in tm_matches:
+            tm_matches_for_panel.append({
+                'source': tm_match.get('source', ''),
+                'target': tm_match.get('target', ''),
+                'tm_name': tm_match.get('tm_name', 'TM'),
+                'match_pct': int(tm_match.get('similarity', 0) * 100)
+            })
+        self.set_compare_panel_matches(segment_id, segment.source, tm_matches_for_panel, [])
+        self.log("   ✓ Match Panel updated")
         
         # 8. Re-apply termbase highlighting in the grid source cell
         try:
@@ -42283,6 +42232,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                     else:
                         # Search using TMDatabase (includes bidirectional + base language matching)
                         # Pass enabled_only=False to bypass the hardcoded tm_metadata filter
+                        # Note: fuzzy_threshold is set on tm_database instance (default 0.3 = 30%)
                         all_tm_matches = self.tm_database.search_all(segment.source, tm_ids=tm_ids, enabled_only=False, max_matches=10)
                     
                     self.log(f"🚀 DELAYED TM SEARCH: Found {len(all_tm_matches)} matches")
