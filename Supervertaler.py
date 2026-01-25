@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.154"
+__version__ = "1.9.157"
 __phase__ = "0.9"
 __release_date__ = "2026-01-23"
 __edition__ = "Qt"
@@ -5818,6 +5818,9 @@ class SupervertalerQt(QMainWindow):
         # Focus border settings for target cells
         self.focus_border_color = '#f1b79a'  # Peach/salmon
         self.focus_border_thickness = 2  # 2px
+        
+        # Sound effects settings
+        self.enable_sound_effects = False  # Sound effects disabled by default
 
         # Debug mode settings (for troubleshooting performance issues)
         self.debug_mode_enabled = False  # Enables verbose debug logging
@@ -16939,32 +16942,6 @@ class SupervertalerQt(QMainWindow):
         termview_group.setLayout(termview_layout)
         layout.addWidget(termview_group)
         
-        # Panel Visibility section (NEW)
-        panel_visibility_group = QGroupBox("👁️ Right Panel Visibility")
-        panel_visibility_layout = QVBoxLayout()
-        
-        panel_visibility_info = QLabel(
-            "Choose which panels to show on the right side of the editor. "
-            "The first visible panel will be selected by default."
-        )
-        panel_visibility_info.setStyleSheet("font-size: 8pt; padding: 8px; border-radius: 2px;")
-        panel_visibility_info.setWordWrap(True)
-        panel_visibility_layout.addWidget(panel_visibility_info)
-        
-        # Translation Results pane checkbox
-        show_results_check = CheckmarkCheckBox("Show Translation Results pane")
-        show_results_check.setChecked(font_settings.get('show_translation_results_pane', False))
-        show_results_check.setToolTip("Show TM matches, MT results, and segment notes in a tabbed panel")
-        panel_visibility_layout.addWidget(show_results_check)
-        
-        # Note: Match Panel is always visible (it's the main panel)
-        match_panel_note = QLabel("ℹ️ Match Panel is always visible (contains Termview + TM matches)")
-        match_panel_note.setStyleSheet("font-size: 8pt; color: #666; padding: 4px;")
-        panel_visibility_layout.addWidget(match_panel_note)
-        
-        panel_visibility_group.setLayout(panel_visibility_layout)
-        layout.addWidget(panel_visibility_group)
-        
         # Quick Reference section
         reference_group = QGroupBox("⌨️ Font Size Quick Reference")
         reference_layout = QVBoxLayout()
@@ -16993,8 +16970,7 @@ class SupervertalerQt(QMainWindow):
             grid_font_spin, match_font_spin, compare_font_spin, show_tags_check, tag_color_btn,
             alt_colors_check, even_color_btn, odd_color_btn, invisible_char_color_btn, grid_font_family_combo,
             termview_font_family_combo, termview_font_spin, termview_bold_check,
-            border_color_btn, border_thickness_spin, badge_text_color_btn, tabs_above_check,
-            show_results_check
+            border_color_btn, border_thickness_spin, badge_text_color_btn, tabs_above_check
         ))
         layout.addWidget(save_btn)
         
@@ -18864,6 +18840,8 @@ class SupervertalerQt(QMainWindow):
                 'termbase_display_order': self.termbase_display_order,
                 'termbase_hide_shorter_matches': self.termbase_hide_shorter_matches,
                 'enable_smart_word_selection': self.enable_smart_word_selection,
+                'enable_sound_effects': self.enable_sound_effects,
+                'sound_effects_map': getattr(self, 'sound_effects_map', {}),
             }
             self.log("💾 Settings also saved to active project")
             self.project_modified = True  # Mark project as modified
@@ -18878,8 +18856,7 @@ class SupervertalerQt(QMainWindow):
     def _save_view_settings_from_ui(self, grid_spin, match_spin, compare_spin, show_tags_check=None, tag_color_btn=None,
                                      alt_colors_check=None, even_color_btn=None, odd_color_btn=None, invisible_char_color_btn=None,
                                      grid_font_family_combo=None, termview_font_family_combo=None, termview_font_spin=None, termview_bold_check=None,
-                                     border_color_btn=None, border_thickness_spin=None, badge_text_color_btn=None, tabs_above_check=None,
-                                     show_results_check=None):
+                                     border_color_btn=None, border_thickness_spin=None, badge_text_color_btn=None, tabs_above_check=None):
         """Save view settings from UI"""
         general_settings = {
             'restore_last_project': self.load_general_settings().get('restore_last_project', False),
@@ -18894,11 +18871,6 @@ class SupervertalerQt(QMainWindow):
         if tabs_above_check is not None:
             general_settings['tabs_above_grid'] = tabs_above_check.isChecked()
             self.tabs_above_grid = tabs_above_check.isChecked()
-        
-        # Add panel visibility settings if provided
-        if show_results_check is not None:
-            general_settings['show_translation_results_pane'] = show_results_check.isChecked()
-            self.show_translation_results_pane = show_results_check.isChecked()
         
         # Add font family if provided
         if grid_font_family_combo is not None:
@@ -19087,25 +19059,8 @@ class SupervertalerQt(QMainWindow):
             # Also refresh row colors
             self.apply_alternating_row_colors()
         
-        # Check if Translation Results panel visibility changed (requires restart)
-        panel_visibility_changed = False
-        if show_results_check is not None:
-            old_results = hasattr(self, 'right_tabs') and self.right_tabs.count() > 0
-            new_results = show_results_check.isChecked()
-            if new_results != old_results:
-                panel_visibility_changed = True
-        
         self.log("✓ View settings saved and applied")
-        
-        if panel_visibility_changed:
-            QMessageBox.information(
-                self, "Settings Saved", 
-                "View settings have been saved.\n\n"
-                "Note: Panel visibility changes will take effect when you restart Supervertaler "
-                "or open a new project."
-            )
-        else:
-            QMessageBox.information(self, "Settings Saved", "View settings have been saved and applied successfully.")
+        QMessageBox.information(self, "Settings Saved", "View settings have been saved and applied successfully.")
     
     def create_grid_view_widget(self):
         """Create the Grid View widget (existing grid functionality)"""
@@ -19763,6 +19718,7 @@ class SupervertalerQt(QMainWindow):
         preview_widget = self._create_preview_tab()
         right_tabs.addTab(preview_widget, "📄 Preview")
         preview_tab_index = tab_index
+        self._preview_tab_index = preview_tab_index  # Store for visibility checks
         tab_index += 1
         
         # Tab 5: Segment Note (moved from bottom panel)
@@ -21219,6 +21175,14 @@ class SupervertalerQt(QMainWindow):
                 
                 if 'enable_smart_word_selection' in project_settings:
                     self.enable_smart_word_selection = project_settings['enable_smart_word_selection']
+                
+                if 'enable_sound_effects' in project_settings:
+                    self.enable_sound_effects = project_settings['enable_sound_effects']
+                    self.log(f"✓ Project override: sound effects = {self.enable_sound_effects}")
+                
+                if 'sound_effects_map' in project_settings:
+                    self.sound_effects_map = project_settings['sound_effects_map']
+                    self.log(f"✓ Project override: sound effects map loaded")
             
             self.log(f"✓ Loaded project: {self.current_project.name} ({len(self.current_project.segments)} segments)")
 
@@ -21942,6 +21906,8 @@ class SupervertalerQt(QMainWindow):
                 'termbase_display_order': self.termbase_display_order,
                 'termbase_hide_shorter_matches': self.termbase_hide_shorter_matches,
                 'enable_smart_word_selection': self.enable_smart_word_selection,
+                'enable_sound_effects': self.enable_sound_effects,
+                'sound_effects_map': getattr(self, 'sound_effects_map', {}),
             }
             
             # Save original DOCX path for structure-preserving export
@@ -28643,15 +28609,33 @@ class SupervertalerQt(QMainWindow):
                 try:
                     row_segment_id = int(id_item.text())
                     if row_segment_id == segment_id:
-                        # Switch to Grid tab if we're in Document view
-                        if hasattr(self, 'document_views_widget'):
-                            self.document_views_widget.setCurrentIndex(0)  # Grid tab
+                        # Switch to Grid tab first
+                        if hasattr(self, 'main_tabs'):
+                            self.main_tabs.setCurrentIndex(0)  # Grid tab
+                        
+                        # Handle pagination - switch to correct page if needed
+                        if hasattr(self, 'page_size_combo') and self.page_size_combo.currentText() != "All":
+                            try:
+                                page_size = int(self.page_size_combo.currentText())
+                                target_page = (row // page_size) + 1
+                                if hasattr(self, 'page_number_input'):
+                                    self.page_number_input.setText(str(target_page))
+                                    self.go_to_page()
+                            except ValueError:
+                                pass
 
                         # Select this row and focus the target cell
                         self.table.setCurrentCell(row, 3)  # Column 3 = Target
+                        self.table.scrollToItem(self.table.item(row, 0), QTableWidget.ScrollHint.PositionAtCenter)
+                        
                         target_widget = self.table.cellWidget(row, 3)
                         if target_widget:
                             target_widget.setFocus()
+                            # Place cursor at end of text
+                            if isinstance(target_widget, QTextEdit):
+                                cursor = target_widget.textCursor()
+                                cursor.movePosition(cursor.MoveOperation.End)
+                                target_widget.setTextCursor(cursor)
 
                         self.log(f"📄 Preview: Navigated to segment {segment_id}")
                         return
@@ -28675,6 +28659,111 @@ class SupervertalerQt(QMainWindow):
                 pass
         
         return None
+
+    def _is_preview_tab_active(self) -> bool:
+        """Check if the Preview tab is currently selected in the right panel.
+        
+        Used to optimize performance by skipping heavy lookups when user is
+        navigating in Preview mode (they're likely just reading, not translating).
+        """
+        if not hasattr(self, 'right_tabs') or not self.right_tabs:
+            return False
+        if not hasattr(self, '_preview_tab_index'):
+            return False
+        return self.right_tabs.currentIndex() == self._preview_tab_index
+
+    def _scroll_preview_to_segment(self, segment_id: int):
+        """Scroll the preview to show the specified segment and highlight it.
+        
+        ⚡ PERFORMANCE: Only does work if Preview tab is actually visible.
+        This prevents expensive operations (looping through all segments,
+        updating char formatting) when user is working in the grid.
+        """
+        # ⚡ Skip entirely if Preview tab is not visible - major performance optimization
+        if not self._is_preview_tab_active():
+            return
+        
+        if not hasattr(self, 'preview_widgets') or not self.preview_widgets:
+            return
+        
+        for widget in self.preview_widgets:
+            if not hasattr(widget, 'segment_positions') or not hasattr(widget, 'preview_text'):
+                continue
+            
+            preview_text = widget.preview_text
+            
+            # Find the position of the target segment
+            target_start = None
+            target_end = None
+            for (start_pos, end_pos), seg_id in widget.segment_positions.items():
+                if seg_id == segment_id:
+                    target_start = start_pos
+                    target_end = end_pos
+                    break
+            
+            if target_start is None:
+                continue
+            
+            # Update highlighting - need to re-render to show new selection
+            # Store the new current segment ID and re-render
+            widget.current_highlighted_segment_id = segment_id
+            
+            # Clear existing formatting and re-apply with new highlight
+            cursor = preview_text.textCursor()
+            
+            # First, remove any existing yellow highlight from ALL segments
+            for (start_pos, end_pos), seg_id in widget.segment_positions.items():
+                cursor.setPosition(start_pos)
+                cursor.setPosition(end_pos, QTextCursor.MoveMode.KeepAnchor)
+                fmt = cursor.charFormat()
+                # Reset background - use white or status-based color
+                if seg_id == segment_id:
+                    fmt.setBackground(QColor('#fff9c4'))  # Yellow for current
+                else:
+                    # Find the segment to get its status
+                    seg = next((s for s in self.current_project.segments if s.id == seg_id), None)
+                    if seg:
+                        if seg.status == 'not_started':
+                            fmt.setBackground(QColor('#ffe6e6'))  # Light red
+                        elif seg.status in ('translated', 'pretranslated'):
+                            fmt.setBackground(QColor('#e6ffe6'))  # Light green
+                        elif seg.status in ('confirmed', 'approved', 'proofread'):
+                            fmt.setBackground(QColor('#e6f3ff'))  # Light blue
+                        else:
+                            fmt.setBackground(QColor('white'))
+                    else:
+                        fmt.setBackground(QColor('white'))
+                cursor.mergeCharFormat(fmt)
+            
+            # Now scroll to the target segment, centered in viewport
+            scroll_cursor = preview_text.textCursor()
+            scroll_cursor.setPosition(target_start)
+            preview_text.setTextCursor(scroll_cursor)
+            self._center_cursor_in_preview(preview_text)
+
+    def _center_cursor_in_preview(self, preview_text: QTextEdit):
+        """Center the current cursor position in the preview viewport"""
+        # Get the cursor rectangle (position in document coordinates)
+        cursor_rect = preview_text.cursorRect()
+        
+        # Get viewport height
+        viewport_height = preview_text.viewport().height()
+        
+        # Calculate scroll position to center the cursor
+        # cursor_rect.top() is relative to the viewport, we need document position
+        scrollbar = preview_text.verticalScrollBar()
+        current_scroll = scrollbar.value()
+        
+        # The cursor rect top is relative to viewport, so add current scroll to get document position
+        cursor_doc_y = current_scroll + cursor_rect.top()
+        
+        # Calculate target scroll to put cursor in center
+        target_scroll = cursor_doc_y - (viewport_height // 2)
+        
+        # Clamp to valid scroll range
+        target_scroll = max(0, min(target_scroll, scrollbar.maximum()))
+        
+        scrollbar.setValue(target_scroll)
 
     def refresh_preview(self):
         """Refresh all preview tabs with current document content"""
@@ -28732,15 +28821,91 @@ class SupervertalerQt(QMainWindow):
 
         # Render all segments
         current_segment_id = self._get_current_segment_id()
+        segments = self.current_project.segments
         
-        for seg in self.current_project.segments:
+        for idx, seg in enumerate(segments):
             style = getattr(seg, 'style', 'Normal') or 'Normal'
+            paragraph_id = getattr(seg, 'paragraph_id', 0)
+            seg_type = getattr(seg, 'type', 'para') or 'para'
+            
+            # Normalize type for comparison - grid shows symbols like "¶" for para, "Sub" for subtitle
+            # Type field values: "para", "heading", "list_item", "table_cell", "Sub", "¶", etc.
+            seg_type_lower = seg_type.lower() if seg_type else 'para'
+            
+            # Check if this is a heading/subtitle
+            is_heading = ('Heading' in style or 'Title' in style or 'Subtitle' in style 
+                          or seg_type_lower in ('heading', 'sub', 'subtitle', 'title'))
+            
+            # Check if this is a list item
+            source_text = seg.source.strip() if seg.source else ""
+            is_list_item = ('<li-o>' in source_text or '<li-b>' in source_text or 
+                           '<li>' in source_text or seg_type_lower == 'list_item')
+            
+            # Check if this is a new paragraph (¶ symbol or "para" type)
+            is_new_paragraph = seg_type == '¶' or seg_type_lower == 'para'
+            
+            # Determine spacing before this segment
+            need_double_break = False  # Empty line (for paragraph separation)
+            need_single_break = False  # Line break (for headings, list items)
+            need_space = False         # Just a space (running text in same paragraph)
+            
+            if idx > 0:
+                prev_seg = segments[idx - 1]
+                prev_style = getattr(prev_seg, 'style', 'Normal') or 'Normal'
+                prev_paragraph_id = getattr(prev_seg, 'paragraph_id', 0)
+                prev_type = getattr(prev_seg, 'type', 'para') or 'para'
+                prev_type_lower = prev_type.lower() if prev_type else 'para'
+                
+                prev_is_heading = ('Heading' in prev_style or 'Title' in prev_style or 
+                                   'Subtitle' in prev_style or 
+                                   prev_type_lower in ('heading', 'sub', 'subtitle', 'title'))
+                prev_is_paragraph = prev_type == '¶' or prev_type_lower == 'para'
+                prev_is_list = prev_type_lower == 'list_item' or '<li' in (prev_seg.source or '')
+                
+                # Rules for spacing:
+                # 1. After a heading: double break (empty line)
+                if prev_is_heading:
+                    need_double_break = True
+                # 2. Before a heading: double break
+                elif is_heading:
+                    need_double_break = True
+                # 3. New paragraph (different paragraph_id or new ¶ type): double break
+                elif is_new_paragraph and prev_is_paragraph:
+                    # If paragraph_id is being used and changed, it's a new paragraph
+                    if paragraph_id != prev_paragraph_id and (paragraph_id != 0 or prev_paragraph_id != 0):
+                        need_double_break = True
+                    # If both are ¶ type, they are separate paragraphs
+                    elif prev_type == '¶' and seg_type == '¶':
+                        need_double_break = True
+                    else:
+                        # Same paragraph, running text
+                        need_space = True
+                # 4. List items: single break (each on own line)
+                elif is_list_item or prev_is_list:
+                    need_single_break = True
+                # 5. Default: space (running text)
+                else:
+                    need_space = True
+            
+            # Insert spacing/breaks
+            if need_double_break:
+                cursor.insertText("\n\n")  # Empty line between paragraphs
+            elif need_single_break:
+                cursor.insertText("\n")    # Line break
+            elif need_space:
+                cursor.insertText(" ")     # Space between sentences
             
             # Set formatting based on style
             char_format = QTextCharFormat()
             char_format.setFontFamily("Georgia")
-
-            if 'Heading 1' in style or 'Heading1' in style or 'Title' in style:
+            
+            # Check type field for heading detection as well
+            if is_heading and seg_type_lower in ('sub', 'subtitle'):
+                # Subtitle style (like "TECHNISCH DOMEIN")
+                char_format.setFontPointSize(13)
+                char_format.setFontWeight(QFont.Weight.Bold)
+                char_format.setForeground(QColor('#1f4068'))
+            elif 'Heading 1' in style or 'Heading1' in style or 'Title' in style or seg_type_lower == 'title':
                 char_format.setFontPointSize(18)
                 char_format.setFontWeight(QFont.Weight.Bold)
                 char_format.setForeground(QColor('#1a1a2e'))
@@ -28748,7 +28913,7 @@ class SupervertalerQt(QMainWindow):
                 char_format.setFontPointSize(15)
                 char_format.setFontWeight(QFont.Weight.Bold)
                 char_format.setForeground(QColor('#16213e'))
-            elif 'Heading 3' in style or 'Heading3' in style:
+            elif 'Heading 3' in style or 'Heading3' in style or seg_type_lower == 'heading':
                 char_format.setFontPointSize(13)
                 char_format.setFontWeight(QFont.Weight.Bold)
                 char_format.setForeground(QColor('#1f4068'))
@@ -28792,13 +28957,31 @@ class SupervertalerQt(QMainWindow):
 
             end_pos = cursor.position()
             widget.segment_positions[(start_pos, end_pos)] = seg.id
+            
+            # Track position of current segment for scrolling
+            if seg.id == current_segment_id:
+                widget.current_segment_start_pos = start_pos
 
-            # Add line break after each segment
-            cursor.insertText("\n")
+            # Note: Line breaks are now handled at the START of each segment based on context
+            # This ensures running text flows naturally while paragraphs are separated
 
-        # Set cursor to beginning
-        cursor.movePosition(QTextCursor.MoveOperation.Start)
-        preview_text.setTextCursor(cursor)
+        # Add final newline at end of document
+        cursor.insertText("\n")
+
+        # Scroll to current segment if we have one
+        if hasattr(widget, 'current_segment_start_pos') and widget.current_segment_start_pos is not None:
+            # Create cursor at the current segment position
+            scroll_cursor = preview_text.textCursor()
+            scroll_cursor.setPosition(widget.current_segment_start_pos)
+            preview_text.setTextCursor(scroll_cursor)
+            # Center the segment in the viewport
+            # Use QTimer to delay centering until after layout is complete
+            from PyQt6.QtCore import QTimer
+            QTimer.singleShot(0, lambda pt=preview_text: self._center_cursor_in_preview(pt))
+        else:
+            # Set cursor to beginning if no current segment
+            cursor.movePosition(QTextCursor.MoveOperation.Start)
+            preview_text.setTextCursor(cursor)
 
     def _render_formatted_text(self, cursor, text: str, base_format: QTextCharFormat,
                                 list_number: Optional[int] = None):
@@ -29419,7 +29602,6 @@ class SupervertalerQt(QMainWindow):
         self.precision_scroll_divisor = settings.get('precision_scroll_divisor', 3)
         # Load auto-center active segment setting (default True, like memoQ/Trados)
         self.auto_center_active_segment = settings.get('auto_center_active_segment', True)
-        self.log(f"🔄 Loaded auto-center setting: {self.auto_center_active_segment}")
         # Load termbase display settings
         self.termbase_display_order = settings.get('termbase_display_order', 'appearance')
         self.termbase_hide_shorter_matches = settings.get('termbase_hide_shorter_matches', False)
@@ -29990,6 +30172,9 @@ class SupervertalerQt(QMainWindow):
                     self.log(f"⚠️ Could not find segment with ID {segment_id} in project")
                     return
                 
+                # Update Preview panel - scroll to and highlight this segment
+                self._scroll_preview_to_segment(segment_id)
+                
                 # Update Translation Results panel header with segment info
                 if hasattr(self, 'results_panels'):
                     for panel in self.results_panels:
@@ -30040,6 +30225,13 @@ class SupervertalerQt(QMainWindow):
                         status=segment.status,
                         notes=segment.notes
                     )
+                
+                # ⚡ PERFORMANCE: Skip heavy lookups if Preview tab is open
+                # User is likely just reading/reviewing, not actively translating
+                if self._is_preview_tab_active():
+                    if self.debug_mode_enabled:
+                        self.log(f"⏭️ Preview tab active - skipping TM/Termbase lookups for segment {segment.id}")
+                    return
                 
                 # Get termbase matches (from cache or search on-demand) - ONLY if enabled
                 matches_dict = None  # Initialize at the top level
@@ -30095,35 +30287,24 @@ class SupervertalerQt(QMainWindow):
                                     self.log(f"Error updating termview from cache: {e}")
                             
                             # 🎯 AUTO-INSERT 100% TM MATCH from cache (if enabled in settings)
-                            self.log(f"🎯 CACHE: Auto-insert setting: {self.auto_insert_100_percent_matches}, TM count: {tm_count}")
-                            self.log(f"🎯 CACHE: Segment target: '{segment.target}' (length={len(segment.target)}, stripped='{segment.target.strip()}')")
-                            
                             if self.auto_insert_100_percent_matches and tm_count > 0:
                                 # Check if segment target is empty (don't overwrite existing translations)
                                 target_empty = not segment.target or len(segment.target.strip()) == 0
-                                self.log(f"🎯 CACHE: Target empty check: {target_empty}")
                                 
                                 if target_empty:
                                     # Find first 100% match in cached TM results
                                     best_match = None
                                     for tm_match in cached_matches.get("TM", []):
-                                        self.log(f"🔍 CACHE: Checking TM match: relevance={tm_match.relevance} (type={type(tm_match.relevance).__name__})")
                                         # Use >= 99.5 to handle potential floating point issues
                                         if float(tm_match.relevance) >= 99.5:
                                             best_match = tm_match
-                                            self.log(f"✅ CACHE: Found 100% match with target: '{tm_match.target[:50]}...'")
                                             break
                                     
                                     if best_match:
-                                        self.log(f"✨ CACHE: Auto-inserting 100% TM match into segment {segment.id} at row {current_row}")
+                                        self.log(f"✨ Auto-inserting 100% TM match into segment {segment.id}")
                                         self._auto_insert_tm_match(segment, best_match.target, current_row)
                                         # Play 100% TM match alert sound
                                         self._play_sound_effect('tm_100_percent_match')
-                                    else:
-                                        relevances = [(tm.relevance, type(tm.relevance).__name__) for tm in cached_matches.get("TM", [])]
-                                        self.log(f"⚠️ CACHE: No 100% match found. All relevances: {relevances}")
-                                else:
-                                    self.log(f"⚠️ CACHE: Target not empty ('{segment.target}') - skipping auto-insert")
                             
                             # 🔊 Play fuzzy match sound if fuzzy matches found from cache (but not 100%)
                             if tm_count > 0:
@@ -37176,9 +37357,6 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             return None
 
         self.log(f"🔍 Ctrl+Enter: Row {current_row}, Segment ID {segment.id}")
-        self.log(f"🔍 Source: '{segment.source[:50]}...'")
-        self.log(f"🔍 Target before: '{segment.target[:50] if segment.target else '<empty>'}...'")
-        self.log(f"🔍 Segment object ID: {id(segment)}")
 
         old_target = segment.target
         old_status = segment.status
@@ -37187,21 +37365,14 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         if target_widget:
             current_text = target_widget.toPlainText().strip()
             segment.target = current_text
-            self.log(f"🔍 Target from widget: '{current_text[:50]}...'")
-            self.log(f"🔍 After assignment: segment.target = '{segment.target[:50] if segment.target else '<empty>'}...'")
 
         segment.status = 'confirmed'
 
         # Record undo state for Ctrl+Enter confirmation
         self.record_undo_state(segment_id, old_target, segment.target, old_status, 'confirmed')
-        self.log(f"🔍 After status assignment: segment.status = '{segment.status}', segment.target = '{segment.target[:50] if segment.target else '<empty>'}...')")
         self.update_status_icon(current_row, 'confirmed')
         self.project_modified = True
         self.log(f"✅ Segment {segment.id} confirmed")
-
-        verification_seg = next((s for s in self.current_project.segments if s.id == segment.id), None)
-        if verification_seg:
-            self.log(f"✅ VERIFICATION: Segment {segment_id} - target still correct: '{verification_seg.target[:30] if verification_seg.target else 'EMPTY'}', object ID={id(verification_seg)}")
 
         self.update_progress_stats()
 
@@ -42213,9 +42384,6 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             # 🔥 DELAYED TM SEARCH: Search TM database using new TMDatabase with activated TMs
             if self.enable_tm_matching and hasattr(self, 'tm_database') and self.tm_database:
                 try:
-                    self.log(f"🚀 DELAYED TM SEARCH: Searching for '{segment.source[:50]}...'")
-                    self.log(f"🚀 DELAYED TM SEARCH: Project languages: {source_lang_code} → {target_lang_code}")
-                    
                     # Get activated TM IDs for current project
                     tm_ids = None
                     if hasattr(self, 'tm_metadata_mgr') and self.tm_metadata_mgr and self.current_project:
@@ -42223,19 +42391,16 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                         if project_id:
                             tm_ids = self.tm_metadata_mgr.get_active_tm_ids(project_id)
                     
-                    self.log(f"🚀 DELAYED TM SEARCH: Using TM IDs: {tm_ids}")
-                    
                     # Skip TM search if no TMs are activated
                     if tm_ids is not None and isinstance(tm_ids, list) and len(tm_ids) == 0:
-                        self.log(f"🚀 DELAYED TM SEARCH: Skipping (no TMs activated)")
                         all_tm_matches = []
                     else:
                         # Search using TMDatabase (includes bidirectional + base language matching)
-                        # Pass enabled_only=False to bypass the hardcoded tm_metadata filter
-                        # Note: fuzzy_threshold is set on tm_database instance (default 0.3 = 30%)
                         all_tm_matches = self.tm_database.search_all(segment.source, tm_ids=tm_ids, enabled_only=False, max_matches=10)
                     
-                    self.log(f"🚀 DELAYED TM SEARCH: Found {len(all_tm_matches)} matches")
+                    # Single consolidated log message for TM search results
+                    if all_tm_matches:
+                        self.log(f"🔍 TM: Found {len(all_tm_matches)} matches for segment {segment.id}")
                     
                     for match in all_tm_matches:
                         match_obj = TranslationMatch(

@@ -515,6 +515,9 @@ class TermviewWidget(QWidget):
         self.current_target_lang = None
         self.current_project_id = None  # Store project ID for termbase priority lookup
         
+        # Debug mode - disable verbose tokenization logging by default (performance)
+        self.debug_tokenize = False
+        
         # Default font settings (will be updated from main app settings)
         self.current_font_family = "Segoe UI"
         self.current_font_size = 10
@@ -820,7 +823,6 @@ class TermviewWidget(QWidget):
             
             # Check if this is a non-translatable
             if lookup_key in nt_dict:
-                # Create NT block
                 nt_block = NTBlock(token, nt_dict[lookup_key], self, theme_manager=self.theme_manager, 
                                    font_size=self.current_font_size, font_family=self.current_font_family, 
                                    font_bold=self.current_font_bold)
@@ -996,9 +998,9 @@ class TermviewWidget(QWidget):
         Returns:
             List of tokens (words/phrases/numbers), with multi-word terms kept together
         """
-        # DEBUG: Log multi-word terms we're looking for
+        # DEBUG: Log multi-word terms we're looking for (only if debug_tokenize enabled)
         multi_word_terms = [k for k in matches.keys() if ' ' in k]
-        if multi_word_terms:
+        if multi_word_terms and self.debug_tokenize:
             self.log(f"🔍 Tokenize: Looking for {len(multi_word_terms)} multi-word terms:")
             for term in sorted(multi_word_terms, key=len, reverse=True)[:3]:
                 self.log(f"    - '{term}'")
@@ -1023,11 +1025,12 @@ class TermviewWidget(QWidget):
                 else:
                     pattern = r'\b' + term_escaped + r'\b'
                 
-                # DEBUG: Check if multi-word term is found
+                # DEBUG: Check if multi-word term is found (only if debug_tokenize enabled)
                 found = re.search(pattern, text_lower)
-                self.log(f"🔍 Tokenize: Pattern '{pattern}' for '{term}' → {'FOUND' if found else 'NOT FOUND'}")
-                if found:
-                    self.log(f"    Match at position {found.span()}: '{text[found.start():found.end()]}'")
+                if self.debug_tokenize:
+                    self.log(f"🔍 Tokenize: Pattern '{pattern}' for '{term}' → {'FOUND' if found else 'NOT FOUND'}")
+                    if found:
+                        self.log(f"    Match at position {found.span()}: '{text[found.start():found.end()]}'")
                 
                 # Find all matches using regex
                 for match in re.finditer(pattern, text_lower):
@@ -1040,10 +1043,11 @@ class TermviewWidget(QWidget):
                         original_term = text[pos:pos + len(term)]
                         tokens_with_positions.append((pos, len(term), original_term))
                         used_positions.update(term_positions)
-                        self.log(f"    ✅ Added multi-word token: '{original_term}' covering positions {pos}-{pos+len(term)}")
+                        if self.debug_tokenize:
+                            self.log(f"    ✅ Added multi-word token: '{original_term}' covering positions {pos}-{pos+len(term)}")
         
-        # DEBUG: Log used_positions after first pass
-        if ' ' in sorted(matches.keys(), key=len, reverse=True)[0]:
+        # DEBUG: Log used_positions after first pass (only if debug_tokenize enabled)
+        if matches and ' ' in sorted(matches.keys(), key=len, reverse=True)[0] and self.debug_tokenize:
             self.log(f"🔍 After first pass: {len(used_positions)} positions marked as used")
             self.log(f"    Used positions: {sorted(list(used_positions))[:20]}...")
         

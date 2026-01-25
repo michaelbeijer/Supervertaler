@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** January 25, 2026 | **Version:** v1.9.154
+> **Last Updated:** January 25, 2026 | **Version:** v1.9.157
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.154 (January 2026) |
+| **Version** | v1.9.157 (January 2026) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -765,6 +765,124 @@ deepl=...
 ---
 
 ## 🔄 Recent Development History
+
+### January 25, 2026 - TM Fuzzy Match Fix for Multi-TM Projects (v1.9.157)
+
+**🔍 Fixed Missing TM Matches When Using Multiple Translation Memories**
+
+Resolved regression where fuzzy TM matches were not being found in projects with multiple activated TMs.
+
+**The Problem:**
+- User reported segment 75 ("In een uitvoeringsvorm wordt Support Vector Machines (SVMs) gebruikt...") not finding expected 76% match
+- Match existed in TM: "In een uitvoeringsvorm wordt Random Forests..." 
+- Issue appeared after Ctrl+Enter performance optimizations in v1.9.156
+- Root cause: FTS5 candidate limit was too small for multi-TM search scenarios
+
+**Root Cause Analysis:**
+- FTS5 full-text search uses BM25 ranking which prioritizes entries matching MORE search terms
+- When searching multiple TMs, the candidate pool was being filled with lower-quality matches from larger TMs
+- The truly similar entry was at **position 102** in the candidate list - beyond the old 200-entry limit
+- Old limit: `candidate_limit = max(200, max_results * 20)`
+
+**The Solution:**
+Increased FTS5 candidate pool in `_search_single_tm_fuzzy()`:
+```python
+# Increased from max(200, max_results * 20) to handle multi-TM scenarios better
+# Position 102 finding of "Random Forests" entry proved 200 was too restrictive
+candidate_limit = max(500, max_results * 50)
+```
+
+**Why This Fix Works:**
+- Larger candidate pool ensures similar entries aren't pushed out by BM25 ranking
+- SequenceMatcher then correctly scores all candidates by actual text similarity
+- Negligible performance impact since FTS5 is already very fast
+
+**Technical Details:**
+- Key function: `_search_single_tm_fuzzy()` in `modules/database_manager.py`
+- Line ~962-965: Increased candidate_limit calculation
+- Each TM is searched separately with the larger pool, then results merged
+
+**Files Modified:**
+- `modules/database_manager.py` - Increased `candidate_limit` in `_search_single_tm_fuzzy()`
+- `Supervertaler.py` - Added missing `enable_sound_effects` initialization (unrelated save bug fix)
+
+---
+
+### January 25, 2026 - Ctrl+Enter Performance Optimization (v1.9.156)
+
+**⚡ Faster Segment Confirmation (Ctrl+Enter)**
+
+Reduced verbose logging that was causing delays during segment confirmation and navigation.
+
+**The Problem:**
+- User reported Ctrl+Enter taking up to 3 seconds to confirm segment and move to next
+- Analysis showed excessive logging overhead - 15-20 log calls per segment navigation
+- DEBUG print statements in TM fuzzy search running on every search operation
+- Cache was working but navigation still slow due to logging
+
+**The Solution:**
+
+1. **Removed DEBUG prints from TM fuzzy search** (`modules/database_manager.py`):
+   - Removed 5 `print(f"[DEBUG] search_fuzzy_matches: ...")` statements
+   - These ran on every TM search operation, adding overhead
+   - Kept only error logging for SQL failures
+
+2. **Reduced DELAYED TM SEARCH logging** (`Supervertaler.py`):
+   - Consolidated 5-6 log calls into a single message
+   - Now only logs when matches are found: `"🔍 TM: Found X matches for segment Y"`
+
+3. **Removed auto-insert debug logging** (`Supervertaler.py`):
+   - Removed 8+ verbose log calls in cache hit path
+   - Kept only the essential auto-insert success message
+
+4. **Simplified _confirm_current_row_segment logging** (`Supervertaler.py`):
+   - Removed 8+ verbose debug log calls (source preview, target preview, object IDs, verification)
+   - Kept only: `"🔍 Ctrl+Enter: Row X, Segment ID Y"` and `"✅ Segment Y confirmed"`
+
+**Performance Impact:**
+- ~15-20 fewer log calls per segment confirmation
+- ~5 fewer print statements per TM search
+- More responsive feel when navigating segments
+
+**Files Modified:**
+- `modules/database_manager.py` - Removed DEBUG prints from `search_fuzzy_matches()`
+- `Supervertaler.py` - Reduced logging in delayed TM search, auto-insert, and confirm functions
+
+---
+
+### January 25, 2026 - Preview Panel Performance & Navigation (v1.9.155)
+
+**⚡ Preview Tab Performance Optimization**
+
+Paused background TM/glossary lookups when Preview tab is open for better responsiveness.
+
+**The Problem:**
+- When "zipping around the preview" clicking different segments, the app felt sluggish
+- Background TM searches, termbase lookups, and prefetch workers were running on every segment change
+- These operations are unnecessary when user is just reading/reviewing in Preview mode
+
+**The Solution:**
+- Added `_is_preview_tab_active()` helper method to check if Preview tab is selected
+- Added early return in `_on_cell_selected_full()` to skip heavy lookups when Preview is active
+- Stored `_preview_tab_index` as instance variable for visibility checks
+
+**What Still Runs in Preview Mode:**
+- ✅ Preview scroll and segment highlighting
+- ✅ Grid row highlighting (orange segment number)
+- ✅ Toolbar segment info update
+- ✅ Notes panel update
+
+**What Is Skipped in Preview Mode:**
+- ⏭️ TM searches
+- ⏭️ Termbase/glossary lookups  
+- ⏭️ Termview updates
+- ⏭️ MT/LLM match scheduling
+- ⏭️ Prefetch workers for next segments
+
+**Files Modified:**
+- `Supervertaler.py` - Added `_is_preview_tab_active()`, stored `_preview_tab_index`, added early return in cell selection
+
+---
 
 ### January 25, 2026 - Match Panel Consolidation (v1.9.154)
 
@@ -4411,4 +4529,4 @@ An intelligent proofreading system that uses LLMs to verify translation quality.
 ---
 
 *This file replaces the previous CLAUDE.md and PROJECT_CONTEXT.md files.*
-*Last updated: January 25, 2026 - v1.9.154*
+*Last updated: January 25, 2026 - v1.9.157*

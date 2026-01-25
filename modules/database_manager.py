@@ -872,16 +872,12 @@ class DatabaseManager:
         # This helps find similar long segments more reliably
         search_terms_for_query = all_search_terms[:20]
         
-        print(f"[DEBUG] search_fuzzy_matches: source='{source[:50]}...', {len(all_search_terms)} terms")
-        
         if not search_terms_for_query:
             # If no valid terms, return empty results
-            print(f"[DEBUG] search_fuzzy_matches: No valid search terms, returning empty")
             return []
         
         # Quote each term to prevent FTS5 syntax errors
         fts_query = ' OR '.join(f'"{term}"' for term in search_terms_for_query)
-        print(f"[DEBUG] search_fuzzy_matches: FTS query terms = {search_terms_for_query[:10]}...")
         
         # Get base language codes for comparison
         src_base = get_base_lang_code(source_lang) if source_lang else None
@@ -902,7 +898,6 @@ class DatabaseManager:
                 source_lang, target_lang, bidirectional
             )
             all_results.extend(tm_results)
-            print(f"[DEBUG] search_fuzzy_matches: TM '{tm_id}' returned {len(tm_results)} matches")
         
         # Deduplicate by source_text (keep highest similarity for each unique source)
         seen = {}
@@ -917,7 +912,6 @@ class DatabaseManager:
         # appears before 40% matches regardless of which TM they came from
         deduped_results.sort(key=lambda x: x['similarity'], reverse=True)
         
-        print(f"[DEBUG] search_fuzzy_matches: Final merged results: {len(deduped_results)} matches")
         return deduped_results[:max_results]
     
     def _search_single_tm_fuzzy(self, source: str, fts_query: str, tm_ids: List[str],
@@ -964,15 +958,16 @@ class DatabaseManager:
                 params.append(f"{variant}-%")
             query += f" AND ({' OR '.join(tgt_conditions)})"
         
-        # Per-TM candidate limit (smaller since we're searching each TM separately)
-        candidate_limit = max(200, max_results * 20)
+        # Per-TM candidate limit - INCREASED to catch more potential fuzzy matches
+        # When multiple TMs are searched, BM25 ranking can push genuinely similar
+        # entries far down the list due to common word matches in other entries
+        candidate_limit = max(500, max_results * 50)
         query += f" ORDER BY relevance DESC LIMIT {candidate_limit}"
         
         try:
             self.cursor.execute(query, params)
             all_rows = self.cursor.fetchall()
         except Exception as e:
-            print(f"[DEBUG] _search_single_tm_fuzzy: SQL ERROR: {e}")
             return []
         
         results = []
