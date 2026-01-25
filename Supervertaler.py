@@ -34,9 +34,9 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.153"
+__version__ = "1.9.154"
 __phase__ = "0.9"
-__release_date__ = "2026-01-21"
+__release_date__ = "2026-01-23"
 __edition__ = "Qt"
 
 import sys
@@ -240,6 +240,7 @@ from modules.find_replace_qt import (
     HistoryComboBox,
 )  # F&R History and Sets
 from modules.shortcut_manager import ShortcutManager  # Keyboard shortcut management
+from modules.termview_widget import TermviewWidget  # Termview widget for glossary display
 
 
 STATUS_ORDER = [
@@ -5782,7 +5783,7 @@ class SupervertalerQt(QMainWindow):
         
         # Right panel visibility settings
         self.show_translation_results_pane = False  # Show Translation Results tab (hidden by default for new users)
-        self.show_compare_panel = True  # Show Compare Panel tab
+        # Note: Match Panel is always visible (no toggle needed)
         
         # TM and Termbase matching toggle (default: enabled)
         self.enable_tm_matching = True
@@ -7388,22 +7389,22 @@ class SupervertalerQt(QMainWindow):
         results_note.setEnabled(False)
         results_zoom_menu.addAction(results_note)
         
-        # Compare Panel section
-        compare_zoom_menu = view_menu.addMenu("🔍 &Compare Panel")
+        # Match Panel zoom section
+        match_panel_zoom_menu = view_menu.addMenu("🔍 &Match Panel")
         
-        compare_zoom_in_action = QAction("Compare Panel Zoom &In", self)
-        compare_zoom_in_action.setShortcut("Ctrl+Alt+=")
-        compare_zoom_in_action.triggered.connect(self.compare_panel_zoom_in)
-        compare_zoom_menu.addAction(compare_zoom_in_action)
+        match_panel_zoom_in_action = QAction("Match Panel Zoom &In", self)
+        match_panel_zoom_in_action.setShortcut("Ctrl+Alt+=")
+        match_panel_zoom_in_action.triggered.connect(self.match_panel_zoom_in)
+        match_panel_zoom_menu.addAction(match_panel_zoom_in_action)
         
-        compare_zoom_out_action = QAction("Compare Panel Zoom &Out", self)
-        compare_zoom_out_action.setShortcut("Ctrl+Alt+-")
-        compare_zoom_out_action.triggered.connect(self.compare_panel_zoom_out)
-        compare_zoom_menu.addAction(compare_zoom_out_action)
+        match_panel_zoom_out_action = QAction("Match Panel Zoom &Out", self)
+        match_panel_zoom_out_action.setShortcut("Ctrl+Alt+-")
+        match_panel_zoom_out_action.triggered.connect(self.match_panel_zoom_out)
+        match_panel_zoom_menu.addAction(match_panel_zoom_out_action)
         
-        compare_zoom_reset_action = QAction("Compare Panel Zoom &Reset", self)
-        compare_zoom_reset_action.triggered.connect(self.compare_panel_zoom_reset)
-        compare_zoom_menu.addAction(compare_zoom_reset_action)
+        match_panel_zoom_reset_action = QAction("Match Panel Zoom &Reset", self)
+        match_panel_zoom_reset_action.triggered.connect(self.match_panel_zoom_reset)
+        match_panel_zoom_menu.addAction(match_panel_zoom_reset_action)
 
         view_menu.addSeparator()
         
@@ -11509,7 +11510,12 @@ class SupervertalerQt(QMainWindow):
                 )
     
     def _update_both_termviews(self, source_text, termbase_list, nt_matches):
-        """Update both Termview instances (one under grid, one in right panel) with the same data."""
+        """Update all three Termview instances with the same data.
+        
+        Termview locations:
+        1. Under grid (collapsible via View menu)
+        2. Match Panel tab (top section)
+        """
         # Update left Termview (under grid)
         if hasattr(self, 'termview_widget') and self.termview_widget:
             try:
@@ -11517,12 +11523,12 @@ class SupervertalerQt(QMainWindow):
             except Exception as e:
                 self.log(f"Error updating left termview: {e}")
         
-        # Update right Termview (in right panel)
-        if hasattr(self, 'termview_widget_right') and self.termview_widget_right:
+        # Update Match Panel Termview
+        if hasattr(self, 'termview_widget_match') and self.termview_widget_match:
             try:
-                self.termview_widget_right.update_with_matches(source_text, termbase_list, nt_matches)
+                self.termview_widget_match.update_with_matches(source_text, termbase_list, nt_matches)
             except Exception as e:
-                self.log(f"Error updating right termview: {e}")
+                self.log(f"Error updating Match Panel termview: {e}")
     
     def _refresh_termbase_display_for_current_segment(self):
         """Refresh only termbase/glossary display for the current segment.
@@ -16951,27 +16957,10 @@ class SupervertalerQt(QMainWindow):
         show_results_check.setToolTip("Show TM matches, MT results, and segment notes in a tabbed panel")
         panel_visibility_layout.addWidget(show_results_check)
         
-        # Compare Panel checkbox
-        show_compare_check = CheckmarkCheckBox("Show Compare Panel")
-        show_compare_check.setChecked(font_settings.get('show_compare_panel', True))
-        show_compare_check.setToolTip("Show side-by-side comparison of source, TM match, and MT result")
-        panel_visibility_layout.addWidget(show_compare_check)
-        
-        # Warning label (shown when both are unchecked)
-        panel_warning_label = QLabel("⚠️ At least one panel must remain visible. Preview is always available.")
-        panel_warning_label.setStyleSheet("font-size: 8pt; color: #cc6600; padding: 4px;")
-        panel_warning_label.setVisible(False)
-        panel_visibility_layout.addWidget(panel_warning_label)
-        
-        # Connect checkbox signals to show warning if both unchecked
-        def update_panel_warning():
-            if not show_results_check.isChecked() and not show_compare_check.isChecked():
-                panel_warning_label.setVisible(True)
-            else:
-                panel_warning_label.setVisible(False)
-        
-        show_results_check.stateChanged.connect(lambda: update_panel_warning())
-        show_compare_check.stateChanged.connect(lambda: update_panel_warning())
+        # Note: Match Panel is always visible (it's the main panel)
+        match_panel_note = QLabel("ℹ️ Match Panel is always visible (contains Termview + TM matches)")
+        match_panel_note.setStyleSheet("font-size: 8pt; color: #666; padding: 4px;")
+        panel_visibility_layout.addWidget(match_panel_note)
         
         panel_visibility_group.setLayout(panel_visibility_layout)
         layout.addWidget(panel_visibility_group)
@@ -17005,7 +16994,7 @@ class SupervertalerQt(QMainWindow):
             alt_colors_check, even_color_btn, odd_color_btn, invisible_char_color_btn, grid_font_family_combo,
             termview_font_family_combo, termview_font_spin, termview_bold_check,
             border_color_btn, border_thickness_spin, badge_text_color_btn, tabs_above_check,
-            show_results_check, show_compare_check
+            show_results_check
         ))
         layout.addWidget(save_btn)
         
@@ -18890,7 +18879,7 @@ class SupervertalerQt(QMainWindow):
                                      alt_colors_check=None, even_color_btn=None, odd_color_btn=None, invisible_char_color_btn=None,
                                      grid_font_family_combo=None, termview_font_family_combo=None, termview_font_spin=None, termview_bold_check=None,
                                      border_color_btn=None, border_thickness_spin=None, badge_text_color_btn=None, tabs_above_check=None,
-                                     show_results_check=None, show_compare_check=None):
+                                     show_results_check=None):
         """Save view settings from UI"""
         general_settings = {
             'restore_last_project': self.load_general_settings().get('restore_last_project', False),
@@ -18910,9 +18899,6 @@ class SupervertalerQt(QMainWindow):
         if show_results_check is not None:
             general_settings['show_translation_results_pane'] = show_results_check.isChecked()
             self.show_translation_results_pane = show_results_check.isChecked()
-        if show_compare_check is not None:
-            general_settings['show_compare_panel'] = show_compare_check.isChecked()
-            self.show_compare_panel = show_compare_check.isChecked()
         
         # Add font family if provided
         if grid_font_family_combo is not None:
@@ -19101,14 +19087,12 @@ class SupervertalerQt(QMainWindow):
             # Also refresh row colors
             self.apply_alternating_row_colors()
         
-        # Check if panel visibility changed (requires restart)
+        # Check if Translation Results panel visibility changed (requires restart)
         panel_visibility_changed = False
-        if show_results_check is not None or show_compare_check is not None:
+        if show_results_check is not None:
             old_results = hasattr(self, 'right_tabs') and self.right_tabs.count() > 0
-            old_compare = hasattr(self, 'right_tabs') and self.right_tabs.count() > 1
-            new_results = show_results_check.isChecked() if show_results_check else old_results
-            new_compare = show_compare_check.isChecked() if show_compare_check else old_compare
-            if (new_results != old_results or new_compare != old_compare):
+            new_results = show_results_check.isChecked()
+            if new_results != old_results:
                 panel_visibility_changed = True
         
         self.log("✓ View settings saved and applied")
@@ -19808,53 +19792,28 @@ class SupervertalerQt(QMainWindow):
             # Hide the panel if not added as tab (it still exists as child widget)
             self.translation_results_panel.hide()
         
-        # Tab 2: Compare Panel (conditionally added)
-        self.compare_panel = self._create_compare_panel()
-        if self.show_compare_panel:
-            right_tabs.addTab(self.compare_panel, "⚖️ Compare Panel")
-            compare_tab_index = tab_index
-            tab_index += 1
-        else:
-            # Hide the panel if not added as tab
-            self.compare_panel.hide()
+        # Tab 2: Match Panel (Termview + TM Source/Target) - shown first by default
+        match_panel_widget = self._create_match_panel()
+        right_tabs.addTab(match_panel_widget, "🎯 Match Panel")
+        match_panel_tab_index = tab_index
+        tab_index += 1
         
-        # Tab 3: Document Preview (always added)
+        # Tab 4: Document Preview (always added)
         preview_widget = self._create_preview_tab()
         right_tabs.addTab(preview_widget, "📄 Preview")
         preview_tab_index = tab_index
         tab_index += 1
         
-        # Tab 4: Segment Note (moved from bottom panel)
+        # Tab 5: Segment Note (moved from bottom panel)
         right_tabs.addTab(self._notes_widget_for_right_panel, "📝 Segment note")
         tab_index += 1
         
-        # Tab 5: Session Log (moved from bottom panel)
+        # Tab 6: Session Log (moved from bottom panel)
         right_tabs.addTab(self._session_log_widget_for_right_panel, "📋 Session Log")
         tab_index += 1
         
-        # Tab 6: Second Termview instance (duplicate of the one under grid)
-        self.termview_widget_right = TermviewWidget(self, db_manager=self.db_manager, log_callback=self.log, theme_manager=self.theme_manager)
-        self.termview_widget_right.term_insert_requested.connect(self.insert_termview_text)
-        self.termview_widget_right.edit_entry_requested.connect(self._on_termview_edit_entry)
-        self.termview_widget_right.delete_entry_requested.connect(self._on_termview_delete_entry)
-        
-        # Apply same font settings to right Termview
-        font_settings = self.load_general_settings()
-        termview_family = font_settings.get('termview_font_family', 'Segoe UI')
-        termview_size = font_settings.get('termview_font_size', 10)
-        termview_bold = font_settings.get('termview_font_bold', False)
-        self.termview_widget_right.set_font_settings(termview_family, termview_size, termview_bold)
-        
-        right_tabs.addTab(self.termview_widget_right, "🔍 Termview")
-        
-        # Set default selected tab based on visibility settings
-        # Priority: Compare Panel > Translation Results > Preview
-        if compare_tab_index >= 0:
-            right_tabs.setCurrentIndex(compare_tab_index)
-        elif results_tab_index >= 0:
-            right_tabs.setCurrentIndex(results_tab_index)
-        else:
-            right_tabs.setCurrentIndex(preview_tab_index)
+        # Set default selected tab to Match Panel (always show Match Panel first)
+        right_tabs.setCurrentIndex(match_panel_tab_index)
         
         # Store reference for later use
         self.right_tabs = right_tabs
@@ -28105,6 +28064,131 @@ class SupervertalerQt(QMainWindow):
         
         return widget
     
+    def _create_match_panel(self) -> QWidget:
+        """Create Match Panel with Termview + TM Source/Target boxes."""
+        widget = QWidget()
+        main_layout = QVBoxLayout(widget)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
+        
+        # Initialize compare_panel_text_edits if not exists (needed for _create_compare_panel_box)
+        if not hasattr(self, 'compare_panel_text_edits'):
+            self.compare_panel_text_edits = []
+        
+        # Vertical splitter: Termview (top) | TM boxes (bottom)
+        splitter = QSplitter(Qt.Orientation.Vertical)
+        
+        # TOP: Container with header + Termview
+        termview_container = QWidget()
+        termview_layout = QVBoxLayout(termview_container)
+        termview_layout.setContentsMargins(4, 4, 4, 0)
+        termview_layout.setSpacing(2)
+        
+        # Termview header label
+        termview_header = QLabel("📖 Termview")
+        termview_header.setStyleSheet("font-weight: bold; font-size: 9px; color: #666;")
+        termview_layout.addWidget(termview_header)
+        
+        # Third Termview instance for Match Panel
+        self.termview_widget_match = TermviewWidget(self, db_manager=self.db_manager, log_callback=self.log, theme_manager=self.theme_manager)
+        # Connect Termview signals
+        self.termview_widget_match.term_insert_requested.connect(self.insert_termview_text)
+        self.termview_widget_match.edit_entry_requested.connect(self._on_termview_edit_entry)
+        self.termview_widget_match.delete_entry_requested.connect(self._on_termview_delete_entry)
+        # Apply font settings
+        font_settings = self.load_general_settings()
+        termview_family = font_settings.get('termview_font_family', 'Segoe UI')
+        termview_size = font_settings.get('termview_font_size', 10)
+        termview_bold = font_settings.get('termview_font_bold', False)
+        self.termview_widget_match.set_font_settings(termview_family, termview_size, termview_bold)
+        termview_layout.addWidget(self.termview_widget_match)
+        
+        splitter.addWidget(termview_container)
+        
+        # BOTTOM: Container for TM Source + TM Target boxes
+        tm_container = QWidget()
+        tm_layout = QHBoxLayout(tm_container)
+        tm_layout.setContentsMargins(0, 0, 0, 0)
+        tm_layout.setSpacing(0)
+        
+        # Hardcode the green color for TM boxes (same as TM Target in Compare Panel)
+        tm_box_bg = "#d4edda"    # Green (same as TM Target in Compare Panel)
+        text_color = "#333"
+        border_color = "#ddd"
+        
+        # TM Source box (GREEN, with navigation)
+        self.match_panel_tm_matches = []  # Separate match list
+        self.match_panel_tm_index = 0     # Separate navigation index
+        
+        tm_source_container, self.match_panel_tm_source, self.match_panel_tm_nav_label, tm_nav_btns = self._create_compare_panel_box(
+            "📚 TM Source", tm_box_bg, text_color, border_color, has_navigation=True)
+        if tm_nav_btns:
+            tm_nav_btns[0].clicked.connect(lambda: self._match_panel_nav_tm(-1))
+            tm_nav_btns[1].clicked.connect(lambda: self._match_panel_nav_tm(1))
+        tm_layout.addWidget(tm_source_container, 1)
+        
+        # TM Target box (GREEN, with metadata)
+        tm_target_container, self.match_panel_tm_target, self.match_panel_tm_target_label, _ = self._create_compare_panel_box(
+            "✅ TM Target", tm_box_bg, text_color, border_color, has_navigation=False, show_metadata_label=True)
+        tm_layout.addWidget(tm_target_container, 1)
+        
+        # Force stylesheet on the tm_container itself (the parent widget holding both boxes)
+        tm_container.setStyleSheet("background-color: transparent;")
+        
+        splitter.addWidget(tm_container)
+        
+        # Set initial splitter sizes (60% Termview, 40% TM boxes)
+        splitter.setSizes([600, 400])
+        
+        main_layout.addWidget(splitter)
+        
+        return widget
+    
+    def _match_panel_nav_tm(self, direction: int):
+        """Navigate TM matches in Match Panel (-1 = prev, 1 = next)"""
+        if not self.match_panel_tm_matches:
+            return
+        
+        new_index = self.match_panel_tm_index + direction
+        if 0 <= new_index < len(self.match_panel_tm_matches):
+            self.match_panel_tm_index = new_index
+            self._update_match_panel_tm_display()
+    
+    def _update_match_panel_tm_display(self):
+        """Update Match Panel TM Source and TM Target display with current match"""
+        if not self.match_panel_tm_matches:
+            self.match_panel_tm_source.setPlainText("(No TM match)")
+            self.match_panel_tm_target.setPlainText("(No TM match)")
+            if hasattr(self, 'match_panel_tm_nav_label') and self.match_panel_tm_nav_label:
+                self.match_panel_tm_nav_label.setText("(0/0)")
+            if hasattr(self, 'match_panel_tm_target_label') and self.match_panel_tm_target_label:
+                self.match_panel_tm_target_label.setText("")
+            return
+        
+        match = self.match_panel_tm_matches[self.match_panel_tm_index]
+        total = len(self.match_panel_tm_matches)
+        idx = self.match_panel_tm_index + 1
+        
+        # Update navigation label
+        if hasattr(self, 'match_panel_tm_nav_label') and self.match_panel_tm_nav_label:
+            nav_html = f"(<span style='font-size:8px'>{idx}/{total}</span>)"
+            self.match_panel_tm_nav_label.setText(nav_html)
+        
+        # Update TM Source text
+        source_text = match.get('source', '')
+        self.match_panel_tm_source.setPlainText(source_text)
+        
+        # Update TM Target text
+        target_text = match.get('target', '')
+        self.match_panel_tm_target.setPlainText(target_text)
+        
+        # Update metadata label (TM name, percentage)
+        if hasattr(self, 'match_panel_tm_target_label') and self.match_panel_tm_target_label:
+            tm_name = match.get('tm_name', 'Unknown TM')
+            match_pct = match.get('match_pct', 0)
+            metadata_html = f"<span style='font-size:10px'>{tm_name}</span> (<span style='font-size:8px'>{match_pct}%</span>)"
+            self.match_panel_tm_target_label.setText(metadata_html)
+    
     def _create_compare_panel_box(self, label: str, bg_color: str, text_color: str, border_color: str,
                                    has_navigation: bool = False, show_metadata_label: bool = False,
                                    shortcut_badge_text: str = None, shortcut_badge_tooltip: str = None) -> tuple:
@@ -28356,7 +28440,7 @@ class SupervertalerQt(QMainWindow):
     
     def set_compare_panel_matches(self, segment_id: int, current_source: str, 
                                    tm_matches: list = None, mt_matches: list = None):
-        """Set all matches for the Compare Panel with navigation support
+        """Set all matches for Match Panel (and Compare Panel if it exists)
         
         Args:
             segment_id: Current segment ID
@@ -28364,38 +28448,39 @@ class SupervertalerQt(QMainWindow):
             tm_matches: List of dicts with keys: source, target, tm_name, match_pct
             mt_matches: List of dicts with keys: translation, provider
         """
-        if not hasattr(self, 'compare_panel_current_source'):
-            return
+        # Always update Match Panel with TM matches
+        self.match_panel_tm_matches = tm_matches or []
+        self.match_panel_tm_index = 0
+        self._update_match_panel_tm_display()
         
-        # Update segment label
-        if hasattr(self, 'compare_panel_segment_label'):
-            self.compare_panel_segment_label.setText(f"Segment {segment_id + 1}")
-        
-        # Update Current Source
-        self.compare_panel_current_source.setPlainText(current_source)
-        
-        # Store matches and reset indices
-        self.compare_panel_tm_matches = tm_matches or []
-        self.compare_panel_mt_matches = mt_matches or []
-        self.compare_panel_tm_index = 0
-        self.compare_panel_mt_index = 0
-        
-        # Update displays
-        self._update_compare_panel_mt_display()
-        self._update_compare_panel_tm_display()
+        # Update Compare Panel if it exists (legacy support)
+        if hasattr(self, 'compare_panel_current_source') and self.compare_panel_current_source:
+            # Update segment label
+            if hasattr(self, 'compare_panel_segment_label'):
+                self.compare_panel_segment_label.setText(f"Segment {segment_id + 1}")
+            
+            # Update Current Source
+            self.compare_panel_current_source.setPlainText(current_source)
+            
+            # Store matches and reset indices
+            self.compare_panel_tm_matches = tm_matches or []
+            self.compare_panel_mt_matches = mt_matches or []
+            self.compare_panel_tm_index = 0
+            self.compare_panel_mt_index = 0
+            
+            # Update displays
+            self._update_compare_panel_mt_display()
+            self._update_compare_panel_tm_display()
 
     def update_compare_panel(self, segment_id: int, current_source: str, 
                               tm_source: str = "", tm_target: str = "", 
                               mt_translation: str = "", tm_match_percent: int = 0,
                               tm_name: str = "TM", mt_provider: str = "MT"):
-        """Update the Compare Panel with new data for the current segment (legacy single-match method)
+        """Update the Match Panel with new data for the current segment (legacy single-match method)
         
         This is the legacy method that accepts single TM/MT matches. For multiple matches,
         use set_compare_panel_matches() instead.
         """
-        if not hasattr(self, 'compare_panel_current_source'):
-            return
-        
         # Convert to the new format and use set_compare_panel_matches
         tm_matches = []
         mt_matches = []
@@ -28480,7 +28565,7 @@ class SupervertalerQt(QMainWindow):
         text_edit.setTextCursor(cursor)
     
     def _refresh_compare_panel_theme(self):
-        """Refresh Compare Panel colors based on current theme"""
+        """Refresh Match Panel TM box colors based on current theme"""
         if not hasattr(self, 'compare_panel_text_edits'):
             return
         
@@ -28491,13 +28576,11 @@ class SupervertalerQt(QMainWindow):
             is_dark = getattr(theme, 'is_dark', 'dark' in theme.name.lower())
             border_color = theme.border
             text_color = theme.text
-            title_color = theme.text_disabled
-            # Use theme-appropriate colors for boxes
+            # Use theme-appropriate colors for Match Panel boxes (both green)
+            panel_success = theme.panel_success if hasattr(theme, 'panel_success') else ("#1e3a2f" if is_dark else "#d4edda")
             box_colors = [
-                theme.panel_info if hasattr(theme, 'panel_info') else ("#2d3748" if is_dark else "#e3f2fd"),
-                theme.panel_warning if hasattr(theme, 'panel_warning') else ("#3d3520" if is_dark else "#fff3cd"),
-                theme.panel_success if hasattr(theme, 'panel_success') else ("#1e3a2f" if is_dark else "#d4edda"),
-                theme.panel_neutral if hasattr(theme, 'panel_neutral') else ("#2d2d3d" if is_dark else "#e8e8f0"),
+                panel_success,  # 0: Match Panel - TM Source (green)
+                panel_success,  # 1: Match Panel - TM Target (green)
             ]
         else:
             return
@@ -28525,10 +28608,6 @@ class SupervertalerQt(QMainWindow):
                     color: {text_color};
                 }}
             """)
-        
-        # Update segment label
-        if hasattr(self, 'compare_panel_segment_label'):
-            self.compare_panel_segment_label.setStyleSheet(f"font-weight: bold; font-size: 11px; color: {title_color};")
 
     # =========================================================================
     # DOCUMENT PREVIEW TAB
@@ -29300,39 +29379,39 @@ class SupervertalerQt(QMainWindow):
             self.save_current_font_sizes()
     
     # =========================================================================
-    # COMPARE PANEL ZOOM METHODS
+    # MATCH PANEL ZOOM METHODS
     # =========================================================================
     
-    # Class variable for Compare Panel font size
-    compare_panel_font_size = 10  # Default font size
+    # Class variable for Match Panel font size (TM Source/Target boxes)
+    match_panel_font_size = 10  # Default font size
     
-    def compare_panel_zoom_in(self):
-        """Increase font size in Compare Panel"""
-        SupervertalerQt.compare_panel_font_size = min(18, SupervertalerQt.compare_panel_font_size + 1)
-        self._apply_compare_panel_font_size()
+    def match_panel_zoom_in(self):
+        """Increase font size in Match Panel TM boxes"""
+        SupervertalerQt.match_panel_font_size = min(18, SupervertalerQt.match_panel_font_size + 1)
+        self._apply_match_panel_font_size()
         self.save_current_font_sizes()
-        self.log(f"Compare Panel font size: {SupervertalerQt.compare_panel_font_size}pt")
+        self.log(f"Match Panel font size: {SupervertalerQt.match_panel_font_size}pt")
     
-    def compare_panel_zoom_out(self):
-        """Decrease font size in Compare Panel"""
-        SupervertalerQt.compare_panel_font_size = max(7, SupervertalerQt.compare_panel_font_size - 1)
-        self._apply_compare_panel_font_size()
+    def match_panel_zoom_out(self):
+        """Decrease font size in Match Panel TM boxes"""
+        SupervertalerQt.match_panel_font_size = max(7, SupervertalerQt.match_panel_font_size - 1)
+        self._apply_match_panel_font_size()
         self.save_current_font_sizes()
-        self.log(f"Compare Panel font size: {SupervertalerQt.compare_panel_font_size}pt")
+        self.log(f"Match Panel font size: {SupervertalerQt.match_panel_font_size}pt")
     
-    def compare_panel_zoom_reset(self):
-        """Reset font size in Compare Panel to default"""
-        SupervertalerQt.compare_panel_font_size = 10
-        self._apply_compare_panel_font_size()
+    def match_panel_zoom_reset(self):
+        """Reset font size in Match Panel TM boxes to default"""
+        SupervertalerQt.match_panel_font_size = 10
+        self._apply_match_panel_font_size()
         self.save_current_font_sizes()
-        self.log("Compare Panel font size reset to 10pt")
+        self.log("Match Panel font size reset to 10pt")
     
-    def _apply_compare_panel_font_size(self):
-        """Apply current font size to all Compare Panel text edits"""
+    def _apply_match_panel_font_size(self):
+        """Apply current font size to Match Panel TM Source/Target text edits"""
         if not hasattr(self, 'compare_panel_text_edits'):
             return
         
-        font_size = SupervertalerQt.compare_panel_font_size
+        font_size = SupervertalerQt.match_panel_font_size
         
         for item in self.compare_panel_text_edits:
             text_edit = item[0]  # First element is the QTextEdit
@@ -29361,8 +29440,8 @@ class SupervertalerQt(QMainWindow):
                 general_settings['results_show_tags'] = CompactMatchItem.show_tags
             if hasattr(EditableGridTextEditor, 'tag_highlight_color'):
                 general_settings['tag_highlight_color'] = EditableGridTextEditor.tag_highlight_color
-            # Save Compare Panel font size
-            general_settings['compare_panel_font_size'] = SupervertalerQt.compare_panel_font_size
+            # Save Match Panel font size
+            general_settings['match_panel_font_size'] = SupervertalerQt.match_panel_font_size
             # Preserve other settings
             if 'restore_last_project' not in general_settings:
                 general_settings['restore_last_project'] = False
@@ -29706,11 +29785,11 @@ class SupervertalerQt(QMainWindow):
                 EditableGridTextEditor.focus_border_color = focus_border_color
                 EditableGridTextEditor.focus_border_thickness = focus_border_thickness
                 
-            # Load and apply Compare Panel font size
-            compare_panel_size = general_settings.get('compare_panel_font_size', 10)
-            if 7 <= compare_panel_size <= 18:
-                SupervertalerQt.compare_panel_font_size = compare_panel_size
-                self._apply_compare_panel_font_size()
+            # Load and apply Match Panel font size
+            match_panel_size = general_settings.get('match_panel_font_size', 10)
+            if 7 <= match_panel_size <= 18:
+                SupervertalerQt.match_panel_font_size = match_panel_size
+                self._apply_match_panel_font_size()
                 
             if hasattr(self, 'results_panels'):
                 # Load and apply match limits
@@ -36427,7 +36506,6 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         """Return active shortcut context for match shortcuts.
 
         Returns:
-            'compare' if Compare Panel tab is active,
             'results' if Translation Results tab is active,
             '' otherwise.
         """
@@ -36437,8 +36515,6 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             except Exception:
                 current = None
             if current is not None:
-                if hasattr(self, 'compare_panel') and self.compare_panel and current is self.compare_panel:
-                    return 'compare'
                 if hasattr(self, 'translation_results_panel') and self.translation_results_panel and current is self.translation_results_panel:
                     return 'results'
         return ''
@@ -42173,9 +42249,8 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             self._compare_panel_tm_matches = []  # Reset TM matches list for navigation
             self._compare_panel_mt_matches = []  # Reset MT matches list for navigation
             
-            # Update Compare Panel with current source immediately (before TM/MT lookup)
-            if hasattr(self, 'compare_panel_current_source'):
-                self.set_compare_panel_matches(segment.id, segment.source, [], [])
+            # Update Match Panel with current source immediately (before TM/MT lookup)
+            self.set_compare_panel_matches(segment.id, segment.source, [], [])
             
             # Prepare matches dict - use the stored termbase matches from immediate display
             matches_dict = {
@@ -42239,27 +42314,26 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                                 except Exception as e:
                                     self.log(f"Error adding TM matches: {e}")
                         
-                        # 🔄 Update Compare Panel with all TM matches (for navigation)
-                        if hasattr(self, 'compare_panel_current_source'):
-                            # Convert TranslationMatch objects to dict format for Compare Panel
-                            tm_matches_for_panel = []
-                            for tm in matches_dict["TM"]:
-                                tm_name = tm.metadata.get('tm_name', 'TM') if tm.metadata else 'TM'
-                                tm_matches_for_panel.append({
-                                    'source': tm.compare_source or tm.source,
-                                    'target': tm.target,
-                                    'tm_name': tm_name,
-                                    'match_pct': int(tm.relevance)
-                                })
-                            # Store for later (MT will be added when available)
-                            self._compare_panel_tm_matches = tm_matches_for_panel
-                            # Update panel with TM data only (MT empty for now)
-                            self.set_compare_panel_matches(
-                                segment.id,
-                                segment.source,
-                                tm_matches=tm_matches_for_panel,
-                                mt_matches=getattr(self, '_compare_panel_mt_matches', [])
-                            )
+                        # 🔄 Update Match Panel with all TM matches (for navigation)
+                        # Convert TranslationMatch objects to dict format for Match Panel
+                        tm_matches_for_panel = []
+                        for tm in matches_dict["TM"]:
+                            tm_name = tm.metadata.get('tm_name', 'TM') if tm.metadata else 'TM'
+                            tm_matches_for_panel.append({
+                                'source': tm.compare_source or tm.source,
+                                'target': tm.target,
+                                'tm_name': tm_name,
+                                'match_pct': int(tm.relevance)
+                            })
+                        # Store for later (MT will be added when available)
+                        self._compare_panel_tm_matches = tm_matches_for_panel
+                        # Update panel with TM data only (MT empty for now)
+                        self.set_compare_panel_matches(
+                            segment.id,
+                            segment.source,
+                            tm_matches=tm_matches_for_panel,
+                            mt_matches=getattr(self, '_compare_panel_mt_matches', [])
+                        )
                         
                         # 🎯 AUTO-INSERT 100% TM MATCH (if enabled in settings)
                         if self.auto_insert_100_percent_matches:

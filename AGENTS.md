@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** January 23, 2026 | **Version:** v1.9.153
+> **Last Updated:** January 25, 2026 | **Version:** v1.9.154
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.153 (January 2026) |
+| **Version** | v1.9.154 (January 2026) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -765,6 +765,48 @@ deepl=...
 ---
 
 ## 🔄 Recent Development History
+
+### January 25, 2026 - Match Panel Consolidation (v1.9.154)
+
+**🎯 Compare Panel Removed, Match Panel Enhanced**
+
+Streamlined the right panel by removing the Compare Panel (redundant with Translation Results) and enhancing the Match Panel.
+
+**The Changes:**
+
+1. **Compare Panel Removed**:
+   - Deleted `_create_compare_panel()` tab creation
+   - Removed from View menu and Settings
+   - Was redundant with Translation Results panel
+
+2. **Match Panel Now Shows TM Matches**:
+   - Combines Termview (top) + TM Source/Target boxes (bottom)
+   - TM boxes have green background (#d4edda) for easy identification
+   - TM navigation arrows still work (prev/next match)
+   - Match metadata (TM name, match %) displayed
+
+3. **Zoom Shortcuts Redirected**:
+   - Ctrl+Alt+= (zoom in) and Ctrl+Alt+- (zoom out) now work on Match Panel
+   - View menu renamed from "Compare Panel" to "Match Panel"
+   - All zoom methods renamed: `match_panel_zoom_in/out/reset()`
+   - Settings key changed to `match_panel_font_size`
+
+4. **Fixed TM Match Display**:
+   - Removed guards checking for `compare_panel_current_source`
+   - `set_compare_panel_matches()` now always updates Match Panel
+   - TM matches properly flow to Match Panel regardless of Compare Panel existence
+
+**New Right Panel Tabs (5 total):**
+1. Translation Results
+2. Match Panel (Termview + TM boxes)
+3. Preview
+4. Segment Note
+5. Session Log
+
+**Files Modified:**
+- `Supervertaler.py` - Compare Panel removal, Match Panel TM display, zoom shortcuts
+
+---
 
 ### January 23, 2026 - Tab Layout Reorganization (v1.9.153)
 
@@ -4369,4 +4411,4 @@ An intelligent proofreading system that uses LLMs to verify translation quality.
 ---
 
 *This file replaces the previous CLAUDE.md and PROJECT_CONTEXT.md files.*
-*Last updated: January 23, 2026 - v1.9.153*
+*Last updated: January 25, 2026 - v1.9.154*

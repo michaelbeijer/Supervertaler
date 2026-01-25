@@ -2,7 +2,35 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.153 (January 23, 2026)
+**Current Version:** v1.9.154 (January 25, 2026)
+
+## 🎯 Match Panel Consolidation (v1.9.154) - January 25, 2026
+
+**Streamlined Right Panel UI**
+
+Replaced the Compare Panel with a more focused Match Panel that combines glossary terms and TM matches in one convenient view.
+
+**What Changed:**
+- **Compare Panel removed**: Was redundant with Translation Results panel
+- **Match Panel introduced**: Combines Termview (glossary) + TM Source/Target boxes
+- **Green TM boxes**: TM matches display with green background (#d4edda) for easy identification
+- **Zoom shortcuts work**: Ctrl+Alt+= and Ctrl+Alt+- now zoom the Match Panel TM boxes
+- **Cleaner tab structure**: Fewer tabs = less switching during translation
+
+**New Right Panel Tabs:**
+1. Translation Results (TM/MT/Glossary matches in list view)
+2. Match Panel (Termview + TM Source/Target side-by-side)
+3. Preview (document preview)
+4. Segment Note
+5. Session Log
+
+**Benefits:**
+- ✅ Less tab clutter - removed redundant Compare Panel
+- ✅ Glossary terms and TM matches visible together in Match Panel
+- ✅ Green highlighting makes TM boxes easy to spot
+- ✅ Keyboard zoom shortcuts work on TM boxes
+
+---
 
 ## 📐 Tab Layout Reorganization (v1.9.153) - January 23, 2026
 

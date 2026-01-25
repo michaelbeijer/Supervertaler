@@ -1,4 +1,4 @@
-# 🚀 Supervertaler v1.9.153
+# 🚀 Supervertaler v1.9.154
 
 [![PyPI version](https://badge.fury.io/py/supervertaler.svg)](https://pypi.org/project/Supervertaler/)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
@@ -6,17 +6,18 @@
 
 AI-enhanced CAT tool with multi-LLM support (GPT-4, Claude, Gemini, Ollama), innovative Superlookup concordance system offering access to multiple terminology sources (TMs, glossaries, web resources, etc.), and seamless CAT tool integration (memoQ, Trados, CafeTran, Phrase).
 
-**Current Version:** v1.9.153 (January 23, 2026)
+**Current Version:** v1.9.154 (January 25, 2026)
 
-### NEW in v1.9.153 - 📝 Tab Layout Reorganization
+### NEW in v1.9.154 - 🎯 Match Panel Consolidation
 
-Redesigned the tab layout to improve workflow:
-- Termview stays under the grid
-- Second Termview instance added to right panel
-- Segment Note and Session Log moved to right panel
-- Better organization: Left panel (grid + Termview), Right panel (all other tabs)
+Streamlined the right panel by replacing Compare Panel with Match Panel:
+- **Match Panel** combines Termview + TM Source/Target in one tab
+- Compare Panel removed (was redundant with Translation Results)
+- TM matches display with green background for easy identification
+- Zoom shortcuts (Ctrl+Alt+=/Ctrl+Alt+-) now work on Match Panel TM boxes
+- Cleaner UI with less tab switching needed
 
-### Previously in v1.9.152 - ⚡ Instant Glossary Updates
+### Previously in v1.9.153 - 📝 Tab Layout Reorganization
 
 **Lightning-Fast Term Addition:** Adding terms to glossaries now feels instant! When you add a term with Alt+Shift+Up/Down, it appears immediately in TermView AND the source highlighting updates instantly - no more 5-6 second delays.
 
