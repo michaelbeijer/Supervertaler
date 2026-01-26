@@ -77,15 +77,33 @@ class TagManager:
         runs = []
         current_pos = 0
         
+        # Check if paragraph style has bold/italic formatting
+        # This handles cases like "Subtitle" or "Title" styles that are bold
+        style_bold = False
+        style_italic = False
+        try:
+            if paragraph.style and paragraph.style.font:
+                if paragraph.style.font.bold:
+                    style_bold = True
+                if paragraph.style.font.italic:
+                    style_italic = True
+        except Exception:
+            pass  # If we can't read style, just use run-level formatting
+        
         for run in paragraph.runs:
             text = run.text
             if not text:
                 continue
             
+            # Combine run-level formatting with style-level formatting
+            # run.bold can be True, False, or None (None means inherit from style)
+            is_bold = run.bold if run.bold is not None else style_bold
+            is_italic = run.italic if run.italic is not None else style_italic
+            
             run_info = FormattingRun(
                 text=text,
-                bold=run.bold or False,
-                italic=run.italic or False,
+                bold=is_bold or False,
+                italic=is_italic or False,
                 underline=run.underline or False,
                 subscript=run.font.subscript or False if run.font else False,
                 superscript=run.font.superscript or False if run.font else False,
