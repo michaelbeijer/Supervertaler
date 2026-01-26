@@ -2,7 +2,51 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.154 (January 25, 2026)
+**Current Version:** v1.9.162 (January 26, 2026)
+
+## 🧪 Cache Kill Switch & Performance Improvements (v1.9.155-162) - January 26, 2026
+
+**Experimental Cache Bypass for Faster Grid Navigation**
+
+This release includes a series of performance optimizations and a new experimental feature for testing grid responsiveness.
+
+### 🧪 NEW: Cache Kill Switch (v1.9.162)
+
+Added experimental setting to bypass all caching systems:
+
+- **Location**: Settings → General → 🧪 Experimental Performance
+- **Option**: "Disable all caches (for testing responsiveness)"
+- **What it does**: Bypasses translation_matches_cache, termbase_cache, prefetch workers
+- **Result**: Direct SQLite lookups - may actually be faster due to no lock contention!
+
+Use this setting to test whether caching is helping or hurting your workflow.
+
+### ⚡ Performance Optimizations (v1.9.155-161)
+
+**Ctrl+Enter Speed Improvements:**
+- Reduced verbose logging overhead (15-20 fewer log calls per navigation)
+- Preview tab now skips TM/glossary lookups entirely (faster reviewing)
+- Idle prefetch system loads matches while you type (Ctrl+Enter feels instant)
+- Direct termbase lookups in prefetch worker (no more race conditions)
+
+**TM Matching Fixes:**
+- Fixed missing fuzzy matches when using multiple TMs (increased FTS5 candidate pool)
+- Fixed crashes when no TMs activated or only "Write" enabled
+- Fixed wrong dictionary key in TM exact match lookups
+
+**Proactive Grid Highlighting (v1.9.161):**
+- Glossary terms now highlight in UPCOMING segments while you work on current one
+- See terms in segments 255, 256, 257 while editing segment 254
+- No more waiting for highlighting after navigation
+
+### 🔧 Bug Fixes
+
+- Fixed batch translation crashes with empty TM lists
+- Fixed TM pre-translation SQLite threading errors (now runs on main thread)
+- Fixed retry pass variable scope issues in batch translate
+- Fixed various logging and debug output issues
+
+---
 
 ## 🎯 Match Panel Consolidation (v1.9.154) - January 25, 2026
 
