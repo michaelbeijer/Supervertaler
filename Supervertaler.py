@@ -16987,6 +16987,22 @@ class SupervertalerQt(QMainWindow):
         termview_font_spin.setValue(font_settings.get('termview_font_size', 10))
         termview_font_spin.setSuffix(" pt")
         termview_font_spin.setToolTip("Termview font size (6-16 pt)")
+        termview_font_spin.setMinimumHeight(28)
+        termview_font_spin.setMinimumWidth(80)
+        # Fix spinbox arrow buttons - ensure both up and down work correctly
+        termview_font_spin.setStyleSheet("""
+            QSpinBox {
+                padding-right: 20px;
+            }
+            QSpinBox::up-button {
+                width: 20px;
+                height: 14px;
+            }
+            QSpinBox::down-button {
+                width: 20px;
+                height: 14px;
+            }
+        """)
         termview_size_layout.addWidget(termview_font_spin)
         termview_size_layout.addStretch()
         termview_layout.addLayout(termview_size_layout)
@@ -19035,12 +19051,19 @@ class SupervertalerQt(QMainWindow):
         
         self.save_general_settings(general_settings)
         
-        # Apply termview font settings immediately
+        # Apply termview font settings immediately to BOTH termview widgets
         if hasattr(self, 'termview_widget') and self.termview_widget is not None:
             termview_family = general_settings.get('termview_font_family', 'Segoe UI')
             termview_size = general_settings.get('termview_font_size', 10)
             termview_bold = general_settings.get('termview_font_bold', False)
             self.termview_widget.set_font_settings(termview_family, termview_size, termview_bold)
+        
+        # Also apply to the Match Panel's Termview widget
+        if hasattr(self, 'termview_widget_match') and self.termview_widget_match is not None:
+            termview_family = general_settings.get('termview_font_family', 'Segoe UI')
+            termview_size = general_settings.get('termview_font_size', 10)
+            termview_bold = general_settings.get('termview_font_bold', False)
+            self.termview_widget_match.set_font_settings(termview_family, termview_size, termview_bold)
         
         # Apply font family and size immediately
         font_changed = False
@@ -19136,7 +19159,13 @@ class SupervertalerQt(QMainWindow):
             self.apply_alternating_row_colors()
         
         self.log("✓ View settings saved and applied")
-        QMessageBox.information(self, "Settings Saved", "View settings have been saved and applied successfully.")
+        # Use explicit QMessageBox instance to ensure proper dialog closing
+        msg = QMessageBox(self)
+        msg.setIcon(QMessageBox.Icon.Information)
+        msg.setWindowTitle("Settings Saved")
+        msg.setText("View settings have been saved and applied successfully.")
+        msg.setStandardButtons(QMessageBox.StandardButton.Ok)
+        msg.exec()
     
     def create_grid_view_widget(self):
         """Create the Grid View widget (existing grid functionality)"""
