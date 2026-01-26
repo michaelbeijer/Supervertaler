@@ -2,7 +2,15 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.163 (January 26, 2026)
+**Current Version:** v1.9.164 (January 26, 2026)
+
+## v1.9.164 - January 26, 2026
+
+### 🐛 Bug Fixes
+
+- **macOS/Linux Compatibility**: Fixed `ModuleNotFoundError: No module named 'keyboard'` on non-Windows platforms. The `keyboard` module is Windows-only and is now imported conditionally with graceful fallback. ([#124](https://github.com/michaelbeijer/Supervertaler/issues/124))
+
+---
 
 ## v1.9.163 - January 26, 2026
 

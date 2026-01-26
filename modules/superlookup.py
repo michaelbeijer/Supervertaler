@@ -88,14 +88,18 @@ class SuperlookupEngine:
             Captured text or None if failed
         """
         try:
-            import keyboard
-            
-            # Wait for hotkey to release before sending Ctrl+C
-            time.sleep(0.2)
-            
-            # Use keyboard library to send Ctrl+C
-            keyboard.press_and_release('ctrl+c')
-            time.sleep(0.2)
+            # keyboard module is Windows-only
+            try:
+                import keyboard
+                # Wait for hotkey to release before sending Ctrl+C
+                time.sleep(0.2)
+                # Use keyboard library to send Ctrl+C
+                keyboard.press_and_release('ctrl+c')
+                time.sleep(0.2)
+            except ImportError:
+                # On non-Windows, just try to get clipboard content directly
+                # (user needs to have copied text manually)
+                pass
             
             # Get clipboard
             text = pyperclip.paste()

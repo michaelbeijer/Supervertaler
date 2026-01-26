@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.163"
+__version__ = "1.9.164"
 __phase__ = "0.9"
 __release_date__ = "2026-01-26"
 __edition__ = "Qt"
@@ -47673,7 +47673,12 @@ class AutoFingersWidget(QWidget):
     
     def setup_shortcuts(self):
         """Setup GLOBAL keyboard shortcuts for AutoFingers actions"""
-        import keyboard
+        # keyboard module is Windows-only
+        try:
+            import keyboard
+        except ImportError:
+            self.log("ℹ️ Global hotkeys not available on this platform (Windows only)")
+            return
         
         try:
             # Store hotkey references for later removal
@@ -47732,8 +47737,13 @@ class AutoFingersWidget(QWidget):
     def cleanup_hotkeys(self):
         """Cleanup AutoFingers hotkeys when widget is closed/hidden"""
         # Unregister ONLY AutoFingers hotkeys
+        # keyboard module is Windows-only
         try:
             import keyboard
+        except ImportError:
+            return  # Not available on this platform
+        
+        try:
             if hasattr(self, 'hotkeys'):
                 for hotkey in self.hotkeys:
                     try:
