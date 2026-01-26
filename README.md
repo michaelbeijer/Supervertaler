@@ -1,4 +1,4 @@
-# 🚀 Supervertaler v1.9.154
+# 🚀 Supervertaler v1.9.162
 
 [![PyPI version](https://badge.fury.io/py/supervertaler.svg)](https://pypi.org/project/Supervertaler/)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
@@ -6,9 +6,18 @@
 
 AI-enhanced CAT tool with multi-LLM support (GPT-4, Claude, Gemini, Ollama), innovative Superlookup concordance system offering access to multiple terminology sources (TMs, glossaries, web resources, etc.), and seamless CAT tool integration (memoQ, Trados, CafeTran, Phrase).
 
-**Current Version:** v1.9.154 (January 25, 2026)
+**Current Version:** v1.9.162 (January 26, 2026)
 
-### NEW in v1.9.154 - 🎯 Match Panel Consolidation
+### NEW in v1.9.162 - ⚡ Cache Kill Switch & Performance Testing
+
+Added experimental performance toggle to test grid responsiveness:
+- **New Setting:** Settings → Experimental Performance → "Disable all caching systems"
+- **What it does:** Bypasses termbase cache, TM/MT cache, and prefetch workers
+- **Why:** Testing showed direct database lookups may be faster than cache overhead for some workflows
+- **Proactive Highlighting:** Glossary terms now highlighted in upcoming segments while you're still editing the current one
+- **Improved TM Matching:** Fixed fuzzy match issues with multi-TM projects
+
+### Previously in v1.9.154 - 🎯 Match Panel Consolidation
 
 Streamlined the right panel by replacing Compare Panel with Match Panel:
 - **Match Panel** combines Termview + TM Source/Target in one tab
@@ -17,7 +26,7 @@ Streamlined the right panel by replacing Compare Panel with Match Panel:
 - Zoom shortcuts (Ctrl+Alt+=/Ctrl+Alt+-) now work on Match Panel TM boxes
 - Cleaner UI with less tab switching needed
 
-### Previously in v1.9.153 - 📝 Tab Layout Reorganization
+### v1.9.153 - 📝 Tab Layout Reorganization
 
 **Lightning-Fast Term Addition:** Adding terms to glossaries now feels instant! When you add a term with Alt+Shift+Up/Down, it appears immediately in TermView AND the source highlighting updates instantly - no more 5-6 second delays.
 
