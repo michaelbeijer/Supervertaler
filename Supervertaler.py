@@ -1567,10 +1567,14 @@ class ReadOnlyGridTextEditor(QTextEdit):
         """
         from PyQt6.QtGui import QTextCursor, QTextCharFormat, QColor, QFont
         
+        print(f"[HIGHLIGHT DEBUG] highlight_termbase_matches called with {len(matches_dict) if matches_dict else 0} matches")
+        
         # Get the document and create a cursor
         doc = self.document()
         text = self.toPlainText()
         text_lower = text.lower()
+        
+        print(f"[HIGHLIGHT DEBUG] Widget text length: {len(text)}, text preview: {text[:60]}...")
         
         # IMPORTANT: Always clear all previous formatting first to prevent inconsistent highlighting
         cursor = QTextCursor(doc)
@@ -1580,6 +1584,7 @@ class ReadOnlyGridTextEditor(QTextEdit):
         
         # If no matches, we're done (highlighting has been cleared)
         if not matches_dict:
+            print(f"[HIGHLIGHT DEBUG] No matches, returning after clear")
             return
         
         # Get highlight style from main window settings
@@ -1598,6 +1603,8 @@ class ReadOnlyGridTextEditor(QTextEdit):
                 break
             parent = parent.parent() if hasattr(parent, 'parent') else None
         
+        print(f"[HIGHLIGHT DEBUG] Using style: {highlight_style}")
+        
         # Sort matches by source term length (longest first) to avoid partial matches
         # Since dict keys are now term_ids, we need to extract source terms first
         term_entries = []
@@ -1607,11 +1614,16 @@ class ReadOnlyGridTextEditor(QTextEdit):
                 if source_term:
                     term_entries.append((source_term, term_id, match_info))
         
+        print(f"[HIGHLIGHT DEBUG] Built {len(term_entries)} term entries from matches")
+        if term_entries:
+            print(f"[HIGHLIGHT DEBUG] First few terms to search: {[t[0] for t in term_entries[:3]]}")
+        
         # Sort by source term length (longest first)
         term_entries.sort(key=lambda x: len(x[0]), reverse=True)
         
         # Track positions we've already highlighted to avoid overlaps
         highlighted_ranges = []
+        found_count = 0
         
         for term, term_id, match_info in term_entries:
             # Get ranking, forbidden status, and termbase type
@@ -1724,11 +1736,14 @@ class ReadOnlyGridTextEditor(QTextEdit):
                     
                     # Apply format
                     cursor.setCharFormat(fmt)
+                    found_count += 1
                     
                     # Track this range as highlighted
                     highlighted_ranges.append((idx, end_idx))
                 
                 start = end_idx
+        
+        print(f"[HIGHLIGHT DEBUG] Applied formatting to {found_count} term occurrences in text")
     
     def highlight_non_translatables(self, nt_matches: list, highlighted_ranges: list = None):
         """
@@ -5866,6 +5881,10 @@ class SupervertalerQt(QMainWindow):
         # Idle prefetch: prefetch next segments while user is thinking/typing
         self.idle_prefetch_timer = None  # QTimer for triggering prefetch after typing pause
         self.idle_prefetch_delay_ms = 1500  # Start prefetch 1.5s after user stops typing
+        
+        # 🧪 EXPERIMENTAL: Cache kill switch for performance testing
+        # When True, all caches are bypassed - direct lookups every time
+        self.disable_all_caches = False
         
         # Undo/Redo stack for grid edits
         self.undo_stack = []  # List of (segment_id, old_target, new_target, old_status, new_status)
@@ -16234,6 +16253,36 @@ class SupervertalerQt(QMainWindow):
         self.precision_spin = precision_spin
         self.auto_center_cb = auto_center_cb
         
+        # 🧪 Experimental Performance group
+        experimental_group = QGroupBox("🧪 Experimental Performance")
+        experimental_layout = QVBoxLayout()
+        
+        exp_info = QLabel(
+            "⚠️ These options are for testing and debugging performance.\n"
+            "Use with caution - they may affect application behavior."
+        )
+        exp_info.setWordWrap(True)
+        exp_info.setStyleSheet("color: #d97706; font-size: 9pt; padding: 5px;")
+        experimental_layout.addWidget(exp_info)
+        
+        # Cache kill switch
+        disable_cache_cb = CheckmarkCheckBox("Disable ALL caches (direct lookups every time)")
+        disable_cache_cb.setChecked(general_settings.get('disable_all_caches', False))
+        disable_cache_cb.setToolTip(
+            "When enabled, ALL caching is bypassed:\n"
+            "• Termbase cache\n"
+            "• Translation matches cache\n"
+            "• Prefetch system\n\n"
+            "Every segment navigation will perform fresh database lookups.\n"
+            "Use this to test if caching is causing issues or to measure\n"
+            "baseline performance without any caching."
+        )
+        experimental_layout.addWidget(disable_cache_cb)
+        self.disable_cache_checkbox = disable_cache_cb
+        
+        experimental_group.setLayout(experimental_layout)
+        layout.addWidget(experimental_group)
+        
         # Translation Results Match Limits group
         match_limits_group = QGroupBox("📊 Translation Results - Match Limits")
         match_limits_layout = QVBoxLayout()
@@ -16319,7 +16368,8 @@ class SupervertalerQt(QMainWindow):
             auto_confirm_100_cb=auto_confirm_100_cb,
             auto_confirm_overwrite_cb=auto_confirm_overwrite_cb,
             sound_effects_cb=sound_effects_cb,
-            sound_event_combos=sound_event_combos
+            sound_event_combos=sound_event_combos,
+            disable_cache_cb=disable_cache_cb
         ))
         layout.addWidget(save_btn)
         
@@ -18721,7 +18771,8 @@ class SupervertalerQt(QMainWindow):
                                        enable_backup_cb=None, backup_interval_spin=None,
                                        tb_order_combo=None, tb_hide_shorter_cb=None, smart_selection_cb=None,
                                        ahk_path_edit=None, auto_center_cb=None, auto_confirm_100_cb=None,
-                                       auto_confirm_overwrite_cb=None, sound_effects_cb=None, sound_event_combos=None):
+                                       auto_confirm_overwrite_cb=None, sound_effects_cb=None, sound_event_combos=None,
+                                       disable_cache_cb=None):
         """Save general settings from UI (non-AI settings only)"""
         self.allow_replace_in_source = allow_replace_cb.isChecked()
         self.update_warning_banner()
@@ -18782,11 +18833,25 @@ class SupervertalerQt(QMainWindow):
             'results_match_font_size': 9,
             'results_compare_font_size': 9,
             'autohotkey_path': ahk_path_edit.text().strip() if ahk_path_edit is not None else existing_settings.get('autohotkey_path', ''),
-            'enable_sound_effects': sound_effects_cb.isChecked() if sound_effects_cb is not None else existing_settings.get('enable_sound_effects', False)
+            'enable_sound_effects': sound_effects_cb.isChecked() if sound_effects_cb is not None else existing_settings.get('enable_sound_effects', False),
+            'disable_all_caches': disable_cache_cb.isChecked() if disable_cache_cb is not None else existing_settings.get('disable_all_caches', False)
         }
 
         # Keep a fast-access instance value
         self.enable_sound_effects = general_settings.get('enable_sound_effects', False)
+        
+        # Update cache kill switch
+        if disable_cache_cb is not None:
+            self.disable_all_caches = disable_cache_cb.isChecked()
+            if self.disable_all_caches:
+                self.log("🧪 EXPERIMENTAL: All caches DISABLED - direct lookups enabled")
+                # Stop any running background workers that use the database
+                if hasattr(self, 'termbase_batch_stop_event'):
+                    self.termbase_batch_stop_event.set()
+                if hasattr(self, 'prefetch_stop_event'):
+                    self.prefetch_stop_event.set()
+            else:
+                self.log("✓ Caches enabled (normal mode)")
 
         # Persist per-event sound mapping
         existing_map = existing_settings.get('sound_effects_map', {}) if isinstance(existing_settings, dict) else {}
@@ -21229,6 +21294,11 @@ class SupervertalerQt(QMainWindow):
         if not self.current_project or len(self.current_project.segments) == 0:
             return
         
+        # 🧪 EXPERIMENTAL: Skip batch worker if cache kill switch is enabled
+        if getattr(self, 'disable_all_caches', False):
+            self.log("🧪 Termbase batch worker SKIPPED (caches disabled)")
+            return
+        
         # Stop any existing worker thread
         self.termbase_batch_stop_event.set()
         if self.termbase_batch_worker_thread and self.termbase_batch_worker_thread.is_alive():
@@ -21292,11 +21362,14 @@ class SupervertalerQt(QMainWindow):
                 # Search termbase for this segment using thread-local database connection
                 try:
                     # Manually query the database using thread-local connection
+                    # Pass project_id to filter by activated termbases only
+                    current_project_id = self.current_project.id if (self.current_project and hasattr(self.current_project, 'id')) else None
                     matches = self._search_termbases_thread_safe(
                         segment.source,
                         thread_db_cursor,
                         source_lang=self.current_project.source_lang if self.current_project else None,
-                        target_lang=self.current_project.target_lang if self.current_project else None
+                        target_lang=self.current_project.target_lang if self.current_project else None,
+                        project_id=current_project_id
                     )
                     
                     if matches:
@@ -21341,7 +21414,7 @@ class SupervertalerQt(QMainWindow):
             except:
                 pass
     
-    def _search_termbases_thread_safe(self, source_text: str, cursor, source_lang: str = None, target_lang: str = None) -> Dict[str, str]:
+    def _search_termbases_thread_safe(self, source_text: str, cursor, source_lang: str = None, target_lang: str = None, project_id: int = None) -> Dict[str, str]:
         """
         Search termbases using a provided cursor (thread-safe for background threads).
         This method allows background workers to query the database without SQLite threading errors.
@@ -21351,6 +21424,7 @@ class SupervertalerQt(QMainWindow):
             cursor: A database cursor from a thread-local connection
             source_lang: Source language code
             target_lang: Target language code
+            project_id: Current project ID (required to filter by activated termbases)
         
         Returns:
             Dictionary of {term: translation} matches
@@ -21375,17 +21449,21 @@ class SupervertalerQt(QMainWindow):
                     continue
 
                 try:
-                    # JOIN termbases to get is_project_termbase, name, and ranking
+                    # JOIN termbases AND termbase_activation to filter by activated termbases
+                    # This matches the logic in database_manager.py search_termbases()
                     query = """
                         SELECT 
                             t.id, t.source_term, t.target_term, t.termbase_id, t.priority,
                             t.domain, t.notes, t.project, t.client, t.forbidden,
-                            tb.is_project_termbase, tb.name as termbase_name, tb.ranking
+                            tb.is_project_termbase, tb.name as termbase_name, 
+                            COALESCE(ta.priority, tb.ranking) as ranking
                         FROM termbase_terms t
                         LEFT JOIN termbases tb ON CAST(t.termbase_id AS INTEGER) = tb.id
+                        LEFT JOIN termbase_activation ta ON ta.termbase_id = tb.id AND ta.project_id = ? AND ta.is_active = 1
                         WHERE LOWER(t.source_term) LIKE ?
+                        AND (ta.is_active = 1 OR tb.is_project_termbase = 1)
                     """
-                    params = [f"%{clean_word.lower()}%"]
+                    params = [project_id if project_id else 0, f"%{clean_word.lower()}%"]
 
                     if source_lang_code:
                         query += " AND (t.source_lang = ? OR (t.source_lang IS NULL AND tb.source_lang = ?) OR (t.source_lang IS NULL AND tb.source_lang IS NULL))"
@@ -21486,7 +21564,10 @@ class SupervertalerQt(QMainWindow):
         """
         import json
         
+        print(f"[PROACTIVE DEBUG] _trigger_idle_prefetch called for row {current_row}")
+        
         if not self.current_project or current_row < 0:
+            print(f"[PROACTIVE DEBUG] Early exit: no project or invalid row")
             return
         
         try:
@@ -21496,6 +21577,8 @@ class SupervertalerQt(QMainWindow):
             start_idx = current_row + 1
             end_idx = min(start_idx + 5, len(self.current_project.segments))
             
+            print(f"[PROACTIVE DEBUG] Checking segments {start_idx} to {end_idx}")
+            
             for seg in self.current_project.segments[start_idx:end_idx]:
                 # Check if already cached
                 with self.translation_matches_cache_lock:
@@ -21504,18 +21587,22 @@ class SupervertalerQt(QMainWindow):
                     else:
                         already_cached_ids.append(seg.id)
             
+            print(f"[PROACTIVE DEBUG] Already cached IDs: {already_cached_ids}, Need prefetch: {next_segment_ids}")
+            
             # For already-cached segments, trigger proactive highlighting immediately
             # This handles the case where segments were cached earlier but not highlighted
             for seg_id in already_cached_ids:
                 try:
                     with self.termbase_cache_lock:
                         termbase_raw = self.termbase_cache.get(seg_id, {})
+                    print(f"[PROACTIVE DEBUG] Segment {seg_id} termbase cache: {len(termbase_raw) if termbase_raw else 0} matches")
                     if termbase_raw:
                         termbase_json = json.dumps(termbase_raw)
                         # Apply highlighting on main thread (we're already on main thread here)
+                        print(f"[PROACTIVE DEBUG] Calling _apply_proactive_highlighting for seg {seg_id}")
                         self._apply_proactive_highlighting(seg_id, termbase_json)
-                except Exception:
-                    pass  # Silent failure
+                except Exception as e:
+                    print(f"[PROACTIVE DEBUG] Error for seg {seg_id}: {e}")
             
             if next_segment_ids:
                 # Start prefetch in background (silent, no logging)
@@ -21529,6 +21616,10 @@ class SupervertalerQt(QMainWindow):
         This enables instant switching between segments without waiting for match lookups.
         """
         if not segment_ids:
+            return
+        
+        # 🧪 EXPERIMENTAL: Skip prefetch if cache kill switch is enabled
+        if getattr(self, 'disable_all_caches', False):
             return
         
         # Stop any existing worker thread
@@ -21602,6 +21693,8 @@ class SupervertalerQt(QMainWindow):
                 llm_count = len(matches.get("LLM", []))
                 total_matches = tm_count + tb_count + mt_count + llm_count
                 
+                print(f"[PREFETCH DEBUG] Segment {segment_id}: TM={tm_count}, TB={tb_count}, MT={mt_count}, LLM={llm_count}")
+                
                 if total_matches > 0:
                     # Store in cache only if we have results
                     with self.translation_matches_cache_lock:
@@ -21615,13 +21708,18 @@ class SupervertalerQt(QMainWindow):
                             with self.termbase_cache_lock:
                                 termbase_raw = self.termbase_cache.get(segment_id, {})
                             
+                            print(f"[PREFETCH DEBUG] Segment {segment_id}: termbase_raw has {len(termbase_raw) if termbase_raw else 0} entries")
+                            
                             if termbase_raw:
                                 # Convert to JSON for thread-safe signal transfer
                                 termbase_json = json.dumps(termbase_raw)
                                 # Emit signal - will be handled on main thread
+                                print(f"[PREFETCH DEBUG] Emitting proactive highlight signal for segment {segment_id}")
                                 self._proactive_highlight_signal.emit(segment_id, termbase_json)
-                        except Exception:
-                            pass  # Don't let highlighting errors disrupt prefetch
+                            else:
+                                print(f"[PREFETCH DEBUG] WARNING: tb_count={tb_count} but termbase_raw is empty!")
+                        except Exception as e:
+                            print(f"[PREFETCH DEBUG] ERROR emitting signal: {e}")
                 # else: Don't cache empty results - let it fall through to slow lookup next time
             
         except Exception as e:
@@ -21721,11 +21819,17 @@ class SupervertalerQt(QMainWindow):
         # If not in cache and we have a thread-local cursor, do direct lookup
         if termbase_matches_raw is None and thread_db_cursor is not None:
             try:
+                # Get project_id for activation filtering
+                current_project_id = None
+                if hasattr(self, 'current_project') and self.current_project and hasattr(self.current_project, 'id'):
+                    current_project_id = self.current_project.id
+                
                 termbase_matches_raw = self._search_termbases_thread_safe(
                     segment.source,
                     thread_db_cursor,
                     source_lang=source_lang,
-                    target_lang=target_lang
+                    target_lang=target_lang,
+                    project_id=current_project_id
                 )
                 # Also populate the termbase cache for future use
                 if termbase_matches_raw:
@@ -29756,6 +29860,9 @@ class SupervertalerQt(QMainWindow):
         self.show_translation_results_pane = settings.get('show_translation_results_pane', False)
         self.show_compare_panel = settings.get('show_compare_panel', True)
 
+        # 🧪 EXPERIMENTAL: Load cache kill switch setting (default: False = caches enabled)
+        self.disable_all_caches = settings.get('disable_all_caches', False)
+
         # Load LLM provider settings for AI Assistant
         llm_settings = self.load_llm_settings()
         self.current_provider = llm_settings.get('provider', 'openai')
@@ -30373,90 +30480,95 @@ class SupervertalerQt(QMainWindow):
                 
                 # Get termbase matches (from cache or search on-demand) - ONLY if enabled
                 matches_dict = None  # Initialize at the top level
+                cached_matches = None  # Initialize for cache skip path
 
-                # 🚀 CHECK PREFETCH CACHE FIRST for instant display (like memoQ)
-                segment_id = segment.id
-                with self.translation_matches_cache_lock:
-                    if segment_id in self.translation_matches_cache:
-                        cached_matches = self.translation_matches_cache[segment_id]
+                # 🧪 EXPERIMENTAL: Skip ALL cache checks if cache kill switch is enabled
+                if not getattr(self, 'disable_all_caches', False):
+                    # 🚀 CHECK PREFETCH CACHE FIRST for instant display (like memoQ)
+                    segment_id = segment.id
+                    with self.translation_matches_cache_lock:
+                        if segment_id in self.translation_matches_cache:
+                            cached_matches = self.translation_matches_cache[segment_id]
+                            
+                            # Count matches in each category
+                            tm_count = len(cached_matches.get("TM", []))
+                            tb_count = len(cached_matches.get("Termbases", []))
+                            mt_count = len(cached_matches.get("MT", []))
+                            llm_count = len(cached_matches.get("LLM", []))
+                            
+                            self.log(f"⚡ CACHE HIT for segment {segment_id}: TM={tm_count}, TB={tb_count}, MT={mt_count}, LLM={llm_count}")
+                else:
+                    if self.debug_mode_enabled:
+                        self.log(f"🧪 Cache DISABLED - forcing fresh lookup for segment {segment.id}")
+                
+                # Process cached matches if we have them
+                if cached_matches is not None:
+                    # Display cached matches immediately
+                    if hasattr(self, 'results_panels'):
+                        for panel in self.results_panels:
+                            try:
+                                panel.clear()
+                                panel.set_matches(cached_matches)
+                            except Exception as e:
+                                self.log(f"Error displaying cached matches: {e}")
+                    
+                    # 🔄 Update TermView with cached termbase matches (always update, even if empty)
+                    if hasattr(self, 'termview_widget') and self.current_project:
+                        try:
+                            # Convert TranslationMatch objects to dict format for termview
+                            termbase_matches = [
+                                {
+                                    'source_term': match.source,
+                                    'target_term': match.target,
+                                    'termbase_name': match.metadata.get('termbase_name', '') if match.metadata else '',
+                                    'ranking': match.metadata.get('ranking', 99) if match.metadata else 99,
+                                    'is_project_termbase': match.metadata.get('is_project_termbase', False) if match.metadata else False,
+                                    'term_id': match.metadata.get('term_id') if match.metadata else None,
+                                    'termbase_id': match.metadata.get('termbase_id') if match.metadata else None,
+                                    'notes': match.metadata.get('notes', '') if match.metadata else ''
+                                }
+                                for match in cached_matches.get("Termbases", [])
+                            ]
+                            # Also get NT matches (fresh, not cached - they may have changed)
+                            nt_matches = self.find_nt_matches_in_source(segment.source)
+                            
+                            # Update both Termview widgets (left and right)
+                            self._update_both_termviews(segment.source, termbase_matches, nt_matches)
+                        except Exception as e:
+                            self.log(f"Error updating termview from cache: {e}")
+                    
+                    # 🎯 AUTO-INSERT 100% TM MATCH from cache (if enabled in settings)
+                    tm_count = len(cached_matches.get("TM", []))
+                    if self.auto_insert_100_percent_matches and tm_count > 0:
+                        # Check if segment target is empty (don't overwrite existing translations)
+                        target_empty = not segment.target or len(segment.target.strip()) == 0
                         
-                        # Count matches in each category
-                        tm_count = len(cached_matches.get("TM", []))
-                        tb_count = len(cached_matches.get("Termbases", []))
-                        mt_count = len(cached_matches.get("MT", []))
-                        llm_count = len(cached_matches.get("LLM", []))
-                        
-                        self.log(f"⚡ CACHE HIT for segment {segment_id}: TM={tm_count}, TB={tb_count}, MT={mt_count}, LLM={llm_count}")
-                        
-                        # Use cached results even if empty (to avoid re-searching)
-                        if True:  # Always use cache if it exists
-                            # Display cached matches immediately
-                            if hasattr(self, 'results_panels'):
-                                for panel in self.results_panels:
-                                    try:
-                                        panel.clear()
-                                        panel.set_matches(cached_matches)
-                                    except Exception as e:
-                                        self.log(f"Error displaying cached matches: {e}")
+                        if target_empty:
+                            # Find first 100% match in cached TM results
+                            best_match = None
+                            for tm_match in cached_matches.get("TM", []):
+                                # Use >= 99.5 to handle potential floating point issues
+                                if float(tm_match.relevance) >= 99.5:
+                                    best_match = tm_match
+                                    break
                             
-                            # 🔄 Update TermView with cached termbase matches (always update, even if empty)
-                            if hasattr(self, 'termview_widget') and self.current_project:
-                                try:
-                                    # Convert TranslationMatch objects to dict format for termview
-                                    termbase_matches = [
-                                        {
-                                            'source_term': match.source,
-                                            'target_term': match.target,
-                                            'termbase_name': match.metadata.get('termbase_name', '') if match.metadata else '',
-                                            'ranking': match.metadata.get('ranking', 99) if match.metadata else 99,
-                                            'is_project_termbase': match.metadata.get('is_project_termbase', False) if match.metadata else False,
-                                            'term_id': match.metadata.get('term_id') if match.metadata else None,
-                                            'termbase_id': match.metadata.get('termbase_id') if match.metadata else None,
-                                            'notes': match.metadata.get('notes', '') if match.metadata else ''
-                                        }
-                                        for match in cached_matches.get("Termbases", [])
-                                    ]
-                                    # Also get NT matches (fresh, not cached - they may have changed)
-                                    nt_matches = self.find_nt_matches_in_source(segment.source)
-                                    
-                                    # Update both Termview widgets (left and right)
-                                    self._update_both_termviews(segment.source, termbase_matches, nt_matches)
-                                except Exception as e:
-                                    self.log(f"Error updating termview from cache: {e}")
-                            
-                            # 🎯 AUTO-INSERT 100% TM MATCH from cache (if enabled in settings)
-                            if self.auto_insert_100_percent_matches and tm_count > 0:
-                                # Check if segment target is empty (don't overwrite existing translations)
-                                target_empty = not segment.target or len(segment.target.strip()) == 0
-                                
-                                if target_empty:
-                                    # Find first 100% match in cached TM results
-                                    best_match = None
-                                    for tm_match in cached_matches.get("TM", []):
-                                        # Use >= 99.5 to handle potential floating point issues
-                                        if float(tm_match.relevance) >= 99.5:
-                                            best_match = tm_match
-                                            break
-                                    
-                                    if best_match:
-                                        self.log(f"✨ Auto-inserting 100% TM match into segment {segment.id}")
-                                        self._auto_insert_tm_match(segment, best_match.target, current_row)
-                                        # Play 100% TM match alert sound
-                                        self._play_sound_effect('tm_100_percent_match')
-                            
-                            # 🔊 Play fuzzy match sound if fuzzy matches found from cache (but not 100%)
-                            if tm_count > 0:
-                                tm_matches = cached_matches.get("TM", [])
-                                has_100_match = any(float(tm.relevance) >= 99.5 for tm in tm_matches)
-                                has_fuzzy_match = any(float(tm.relevance) < 99.5 and float(tm.relevance) >= 50 for tm in tm_matches)
-                                if has_fuzzy_match and not has_100_match:
-                                    self._play_sound_effect('tm_fuzzy_match')
-                            
-                            # Skip the slow lookup below, we already have everything
-                            # Continue to prefetch trigger at the end
-                            matches_dict = cached_matches  # Set for later use
-                    else:
-                        cached_matches = None
+                            if best_match:
+                                self.log(f"✨ Auto-inserting 100% TM match into segment {segment.id}")
+                                self._auto_insert_tm_match(segment, best_match.target, current_row)
+                                # Play 100% TM match alert sound
+                                self._play_sound_effect('tm_100_percent_match')
+                    
+                    # 🔊 Play fuzzy match sound if fuzzy matches found from cache (but not 100%)
+                    if tm_count > 0:
+                        tm_matches = cached_matches.get("TM", [])
+                        has_100_match = any(float(tm.relevance) >= 99.5 for tm in tm_matches)
+                        has_fuzzy_match = any(float(tm.relevance) < 99.5 and float(tm.relevance) >= 50 for tm in tm_matches)
+                        if has_fuzzy_match and not has_100_match:
+                            self._play_sound_effect('tm_fuzzy_match')
+                    
+                    # Skip the slow lookup below, we already have everything
+                    # Continue to prefetch trigger at the end
+                    matches_dict = cached_matches  # Set for later use
                 
                 # Check if TM/Termbase matching is enabled
                 if not matches_dict and (not self.enable_tm_matching and not self.enable_termbase_matching):
@@ -30468,19 +30580,23 @@ class SupervertalerQt(QMainWindow):
                         # Termbase lookup (if enabled)
                         stored_matches = {}
                         if self.enable_termbase_matching:
-                            # Check cache first (thread-safe) - uses `in` check to properly handle empty caches
+                            # 🧪 EXPERIMENTAL: Skip termbase cache if cache kill switch is enabled
                             cache_checked = False
-                            with self.termbase_cache_lock:
-                                if segment_id in self.termbase_cache:
-                                    stored_matches = self.termbase_cache[segment_id]
-                                    cache_checked = True
+                            if not getattr(self, 'disable_all_caches', False):
+                                # Check cache first (thread-safe) - uses `in` check to properly handle empty caches
+                                with self.termbase_cache_lock:
+                                    if segment_id in self.termbase_cache:
+                                        stored_matches = self.termbase_cache[segment_id]
+                                        cache_checked = True
                             
                             if not cache_checked and source_widget:
                                 stored_matches = self.find_termbase_matches_in_source(segment.source)
 
                                 # Store in cache for future access (thread-safe) - EVEN IF EMPTY
-                                with self.termbase_cache_lock:
-                                    self.termbase_cache[segment_id] = stored_matches
+                                # BUT skip cache storage if cache kill switch is enabled
+                                if not getattr(self, 'disable_all_caches', False):
+                                    with self.termbase_cache_lock:
+                                        self.termbase_cache[segment_id] = stored_matches
                             
                             # CRITICAL FIX: Always update Termview (even with empty results) - show "No matches" state
                             if hasattr(self, 'termview_widget') and self.current_project:
@@ -30691,6 +30807,8 @@ class SupervertalerQt(QMainWindow):
                     start_idx = current_row + 1
                     end_idx = min(start_idx + 20, len(self.current_project.segments))
                     
+                    print(f"[PROACTIVE NAV DEBUG] Navigation to row {current_row}, checking segments {start_idx} to {end_idx}")
+                    
                     for seg in self.current_project.segments[start_idx:end_idx]:
                         # Check if already cached
                         with self.translation_matches_cache_lock:
@@ -30704,12 +30822,15 @@ class SupervertalerQt(QMainWindow):
                             try:
                                 with self.termbase_cache_lock:
                                     termbase_raw = self.termbase_cache.get(seg.id, {})
+                                print(f"[PROACTIVE NAV DEBUG] Seg {seg.id}: cached, termbase_raw has {len(termbase_raw) if termbase_raw else 0} matches")
                                 if termbase_raw:
                                     termbase_json = json.dumps(termbase_raw)
+                                    print(f"[PROACTIVE NAV DEBUG] Calling _apply_proactive_highlighting for seg {seg.id}")
                                     self._apply_proactive_highlighting(seg.id, termbase_json)
-                            except Exception:
-                                pass  # Silent failure
+                            except Exception as e:
+                                print(f"[PROACTIVE NAV DEBUG] Error for seg {seg.id}: {e}")
                     
+                    print(f"[PROACTIVE NAV DEBUG] Need to prefetch: {len(next_segment_ids)} segments")
                     if next_segment_ids:
                         self._start_prefetch_worker(next_segment_ids)
                         
@@ -33243,14 +33364,20 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         """
         import json
         
+        print(f"[PROACTIVE DEBUG] _apply_proactive_highlighting called for segment {segment_id}")
+        
         if not self.current_project or not self.table:
+            print(f"[PROACTIVE DEBUG] Early exit: no project or table")
             return
         
         try:
             # Decode the matches from JSON
             termbase_matches = json.loads(termbase_matches_json) if termbase_matches_json else {}
             
+            print(f"[PROACTIVE DEBUG] Decoded {len(termbase_matches)} termbase matches")
+            
             if not termbase_matches:
+                print(f"[PROACTIVE DEBUG] No matches to highlight, returning")
                 return  # Nothing to highlight
             
             # Find the row for this segment ID
@@ -33266,7 +33393,10 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                     except ValueError:
                         continue
             
+            print(f"[PROACTIVE DEBUG] Found row {row} for segment {segment_id}")
+            
             if row < 0:
+                print(f"[PROACTIVE DEBUG] Segment not visible in current page")
                 return  # Segment not visible in current page
             
             # Get segment source text
@@ -33277,13 +33407,29 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                     break
             
             if not segment:
+                print(f"[PROACTIVE DEBUG] Segment object not found")
                 return
+            
+            print(f"[PROACTIVE DEBUG] Applying highlight_source_with_termbase to row {row}")
+            print(f"[PROACTIVE DEBUG] Source text: {segment.source[:80]}...")
+            print(f"[PROACTIVE DEBUG] Matches keys: {list(termbase_matches.keys())[:5]}")
+            if termbase_matches:
+                first_key = list(termbase_matches.keys())[0]
+                print(f"[PROACTIVE DEBUG] Sample match: {first_key} => {termbase_matches[first_key]}")
+            
+            # Check if the source widget exists and is the right type
+            source_widget = self.table.cellWidget(row, 2)
+            print(f"[PROACTIVE DEBUG] Source widget type: {type(source_widget).__name__ if source_widget else 'None'}")
+            print(f"[PROACTIVE DEBUG] Has highlight method: {hasattr(source_widget, 'highlight_termbase_matches') if source_widget else 'N/A'}")
             
             # Apply highlighting (this updates the source cell widget)
             self.highlight_source_with_termbase(row, segment.source, termbase_matches)
+            print(f"[PROACTIVE DEBUG] ✅ Highlighting applied successfully")
             
         except Exception as e:
-            pass  # Silently fail to avoid disrupting user
+            print(f"[PROACTIVE DEBUG] ERROR: {e}")
+            import traceback
+            print(f"[PROACTIVE DEBUG] Traceback: {traceback.format_exc()}")
     
     def insert_term_translation(self, row: int, translation: str):
         """
