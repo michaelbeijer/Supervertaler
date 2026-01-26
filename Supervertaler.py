@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.157"
+__version__ = "1.9.158"
 __phase__ = "0.9"
 __release_date__ = "2026-01-23"
 __edition__ = "Qt"
@@ -5855,6 +5855,10 @@ class SupervertalerQt(QMainWindow):
         self.prefetch_worker_thread = None
         self.prefetch_stop_event = threading.Event()
         self.prefetch_queue = []  # List of segment IDs to prefetch
+        
+        # Idle prefetch: prefetch next segments while user is thinking/typing
+        self.idle_prefetch_timer = None  # QTimer for triggering prefetch after typing pause
+        self.idle_prefetch_delay_ms = 1500  # Start prefetch 1.5s after user stops typing
         
         # Undo/Redo stack for grid edits
         self.undo_stack = []  # List of (segment_id, old_target, new_target, old_status, new_status)
@@ -21465,6 +21469,34 @@ class SupervertalerQt(QMainWindow):
         except Exception:
             return {}
     
+    def _trigger_idle_prefetch(self, current_row: int):
+        """
+        Trigger prefetch for the next few segments while user is idle.
+        Called after user stops typing (debounced) - uses their thinking time productively.
+        
+        This makes Ctrl+Enter feel INSTANT because matches are already cached.
+        """
+        if not self.current_project or current_row < 0:
+            return
+        
+        try:
+            # Prefetch next 5 segments (enough for fast workflow, not too many to waste resources)
+            next_segment_ids = []
+            start_idx = current_row + 1
+            end_idx = min(start_idx + 5, len(self.current_project.segments))
+            
+            for seg in self.current_project.segments[start_idx:end_idx]:
+                # Only prefetch if not already cached
+                with self.translation_matches_cache_lock:
+                    if seg.id not in self.translation_matches_cache:
+                        next_segment_ids.append(seg.id)
+            
+            if next_segment_ids:
+                # Start prefetch in background (silent, no logging)
+                self._start_prefetch_worker(next_segment_ids)
+        except Exception:
+            pass  # Silent failure - prefetch is optimization, not critical
+    
     def _start_prefetch_worker(self, segment_ids):
         """
         Start background thread to prefetch TM/MT/LLM matches for given segments.
@@ -29996,6 +30028,10 @@ class SupervertalerQt(QMainWindow):
             
             # Update status bar progress stats (debounced - only after user stops typing)
             self.update_progress_stats()
+            
+            # 🚀 IDLE PREFETCH: User stopped typing, prefetch next segments for instant Ctrl+Enter
+            self._trigger_idle_prefetch(row)
+            
         except Exception as e:
             self.log(f"Error in debounced target handler: {e}")
     

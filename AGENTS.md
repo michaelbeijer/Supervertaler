@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** January 25, 2026 | **Version:** v1.9.157
+> **Last Updated:** January 25, 2026 | **Version:** v1.9.158
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.157 (January 2026) |
+| **Version** | v1.9.158 (January 2026) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -765,6 +765,39 @@ deepl=...
 ---
 
 ## 🔄 Recent Development History
+
+### January 25, 2026 - Idle Prefetch for Instant Ctrl+Enter (v1.9.158)
+
+**⚡ Predictive TM/Glossary Loading While You Work**
+
+New idle prefetch system that loads matches for the next segments while you're thinking/typing, making Ctrl+Enter feel instant.
+
+**How It Works:**
+- When you stop typing for ~1 second (debounce), the app prefetches TM/glossary matches for the next 5 segments
+- By the time you press Ctrl+Enter, matches are already cached
+- Combines with existing "prefetch 20 on navigation" for comprehensive coverage
+
+**The Problem:**
+- User noticed lag when pressing Ctrl+Enter despite cache system existing
+- Root cause: prefetch only started AFTER landing on a segment, not during editing time
+- Fast workflow could outpace the prefetch worker
+
+**The Solution:**
+- Added `_trigger_idle_prefetch()` method called from `_handle_target_text_debounced_by_id()`
+- Uses the 1-second typing debounce as trigger (user stopped to think = good time to prefetch)
+- Prefetches next 5 segments (small enough to complete quickly, enough for fast workflow)
+- Skips already-cached segments to avoid duplicate work
+
+**Two-Tier Prefetch System:**
+1. **On navigation** (existing): Prefetch next 20 segments when you land on a row
+2. **On idle** (NEW): Prefetch next 5 segments when you stop typing for 1 second
+
+**Files Modified:**
+- `Supervertaler.py` - Added `idle_prefetch_timer` and `idle_prefetch_delay_ms` instance variables
+- `Supervertaler.py` - Added `_trigger_idle_prefetch()` method
+- `Supervertaler.py` - Called from `_handle_target_text_debounced_by_id()` after typing pause
+
+---
 
 ### January 25, 2026 - TM Fuzzy Match Fix for Multi-TM Projects (v1.9.157)
 
@@ -4529,4 +4562,4 @@ An intelligent proofreading system that uses LLMs to verify translation quality.
 ---
 
 *This file replaces the previous CLAUDE.md and PROJECT_CONTEXT.md files.*
-*Last updated: January 25, 2026 - v1.9.157*
+*Last updated: January 25, 2026 - v1.9.158*
