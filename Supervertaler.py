@@ -34,9 +34,9 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.159"
+__version__ = "1.9.160"
 __phase__ = "0.9"
-__release_date__ = "2026-01-23"
+__release_date__ = "2026-01-25"
 __edition__ = "Qt"
 
 import sys
@@ -21525,7 +21525,22 @@ class SupervertalerQt(QMainWindow):
         """
         Background worker: prefetch TM/MT/LLM matches for given segments.
         Runs in separate thread to avoid blocking UI.
+        
+        Creates its own database connection for thread-safe termbase lookups.
         """
+        import sqlite3
+        
+        # Create thread-local database connection for termbase searches
+        thread_db_cursor = None
+        thread_db_connection = None
+        try:
+            if hasattr(self, 'db_manager') and self.db_manager and hasattr(self.db_manager, 'db_path'):
+                thread_db_connection = sqlite3.connect(self.db_manager.db_path)
+                thread_db_connection.row_factory = sqlite3.Row
+                thread_db_cursor = thread_db_connection.cursor()
+        except Exception:
+            pass  # Continue without thread-local connection - will use cache only
+        
         try:
             for idx, segment_id in enumerate(segment_ids):
                 # Check stop signal
@@ -21548,8 +21563,8 @@ class SupervertalerQt(QMainWindow):
                 if not segment:
                     continue
                 
-                # Fetch TM/MT/LLM matches (this is the expensive part)
-                matches = self._fetch_all_matches_for_segment(segment)
+                # Fetch TM/termbase matches (pass cursor for thread-safe termbase lookups)
+                matches = self._fetch_all_matches_for_segment(segment, thread_db_cursor)
                 
                 # Only cache if we got at least one match (don't cache empty results)
                 # This prevents "empty cache hits" when TM database is still empty
@@ -21567,11 +21582,29 @@ class SupervertalerQt(QMainWindow):
             
         except Exception as e:
             self.log(f"Error in prefetch worker: {e}")
+        
+        finally:
+            # Close thread-local database connection
+            if thread_db_cursor:
+                try:
+                    thread_db_cursor.close()
+                except:
+                    pass
+            if thread_db_connection:
+                try:
+                    thread_db_connection.close()
+                except:
+                    pass
     
-    def _fetch_all_matches_for_segment(self, segment):
+    def _fetch_all_matches_for_segment(self, segment, thread_db_cursor=None):
         """
         Fetch TM, MT, and LLM matches for a single segment.
         Used by prefetch worker. Returns matches_dict with all match types.
+        
+        Args:
+            segment: The segment to fetch matches for
+            thread_db_cursor: Optional thread-local database cursor for termbase searches.
+                              If provided and segment not in termbase_cache, will do direct lookup.
         """
         from modules.translation_results_panel import TranslationMatch
         
@@ -21634,53 +21667,74 @@ class SupervertalerQt(QMainWindow):
             # LLM will still be fetched on-demand when user clicks
             pass
         
-        # 4. Termbase matches (from cache)
+        # 4. Termbase matches - try cache first, then direct lookup if cursor provided
+        termbase_matches_raw = None
+        
         with self.termbase_cache_lock:
             if segment.id in self.termbase_cache:
-                stored_matches = self.termbase_cache[segment.id]
-                for term_id, match_info in stored_matches.items():
-                    # Extract source term, translation, ranking, and other metadata from match_info
-                    if isinstance(match_info, dict):
-                        source_term = match_info.get('source', '')
-                        target_term = match_info.get('translation', '')
-                        priority = match_info.get('priority', 50)  # Keep for backward compatibility
-                        ranking = match_info.get('ranking', None)  # NEW: termbase ranking
-                        forbidden = match_info.get('forbidden', False)
-                        is_project_termbase = match_info.get('is_project_termbase', False)
-                        termbase_name = match_info.get('termbase_name', 'Default')
-                    else:
-                        # Backward compatibility: if just string (shouldn't happen with new code)
-                        source_term = str(term_id)
-                        target_term = match_info
-                        priority = 50
-                        ranking = None
-                        forbidden = False
-                        is_project_termbase = False
-                        termbase_name = 'Default'
-                    
-                    match_obj = TranslationMatch(
-                        source=source_term,
-                        target=target_term,
-                        relevance=95,
-                        metadata={
-                            'termbase_name': termbase_name,
-                            'priority': priority,  # Keep for backward compatibility
-                            'ranking': ranking,  # NEW: termbase-level ranking
-                            'forbidden': forbidden,
-                            'is_project_termbase': is_project_termbase,
-                            'term_id': match_info.get('term_id') if isinstance(match_info, dict) else None,
-                            'termbase_id': match_info.get('termbase_id') if isinstance(match_info, dict) else None,
-                            'domain': match_info.get('domain', '') if isinstance(match_info, dict) else '',
-                            'notes': match_info.get('notes', '') if isinstance(match_info, dict) else '',
-                            'project': match_info.get('project', '') if isinstance(match_info, dict) else '',
-                            'client': match_info.get('client', '') if isinstance(match_info, dict) else '',
-                            'target_synonyms': match_info.get('target_synonyms', []) if isinstance(match_info, dict) else []
-                        },
-                        match_type='Termbase',
-                        compare_source=source_term,
-                        provider_code='TB'
-                    )
-                    matches_dict["Termbases"].append(match_obj)
+                termbase_matches_raw = self.termbase_cache[segment.id]
+        
+        # If not in cache and we have a thread-local cursor, do direct lookup
+        if termbase_matches_raw is None and thread_db_cursor is not None:
+            try:
+                termbase_matches_raw = self._search_termbases_thread_safe(
+                    segment.source,
+                    thread_db_cursor,
+                    source_lang=source_lang,
+                    target_lang=target_lang
+                )
+                # Also populate the termbase cache for future use
+                if termbase_matches_raw:
+                    with self.termbase_cache_lock:
+                        self.termbase_cache[segment.id] = termbase_matches_raw
+            except Exception:
+                pass  # Silently continue
+        
+        # Convert raw termbase matches to TranslationMatch objects
+        if termbase_matches_raw:
+            for term_id, match_info in termbase_matches_raw.items():
+                # Extract source term, translation, ranking, and other metadata from match_info
+                if isinstance(match_info, dict):
+                    source_term = match_info.get('source', '')
+                    target_term = match_info.get('translation', '')
+                    priority = match_info.get('priority', 50)  # Keep for backward compatibility
+                    ranking = match_info.get('ranking', None)  # NEW: termbase ranking
+                    forbidden = match_info.get('forbidden', False)
+                    is_project_termbase = match_info.get('is_project_termbase', False)
+                    termbase_name = match_info.get('termbase_name', 'Default')
+                else:
+                    # Backward compatibility: if just string (shouldn't happen with new code)
+                    source_term = str(term_id)
+                    target_term = match_info
+                    priority = 50
+                    ranking = None
+                    forbidden = False
+                    is_project_termbase = False
+                    termbase_name = 'Default'
+                
+                match_obj = TranslationMatch(
+                    source=source_term,
+                    target=target_term,
+                    relevance=95,
+                    metadata={
+                        'termbase_name': termbase_name,
+                        'priority': priority,  # Keep for backward compatibility
+                        'ranking': ranking,  # NEW: termbase-level ranking
+                        'forbidden': forbidden,
+                        'is_project_termbase': is_project_termbase,
+                        'term_id': match_info.get('term_id') if isinstance(match_info, dict) else None,
+                        'termbase_id': match_info.get('termbase_id') if isinstance(match_info, dict) else None,
+                        'domain': match_info.get('domain', '') if isinstance(match_info, dict) else '',
+                        'notes': match_info.get('notes', '') if isinstance(match_info, dict) else '',
+                        'project': match_info.get('project', '') if isinstance(match_info, dict) else '',
+                        'client': match_info.get('client', '') if isinstance(match_info, dict) else '',
+                        'target_synonyms': match_info.get('target_synonyms', []) if isinstance(match_info, dict) else []
+                    },
+                    match_type='Termbase',
+                    compare_source=source_term,
+                    provider_code='TB'
+                )
+                matches_dict["Termbases"].append(match_obj)
         
         return matches_dict
     

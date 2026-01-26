@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** January 25, 2026 | **Version:** v1.9.158
+> **Last Updated:** January 25, 2026 | **Version:** v1.9.160
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.158 (January 2026) |
+| **Version** | v1.9.160 (January 2026) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -765,6 +765,50 @@ deepl=...
 ---
 
 ## 🔄 Recent Development History
+
+### January 25, 2026 - Prefetch Now Does Direct Termbase Lookups (v1.9.160)
+
+**⚡ Instant Glossary Matches After Ctrl+Enter**
+
+Fixed issue where glossary matches still took 3-5 seconds to appear after navigation, despite prefetch system being in place.
+
+**The Problem:**
+- User reported: navigation is instant (v1.9.159 fix worked), but glossary matches still take 3-5 seconds
+- Expected: prefetched results should appear instantly from cache
+- Root cause: **Race condition between two caches**
+
+**Root Cause Analysis:**
+The prefetch system relied on `termbase_cache` (populated by a separate batch worker), but if prefetch ran BEFORE the batch worker processed a segment:
+1. `_fetch_all_matches_for_segment()` checked `termbase_cache` → empty
+2. Prefetch found 0 termbase matches → didn't cache the segment (only caches if matches found)
+3. User navigated to segment → cache miss → slow lookup
+
+**The Solution:**
+Give the prefetch worker its own SQLite connection to do **direct termbase lookups** instead of relying on the batch worker's cache:
+
+1. `_prefetch_worker_run()` now creates a thread-local SQLite connection
+2. `_fetch_all_matches_for_segment(segment, thread_db_cursor)` now accepts an optional cursor
+3. If termbase_cache doesn't have the segment AND cursor is provided → direct lookup via `_search_termbases_thread_safe()`
+4. Results also populate `termbase_cache` for future use (other components benefit too)
+
+**Key Code Changes:**
+```python
+# If not in cache and we have a thread-local cursor, do direct lookup
+if termbase_matches_raw is None and thread_db_cursor is not None:
+    termbase_matches_raw = self._search_termbases_thread_safe(
+        segment.source, thread_db_cursor, source_lang, target_lang
+    )
+    # Also populate the termbase cache for future use
+    if termbase_matches_raw:
+        with self.termbase_cache_lock:
+            self.termbase_cache[segment.id] = termbase_matches_raw
+```
+
+**Files Modified:**
+- `Supervertaler.py` - Updated `_prefetch_worker_run()` to create thread-local DB connection
+- `Supervertaler.py` - Updated `_fetch_all_matches_for_segment()` to accept cursor and do direct lookup
+
+---
 
 ### January 25, 2026 - Idle Prefetch for Instant Ctrl+Enter (v1.9.158)
 
@@ -4562,4 +4606,4 @@ An intelligent proofreading system that uses LLMs to verify translation quality.
 ---
 
 *This file replaces the previous CLAUDE.md and PROJECT_CONTEXT.md files.*
-*Last updated: January 25, 2026 - v1.9.158*
+*Last updated: January 25, 2026 - v1.9.160*
