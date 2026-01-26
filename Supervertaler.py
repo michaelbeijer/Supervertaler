@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.158"
+__version__ = "1.9.159"
 __phase__ = "0.9"
 __release_date__ = "2026-01-23"
 __edition__ = "Qt"
@@ -30078,11 +30078,15 @@ class SupervertalerQt(QMainWindow):
             return
         self._last_selected_row = current_row
         
-        # ⚡ FAST PATH: For arrow key navigation, defer heavy lookups
-        # This makes segment navigation feel instant
+        # ⚡ FAST PATH: For arrow key OR Ctrl+Enter navigation, defer heavy lookups
+        # This makes segment navigation feel INSTANT - cursor moves first, lookups happen after
         is_arrow_nav = getattr(self, '_arrow_key_navigation', False)
-        if is_arrow_nav:
-            self._arrow_key_navigation = False  # Reset flag
+        is_ctrl_enter_nav = getattr(self, '_ctrl_enter_navigation', False)
+        
+        if is_arrow_nav or is_ctrl_enter_nav:
+            self._arrow_key_navigation = False  # Reset flags
+            self._ctrl_enter_navigation = False
+            
             # Schedule deferred lookup with short delay (150ms) for rapid navigation
             if hasattr(self, '_deferred_lookup_timer') and self._deferred_lookup_timer:
                 self._deferred_lookup_timer.stop()
@@ -36506,6 +36510,10 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             current_row = self.table.currentRow()
             if current_row < self.table.rowCount() - 1:
                 next_row = current_row + 1
+                
+                # ⚡ INSTANT NAVIGATION
+                self._ctrl_enter_navigation = True
+                
                 self.table.setCurrentCell(next_row, 3)  # Column 3 = Target (widget column)
                 # Get the target cell widget and set focus to it
                 target_widget = self.table.cellWidget(next_row, 3)
@@ -37221,6 +37229,10 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                                 self._update_pagination_ui()
                                 self._apply_pagination_to_grid()
                     
+                    # ⚡ INSTANT NAVIGATION: Set flag so on_cell_selected uses fast path
+                    # This makes Ctrl+Enter feel instant - cursor moves first, lookups happen after
+                    self._ctrl_enter_navigation = True
+                    
                     self.table.clearSelection()
                     self.table.setCurrentCell(row, 3)  # Column 3 = Target (widget column)
                     self.log(f"⏭️ Moved to next unconfirmed segment {seg.id}")
@@ -37285,6 +37297,9 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                                                         self._update_pagination_ui()
                                                         self._apply_pagination_to_grid()
                                             
+                                            # ⚡ INSTANT NAVIGATION
+                                            self._ctrl_enter_navigation = True
+                                            
                                             self.table.clearSelection()
                                             self.table.setCurrentCell(next_row, 3)
                                             self.log(f"⏭️ Auto-skipped to next unconfirmed segment {next_seg.id}")
@@ -37324,6 +37339,9 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                         self.grid_current_page = target_page
                         self._update_pagination_ui()
                         self._apply_pagination_to_grid()
+            
+            # ⚡ INSTANT NAVIGATION
+            self._ctrl_enter_navigation = True
             
             self.table.clearSelection()
             self.table.setCurrentCell(next_row, 3)  # Column 3 = Target (widget column)
