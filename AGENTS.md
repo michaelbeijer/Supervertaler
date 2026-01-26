@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** January 25, 2026 | **Version:** v1.9.160
+> **Last Updated:** January 26, 2026 | **Version:** v1.9.161
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.160 (January 2026) |
+| **Version** | v1.9.161 (January 2026) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -765,6 +765,47 @@ deepl=...
 ---
 
 ## 🔄 Recent Development History
+
+### January 26, 2026 - Proactive Grid Highlighting (v1.9.161)
+
+**👁️ See-Ahead Glossary Highlighting**
+
+New "proactive highlighting" feature that highlights glossary matches in upcoming segments while you're still working on the current one. You can now see glossary terms highlighted in segments 255, 256, 257 while editing segment 254.
+
+**The Problem:**
+- Even with cached prefetch data, glossary highlighting only appeared AFTER navigating to a segment
+- User would press Ctrl+Enter → cursor moves instantly → but still wait for highlighting to apply
+- Desired behavior: highlighting should already be visible before navigation
+
+**The Solution:**
+Added a signal-based system to apply highlighting proactively from the prefetch worker:
+
+1. **New Signal**: `_proactive_highlight_signal = pyqtSignal(int, str)` - emits segment_id and JSON-encoded termbase matches
+2. **New Slot**: `_apply_proactive_highlighting(segment_id, termbase_matches_json)` - finds the row and applies highlighting on the main thread
+3. **Prefetch Worker Update**: After caching termbase matches, emits the proactive highlight signal
+
+**How It Works:**
+- Prefetch worker finds termbase matches for upcoming segments
+- For each segment with matches, it emits `_proactive_highlight_signal(segment_id, matches_json)`
+- Signal is automatically queued to main thread's event loop (Qt thread safety)
+- Main thread receives signal and applies green highlighting to that segment's source cell
+- Result: User sees highlighted terms appearing in upcoming rows while still working on current segment
+
+**Key Code Changes:**
+```python
+# In _prefetch_worker_run():
+if tb_count > 0:
+    with self.termbase_cache_lock:
+        termbase_raw = self.termbase_cache.get(segment_id, {})
+    if termbase_raw:
+        termbase_json = json.dumps(termbase_raw)
+        self._proactive_highlight_signal.emit(segment_id, termbase_json)
+```
+
+**Files Modified:**
+- `Supervertaler.py` - Added `_proactive_highlight_signal`, `_apply_proactive_highlighting()`, updated `_prefetch_worker_run()`
+
+---
 
 ### January 25, 2026 - Prefetch Now Does Direct Termbase Lookups (v1.9.160)
 
@@ -4606,4 +4647,4 @@ An intelligent proofreading system that uses LLMs to verify translation quality.
 ---
 
 *This file replaces the previous CLAUDE.md and PROJECT_CONTEXT.md files.*
-*Last updated: January 25, 2026 - v1.9.160*
+*Last updated: January 26, 2026 - v1.9.161*

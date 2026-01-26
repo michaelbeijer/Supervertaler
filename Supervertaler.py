@@ -34,9 +34,9 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.160"
+__version__ = "1.9.161"
 __phase__ = "0.9"
-__release_date__ = "2026-01-25"
+__release_date__ = "2026-01-26"
 __edition__ = "Qt"
 
 import sys
@@ -5752,11 +5752,18 @@ class SupervertalerQt(QMainWindow):
     # Signal for thread-safe logging (background threads emit, main thread handles)
     _log_signal = pyqtSignal(str)
     
+    # Signal for proactive highlighting - prefetch worker emits, main thread applies highlighting
+    # Args: segment_id (int), termbase_matches (dict as JSON string for thread safety)
+    _proactive_highlight_signal = pyqtSignal(int, str)
+    
     def __init__(self):
         super().__init__()
         
         # Connect thread-safe log signal (must be done first for logging to work from threads)
         self._log_signal.connect(self._log_to_ui)
+        
+        # Connect proactive highlighting signal (prefetch worker emits, main thread highlights)
+        self._proactive_highlight_signal.connect(self._apply_proactive_highlighting)
         
         # Application state
         self.current_project: Optional[Project] = None
@@ -21527,8 +21534,10 @@ class SupervertalerQt(QMainWindow):
         Runs in separate thread to avoid blocking UI.
         
         Creates its own database connection for thread-safe termbase lookups.
+        Also emits signal to apply proactive highlighting on the main thread.
         """
         import sqlite3
+        import json
         
         # Create thread-local database connection for termbase searches
         thread_db_cursor = None
@@ -21578,6 +21587,22 @@ class SupervertalerQt(QMainWindow):
                     # Store in cache only if we have results
                     with self.translation_matches_cache_lock:
                         self.translation_matches_cache[segment_id] = matches
+                    
+                    # PROACTIVE HIGHLIGHTING: Emit signal to apply highlighting on main thread
+                    # This makes upcoming segments show their glossary matches immediately
+                    if tb_count > 0:
+                        try:
+                            # Extract raw termbase matches from cache for highlighting
+                            with self.termbase_cache_lock:
+                                termbase_raw = self.termbase_cache.get(segment_id, {})
+                            
+                            if termbase_raw:
+                                # Convert to JSON for thread-safe signal transfer
+                                termbase_json = json.dumps(termbase_raw)
+                                # Emit signal - will be handled on main thread
+                                self._proactive_highlight_signal.emit(segment_id, termbase_json)
+                        except Exception:
+                            pass  # Don't let highlighting errors disrupt prefetch
                 # else: Don't cache empty results - let it fall through to slow lookup next time
             
         except Exception as e:
@@ -33169,6 +33194,62 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             self.log(f"Error highlighting termbase matches: {e}")
             import traceback
             self.log(f"Traceback: {traceback.format_exc()}")
+    
+    def _apply_proactive_highlighting(self, segment_id: int, termbase_matches_json: str):
+        """
+        Apply termbase highlighting proactively to a segment that was prefetched.
+        Called on main thread via signal from prefetch worker.
+        
+        This enables "see-ahead" highlighting: while you're working on segment N,
+        segments N+1, N+2, N+3 already show their glossary matches highlighted.
+        
+        Args:
+            segment_id: The segment ID to highlight
+            termbase_matches_json: JSON-encoded termbase matches dict (thread-safe transfer)
+        """
+        import json
+        
+        if not self.current_project or not self.table:
+            return
+        
+        try:
+            # Decode the matches from JSON
+            termbase_matches = json.loads(termbase_matches_json) if termbase_matches_json else {}
+            
+            if not termbase_matches:
+                return  # Nothing to highlight
+            
+            # Find the row for this segment ID
+            row = -1
+            for r in range(self.table.rowCount()):
+                id_item = self.table.item(r, 0)
+                if id_item:
+                    try:
+                        row_seg_id = int(id_item.text())
+                        if row_seg_id == segment_id:
+                            row = r
+                            break
+                    except ValueError:
+                        continue
+            
+            if row < 0:
+                return  # Segment not visible in current page
+            
+            # Get segment source text
+            segment = None
+            for seg in self.current_project.segments:
+                if seg.id == segment_id:
+                    segment = seg
+                    break
+            
+            if not segment:
+                return
+            
+            # Apply highlighting (this updates the source cell widget)
+            self.highlight_source_with_termbase(row, segment.source, termbase_matches)
+            
+        except Exception as e:
+            pass  # Silently fail to avoid disrupting user
     
     def insert_term_translation(self, row: int, translation: str):
         """
