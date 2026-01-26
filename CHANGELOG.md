@@ -2,7 +2,17 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.162 (January 26, 2026)
+**Current Version:** v1.9.163 (January 26, 2026)
+
+## v1.9.163 - January 26, 2026
+
+### 🐛 Bug Fixes
+
+- **DOCX Import**: Fixed paragraph style bold/italic not being captured. Headings using styles like "Title" or "Subtitle" now correctly export as bold. Previously only direct run-level formatting was detected.
+- **Termview Font Settings**: Fixed spinbox up/down buttons not visible. Fixed font size changes only applying to bottom Termview, not Match Panel Termview.
+- **View Settings Dialog**: Fixed "Settings Saved" dialog not closing when clicking OK.
+
+---
 
 ## 🧪 Cache Kill Switch & Performance Improvements (v1.9.155-162) - January 26, 2026
 
