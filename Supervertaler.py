@@ -21482,21 +21482,40 @@ class SupervertalerQt(QMainWindow):
         Called after user stops typing (debounced) - uses their thinking time productively.
         
         This makes Ctrl+Enter feel INSTANT because matches are already cached.
+        Also triggers PROACTIVE HIGHLIGHTING for upcoming segments with glossary matches.
         """
+        import json
+        
         if not self.current_project or current_row < 0:
             return
         
         try:
             # Prefetch next 5 segments (enough for fast workflow, not too many to waste resources)
             next_segment_ids = []
+            already_cached_ids = []
             start_idx = current_row + 1
             end_idx = min(start_idx + 5, len(self.current_project.segments))
             
             for seg in self.current_project.segments[start_idx:end_idx]:
-                # Only prefetch if not already cached
+                # Check if already cached
                 with self.translation_matches_cache_lock:
                     if seg.id not in self.translation_matches_cache:
                         next_segment_ids.append(seg.id)
+                    else:
+                        already_cached_ids.append(seg.id)
+            
+            # For already-cached segments, trigger proactive highlighting immediately
+            # This handles the case where segments were cached earlier but not highlighted
+            for seg_id in already_cached_ids:
+                try:
+                    with self.termbase_cache_lock:
+                        termbase_raw = self.termbase_cache.get(seg_id, {})
+                    if termbase_raw:
+                        termbase_json = json.dumps(termbase_raw)
+                        # Apply highlighting on main thread (we're already on main thread here)
+                        self._apply_proactive_highlighting(seg_id, termbase_json)
+                except Exception:
+                    pass  # Silent failure
             
             if next_segment_ids:
                 # Start prefetch in background (silent, no logging)
@@ -30665,16 +30684,31 @@ class SupervertalerQt(QMainWindow):
                         self._schedule_mt_and_llm_matches(segment, termbase_matches)
                 
                 # Trigger prefetch for next 20 segments (adaptive background caching)
+                # Also trigger PROACTIVE HIGHLIGHTING for already-cached segments
                 if self.current_project and current_row >= 0:
+                    import json
                     next_segment_ids = []
                     start_idx = current_row + 1
                     end_idx = min(start_idx + 20, len(self.current_project.segments))
                     
                     for seg in self.current_project.segments[start_idx:end_idx]:
-                        # Only prefetch if not already cached
+                        # Check if already cached
                         with self.translation_matches_cache_lock:
-                            if seg.id not in self.translation_matches_cache:
-                                next_segment_ids.append(seg.id)
+                            is_cached = seg.id in self.translation_matches_cache
+                        
+                        if not is_cached:
+                            next_segment_ids.append(seg.id)
+                        else:
+                            # PROACTIVE HIGHLIGHTING: Apply highlighting for cached segments
+                            # that haven't been highlighted yet
+                            try:
+                                with self.termbase_cache_lock:
+                                    termbase_raw = self.termbase_cache.get(seg.id, {})
+                                if termbase_raw:
+                                    termbase_json = json.dumps(termbase_raw)
+                                    self._apply_proactive_highlighting(seg.id, termbase_json)
+                            except Exception:
+                                pass  # Silent failure
                     
                     if next_segment_ids:
                         self._start_prefetch_worker(next_segment_ids)
