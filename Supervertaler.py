@@ -21465,37 +21465,38 @@ class SupervertalerQt(QMainWindow):
             # Restore activated TMs for this project
             if hasattr(self, 'tm_metadata_mgr') and self.tm_metadata_mgr and self.current_project:
                 project_id = self.current_project.id if hasattr(self.current_project, 'id') else None
-                if project_id and hasattr(self.current_project, 'tm_settings') and self.current_project.tm_settings:
-                    activated_tm_ids = self.current_project.tm_settings.get('activated_tm_ids', [])
-                    if activated_tm_ids:
-                        # First deactivate all TMs for this project
-                        all_tms = self.tm_metadata_mgr.get_all_tms()
-                        for tm in all_tms:
-                            self.tm_metadata_mgr.deactivate_tm(tm['id'], project_id)
-                        
-                        # Then activate the saved TMs and restore read_only status
-                        tm_read_only_status = self.current_project.tm_settings.get('tm_read_only_status', {})
-                        for tm_id in activated_tm_ids:
-                            # Find TM by tm_id (not db id)
-                            tm = next((t for t in all_tms if t['tm_id'] == tm_id), None)
-                            if tm:
-                                self.tm_metadata_mgr.activate_tm(tm['id'], project_id)
-                                # Restore read_only status if saved
-                                if tm_id in tm_read_only_status:
-                                    read_only = tm_read_only_status[tm_id]
-                                    self.tm_metadata_mgr.set_read_only(tm['id'], read_only)
-                                    status = "read-only" if read_only else "writable"
-                                    self.log(f"✓ Restored TM: {tm['name']} (activated, {status})")
+                if project_id:
+                    # First deactivate all TMs for this project (start clean)
+                    all_tms = self.tm_metadata_mgr.get_all_tms()
+                    for tm in all_tms:
+                        self.tm_metadata_mgr.deactivate_tm(tm['id'], project_id)
+
+                    # Then restore saved TM activations if they exist
+                    if hasattr(self.current_project, 'tm_settings') and self.current_project.tm_settings:
+                        activated_tm_ids = self.current_project.tm_settings.get('activated_tm_ids', [])
+                        if activated_tm_ids:
+                            # Activate the saved TMs and restore read_only status
+                            tm_read_only_status = self.current_project.tm_settings.get('tm_read_only_status', {})
+                            for tm_id in activated_tm_ids:
+                                # Find TM by tm_id (not db id)
+                                tm = next((t for t in all_tms if t['tm_id'] == tm_id), None)
+                                if tm:
+                                    self.tm_metadata_mgr.activate_tm(tm['id'], project_id)
+                                    # Restore read_only status if saved
+                                    if tm_id in tm_read_only_status:
+                                        read_only = tm_read_only_status[tm_id]
+                                        self.tm_metadata_mgr.set_read_only(tm['id'], read_only)
+                                        status = "read-only" if read_only else "writable"
+                                        self.log(f"✓ Restored TM: {tm['name']} (activated, {status})")
+                                    else:
+                                        self.log(f"✓ Restored activated TM: {tm['name']}")
                                 else:
-                                    self.log(f"✓ Restored activated TM: {tm['name']}")
-                            else:
-                                self.log(f"⚠️ Could not find TM with tm_id: {tm_id}")
-                        
-                        # Refresh TM UI to show restored activations
-                        if hasattr(self, 'tm_tab_refresh_callback'):
-                            self.tm_tab_refresh_callback()
-                            self.log(f"✓ Refreshed TM UI with restored activations")
-            
+                                    self.log(f"⚠️ Could not find TM with tm_id: {tm_id}")
+
+                    # Refresh TM UI to show (de)activations
+                    if hasattr(self, 'tm_tab_refresh_callback'):
+                        self.tm_tab_refresh_callback()
+
             # Restore activated termbases for this project
             if hasattr(self, 'termbase_mgr') and self.termbase_mgr and self.current_project:
                 project_id = self.current_project.id if hasattr(self.current_project, 'id') else None
