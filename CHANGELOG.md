@@ -2,7 +2,15 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.164 (January 26, 2026)
+**Current Version:** v1.9.165 (January 27, 2026)
+
+## v1.9.165 - January 27, 2026
+
+### ✨ New Features
+
+- **Settings Panel Font Scaling**: Added UI Font Scale setting (80%-200%) in View Settings for better readability on high-DPI/4K displays. Especially useful for macOS users with Retina displays. Click "Apply" for instant preview or save to persist. ([#128](https://github.com/michaelbeijer/Supervertaler/issues/128))
+
+---
 
 ## v1.9.164 - January 26, 2026
 

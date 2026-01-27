@@ -1,4 +1,4 @@
-# 🚀 Supervertaler v1.9.164
+# 🚀 Supervertaler v1.9.165
 
 [![PyPI version](https://badge.fury.io/py/supervertaler.svg)](https://pypi.org/project/Supervertaler/)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
@@ -6,7 +6,7 @@
 
 AI-enhanced CAT tool with multi-LLM support (GPT-4, Claude, Gemini, Ollama), innovative Superlookup concordance system offering access to multiple terminology sources (TMs, glossaries, web resources, etc.), and seamless CAT tool integration (memoQ, Trados, CafeTran, Phrase).
 
-**Current Version:** v1.9.164 (January 26, 2026)
+**Current Version:** v1.9.165 (January 27, 2026)
 
 ### NEW in v1.9.162 - ⚡ Cache Kill Switch & Performance Testing
 

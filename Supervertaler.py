@@ -34,9 +34,9 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.164"
+__version__ = "1.9.165"
 __phase__ = "0.9"
-__release_date__ = "2026-01-26"
+__release_date__ = "2026-01-27"
 __edition__ = "Qt"
 
 import sys
@@ -14858,6 +14858,13 @@ class SupervertalerQt(QMainWindow):
         
         layout.addWidget(settings_tabs)
         
+        # Apply saved UI font scale on startup
+        saved_scale = self._get_settings_ui_font_scale()
+        if saved_scale != 100:
+            # Defer application to ensure widgets are fully created
+            from PyQt6.QtCore import QTimer
+            QTimer.singleShot(100, lambda: self._apply_settings_ui_font_scale(saved_scale))
+        
         return tab
     
     def _wrap_in_scroll(self, widget):
@@ -17019,6 +17026,58 @@ class SupervertalerQt(QMainWindow):
         termview_group.setLayout(termview_layout)
         layout.addWidget(termview_group)
         
+        # ===== UI Font Scale (for Settings panels) =====
+        ui_scale_group = QGroupBox("🖥️ Settings Panel Font Size")
+        ui_scale_layout = QVBoxLayout()
+        
+        ui_scale_info = QLabel(
+            "Adjust the font size for all Settings panel text. Useful for high-DPI/4K displays.\n"
+            "Changes apply immediately. Default is 100%."
+        )
+        ui_scale_info.setWordWrap(True)
+        ui_scale_layout.addWidget(ui_scale_info)
+        
+        ui_scale_row = QHBoxLayout()
+        ui_scale_row.addWidget(QLabel("UI Font Scale:"))
+        ui_scale_spin = QSpinBox()
+        ui_scale_spin.setMinimum(80)
+        ui_scale_spin.setMaximum(200)
+        ui_scale_spin.setValue(font_settings.get('settings_ui_font_scale', 100))
+        ui_scale_spin.setSuffix("%")
+        ui_scale_spin.setSingleStep(10)
+        ui_scale_spin.setToolTip("Scale Settings panel text (80%-200%)")
+        ui_scale_spin.setMinimumHeight(28)
+        ui_scale_spin.setMinimumWidth(90)
+        ui_scale_spin.setStyleSheet("""
+            QSpinBox {
+                padding-right: 20px;
+            }
+            QSpinBox::up-button {
+                width: 20px;
+                height: 14px;
+            }
+            QSpinBox::down-button {
+                width: 20px;
+                height: 14px;
+            }
+        """)
+        ui_scale_row.addWidget(ui_scale_spin)
+        
+        # Apply button for immediate feedback
+        apply_scale_btn = QPushButton("Apply")
+        apply_scale_btn.setToolTip("Apply font scale immediately")
+        apply_scale_btn.clicked.connect(lambda: self._apply_settings_ui_font_scale(ui_scale_spin.value()))
+        ui_scale_row.addWidget(apply_scale_btn)
+        
+        ui_scale_row.addStretch()
+        ui_scale_layout.addLayout(ui_scale_row)
+        
+        # Store reference for saving
+        self._ui_scale_spin = ui_scale_spin
+        
+        ui_scale_group.setLayout(ui_scale_layout)
+        layout.addWidget(ui_scale_group)
+        
         # Quick Reference section
         reference_group = QGroupBox("⌨️ Font Size Quick Reference")
         reference_layout = QVBoxLayout()
@@ -17043,12 +17102,20 @@ class SupervertalerQt(QMainWindow):
         # Save button
         save_btn = QPushButton("💾 Save View Settings")
         save_btn.setStyleSheet("font-weight: bold; padding: 8px;")
-        save_btn.clicked.connect(lambda: self._save_view_settings_from_ui(
-            grid_font_spin, match_font_spin, compare_font_spin, show_tags_check, tag_color_btn,
-            alt_colors_check, even_color_btn, odd_color_btn, invisible_char_color_btn, grid_font_family_combo,
-            termview_font_family_combo, termview_font_spin, termview_bold_check,
-            border_color_btn, border_thickness_spin, badge_text_color_btn, tabs_above_check
-        ))
+        
+        def save_view_settings_with_scale():
+            # Save the UI scale setting first
+            if hasattr(self, '_ui_scale_spin'):
+                self._apply_settings_ui_font_scale(self._ui_scale_spin.value())
+            # Then save other view settings
+            self._save_view_settings_from_ui(
+                grid_font_spin, match_font_spin, compare_font_spin, show_tags_check, tag_color_btn,
+                alt_colors_check, even_color_btn, odd_color_btn, invisible_char_color_btn, grid_font_family_combo,
+                termview_font_family_combo, termview_font_spin, termview_bold_check,
+                border_color_btn, border_thickness_spin, badge_text_color_btn, tabs_above_check
+            )
+        
+        save_btn.clicked.connect(save_view_settings_with_scale)
         layout.addWidget(save_btn)
         
         layout.addStretch()
@@ -19166,6 +19233,73 @@ class SupervertalerQt(QMainWindow):
         msg.setText("View settings have been saved and applied successfully.")
         msg.setStandardButtons(QMessageBox.StandardButton.Ok)
         msg.exec()
+    
+    def _apply_settings_ui_font_scale(self, scale_percent: int):
+        """Apply font scale to all Settings panels for better readability on high-DPI displays"""
+        # Save the setting
+        general_settings = self.load_general_settings()
+        general_settings['settings_ui_font_scale'] = scale_percent
+        self.save_general_settings(general_settings)
+        
+        # Calculate base font size (default system font is typically 9-10pt)
+        base_size = 10  # Base font size in points
+        scaled_size = int(base_size * scale_percent / 100)
+        
+        # Create stylesheet for Settings panels
+        settings_stylesheet = f"""
+            QGroupBox {{
+                font-size: {scaled_size + 1}pt;
+                font-weight: bold;
+            }}
+            QGroupBox QLabel {{
+                font-size: {scaled_size}pt;
+            }}
+            QGroupBox QCheckBox {{
+                font-size: {scaled_size}pt;
+            }}
+            QGroupBox QRadioButton {{
+                font-size: {scaled_size}pt;
+            }}
+            QGroupBox QComboBox {{
+                font-size: {scaled_size}pt;
+            }}
+            QGroupBox QSpinBox {{
+                font-size: {scaled_size}pt;
+            }}
+            QGroupBox QLineEdit {{
+                font-size: {scaled_size}pt;
+            }}
+            QGroupBox QPushButton {{
+                font-size: {scaled_size}pt;
+            }}
+            QGroupBox QTextEdit {{
+                font-size: {scaled_size}pt;
+            }}
+            QGroupBox QPlainTextEdit {{
+                font-size: {scaled_size}pt;
+            }}
+        """
+        
+        # Apply to settings_tabs if it exists
+        if hasattr(self, 'settings_tabs') and self.settings_tabs is not None:
+            self.settings_tabs.setStyleSheet(
+                "QTabBar::tab { outline: 0; font-size: " + str(scaled_size) + "pt; } "
+                "QTabBar::tab:focus { outline: none; } "
+                "QTabBar::tab:selected { border-bottom: 1px solid #2196F3; background-color: rgba(33, 150, 243, 0.08); }"
+            )
+            
+            # Apply to each tab's content
+            for i in range(self.settings_tabs.count()):
+                widget = self.settings_tabs.widget(i)
+                if widget:
+                    widget.setStyleSheet(settings_stylesheet)
+        
+        self.log(f"✓ Settings UI font scale set to {scale_percent}% (base: {scaled_size}pt)")
+    
+    def _get_settings_ui_font_scale(self) -> int:
+        """Get the current Settings UI font scale percentage"""
+        general_settings = self.load_general_settings()
+        return general_settings.get('settings_ui_font_scale', 100)
     
     def create_grid_view_widget(self):
         """Create the Grid View widget (existing grid functionality)"""
