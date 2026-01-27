@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.165"
+__version__ = "1.9.166"
 __phase__ = "0.9"
 __release_date__ = "2026-01-27"
 __edition__ = "Qt"
@@ -22067,7 +22067,10 @@ class SupervertalerQt(QMainWindow):
     
     def save_segment_to_activated_tms(self, source: str, target: str):
         """
-        Save segment to all activated TMs for current project.
+        Save segment to all writable TMs for current project.
+        
+        Note: Uses get_writable_tm_ids() which checks the Write checkbox (read_only=0),
+        NOT get_active_tm_ids() which checks the Read checkbox (is_active=1).
         
         Args:
             source: Source text
@@ -22079,7 +22082,7 @@ class SupervertalerQt(QMainWindow):
         if not hasattr(self.current_project, 'source_lang') or not hasattr(self.current_project, 'target_lang'):
             return
         
-        # Get activated TM IDs for this project
+        # Get WRITABLE TM IDs for this project (Write checkbox enabled)
         tm_ids = []
         
         if hasattr(self, 'tm_metadata_mgr') and self.tm_metadata_mgr:
@@ -22087,7 +22090,8 @@ class SupervertalerQt(QMainWindow):
                 project_id = self.current_project.id if hasattr(self.current_project, 'id') else None
                 
                 if project_id:
-                    tm_ids = self.tm_metadata_mgr.get_active_tm_ids(project_id)
+                    # Use get_writable_tm_ids() to find TMs with Write enabled
+                    tm_ids = self.tm_metadata_mgr.get_writable_tm_ids(project_id)
                 else:
                     self.log(f"⚠️ Cannot save to TM: project has no 'id' attribute!")
             else:
@@ -22095,23 +22099,16 @@ class SupervertalerQt(QMainWindow):
         else:
             self.log(f"⚠️ Cannot save to TM: TM metadata manager not available!")
         
-        # If no TMs activated, skip saving (user must activate TMs explicitly)
+        # If no TMs have Write enabled, skip saving
         if not tm_ids:
-            self.log("⚠️ No TMs activated - segment not saved to TM. Please activate at least one TM in Resources.")
-            self.log(f"   - To fix: Go to Resources > Translation Memories > TM List and check the Active checkbox")
+            self.log("⚠️ No TMs with Write enabled - segment not saved to TM.")
+            self.log(f"   - To fix: Go to Resources > Translation Memories > TM List and enable the Write checkbox")
             return
         
-        # Save to each activated TM (skip read-only ones)
+        # Save to each writable TM
         saved_count = 0
-        skipped_readonly = 0
         for tm_id in tm_ids:
             try:
-                # Check if TM is read-only
-                tm_info = self.tm_metadata_mgr.get_tm_by_tm_id(tm_id)
-                if tm_info and tm_info.get('read_only'):
-                    skipped_readonly += 1
-                    continue
-                
                 self.db_manager.add_translation_unit(
                     source=source,
                     target=target,
@@ -22125,13 +22122,9 @@ class SupervertalerQt(QMainWindow):
         
         if saved_count > 0:
             msg = f"💾 Saved segment to {saved_count} TM(s)"
-            if skipped_readonly > 0:
-                msg += f" (skipped {skipped_readonly} read-only)"
             self._queue_tm_save_log(msg)
             # Invalidate cache so prefetched segments get fresh TM matches
             self.invalidate_translation_cache()
-        elif skipped_readonly > 0:
-            self.log(f"ℹ️ Segment not saved - {skipped_readonly} activated TM(s) are read-only")
     
     def invalidate_translation_cache(self, smart_invalidation=True):
         """

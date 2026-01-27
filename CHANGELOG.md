@@ -2,7 +2,18 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.165 (January 27, 2026)
+**Current Version:** v1.9.166 (January 27, 2026)
+
+## v1.9.166 - January 27, 2026
+
+### 🐛 Bug Fixes
+
+- **CRITICAL: TM Write Checkbox Now Works**: Fixed confirmed translations going to "project" TM instead of user-designated TM. The Write checkbox (not Read) now determines where segments are saved. ([#126](https://github.com/michaelbeijer/Supervertaler/issues/126))
+  - **Root Cause**: `save_segment_to_activated_tms()` was using `get_active_tm_ids()` which only returns TMs with the Read checkbox enabled, ignoring the Write setting entirely.
+  - **Fix**: Added new `get_writable_tm_ids()` method that checks for TMs with Write enabled (`read_only = 0`), and updated save logic to use it.
+  - **Now**: Enabling Write checkbox alone (without Read) will save confirmed segments to that TM.
+
+---
 
 ## v1.9.165 - January 27, 2026
 

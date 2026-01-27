@@ -1,4 +1,4 @@
-# 🚀 Supervertaler v1.9.165
+# 🚀 Supervertaler v1.9.166
 
 [![PyPI version](https://badge.fury.io/py/supervertaler.svg)](https://pypi.org/project/Supervertaler/)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
@@ -6,18 +6,13 @@
 
 AI-enhanced CAT tool with multi-LLM support (GPT-4, Claude, Gemini, Ollama), innovative Superlookup concordance system offering access to multiple terminology sources (TMs, glossaries, web resources, etc.), and seamless CAT tool integration (memoQ, Trados, CafeTran, Phrase).
 
-**Current Version:** v1.9.165 (January 27, 2026)
+**Current Version:** v1.9.166 (January 27, 2026)
 
-### NEW in v1.9.162 - ⚡ Cache Kill Switch & Performance Testing
+### NEW in v1.9.166 - 🐛 TM Write Checkbox Fix
 
-Added experimental performance toggle to test grid responsiveness:
-- **New Setting:** Settings → Experimental Performance → "Disable all caching systems"
-- **What it does:** Bypasses termbase cache, TM/MT cache, and prefetch workers
-- **Why:** Testing showed direct database lookups may be faster than cache overhead for some workflows
-- **Proactive Highlighting:** Glossary terms now highlighted in upcoming segments while you're still editing the current one
-- **Improved TM Matching:** Fixed fuzzy match issues with multi-TM projects
+Fixed critical bug where confirmed translations went to "project" TM instead of user-designated TM with Write enabled. ([#126](https://github.com/michaelbeijer/Supervertaler/issues/126))
 
-### Previously in v1.9.154 - 🎯 Match Panel Consolidation
+### Previously in v1.9.162 - ⚡ Cache Kill Switch & Performance Testing
 
 Streamlined the right panel by replacing Compare Panel with Match Panel:
 - **Match Panel** combines Termview + TM Source/Target in one tab

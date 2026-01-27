@@ -396,6 +396,47 @@ class TMMetadataManager:
             self.log(f"✗ Error fetching active tm_ids: {e}")
             return []
     
+    def get_writable_tm_ids(self, project_id: Optional[int]) -> List[str]:
+        """
+        Get list of writable tm_id strings for a project.
+        
+        Returns TMs where:
+        - The TM has an activation record for this project AND
+        - read_only = 0 (Write checkbox is enabled)
+        
+        This is used for SAVING segments to TM, separate from get_active_tm_ids()
+        which is used for READING/matching from TM.
+        
+        Returns:
+            List of tm_id strings that are writable for the project
+        """
+        if project_id is None:
+            # No project - return all writable TMs
+            try:
+                cursor = self.db_manager.cursor
+                cursor.execute("SELECT tm_id FROM translation_memories WHERE read_only = 0")
+                return [row[0] for row in cursor.fetchall()]
+            except Exception as e:
+                self.log(f"✗ Error fetching all writable tm_ids: {e}")
+                return []
+        
+        try:
+            cursor = self.db_manager.cursor
+            
+            # Return TMs where Write checkbox is enabled (read_only = 0)
+            # AND the TM has an activation record for this project
+            cursor.execute("""
+                SELECT tm.tm_id 
+                FROM translation_memories tm
+                INNER JOIN tm_activation ta ON tm.id = ta.tm_id
+                WHERE ta.project_id = ? AND tm.read_only = 0
+            """, (project_id,))
+            
+            return [row[0] for row in cursor.fetchall()]
+        except Exception as e:
+            self.log(f"✗ Error fetching writable tm_ids: {e}")
+            return []
+    
     # ========================================================================
     # PROJECT TM MANAGEMENT (similar to termbases)
     # ========================================================================
