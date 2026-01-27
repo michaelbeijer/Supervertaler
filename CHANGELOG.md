@@ -2,7 +2,19 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.169 (January 27, 2026)
+**Current Version:** v1.9.170 (January 27, 2026)
+
+## v1.9.170 - January 27, 2026
+
+### ✨ New Features
+
+- **Scratchpad Tab in Right Panel**: The Scratchpad is now available as a permanent tab in the right panel for easier access.
+  - **Location**: Right panel tabs → last tab after "Session Log"
+  - **Auto-Update**: Content automatically syncs with project's scratchpad notes
+  - **Dual Access**: Available both as popup dialog (`Ctrl+Shift+P`) and as permanent tab
+  - **Project-Aware**: Tab clears when creating new project, populates when loading project
+
+---
 
 ## v1.9.169 - January 27, 2026
 

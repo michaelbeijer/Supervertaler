@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.169"
+__version__ = "1.9.170"
 __phase__ = "0.9"
 __release_date__ = "2026-01-27"
 __edition__ = "Qt"
@@ -20084,6 +20084,35 @@ class SupervertalerQt(QMainWindow):
         self._notes_widget_for_right_panel = notes_widget
         self._session_log_widget_for_right_panel = session_log_widget
         
+        # Scratchpad widget (for private translator notes - project-level, not segment-level)
+        scratchpad_widget = QWidget()
+        scratchpad_layout = QVBoxLayout(scratchpad_widget)
+        scratchpad_layout.setContentsMargins(5, 5, 5, 5)
+        
+        # Info label at top
+        scratchpad_info = QLabel(
+            "📝 <b>Private notes for this project</b><br>"
+            "<small>Stored in .svproj file only — never exported to CAT tools</small>"
+        )
+        scratchpad_info.setWordWrap(True)
+        scratchpad_info.setStyleSheet("color: #666; font-size: 9pt; padding: 3px; background: #f9f9f9; border-radius: 3px; margin-bottom: 5px;")
+        scratchpad_layout.addWidget(scratchpad_info)
+        
+        self.scratchpad_edit = QPlainTextEdit()
+        self.scratchpad_edit.setPlaceholderText(
+            "Use this scratchpad for your private notes:\n\n"
+            "• Terminology decisions\n"
+            "• Client preferences\n"
+            "• Research findings\n"
+            "• Questions to ask\n"
+            "• Reminders"
+        )
+        self.scratchpad_edit.setStyleSheet("font-family: 'Consolas', 'Courier New', monospace; font-size: 10pt;")
+        self.scratchpad_edit.textChanged.connect(self._on_scratchpad_changed)
+        scratchpad_layout.addWidget(self.scratchpad_edit)
+        
+        self._scratchpad_widget_for_right_panel = scratchpad_widget
+        
         # Create a container for the left side that will hold everything
         left_container = QWidget()
         left_container_layout = QVBoxLayout(left_container)
@@ -20176,6 +20205,10 @@ class SupervertalerQt(QMainWindow):
         
         # Tab 6: Session Log (moved from bottom panel)
         right_tabs.addTab(self._session_log_widget_for_right_panel, "📋 Session Log")
+        tab_index += 1
+        
+        # Tab 7: Scratchpad (private translator notes for the whole project)
+        right_tabs.addTab(self._scratchpad_widget_for_right_panel, "📝 Scratchpad")
         tab_index += 1
         
         # Set default selected tab to Match Panel (always show Match Panel first)
@@ -21234,6 +21267,9 @@ class SupervertalerQt(QMainWindow):
         self.load_segments_to_grid()
         self.initialize_tm_database()  # Initialize TM for this project
         
+        # Clear scratchpad for new project
+        self._update_scratchpad_for_project()
+        
         self.log(f"Created new project: {project_name} ({source_lang} → {target_lang})")
         
         # Prompt to save
@@ -21632,6 +21668,9 @@ class SupervertalerQt(QMainWindow):
                 if 'sound_effects_map' in project_settings:
                     self.sound_effects_map = project_settings['sound_effects_map']
                     self.log(f"✓ Project override: sound effects map loaded")
+            
+            # Update scratchpad with project's private notes
+            self._update_scratchpad_for_project()
             
             self.log(f"✓ Loaded project: {self.current_project.name} ({len(self.current_project.segments)} segments)")
 
@@ -36755,6 +36794,28 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                 # Refresh the status cell to update the notes indicator
                 self._refresh_segment_status(seg)
                 break
+    
+    def _on_scratchpad_changed(self):
+        """Handle scratchpad change - saves to current project (not segment-level)"""
+        if not self.current_project:
+            return
+        
+        new_notes = self.scratchpad_edit.toPlainText()
+        self.current_project.scratchpad_notes = new_notes
+        self.current_project.modified = datetime.now().isoformat()
+        self.project_modified = True
+    
+    def _update_scratchpad_for_project(self):
+        """Update the Scratchpad tab with the current project's scratchpad notes"""
+        if not hasattr(self, 'scratchpad_edit') or not self.scratchpad_edit:
+            return
+        
+        self.scratchpad_edit.blockSignals(True)
+        if self.current_project and hasattr(self.current_project, 'scratchpad_notes'):
+            self.scratchpad_edit.setPlainText(self.current_project.scratchpad_notes or '')
+        else:
+            self.scratchpad_edit.clear()
+        self.scratchpad_edit.blockSignals(False)
     
     def _update_bottom_notes_for_segment(self, segment):
         """Update the bottom Notes tab with the current segment's notes"""

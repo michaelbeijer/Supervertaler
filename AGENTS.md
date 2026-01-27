@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** January 27, 2026 | **Version:** v1.9.169
+> **Last Updated:** January 27, 2026 | **Version:** v1.9.170
 
 ---
 
@@ -765,6 +765,32 @@ deepl=...
 ---
 
 ## 🔄 Recent Development History
+
+### January 27, 2026 - Scratchpad Tab in Right Panel (v1.9.170)
+
+**📝 Scratchpad Tab Enhancement**
+
+Added Scratchpad as a permanent tab in the right panel for easier access alongside the existing popup dialog.
+
+**Feature Details:**
+- **Location**: Right panel tabs → last tab after "Session Log"
+- **Auto-Update**: Content automatically syncs with project's scratchpad notes
+- **Dual Access**: Available both as popup dialog (`Ctrl+Shift+P`) and as permanent tab
+- **Project-Aware**: Tab clears when creating new project, populates when loading project
+
+**Implementation:**
+- Added `_scratchpad_widget_for_right_panel` QPlainTextEdit widget
+- Added new tab "📝 Scratchpad" to right panel tabs
+- Added `_on_scratchpad_changed()` handler for text changes
+- Added `_update_scratchpad_for_project()` method to populate tab
+- Called in `load_project()` and `new_project()` for project sync
+
+**Files Modified:**
+- `Supervertaler.py` - Right panel tabs, scratchpad widget, change handlers
+- `CHANGELOG.md` - v1.9.170 entry
+- `AGENTS.md` - Updated version and history
+
+---
 
 ### January 27, 2026 - Scratchpad for Private Notes (v1.9.169)
 
