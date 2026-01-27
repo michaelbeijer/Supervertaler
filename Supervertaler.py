@@ -20188,6 +20188,7 @@ class SupervertalerQt(QMainWindow):
         
         # Tab 2: Match Panel (Termview + TM Source/Target) - shown first by default
         match_panel_widget = self._create_match_panel()
+        self.match_panel_widget = match_panel_widget  # Store reference for mode detection
         right_tabs.addTab(match_panel_widget, "🎯 Match Panel")
         match_panel_tab_index = tab_index
         tab_index += 1
@@ -28688,9 +28689,10 @@ class SupervertalerQt(QMainWindow):
             tm_nav_btns[1].clicked.connect(lambda: self._match_panel_nav_tm(1))
         tm_layout.addWidget(tm_source_container, 1)
         
-        # TM Target box (GREEN, with metadata)
+        # TM Target box (GREEN, with metadata and shortcut badge)
         tm_target_container, self.match_panel_tm_target, self.match_panel_tm_target_label, _ = self._create_compare_panel_box(
-            "✅ TM Target", tm_box_bg, text_color, border_color, has_navigation=False, show_metadata_label=True)
+            "✅ TM Target", tm_box_bg, text_color, border_color, has_navigation=False, show_metadata_label=True,
+            shortcut_badge_text="0", shortcut_badge_tooltip="Alt+0")
         tm_layout.addWidget(tm_target_container, 1)
         
         # Force stylesheet on the tm_container itself (the parent widget holding both boxes)
@@ -28744,8 +28746,9 @@ class SupervertalerQt(QMainWindow):
             self.match_panel_tm_source.setPlainText(tm_source_text or "(No TM match)")
         
         # Update TM Target text (no diff highlighting needed for target)
+        # Badge is now in the title bar (QLabel), so just set plain text here
         target_text = match.get('target', '')
-        self.match_panel_tm_target.setPlainText(target_text)
+        self.match_panel_tm_target.setPlainText(target_text if target_text else "")
         
         # Update metadata label (TM name, percentage)
         if hasattr(self, 'match_panel_tm_target_label') and self.match_panel_tm_target_label:
@@ -28791,7 +28794,7 @@ class SupervertalerQt(QMainWindow):
             badge_label.setFixedSize(badge_width, 14)
             badge_label.setStyleSheet("""
                 QLabel {
-                    background-color: #2196F3;
+                    background-color: #1976D2;
                     color: white;
                     border-radius: 7px;
                     font-size: 9px;
@@ -34901,15 +34904,21 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                     self.log(f"   ⚠️ Panel update error: {e}")
             self.log("   ✓ Translation Results panel updated")
         
-        # 7b. Update Match Panel with TM matches
+        # 7b. Update Match Panel with TM matches (must use TranslationMatch objects for correct display)
+        from modules.translation_results_panel import TranslationMatch
         tm_matches_for_panel = []
         for tm_match in tm_matches:
-            tm_matches_for_panel.append({
-                'source': tm_match.get('source', ''),
-                'target': tm_match.get('target', ''),
-                'tm_name': tm_match.get('tm_name', 'TM'),
-                'match_pct': int(tm_match.get('similarity', 0) * 100)
-            })
+            tm_matches_for_panel.append(TranslationMatch(
+                source=tm_match.get('source', ''),
+                target=tm_match.get('target', ''),
+                relevance=int(tm_match.get('similarity', 0) * 100),
+                metadata={
+                    'tm_name': tm_match.get('tm_name', 'TM'),
+                },
+                match_type='TM',
+                compare_source=tm_match.get('source', ''),
+                provider_code='TM'
+            ))
         self.set_compare_panel_matches(segment_id, segment.source, tm_matches_for_panel, [])
         self.log("   ✓ Match Panel updated")
         
@@ -37446,6 +37455,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         """Return active shortcut context for match shortcuts.
 
         Returns:
+            'match' if Match Panel tab is active,
             'results' if Translation Results tab is active,
             '' otherwise.
         """
@@ -37455,6 +37465,8 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             except Exception:
                 current = None
             if current is not None:
+                if hasattr(self, 'match_panel_widget') and self.match_panel_widget and current is self.match_panel_widget:
+                    return 'match'
                 if hasattr(self, 'translation_results_panel') and self.translation_results_panel and current is self.translation_results_panel:
                     return 'results'
         return ''
@@ -37516,12 +37528,27 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                 self.on_match_inserted(text)
 
     def _handle_compare_panel_alt0_shortcut(self):
-        """Handle Compare Panel Alt+0 / Alt+00 (double-tap) insertion.
+        """Handle Alt+0 insertion from Match Panel or Compare Panel.
 
+        Match Panel (mode='match'):
+        - Single tap Alt+0: insert TM Target from Match Panel
+
+        Compare Panel (mode='compare' - not currently used):
         - Single tap (Alt+0): insert MT
         - Double tap (Alt+0,0 within 300ms): undo first insert, then insert TM Target
         """
-        if self._get_active_match_shortcut_mode() != 'compare':
+        mode = self._get_active_match_shortcut_mode()
+
+        # Handle Match Panel: Alt+0 inserts TM Target directly
+        if mode == 'match':
+            if hasattr(self, 'match_panel_tm_target'):
+                text = self.match_panel_tm_target.toPlainText().strip()
+                if text and not text.startswith('('):
+                    self._replace_current_target_segment_text(text, source_label='TM Target (Match Panel)')
+            return
+
+        # Handle Compare Panel (legacy - currently not reached since mode never equals 'compare')
+        if mode != 'compare':
             return
 
         import time

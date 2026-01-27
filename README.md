@@ -1,4 +1,4 @@
-# 🚀 Supervertaler v1.9.168
+# 🚀 Supervertaler v1.9.171
 
 [![PyPI version](https://badge.fury.io/py/supervertaler.svg)](https://pypi.org/project/Supervertaler/)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
@@ -6,9 +6,26 @@
 
 AI-enhanced CAT tool with multi-LLM support (GPT-4, Claude, Gemini, Ollama), innovative Superlookup concordance system offering access to multiple terminology sources (TMs, glossaries, web resources, etc.), and seamless CAT tool integration (memoQ, Trados, CafeTran, Phrase).
 
-**Current Version:** v1.9.168 (January 27, 2026)
 
-### NEW in v1.9.168 - 📝 Markdown File Import with Syntax Highlighting
+**Current Version:** v1.9.171 (January 28, 2026)
+
+### FIXED in v1.9.171 - 🐛 TM Target & Alt+0 Badge Regression
+
+- **TM Target & Alt+0 Badge Restored**: Fixed regression where the TM Target and its blue "0" badge (Alt+0 shortcut) were missing from the Match Panel, even when TM matches were found. TM matches are now displayed correctly, and the Alt+0 shortcut works as documented.
+
+### NEW in v1.9.170 - 📝 Scratchpad Tab, Cache Defaults, TM Target Shortcut Badge
+
+- **Scratchpad Tab in Right Panel**: The Scratchpad is now available as a permanent tab in the right panel for easier access.
+  - **Location**: Right panel tabs → last tab after "Session Log"
+  - **Auto-Update**: Content automatically syncs with project's scratchpad notes
+  - **Dual Access**: Available both as popup dialog (`Ctrl+Shift+P`) and as permanent tab
+  - **Project-Aware**: Tab clears when creating new project, populates when loading project
+
+- **Settings Improvement**: "Disable ALL caches" is now checked by default for new installs, ensuring maximum privacy and control for new users.
+
+- **TM Target Shortcut Badge**: Added a blue "0" badge next to the TM Target in the Match Panel, indicating the Alt+0 shortcut for instant TM match insertion. Shortcut is documented and works out of the box.
+
+### Previously in v1.9.168 - 📝 Markdown File Import with Syntax Highlighting
 
 Import Markdown files (`.md`) with full syntax highlighting! Headings, bold/italic markers, code blocks, links, images, blockquotes, and lists are all highlighted with distinctive colors. ([#127](https://github.com/michaelbeijer/Supervertaler/issues/127))
 

@@ -2,7 +2,17 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.170 (January 27, 2026)
+**Current Version:** v1.9.171 (January 28, 2026)
+
+
+
+## v1.9.171 - January 28, 2026
+
+### 🐛 Bug Fixes
+
+- **TM Target & Alt+0 Badge Restored**: Fixed regression where the TM Target and its blue "0" badge (Alt+0 shortcut) were missing from the Match Panel, even when TM matches were found. TM matches are now displayed correctly, and the Alt+0 shortcut works as documented.
+
+---
 
 ## v1.9.170 - January 27, 2026
 
@@ -13,6 +23,10 @@ All notable changes to Supervertaler are documented in this file.
   - **Auto-Update**: Content automatically syncs with project's scratchpad notes
   - **Dual Access**: Available both as popup dialog (`Ctrl+Shift+P`) and as permanent tab
   - **Project-Aware**: Tab clears when creating new project, populates when loading project
+
+- **Settings Improvement**: "Disable ALL caches" is now checked by default for new installs, ensuring maximum privacy and control for new users.
+
+- **TM Target Shortcut Badge**: Added a blue "0" badge next to the TM Target in the Match Panel, indicating the Alt+0 shortcut for instant TM match insertion. Shortcut is documented and works out of the box.
 
 ---
 

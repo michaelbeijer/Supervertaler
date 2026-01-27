@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** January 27, 2026 | **Version:** v1.9.170
+> **Last Updated:** January 28, 2026 | **Version:** v1.9.171
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.168 (January 2026) |
+| **Version** | v1.9.171 (January 2026) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -765,6 +765,35 @@ deepl=...
 ---
 
 ## 🔄 Recent Development History
+
+
+### January 28, 2026 - TM Target & Alt+0 Badge Regression Fix (v1.9.171)
+
+**🐛 Bug Fix: TM Target Display & Alt+0 Shortcut Fully Restored**
+
+Fixed multiple issues with the TM Target display and Alt+0 shortcut in the Match Panel:
+
+1. **Indentation Bug**: Fixed Python indentation error in `_update_match_panel_tm_display()` where TM Target update code was incorrectly nested inside the TM Source `else` block, causing TM Target to never display when valid matches existed.
+
+2. **Alt+0 Handler**: Fixed `_handle_compare_panel_alt0_shortcut()` which checked for mode `'compare'` but `_get_active_match_shortcut_mode()` never returned that value. Updated mode detection to return `'match'` when Match Panel is active.
+
+3. **Badge Styling**: Moved badge from HTML (which doesn't support `border-radius` in QTextEdit) to a proper QLabel widget in the title bar. Changed color from `#2196F3` to `#1976D2` to match Termview badges exactly.
+
+**Root Causes:**
+- TM Target text code was inside wrong indentation block (never executed for valid matches)
+- Alt+0 shortcut handler checked for non-existent mode value
+- HTML badges in QTextEdit render as squares, not circles
+
+**Files Modified:**
+- `Supervertaler.py`:
+  - Fixed indentation in `_update_match_panel_tm_display()` (lines 28746-28754)
+  - Added `shortcut_badge_text="0"` to Match Panel TM Target box creation
+  - Changed badge color to `#1976D2` in `_create_compare_panel_box()`
+  - Stored `self.match_panel_widget` reference for mode detection
+  - Updated `_get_active_match_shortcut_mode()` to return `'match'` for Match Panel
+  - Updated `_handle_compare_panel_alt0_shortcut()` to handle Match Panel mode
+
+---
 
 ### January 27, 2026 - Scratchpad Tab in Right Panel (v1.9.170)
 
