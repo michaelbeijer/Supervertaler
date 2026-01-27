@@ -301,6 +301,10 @@ class KeyboardShortcutsWidget(QWidget):
     
     def load_shortcuts(self):
         """Load shortcuts into the table"""
+        # CRITICAL: Disable sorting during table modifications to prevent
+        # items from becoming disassociated from their rows (causes vanishing text bug)
+        self.table.setSortingEnabled(False)
+        
         self.table.setRowCount(0)
         
         all_shortcuts = self.manager.get_all_shortcuts()
@@ -362,6 +366,9 @@ class KeyboardShortcutsWidget(QWidget):
                 self.table.setItem(row, 4, status_item)
                 
                 row += 1
+        
+        # Re-enable sorting after all modifications are complete
+        self.table.setSortingEnabled(True)
     
     def _on_enabled_changed(self, state):
         """Handle checkbox state change for enabling/disabling shortcuts"""

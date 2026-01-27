@@ -2,7 +2,17 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.166 (January 27, 2026)
+**Current Version:** v1.9.167 (January 27, 2026)
+
+## v1.9.167 - January 27, 2026
+
+### 🐛 Bug Fixes
+
+- **Keyboard Shortcuts Panel Text Vanishing**: Fixed bug where UI text (Action, Shortcut, Status columns) would disappear after changing a shortcut. ([#125](https://github.com/michaelbeijer/Supervertaler/issues/125))
+  - **Root Cause**: Qt's sorting feature was interfering with table row modifications during `load_shortcuts()`, causing items to become disassociated from their rows.
+  - **Fix**: Disabled sorting during table modifications and re-enabled it after completion.
+
+---
 
 ## v1.9.166 - January 27, 2026
 

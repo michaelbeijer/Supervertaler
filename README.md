@@ -1,4 +1,4 @@
-# 🚀 Supervertaler v1.9.166
+# 🚀 Supervertaler v1.9.167
 
 [![PyPI version](https://badge.fury.io/py/supervertaler.svg)](https://pypi.org/project/Supervertaler/)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
@@ -6,9 +6,13 @@
 
 AI-enhanced CAT tool with multi-LLM support (GPT-4, Claude, Gemini, Ollama), innovative Superlookup concordance system offering access to multiple terminology sources (TMs, glossaries, web resources, etc.), and seamless CAT tool integration (memoQ, Trados, CafeTran, Phrase).
 
-**Current Version:** v1.9.166 (January 27, 2026)
+**Current Version:** v1.9.167 (January 27, 2026)
 
-### NEW in v1.9.166 - 🐛 TM Write Checkbox Fix
+### NEW in v1.9.167 - 🐛 Keyboard Shortcuts Panel Fix
+
+Fixed bug where UI text (Action, Shortcut, Status columns) would disappear after changing a shortcut. ([#125](https://github.com/michaelbeijer/Supervertaler/issues/125))
+
+### Previously in v1.9.166 - 🐛 TM Write Checkbox Fix
 
 Fixed critical bug where confirmed translations went to "project" TM instead of user-designated TM with Write enabled. ([#126](https://github.com/michaelbeijer/Supervertaler/issues/126))
 
