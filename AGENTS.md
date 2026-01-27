@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** January 27, 2026 | **Version:** v1.9.168
+> **Last Updated:** January 27, 2026 | **Version:** v1.9.169
 
 ---
 
@@ -765,6 +765,37 @@ deepl=...
 ---
 
 ## 🔄 Recent Development History
+
+### January 27, 2026 - Scratchpad for Private Notes (v1.9.169)
+
+**📝 Scratchpad Feature**
+
+Added a private notes scratchpad for translators to store personal notes during a job.
+
+**Feature Details:**
+- **Access**: `Tools → 📝 Scratchpad...` or `Ctrl+Shift+P` keyboard shortcut
+- **Privacy**: Notes stored only in `.svproj` file, **never** exported to CAT tools
+- **Persistence**: Notes saved with project and restored on reopen
+
+**Use Cases:**
+- Terminology decisions and rationale
+- Client preferences and style notes
+- Research findings and reference links
+- Questions to ask the project manager
+- Personal reminders and to-do items
+
+**Implementation:**
+- Added `scratchpad_notes: str = ""` field to `Project` dataclass
+- Added serialization/deserialization in `to_dict()` and `from_dict()`
+- New `ScratchpadDialog` class with QPlainTextEdit and monospace font
+- New `show_scratchpad()` method in MainWindow
+
+**Files Modified:**
+- `Supervertaler.py` - Project dataclass, ScratchpadDialog, show_scratchpad(), Tools menu item
+- `CHANGELOG.md` - v1.9.169 entry
+- `AGENTS.md` - Updated version and history
+
+---
 
 ### January 27, 2026 - Markdown Import with Syntax Highlighting (v1.9.168)
 

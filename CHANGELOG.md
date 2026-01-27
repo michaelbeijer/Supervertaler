@@ -2,7 +2,25 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.168 (January 27, 2026)
+**Current Version:** v1.9.169 (January 27, 2026)
+
+## v1.9.169 - January 27, 2026
+
+### ✨ New Features
+
+- **Scratchpad for Private Notes**: New pop-up scratchpad for translator's private notes during a job.
+  - **Access**: `Tools → 📝 Scratchpad...` or keyboard shortcut `Ctrl+Shift+P`
+  - **Private**: Notes are stored only in the `.svproj` file and are **never** exported to CAT tools or shared with clients
+  - **Persistent**: Notes are saved with the project and restored when you reopen it
+  - **Use Cases**:
+    - Terminology decisions and rationale
+    - Client preferences and style notes
+    - Research findings and reference links
+    - Questions to ask the project manager
+    - Personal reminders and to-do items
+  - **Design**: Clean dialog with monospace font, placeholder text with usage suggestions
+
+---
 
 ## v1.9.168 - January 27, 2026
 

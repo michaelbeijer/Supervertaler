@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.168"
+__version__ = "1.9.169"
 __phase__ = "0.9"
 __release_date__ = "2026-01-27"
 __edition__ = "Qt"
@@ -833,6 +833,8 @@ class Project:
     # Multi-file project support
     files: List[Dict[str, Any]] = None  # List of files in project: [{id, name, path, type, segment_count, ...}]
     is_multifile: bool = False  # True if this is a multi-file project
+    # Scratchpad for private translator notes (stored only in .svproj, never exported to CAT tools)
+    scratchpad_notes: str = ""
     
     def __post_init__(self):
         if self.segments is None:
@@ -926,6 +928,10 @@ class Project:
         if self.files:
             result['files'] = self.files
         
+        # Add scratchpad notes (private translator notes, never exported to CAT tools)
+        if self.scratchpad_notes:
+            result['scratchpad_notes'] = self.scratchpad_notes
+        
         # Add segments LAST (so they appear at the end of the file)
         result['segments'] = [seg.to_dict() for seg in self.segments]
         
@@ -998,6 +1004,9 @@ class Project:
             project.is_multifile = data['is_multifile']
         if 'files' in data:
             project.files = data['files']
+        # Store scratchpad notes if they exist
+        if 'scratchpad_notes' in data:
+            project.scratchpad_notes = data['scratchpad_notes']
         return project
 
 
@@ -5298,6 +5307,76 @@ class AdvancedFiltersDialog(QDialog):
         
         return filters
 
+
+class ScratchpadDialog(QDialog):
+    """Dialog for private translator notes (scratchpad).
+    
+    Notes are stored only in the .svproj file and never exported to CAT tools.
+    """
+    
+    def __init__(self, parent=None, notes_text: str = ""):
+        super().__init__(parent)
+        self.notes_text = notes_text
+        self.setup_ui()
+    
+    def setup_ui(self):
+        self.setWindowTitle("📝 Scratchpad - Private Notes")
+        self.setMinimumWidth(500)
+        self.setMinimumHeight(400)
+        self.resize(600, 450)
+        
+        layout = QVBoxLayout(self)
+        layout.setSpacing(10)
+        
+        # Info label
+        info_label = QLabel(
+            "📝 <b>Private notes for this project</b><br>"
+            "<small>These notes are saved with your project (.svproj) file and are <b>never</b> "
+            "exported to CAT tools or shared with clients.</small>"
+        )
+        info_label.setWordWrap(True)
+        info_label.setStyleSheet("color: #666; padding: 5px; background: #f9f9f9; border-radius: 4px;")
+        layout.addWidget(info_label)
+        
+        # Notes text area
+        self.notes_edit = QPlainTextEdit()
+        self.notes_edit.setPlainText(self.notes_text)
+        self.notes_edit.setPlaceholderText(
+            "Use this scratchpad for your private notes during translation:\n\n"
+            "• Terminology decisions\n"
+            "• Client preferences\n"
+            "• Research findings\n"
+            "• Questions to ask\n"
+            "• Reminders for yourself"
+        )
+        # Nice monospace-ish font for notes
+        font = self.notes_edit.font()
+        font.setFamily("Consolas, Courier New, monospace")
+        font.setPointSize(10)
+        self.notes_edit.setFont(font)
+        layout.addWidget(self.notes_edit, 1)  # Stretch to fill
+        
+        # Button row
+        button_layout = QHBoxLayout()
+        button_layout.addStretch()
+        
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.clicked.connect(self.reject)
+        button_layout.addWidget(cancel_btn)
+        
+        save_btn = QPushButton("💾 Save Notes")
+        save_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 6px 16px; border: none;")
+        save_btn.clicked.connect(self.accept)
+        save_btn.setDefault(True)
+        button_layout.addWidget(save_btn)
+        
+        layout.addLayout(button_layout)
+    
+    def get_notes(self) -> str:
+        """Return the current notes text."""
+        return self.notes_edit.toPlainText()
+
+
 # ============================================================================
 # BATCH TRANSLATION WORKER & PROGRESS DIALOG
 # ============================================================================
@@ -7658,6 +7737,12 @@ class SupervertalerQt(QMainWindow):
         image_extractor_action.triggered.connect(self.show_image_extractor_from_tools)
         image_extractor_action.setToolTip("Extract images from DOCX files")
         tools_menu.addAction(image_extractor_action)
+        
+        scratchpad_action = QAction("📝 Scratch&pad...", self)
+        scratchpad_action.setShortcut("Ctrl+Shift+P")
+        scratchpad_action.triggered.connect(self.show_scratchpad)
+        scratchpad_action.setToolTip("Private notes for this project (never exported to CAT tools)")
+        tools_menu.addAction(scratchpad_action)
         
         tools_menu.addSeparator()
 
@@ -42633,6 +42718,38 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                     if "Image Context" in self.resources_tabs.tabText(i):
                         self.resources_tabs.setCurrentIndex(i)
                         break
+    
+    def show_scratchpad(self):
+        """Show Scratchpad dialog for private translator notes.
+        
+        Notes are saved with the project (.svproj) and never exported to CAT tools.
+        """
+        if not hasattr(self, 'current_project') or self.current_project is None:
+            QMessageBox.warning(
+                self,
+                "No Project Open",
+                "Please open or create a project first before using the Scratchpad."
+            )
+            return
+        
+        # Get current notes from project
+        current_notes = getattr(self.current_project, 'scratchpad_notes', '') or ''
+        
+        dialog = ScratchpadDialog(self, current_notes)
+        if dialog.exec():
+            # Save the notes back to the project
+            new_notes = dialog.get_notes()
+            self.current_project.scratchpad_notes = new_notes
+            
+            # Mark project as modified so it will be saved
+            self.current_project.modified = datetime.now().isoformat()
+            
+            # Update status bar / log
+            if new_notes:
+                note_preview = new_notes[:50] + "..." if len(new_notes) > 50 else new_notes
+                self.log(f"📝 Scratchpad notes updated: {note_preview.replace(chr(10), ' ')}")
+            else:
+                self.log("📝 Scratchpad notes cleared")
     
     def show_theme_editor(self):
         """Show Theme Editor dialog"""
