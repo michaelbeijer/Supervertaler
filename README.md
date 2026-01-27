@@ -1,4 +1,4 @@
-# 🚀 Supervertaler v1.9.167
+# 🚀 Supervertaler v1.9.168
 
 [![PyPI version](https://badge.fury.io/py/supervertaler.svg)](https://pypi.org/project/Supervertaler/)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
@@ -6,9 +6,13 @@
 
 AI-enhanced CAT tool with multi-LLM support (GPT-4, Claude, Gemini, Ollama), innovative Superlookup concordance system offering access to multiple terminology sources (TMs, glossaries, web resources, etc.), and seamless CAT tool integration (memoQ, Trados, CafeTran, Phrase).
 
-**Current Version:** v1.9.167 (January 27, 2026)
+**Current Version:** v1.9.168 (January 27, 2026)
 
-### NEW in v1.9.167 - 🐛 Keyboard Shortcuts Panel Fix
+### NEW in v1.9.168 - 📝 Markdown File Import with Syntax Highlighting
+
+Import Markdown files (`.md`) with full syntax highlighting! Headings, bold/italic markers, code blocks, links, images, blockquotes, and lists are all highlighted with distinctive colors. ([#127](https://github.com/michaelbeijer/Supervertaler/issues/127))
+
+### Previously in v1.9.167 - 🐛 Keyboard Shortcuts Panel Fix
 
 Fixed bug where UI text (Action, Shortcut, Status columns) would disappear after changing a shortcut. ([#125](https://github.com/michaelbeijer/Supervertaler/issues/125))
 

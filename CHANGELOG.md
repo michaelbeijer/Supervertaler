@@ -2,7 +2,27 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.167 (January 27, 2026)
+**Current Version:** v1.9.168 (January 27, 2026)
+
+## v1.9.168 - January 27, 2026
+
+### ✨ New Features
+
+- **Markdown File Import Support**: Added `.md` file support to the text file importer. ([#127](https://github.com/michaelbeijer/Supervertaler/issues/127))
+  - **File Menu**: `Import → Text / Markdown File (TXT, MD)...`
+  - **File Filter**: Now shows "Text Files (*.txt *.md)", "Markdown (*.md)", "Plain Text (*.txt)"
+  - **Smart Dialog**: Detects Markdown files and shows Markdown-specific import instructions
+  - **Syntax Highlighting**: Markdown elements are highlighted with distinctive colors:
+    - **Headings** (`#`, `##`, etc.): Blue, bold
+    - **Bold/Italic markers** (`**`, `*`, `__`, `_`): Violet, bold
+    - **Code** (`` ` ``, `` ``` ``): Orange, bold
+    - **Links/Images** (`[]()`, `![]()`): Purple
+    - **Blockquotes** (`>`): Green, bold
+    - **Lists** (`-`, `*`, `+`, `1.`): Orange, bold
+  - **Round-trip Safe**: Markdown syntax is preserved as-is for clean export back to `.md`
+  - **Use Case**: Translate documentation, README files, AI prompts, and other Markdown content
+
+---
 
 ## v1.9.167 - January 27, 2026
 

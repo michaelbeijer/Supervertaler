@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.167"
+__version__ = "1.9.168"
 __phase__ = "0.9"
 __release_date__ = "2026-01-27"
 __edition__ = "Qt"
@@ -2286,12 +2286,13 @@ class ReadOnlyGridTextEditor(QTextEdit):
 
 
 class TagHighlighter(QSyntaxHighlighter):
-    """Syntax highlighter for HTML/XML tags, CAT tool tags, CafeTran pipe symbols, and spell checking in text editors"""
+    """Syntax highlighter for HTML/XML tags, CAT tool tags, CafeTran pipe symbols, Markdown syntax, and spell checking in text editors"""
 
     # Class-level reference to spellcheck manager (shared across all instances)
     _spellcheck_manager = None
     _spellcheck_enabled = False
     _is_cafetran_project = False  # Only highlight pipe symbols for CafeTran projects
+    _is_markdown_project = False  # Highlight Markdown syntax for Markdown imports
 
     def __init__(self, document, tag_color='#7f0001', invisible_char_color='#999999', enable_spellcheck=False):
         super().__init__(document)
@@ -2329,6 +2330,36 @@ class TagHighlighter(QSyntaxHighlighter):
         self.spellcheck_format = QTextCharFormat()
         self.spellcheck_format.setUnderlineColor(QColor('#FF0000'))
         self.spellcheck_format.setUnderlineStyle(QTextCharFormat.UnderlineStyle.WaveUnderline)
+
+        # Markdown syntax formats
+        # Bold/Italic markers: ** __ * _
+        self.md_bold_format = QTextCharFormat()
+        self.md_bold_format.setForeground(QColor('#C71585'))  # Medium violet red
+        self.md_bold_format.setFontWeight(700)  # Bold to make it stand out
+        
+        # Heading markers: # ## ### etc.
+        self.md_heading_format = QTextCharFormat()
+        self.md_heading_format.setForeground(QColor('#0066CC'))  # Blue
+        self.md_heading_format.setFontWeight(700)
+        
+        # Code markers: ` ``` 
+        self.md_code_format = QTextCharFormat()
+        self.md_code_format.setForeground(QColor('#D2691E'))  # Chocolate/Orange
+        self.md_code_format.setFontWeight(700)
+        
+        # Link/Image syntax: []() ![]()
+        self.md_link_format = QTextCharFormat()
+        self.md_link_format.setForeground(QColor('#6A5ACD'))  # Slate blue/Purple
+        
+        # Blockquote markers: >
+        self.md_quote_format = QTextCharFormat()
+        self.md_quote_format.setForeground(QColor('#228B22'))  # Forest green
+        self.md_quote_format.setFontWeight(700)
+        
+        # List markers: - * + 1. 2.
+        self.md_list_format = QTextCharFormat()
+        self.md_list_format.setForeground(QColor('#FF6600'))  # Orange
+        self.md_list_format.setFontWeight(700)
 
     def set_tag_color(self, color: str):
         """Update tag highlight color"""
@@ -2393,6 +2424,10 @@ class TagHighlighter(QSyntaxHighlighter):
                 if char == '|':
                     self.setFormat(i, 1, self.pipe_format)
 
+        # Markdown syntax highlighting - ONLY for Markdown projects
+        if TagHighlighter._is_markdown_project:
+            self._highlight_markdown_syntax(text)
+
         # Spell checking - only for target editors when enabled
         if self._local_spellcheck_enabled and TagHighlighter._spellcheck_enabled and TagHighlighter._spellcheck_manager:
             self._highlight_misspelled_words(text)
@@ -2454,6 +2489,96 @@ class TagHighlighter(QSyntaxHighlighter):
             if TagHighlighter._spellcheck_manager:
                 TagHighlighter._spellcheck_manager._crash_detected = True
                 TagHighlighter._spellcheck_manager.enabled = False
+
+    def _highlight_markdown_syntax(self, text):
+        """Highlight Markdown syntax elements to make them visually distinct"""
+        import re
+        
+        # 1. Heading markers at start of line: # ## ### #### ##### ######
+        #    Only match at start of line (or after only whitespace)
+        heading_pattern = re.compile(r'^(#{1,6})\s', re.MULTILINE)
+        for match in heading_pattern.finditer(text):
+            self.setFormat(match.start(1), len(match.group(1)), self.md_heading_format)
+        
+        # 2. Bold markers: **text** or __text__
+        #    Highlight just the markers, not the content
+        bold_pattern = re.compile(r'(\*\*|__)(?=\S)(.+?)(?<=\S)\1')
+        for match in bold_pattern.finditer(text):
+            # Opening marker
+            self.setFormat(match.start(), 2, self.md_bold_format)
+            # Closing marker
+            self.setFormat(match.end() - 2, 2, self.md_bold_format)
+        
+        # 3. Italic markers: *text* or _text_ (but not ** or __)
+        #    Must not be preceded/followed by same character
+        italic_pattern = re.compile(r'(?<!\*)\*(?!\*)(?=\S)(.+?)(?<=\S)\*(?!\*)|(?<!_)_(?!_)(?=\S)(.+?)(?<=\S)_(?!_)')
+        for match in italic_pattern.finditer(text):
+            # Opening marker (1 char)
+            self.setFormat(match.start(), 1, self.md_bold_format)
+            # Closing marker (1 char)
+            self.setFormat(match.end() - 1, 1, self.md_bold_format)
+        
+        # 4. Inline code: `code`
+        code_inline_pattern = re.compile(r'(`+)([^`]+)\1')
+        for match in code_inline_pattern.finditer(text):
+            # Highlight entire code span including backticks
+            self.setFormat(match.start(), len(match.group(0)), self.md_code_format)
+        
+        # 5. Code fence markers: ``` or ~~~
+        code_fence_pattern = re.compile(r'^(`{3,}|~{3,}).*$', re.MULTILINE)
+        for match in code_fence_pattern.finditer(text):
+            self.setFormat(match.start(), len(match.group(0)), self.md_code_format)
+        
+        # 6. Links: [text](url) - highlight brackets and parens, not the text
+        link_pattern = re.compile(r'\[([^\]]+)\]\(([^\)]+)\)')
+        for match in link_pattern.finditer(text):
+            full_start = match.start()
+            text_part = match.group(1)
+            url_part = match.group(2)
+            # [ bracket
+            self.setFormat(full_start, 1, self.md_link_format)
+            # ] bracket
+            self.setFormat(full_start + 1 + len(text_part), 1, self.md_link_format)
+            # ( and url and )
+            url_start = full_start + 1 + len(text_part) + 1
+            self.setFormat(url_start, len(url_part) + 2, self.md_link_format)
+        
+        # 7. Images: ![alt](url) - same as links but with !
+        image_pattern = re.compile(r'!\[([^\]]*)\]\(([^\)]+)\)')
+        for match in image_pattern.finditer(text):
+            full_start = match.start()
+            alt_part = match.group(1)
+            url_part = match.group(2)
+            # ! and [ 
+            self.setFormat(full_start, 2, self.md_link_format)
+            # ]
+            self.setFormat(full_start + 2 + len(alt_part), 1, self.md_link_format)
+            # ( and url and )
+            url_start = full_start + 2 + len(alt_part) + 1
+            self.setFormat(url_start, len(url_part) + 2, self.md_link_format)
+        
+        # 8. Blockquote markers: > at start of line
+        quote_pattern = re.compile(r'^(>+)\s?', re.MULTILINE)
+        for match in quote_pattern.finditer(text):
+            self.setFormat(match.start(1), len(match.group(1)), self.md_quote_format)
+        
+        # 9. Unordered list markers: - * + at start of line (with space after)
+        ul_pattern = re.compile(r'^(\s*)([-*+])\s', re.MULTILINE)
+        for match in ul_pattern.finditer(text):
+            marker_start = match.start(2)
+            self.setFormat(marker_start, 1, self.md_list_format)
+        
+        # 10. Ordered list markers: 1. 2. 3. etc. at start of line
+        ol_pattern = re.compile(r'^(\s*)(\d+\.)\s', re.MULTILINE)
+        for match in ol_pattern.finditer(text):
+            marker_start = match.start(2)
+            marker_len = len(match.group(2))
+            self.setFormat(marker_start, marker_len, self.md_list_format)
+        
+        # 11. Horizontal rules: --- or *** or ___ (3+ chars)
+        hr_pattern = re.compile(r'^([-*_]{3,})\s*$', re.MULTILINE)
+        for match in hr_pattern.finditer(text):
+            self.setFormat(match.start(1), len(match.group(1)), self.md_heading_format)
 
 
 class EditableGridTextEditor(QTextEdit):
@@ -7040,7 +7165,7 @@ class SupervertalerQt(QMainWindow):
         import_docx_action.setShortcut("Ctrl+O")
         import_menu.addAction(import_docx_action)
         
-        import_txt_action = QAction("Simple &Text File (TXT)...", self)
+        import_txt_action = QAction("&Text / Markdown File (TXT, MD)...", self)
         import_txt_action.triggered.connect(self.import_simple_txt)
         import_menu.addAction(import_txt_action)
         
@@ -22938,6 +23063,10 @@ class SupervertalerQt(QMainWindow):
                 segments=segments
             )
             
+            # Reset project-type specific highlighting flags
+            TagHighlighter._is_cafetran_project = False
+            TagHighlighter._is_markdown_project = False
+            
             # Set as current project and load into grid
             self.current_project = project
             self.current_document_path = file_path  # Store document path
@@ -22990,18 +23119,19 @@ class SupervertalerQt(QMainWindow):
     
     def import_simple_txt(self):
         """
-        Import a simple text file where each line is a source segment.
+        Import a simple text file or Markdown file where each line is a source segment.
         
         This is the simplest possible import format:
         - Each line becomes one source segment
         - Empty lines are preserved as empty segments (for structure)
         - After translation, export produces a matching file with translations
+        - Markdown files are imported as-is (syntax preserved for round-trip)
         """
         file_path, _ = QFileDialog.getOpenFileName(
             self,
-            "Select Simple Text File",
+            "Select Text or Markdown File",
             "",
-            "Text Files (*.txt);;All Files (*.*)"
+            "Text Files (*.txt *.md);;Markdown (*.md);;Plain Text (*.txt);;All Files (*.*)"
         )
         
         if not file_path:
@@ -23009,18 +23139,30 @@ class SupervertalerQt(QMainWindow):
         
         # Show import options dialog
         dialog = QDialog(self)
-        dialog.setWindowTitle("Import Simple Text File")
+        dialog.setWindowTitle("Import Text / Markdown File")
         dialog.setMinimumWidth(500)
         
         layout = QVBoxLayout(dialog)
         
+        # Detect if it's a Markdown file
+        is_markdown = file_path.lower().endswith('.md')
+        
         # Info message
-        info_label = QLabel(
-            "📄 <b>Simple Text File Import</b><br><br>"
-            "Each line in the file will become one source segment.<br>"
-            "After translation, you can export a matching file with translations.<br><br>"
-            "Empty lines are preserved to maintain document structure."
-        )
+        if is_markdown:
+            info_label = QLabel(
+                "📝 <b>Markdown File Import</b><br><br>"
+                "Each line in the file will become one source segment.<br>"
+                "Markdown syntax (<b>**bold**</b>, <i>*italic*</i>, # headings, etc.) is preserved.<br>"
+                "After translation, export will produce a matching Markdown file.<br><br>"
+                "<b>Tip:</b> Keep Markdown syntax intact when translating!"
+            )
+        else:
+            info_label = QLabel(
+                "📄 <b>Simple Text File Import</b><br><br>"
+                "Each line in the file will become one source segment.<br>"
+                "After translation, you can export a matching file with translations.<br><br>"
+                "Empty lines are preserved to maintain document structure."
+            )
         info_label.setWordWrap(True)
         info_label.setTextFormat(Qt.TextFormat.RichText)
         layout.addWidget(info_label)
@@ -23146,7 +23288,7 @@ class SupervertalerQt(QMainWindow):
             
             # Create new project
             project = Project(
-                name=f"TXT Import - {os.path.basename(file_path)}",
+                name=f"{'MD' if is_markdown else 'TXT'} Import - {os.path.basename(file_path)}",
                 source_lang=source_lang,
                 target_lang=target_lang,
                 segments=segments
@@ -23154,6 +23296,10 @@ class SupervertalerQt(QMainWindow):
             
             # Store original file path for export
             project.original_txt_path = file_path
+            
+            # Reset project-type specific highlighting flags
+            TagHighlighter._is_cafetran_project = False
+            TagHighlighter._is_markdown_project = is_markdown
             
             # Set as current project and load into grid
             self.current_project = project
@@ -23168,7 +23314,10 @@ class SupervertalerQt(QMainWindow):
             
             # Update status
             empty_count = sum(1 for seg in segments if not seg.source.strip())
-            self.log(f"✓ Loaded {len(segments)} lines from text file")
+            file_type = "Markdown file" if is_markdown else "text file"
+            self.log(f"✓ Loaded {len(segments)} lines from {file_type}")
+            if is_markdown:
+                self.log(f"  📝 Markdown syntax highlighting enabled")
             if empty_count > 0:
                 self.log(f"  ({empty_count} empty lines preserved for structure)")
             self.log(f"📍 Project language pair: {source_lang.upper()} → {target_lang.upper()}")

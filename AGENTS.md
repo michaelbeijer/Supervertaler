@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** January 26, 2026 | **Version:** v1.9.163
+> **Last Updated:** January 27, 2026 | **Version:** v1.9.168
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.163 (January 2026) |
+| **Version** | v1.9.168 (January 2026) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -27,7 +27,7 @@
 - **CAT Tool Integration**: Trados SDLPPX/SDLRPX, memoQ XLIFF, Phrase/Memsource DOCX, CafeTran DOCX, Déjà Vu X3 RTF
 - **Translation Memory**: Fuzzy matching TM with TMX import/export + Supermemory (ChromaDB vector search)
 - **Terminology Management**: SQLite-based termbases with priority highlighting and automatic extraction
-- **Document Handling**: DOCX, bilingual DOCX, PDF (via OCR), simple TXT, **Multi-file folder import**
+- **Document Handling**: DOCX, bilingual DOCX, PDF (via OCR), simple TXT, **Markdown (MD)**, **Multi-file folder import**
 - **Quality Assurance**: Spellcheck, tag validation, consistency checking
 - **Superlookup**: Unified concordance hub with TM, Termbase, Supermemory, MT, and Web Resources
 - **Batteries Included**: Default install includes all major features and dependencies, except heavy optional components (Supermemory + offline Local Whisper)
@@ -765,6 +765,45 @@ deepl=...
 ---
 
 ## 🔄 Recent Development History
+
+### January 27, 2026 - Markdown Import with Syntax Highlighting (v1.9.168)
+
+**📝 Markdown File Import Support** ([#127](https://github.com/michaelbeijer/Supervertaler/issues/127))
+
+Added support for importing Markdown files (`.md`) with full syntax highlighting to make Markdown codes stand out visually during translation.
+
+**New Features:**
+- **File Filter**: Import → Text / Markdown File (TXT, MD)... now accepts `.md` files
+- **Markdown Detection**: Automatically detects `.md` extension and enables syntax highlighting
+- **Smart Dialog**: Shows Markdown-specific import instructions
+
+**Syntax Highlighting Colors:**
+| Element | Pattern | Color | Style |
+|---------|---------|-------|-------|
+| Headings | `#`, `##`, etc. | Blue (#0066CC) | Bold |
+| Bold/Italic markers | `**`, `*`, `__`, `_` | Violet (#C71585) | Bold |
+| Inline code | `` ` ``, `` ``` `` | Orange (#D2691E) | Bold |
+| Links/Images | `[]()`, `![]()` | Purple (#6A5ACD) | Normal |
+| Blockquotes | `>` | Green (#228B22) | Bold |
+| Lists | `-`, `*`, `+`, `1.` | Orange (#FF6600) | Bold |
+
+**Implementation Details:**
+- New class flag: `TagHighlighter._is_markdown_project` (similar to existing `_is_cafetran_project`)
+- New method: `TagHighlighter._highlight_markdown_syntax()` with 11 regex patterns
+- Format definitions added to `update_tag_format()`: `md_bold_format`, `md_heading_format`, `md_code_format`, `md_link_format`, `md_quote_format`, `md_list_format`
+- Flag is reset in DOCX import and set appropriately in text/MD import
+
+**Design Decision:**
+Markdown syntax is preserved as plain text (not converted to internal tags like `<b>`, `<i>`) because:
+1. Many translators work with Markdown frequently and understand the syntax
+2. Enables round-trip export back to `.md` without loss
+3. Highlighting makes the codes visually distinct without hiding them
+
+**Files Modified:**
+- `Supervertaler.py` - TagHighlighter class, `import_simple_txt()`, DOCX import flag reset
+- `CHANGELOG.md` - v1.9.168 entry
+
+---
 
 ### January 26, 2026 - Proactive Grid Highlighting (v1.9.161)
 
