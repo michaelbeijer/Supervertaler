@@ -2,9 +2,21 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.172 (January 28, 2026)
+**Current Version:** v1.9.173 (January 28, 2026)
 
 
+
+## v1.9.173 - January 28, 2026
+
+### ✨ Improvements
+
+- **Smarter TM Exact Matching**: Exact matches now use text normalization before hashing, so matches are found even when source text differs only in whitespace or Unicode normalization (e.g., non-breaking spaces vs regular spaces).
+
+- **Improved TM Pre-Translation Dialog**: The progress dialog now shows the current segment being processed, count of matches found so far, and elapsed time. A patience message appears after 10 seconds for large jobs.
+
+- **Higher Fuzzy Match Threshold**: Raised the minimum fuzzy match threshold from 70% to 75% for better quality matches across all TM operations.
+
+---
 
 ## v1.9.172 - January 28, 2026
 

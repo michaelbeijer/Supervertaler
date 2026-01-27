@@ -17,10 +17,36 @@ import sqlite3
 import os
 import json
 import hashlib
+import unicodedata
+import re
 from datetime import datetime
 from typing import List, Dict, Optional, Tuple
 from pathlib import Path
 from difflib import SequenceMatcher
+
+
+def _normalize_for_matching(text: str) -> str:
+    """Normalize text for exact matching.
+
+    Handles invisible differences that would cause exact match to fail:
+    - Unicode normalization (NFC)
+    - Multiple whitespace -> single space
+    - Leading/trailing whitespace
+    - Non-breaking spaces -> regular spaces
+    """
+    if not text:
+        return ""
+    # Unicode normalize (NFC form)
+    text = unicodedata.normalize('NFC', text)
+    # Convert non-breaking spaces and other whitespace to regular space
+    text = text.replace('\u00a0', ' ')  # NBSP
+    text = text.replace('\u2007', ' ')  # Figure space
+    text = text.replace('\u202f', ' ')  # Narrow NBSP
+    # Collapse multiple whitespace to single space
+    text = re.sub(r'\s+', ' ', text)
+    # Strip leading/trailing whitespace
+    text = text.strip()
+    return text
 
 
 class DatabaseManager:
@@ -655,17 +681,19 @@ class DatabaseManager:
     # TRANSLATION MEMORY METHODS
     # ============================================
     
-    def add_translation_unit(self, source: str, target: str, source_lang: str, 
+    def add_translation_unit(self, source: str, target: str, source_lang: str,
                             target_lang: str, tm_id: str = 'project',
                             project_id: str = None, context_before: str = None,
                             context_after: str = None, notes: str = None) -> int:
         """
         Add translation unit to database
-        
+
         Returns: ID of inserted/updated entry
         """
-        # Generate hash for fast exact matching
-        source_hash = hashlib.md5(source.encode('utf-8')).hexdigest()
+        # Generate hash from NORMALIZED source for consistent exact matching
+        # This handles invisible differences like Unicode normalization, whitespace variations
+        normalized_source = _normalize_for_matching(source)
+        source_hash = hashlib.md5(normalized_source.encode('utf-8')).hexdigest()
         
         try:
             self.cursor.execute("""
@@ -687,33 +715,38 @@ class DatabaseManager:
             return None
     
     def get_exact_match(self, source: str, tm_ids: List[str] = None,
-                       source_lang: str = None, target_lang: str = None, 
+                       source_lang: str = None, target_lang: str = None,
                        bidirectional: bool = True) -> Optional[Dict]:
         """
         Get exact match from TM
-        
+
         Args:
             source: Source text to match
             tm_ids: List of TM IDs to search (None = all)
             source_lang: Filter by source language (base code matching: 'en' matches 'en-US', 'en-GB', etc.)
             target_lang: Filter by target language (base code matching)
             bidirectional: If True, search both directions (nl→en AND en→nl)
-        
+
         Returns: Dictionary with match data or None
         """
         from modules.tmx_generator import get_base_lang_code
-        
+
+        # Try both normalized and non-normalized hashes for backward compatibility
+        # This handles invisible differences like Unicode normalization, whitespace variations
         source_hash = hashlib.md5(source.encode('utf-8')).hexdigest()
-        
+        normalized_source = _normalize_for_matching(source)
+        normalized_hash = hashlib.md5(normalized_source.encode('utf-8')).hexdigest()
+
         # Get base language codes for comparison
         src_base = get_base_lang_code(source_lang) if source_lang else None
         tgt_base = get_base_lang_code(target_lang) if target_lang else None
-        
+
+        # Search using both original hash and normalized hash
         query = """
-            SELECT * FROM translation_units 
-            WHERE source_hash = ? AND source_text = ?
+            SELECT * FROM translation_units
+            WHERE (source_hash = ? OR source_hash = ?)
         """
-        params = [source_hash, source]
+        params = [source_hash, normalized_hash]
         
         if tm_ids:
             placeholders = ','.join('?' * len(tm_ids))

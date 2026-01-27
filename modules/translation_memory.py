@@ -123,8 +123,8 @@ class TMDatabase:
         if source_lang and target_lang:
             self.set_tm_languages(source_lang, target_lang)
         
-        # Global fuzzy threshold (70% minimum similarity for fuzzy matches)
-        self.fuzzy_threshold = 0.7
+        # Global fuzzy threshold (75% minimum similarity for fuzzy matches)
+        self.fuzzy_threshold = 0.75
         
         # TM metadata cache (populated from database as needed)
         # Note: Legacy 'project' and 'big_mama' TMs are no longer used.

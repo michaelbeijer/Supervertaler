@@ -5598,7 +5598,7 @@ class PreTranslationWorker(QThread):
                     match = matches[0]
                     match_pct = match.get('match_pct', 0)
                     print(f"🔍 TM PRE-TRANSLATE: Best match pct: {match_pct}")
-                    if match_pct >= 70:  # Accept matches 70% and above
+                    if match_pct >= 75:  # Accept matches 75% and above
                         return match.get('target', '')
                 return None
         except Exception as e:
@@ -41148,25 +41148,41 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             self.log(f"📖 Pre-translate from TM: Using activated TMs: {tm_ids}")
             
             # Create progress dialog for TM pre-translation
+            import time
+            start_time = time.time()
+            total_segments = len(segments_needing_translation)
+
             progress = QProgressDialog(
-                f"Pre-translating {len(segments_needing_translation)} segments from TM...",
-                "Cancel", 0, len(segments_needing_translation), self
+                f"Pre-translating {total_segments} segments from TM...",
+                "Cancel", 0, total_segments, self
             )
-            progress.setWindowTitle("TM Pre-Translation")
+            progress.setWindowTitle("🔍 TM Pre-Translation")
             progress.setWindowModality(Qt.WindowModality.WindowModal)
             progress.setMinimumDuration(0)  # Show immediately
+            progress.setMinimumWidth(450)  # Wider dialog for more info
             progress.show()
             QApplication.processEvents()
-            
+
             success_count = 0
             no_match_count = 0
-            
+
             for idx, (row_index, segment) in enumerate(segments_needing_translation):
                 if progress.wasCanceled():
                     break
-                
+
                 progress.setValue(idx)
-                progress.setLabelText(f"Searching TM for segment {idx + 1}/{len(segments_needing_translation)}...")
+
+                # Build informative progress label
+                elapsed = time.time() - start_time
+                elapsed_str = f"{int(elapsed // 60)}:{int(elapsed % 60):02d}"
+                source_preview = segment.source[:50] + "..." if len(segment.source) > 50 else segment.source
+                label_text = (
+                    f"Searching TM for segment {idx + 1} of {total_segments}...\n\n"
+                    f"Current: \"{source_preview}\"\n"
+                    f"Matches found: {success_count}  |  Elapsed: {elapsed_str}\n\n"
+                    f"ℹ️ This may take a while for large documents."
+                )
+                progress.setLabelText(label_text)
                 QApplication.processEvents()
                 
                 try:
@@ -41184,7 +41200,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                         else:
                             no_match_count += 1
                     else:
-                        # Fuzzy matching enabled - get best match ≥70%
+                        # Fuzzy matching enabled - get best match ≥75%
                         matches = self.tm_database.search_all(
                             segment.source,
                             tm_ids=tm_ids,
@@ -41194,7 +41210,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                         if matches and len(matches) > 0:
                             best_match = matches[0]
                             match_pct = best_match.get('match_pct', 0)
-                            if match_pct >= 70:
+                            if match_pct >= 75:
                                 segment.target = best_match.get('target', '')
                                 segment.status = "Translated"
                                 success_count += 1
@@ -41562,7 +41578,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                             match_pct = match.get('match_pct', 0)
                             tm_match = match.get('target', '')
                             
-                            if match_pct >= 70:  # Accept matches 70% and above
+                            if match_pct >= 75:  # Accept matches 75% and above
                                 segment.target = tm_match
                                 segment.status = "translated" if match_pct == 100 else "pre-translated"
                                 translated_count += 1

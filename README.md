@@ -1,4 +1,4 @@
-# 🚀 Supervertaler v1.9.172
+# 🚀 Supervertaler v1.9.173
 
 [![PyPI version](https://badge.fury.io/py/supervertaler.svg)](https://pypi.org/project/Supervertaler/)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
@@ -7,7 +7,13 @@
 AI-enhanced CAT tool with multi-LLM support (GPT-4, Claude, Gemini, Ollama), innovative Superlookup concordance system offering access to multiple terminology sources (TMs, glossaries, web resources, etc.), and seamless CAT tool integration (memoQ, Trados, CafeTran, Phrase).
 
 
-**Current Version:** v1.9.172 (January 28, 2026)
+**Current Version:** v1.9.173 (January 28, 2026)
+
+### IMPROVED in v1.9.173 - 🎯 Smarter TM Pre-Translation
+
+- **Smarter TM Exact Matching**: Exact matches now use text normalization, so matches are found even with whitespace/Unicode differences.
+- **Improved Pre-Translation Dialog**: Shows current segment, match count, elapsed time, and patience message for large jobs.
+- **Higher Fuzzy Threshold**: Raised minimum fuzzy match threshold from 70% to 75% for better quality.
 
 ### FIXED in v1.9.172 - 🐛 Fresh Projects Start Clean
 
