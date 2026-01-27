@@ -6088,7 +6088,7 @@ class SupervertalerQt(QMainWindow):
         
         # 🧪 EXPERIMENTAL: Cache kill switch for performance testing
         # When True, all caches are bypassed - direct lookups every time
-        self.disable_all_caches = False
+        self.disable_all_caches = True
         
         # Undo/Redo stack for grid edits
         self.undo_stack = []  # List of (segment_id, old_target, new_target, old_status, new_status)
@@ -16484,7 +16484,7 @@ class SupervertalerQt(QMainWindow):
         
         # Cache kill switch
         disable_cache_cb = CheckmarkCheckBox("Disable ALL caches (direct lookups every time)")
-        disable_cache_cb.setChecked(general_settings.get('disable_all_caches', False))
+        disable_cache_cb.setChecked(general_settings.get('disable_all_caches', True))
         disable_cache_cb.setToolTip(
             "When enabled, ALL caching is bypassed:\n"
             "• Termbase cache\n"
@@ -19127,7 +19127,7 @@ class SupervertalerQt(QMainWindow):
             'results_compare_font_size': 9,
             'autohotkey_path': ahk_path_edit.text().strip() if ahk_path_edit is not None else existing_settings.get('autohotkey_path', ''),
             'enable_sound_effects': sound_effects_cb.isChecked() if sound_effects_cb is not None else existing_settings.get('enable_sound_effects', False),
-            'disable_all_caches': disable_cache_cb.isChecked() if disable_cache_cb is not None else existing_settings.get('disable_all_caches', False)
+            'disable_all_caches': disable_cache_cb.isChecked() if disable_cache_cb is not None else existing_settings.get('disable_all_caches', True)
         }
 
         # Keep a fast-access instance value
@@ -30289,8 +30289,8 @@ class SupervertalerQt(QMainWindow):
         self.show_translation_results_pane = settings.get('show_translation_results_pane', False)
         self.show_compare_panel = settings.get('show_compare_panel', True)
 
-        # 🧪 EXPERIMENTAL: Load cache kill switch setting (default: False = caches enabled)
-        self.disable_all_caches = settings.get('disable_all_caches', False)
+        # 🧪 EXPERIMENTAL: Load cache kill switch setting (default: True = caches disabled for stability)
+        self.disable_all_caches = settings.get('disable_all_caches', True)
 
         # Load LLM provider settings for AI Assistant
         llm_settings = self.load_llm_settings()
