@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** January 28, 2026 | **Version:** v1.9.171
+> **Last Updated:** January 28, 2026 | **Version:** v1.9.172
 
 ---
 
@@ -12,7 +12,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.171 (January 2026) |
+| **Version** | v1.9.172 (January 2026) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -766,6 +766,26 @@ deepl=...
 
 ## 🔄 Recent Development History
 
+
+### January 28, 2026 - Fresh Projects Start Clean (v1.9.172)
+
+**🐛 Bug Fix: TM/Glossary Deactivation on Project Load**
+
+Fixed bug where TMs and glossaries remained activated from previous sessions when loading or creating new projects. Users expected a clean slate but saw resources from previous work.
+
+**Root Cause:**
+In `load_project()`, TM deactivation only ran if the project had saved `activated_tm_ids` in its `tm_settings`. For older projects or newly created projects without `tm_settings`, deactivation was skipped entirely.
+
+**Fix:**
+Now follows the same pattern as glossaries:
+1. **Always** deactivate all TMs for the project first (start clean)
+2. **Then** restore saved TM activations if they exist in the project file
+3. **Always** refresh the TM UI after (moved outside the conditional)
+
+**Files Modified:**
+- `Supervertaler.py` - Restructured TM restoration in `load_project()` to unconditionally deactivate all TMs first
+
+---
 
 ### January 28, 2026 - TM Target & Alt+0 Badge Regression Fix (v1.9.171)
 

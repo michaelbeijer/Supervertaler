@@ -2,9 +2,17 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.171 (January 28, 2026)
+**Current Version:** v1.9.172 (January 28, 2026)
 
 
+
+## v1.9.172 - January 28, 2026
+
+### 🐛 Bug Fixes
+
+- **Fresh Projects Start Clean**: Fixed bug where TMs and glossaries remained activated from previous sessions when loading/creating new projects. Now all TMs and glossaries are properly deactivated when loading a project, giving you a clean slate. Saved resource activations are then restored from the project file if available.
+
+---
 
 ## v1.9.171 - January 28, 2026
 
