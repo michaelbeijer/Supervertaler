@@ -13504,8 +13504,8 @@ class SupervertalerQt(QMainWindow):
                         msg.setInformativeText(
                             "When enabled, ALL terms from this glossary will be sent to the LLM "
                             "with every translation request.\n\n"
-                            "This increases prompt size and API costs, but helps the AI "
-                            "use your preferred terminology.\n\n"
+                            "This helps the AI consistently use your preferred terminology "
+                            "throughout the translation.\n\n"
                             "Recommended for small, curated glossaries (< 500 terms)."
                         )
                         msg.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
