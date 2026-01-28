@@ -186,9 +186,13 @@ def run_all_migrations(db_manager) -> bool:
     # Migration 3: Add display_order and forbidden fields to synonyms
     if not migrate_synonym_fields(db_manager):
         success = False
-    
+
+    # Migration 4: Add ai_inject field to termbases
+    if not migrate_termbase_ai_inject(db_manager):
+        success = False
+
     print("="*60)
-    
+
     return success
 
 
@@ -221,18 +225,26 @@ def check_and_migrate(db_manager) -> bool:
         
         # Check if synonyms table exists
         cursor.execute("""
-            SELECT name FROM sqlite_master 
+            SELECT name FROM sqlite_master
             WHERE type='table' AND name='termbase_synonyms'
         """)
         needs_synonyms_table = cursor.fetchone() is None
-        
+
+        # Check if termbases table has ai_inject column
+        cursor.execute("PRAGMA table_info(termbases)")
+        termbase_columns = {row[1] for row in cursor.fetchall()}
+        needs_ai_inject = 'ai_inject' not in termbase_columns
+
         if needs_migration:
             print(f"⚠️ Migration needed - missing columns: {', '.join([c for c in ['project', 'client', 'term_uuid', 'note'] if c not in columns])}")
-        
+
         if needs_synonyms_table:
             print("⚠️ Migration needed - termbase_synonyms table missing")
-        
-        if needs_migration or needs_synonyms_table:
+
+        if needs_ai_inject:
+            print("⚠️ Migration needed - termbases.ai_inject column missing")
+
+        if needs_migration or needs_synonyms_table or needs_ai_inject:
             success = run_all_migrations(db_manager)
             if success:
                 # Generate UUIDs for terms that don't have them
@@ -311,6 +323,41 @@ def migrate_synonym_fields(db_manager) -> bool:
         
     except Exception as e:
         print(f"❌ Synonym table migration failed: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+
+def migrate_termbase_ai_inject(db_manager) -> bool:
+    """
+    Add ai_inject column to termbases table.
+    When enabled, the termbase's terms will be injected into LLM translation prompts.
+
+    Args:
+        db_manager: DatabaseManager instance
+
+    Returns:
+        True if migration successful
+    """
+    try:
+        cursor = db_manager.cursor
+
+        # Check which columns exist
+        cursor.execute("PRAGMA table_info(termbases)")
+        columns = {row[1] for row in cursor.fetchall()}
+
+        if 'ai_inject' not in columns:
+            print("📊 Adding 'ai_inject' column to termbases...")
+            cursor.execute("ALTER TABLE termbases ADD COLUMN ai_inject BOOLEAN DEFAULT 0")
+            db_manager.connection.commit()
+            print("  ✓ Column 'ai_inject' added successfully")
+        else:
+            print("✅ termbases.ai_inject column already exists")
+
+        return True
+
+    except Exception as e:
+        print(f"❌ ai_inject migration failed: {e}")
         import traceback
         traceback.print_exc()
         return False

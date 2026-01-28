@@ -1566,9 +1566,9 @@ class UnifiedPromptManagerQt:
         
         layout.addWidget(mode_frame)
         
-        # Primary Prompt
+        # Custom Prompt
         primary_layout = QHBoxLayout()
-        primary_label = QLabel("Primary Prompt ⭐:")
+        primary_label = QLabel("Custom Prompt ⭐:")
         primary_label.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
         primary_layout.addWidget(primary_label)
         
@@ -2210,8 +2210,8 @@ class UnifiedPromptManagerQt:
         if data['type'] == 'prompt':
             path = data['path']
             
-            # Set as primary
-            action_primary = menu.addAction("⭐ Set as Primary Prompt")
+            # Set as custom prompt
+            action_primary = menu.addAction("⭐ Set as Custom Prompt")
             action_primary.triggered.connect(lambda: self._set_primary_prompt(path))
             
             # Attach/detach
@@ -2493,7 +2493,7 @@ class UnifiedPromptManagerQt:
         self.library.active_primary_prompt_path = None
         self.primary_prompt_label.setText("[None selected]")
         self.primary_prompt_label.setStyleSheet("color: #999;")
-        self.log_message("✓ Cleared primary prompt")
+        self.log_message("✓ Cleared custom prompt")
     
     def _load_external_primary_prompt(self):
         """Load an external prompt file (not in library) as primary"""
@@ -2787,7 +2787,7 @@ class UnifiedPromptManagerQt:
         composition_parts.append(f"📏 Total prompt length: {len(combined):,} characters")
         
         if self.library.active_primary_prompt:
-            composition_parts.append(f"✓ Primary prompt attached")
+            composition_parts.append(f"✓ Custom prompt attached")
         
         if self.library.attached_prompts:
             composition_parts.append(f"✓ {len(self.library.attached_prompts)} additional prompt(s) attached")
@@ -2993,49 +2993,66 @@ If the text refers to figures (e.g., 'Figure 1A'), relevant images may be provid
     
     # === Prompt Composition (for translation) ===
     
-    def build_final_prompt(self, source_text: str, source_lang: str, target_lang: str, mode: str = None) -> str:
+    def build_final_prompt(self, source_text: str, source_lang: str, target_lang: str,
+                           mode: str = None, glossary_terms: list = None) -> str:
         """
         Build final prompt for translation using 2-layer architecture:
         1. System Prompt (auto-selected by mode)
         2. Combined prompts from library (primary + attached)
-        
+        3. Glossary terms (optional, injected before translation delimiter)
+
         Args:
             source_text: Text to translate
             source_lang: Source language
             target_lang: Target language
             mode: Override mode (if None, uses self.current_mode)
-        
+            glossary_terms: Optional list of term dicts with 'source_term' and 'target_term' keys
+
         Returns:
             Complete prompt ready for LLM
         """
         if mode is None:
             mode = self.current_mode
-        
+
         # Layer 1: System Prompt
         system_template = self.get_system_template(mode)
-        
+
         # Replace placeholders in system prompt
         system_template = system_template.replace("{{SOURCE_LANGUAGE}}", source_lang)
         system_template = system_template.replace("{{TARGET_LANGUAGE}}", target_lang)
         system_template = system_template.replace("{{SOURCE_TEXT}}", source_text)
-        
+
         # Layer 2: Library prompts (primary + attached)
         library_prompts = ""
-        
+
         if self.library.active_primary_prompt:
-            library_prompts += "\n\n# PRIMARY INSTRUCTIONS\n\n"
+            library_prompts += "\n\n# CUSTOM PROMPT\n\n"
             library_prompts += self.library.active_primary_prompt
-        
+
         for attached_content in self.library.attached_prompts:
             library_prompts += "\n\n# ADDITIONAL INSTRUCTIONS\n\n"
             library_prompts += attached_content
-        
+
         # Combine
         final_prompt = system_template + library_prompts
-        
+
+        # Glossary injection (if terms provided)
+        if glossary_terms:
+            final_prompt += "\n\n# GLOSSARY\n\n"
+            final_prompt += "Use these approved terms in your translation:\n\n"
+            for term in glossary_terms:
+                source_term = term.get('source_term', '')
+                target_term = term.get('target_term', '')
+                if source_term and target_term:
+                    # Mark forbidden terms
+                    if term.get('forbidden'):
+                        final_prompt += f"- {source_term} → ⚠️ DO NOT USE: {target_term}\n"
+                    else:
+                        final_prompt += f"- {source_term} → {target_term}\n"
+
         # Add translation delimiter
         final_prompt += "\n\n**YOUR TRANSLATION (provide ONLY the translated text, no numbering or labels):**\n"
-        
+
         return final_prompt
     
     # ============================================================================

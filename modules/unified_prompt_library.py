@@ -367,7 +367,7 @@ class UnifiedPromptLibrary:
         
         self.active_primary_prompt = self.prompts[relative_path]['content']
         self.active_primary_prompt_path = relative_path
-        self.log(f"✓ Set primary prompt: {self.prompts[relative_path].get('name', relative_path)}")
+        self.log(f"✓ Set custom prompt: {self.prompts[relative_path].get('name', relative_path)}")
         return True
     
     def set_external_primary_prompt(self, file_path: str) -> Tuple[bool, str]:
@@ -399,7 +399,7 @@ class UnifiedPromptLibrary:
         self.active_primary_prompt = content
         self.active_primary_prompt_path = f"[EXTERNAL] {file_path}"
         
-        self.log(f"✓ Set external primary prompt: {display_name}")
+        self.log(f"✓ Set external custom prompt: {display_name}")
         return True, display_name
     
     def attach_prompt(self, relative_path: str) -> bool:

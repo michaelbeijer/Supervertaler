@@ -2,9 +2,25 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.174 (January 28, 2026)
+**Current Version:** v1.9.175 (January 28, 2026)
 
 
+
+## v1.9.175 - January 28, 2026
+
+### ✨ New Features
+
+- **Glossary AI Injection**: New "AI" column in Glossary Settings allows glossary terms to be automatically injected into LLM translation prompts. When enabled (orange checkmark), all terms from that glossary are sent to the AI with every translation request, helping the model use your preferred terminology. Recommended for small, curated glossaries (< 500 terms).
+
+### 🎨 UI Improvements
+
+- **Terminology Consistency**: Renamed "Primary Prompt" to "Custom Prompt" throughout the application for better alignment with the 2-Layer Prompt Architecture documentation.
+
+- **Preview Prompt Enhancements**: The Preview Prompts dialog now highlights the "# GLOSSARY" section in orange when glossary terms are injected.
+
+- **Glossary Legend Updated**: The glossary settings help text now explains all four columns: Read (green), Write (blue), Priority, and AI (orange).
+
+---
 
 ## v1.9.174 - January 28, 2026
 

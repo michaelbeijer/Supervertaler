@@ -409,7 +409,111 @@ class TermbaseManager:
         except Exception as e:
             self.log(f"✗ Error setting termbase read_only: {e}")
             return False
-    
+
+    def get_termbase_ai_inject(self, termbase_id: int) -> bool:
+        """Get whether termbase terms should be injected into LLM prompts"""
+        try:
+            cursor = self.db_manager.cursor
+            cursor.execute("SELECT ai_inject FROM termbases WHERE id = ?", (termbase_id,))
+            result = cursor.fetchone()
+            return bool(result[0]) if result and result[0] else False
+        except Exception as e:
+            self.log(f"✗ Error getting termbase ai_inject: {e}")
+            return False
+
+    def set_termbase_ai_inject(self, termbase_id: int, ai_inject: bool) -> bool:
+        """Set whether termbase terms should be injected into LLM prompts"""
+        try:
+            cursor = self.db_manager.cursor
+            cursor.execute("""
+                UPDATE termbases SET ai_inject = ? WHERE id = ?
+            """, (1 if ai_inject else 0, termbase_id))
+            self.db_manager.connection.commit()
+            status = "enabled" if ai_inject else "disabled"
+            self.log(f"✓ AI injection {status} for termbase {termbase_id}")
+            return True
+        except Exception as e:
+            self.log(f"✗ Error setting termbase ai_inject: {e}")
+            return False
+
+    def get_ai_inject_termbases(self, project_id: Optional[int] = None) -> List[Dict]:
+        """
+        Get all termbases with ai_inject enabled that are active for the given project.
+
+        Args:
+            project_id: Project ID (0 or None for global)
+
+        Returns:
+            List of termbase dictionaries with all terms
+        """
+        try:
+            cursor = self.db_manager.cursor
+            proj_id = project_id if project_id else 0
+
+            cursor.execute("""
+                SELECT t.id, t.name, t.source_lang, t.target_lang
+                FROM termbases t
+                LEFT JOIN termbase_activation ta ON t.id = ta.termbase_id AND ta.project_id = ?
+                WHERE t.ai_inject = 1
+                AND (ta.is_active = 1 OR (t.is_global = 1 AND ta.is_active IS NULL))
+                ORDER BY ta.priority ASC, t.name ASC
+            """, (proj_id,))
+
+            termbases = []
+            for row in cursor.fetchall():
+                termbases.append({
+                    'id': row[0],
+                    'name': row[1],
+                    'source_lang': row[2],
+                    'target_lang': row[3]
+                })
+            return termbases
+        except Exception as e:
+            self.log(f"✗ Error getting AI inject termbases: {e}")
+            return []
+
+    def get_ai_inject_terms(self, project_id: Optional[int] = None) -> List[Dict]:
+        """
+        Get all terms from AI-inject-enabled termbases for the given project.
+
+        Args:
+            project_id: Project ID (0 or None for global)
+
+        Returns:
+            List of term dictionaries with source_term, target_term, forbidden, termbase_name
+        """
+        try:
+            # First get all AI-inject termbases
+            ai_termbases = self.get_ai_inject_termbases(project_id)
+            if not ai_termbases:
+                return []
+
+            all_terms = []
+            cursor = self.db_manager.cursor
+
+            for tb in ai_termbases:
+                cursor.execute("""
+                    SELECT source_term, target_term, forbidden, priority
+                    FROM termbase_terms
+                    WHERE termbase_id = ?
+                    ORDER BY priority ASC, source_term ASC
+                """, (tb['id'],))
+
+                for row in cursor.fetchall():
+                    all_terms.append({
+                        'source_term': row[0],
+                        'target_term': row[1],
+                        'forbidden': bool(row[2]) if row[2] else False,
+                        'priority': row[3] or 99,
+                        'termbase_name': tb['name']
+                    })
+
+            self.log(f"📚 Retrieved {len(all_terms)} terms from {len(ai_termbases)} AI-inject glossar{'y' if len(ai_termbases) == 1 else 'ies'}")
+            return all_terms
+        except Exception as e:
+            self.log(f"✗ Error getting AI inject terms: {e}")
+            return []
+
     def set_termbase_priority(self, termbase_id: int, project_id: int, priority: int) -> bool:
         """
         Set manual priority for a termbase in a specific project.

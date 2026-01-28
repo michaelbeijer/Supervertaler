@@ -5794,11 +5794,14 @@ class PreTranslationWorker(QThread):
             custom_prompt = None
             if self.prompt_manager:
                 try:
+                    # Get glossary terms for AI injection
+                    glossary_terms = self.parent_app.get_ai_inject_glossary_terms() if hasattr(self.parent_app, 'get_ai_inject_glossary_terms') else []
                     full_prompt = self.prompt_manager.build_final_prompt(
                         source_text=segment.source,
                         source_lang=source_lang,
                         target_lang=target_lang,
-                        mode="single"
+                        mode="single",
+                        glossary_terms=glossary_terms
                     )
                     # Extract just the instruction part (without the source text section)
                     if "**SOURCE TEXT:**" in full_prompt:
@@ -5857,11 +5860,14 @@ class PreTranslationWorker(QThread):
             if self.prompt_manager and batch_segments:
                 try:
                     first_segment = batch_segments[0][1]
+                    # Get glossary terms for AI injection
+                    glossary_terms = self.parent_app.get_ai_inject_glossary_terms() if hasattr(self.parent_app, 'get_ai_inject_glossary_terms') else []
                     full_prompt = self.prompt_manager.build_final_prompt(
                         source_text=first_segment.source,
                         source_lang=source_lang,
                         target_lang=target_lang,
-                        mode="single"
+                        mode="single",
+                        glossary_terms=glossary_terms
                     )
                     # Extract just the instruction part
                     if "**SOURCE TEXT:**" in full_prompt:
@@ -6308,6 +6314,10 @@ class SupervertalerQt(QMainWindow):
         # TM Metadata Manager - needed for TM list in Superlookup
         from modules.tm_metadata_manager import TMMetadataManager
         self.tm_metadata_mgr = TMMetadataManager(self.db_manager, self.log)
+
+        # Termbase Manager - needed for glossary AI injection
+        from modules.termbase_manager import TermbaseManager
+        self.termbase_mgr = TermbaseManager(self.db_manager, self.log)
         
         # Spellcheck Manager for target language spell checking
         self.spellcheck_manager = get_spellcheck_manager(str(self.user_data_path))
@@ -12750,7 +12760,8 @@ class SupervertalerQt(QMainWindow):
             "💡 <b>Glossaries</b><br>"
             "• <b>Read</b> (green ✓): Glossary is used for terminology matching<br>"
             "• <b>Write</b> (blue ✓): Glossary is updated with new terms<br>"
-            "• <b>Priority</b>: Manually set 1-N (lower = higher priority). Multiple glossaries can share same priority. Priority #1 = Project Glossary."
+            "• <b>Priority</b>: Manually set 1-N (lower = higher priority). Priority #1 = Project Glossary.<br>"
+            "• <b>AI</b> (orange ✓): Send glossary terms to LLM with every translation (increases prompt size)"
         )
         help_msg.setWordWrap(True)
         help_msg.setStyleSheet("background-color: #e3f2fd; padding: 8px; border-radius: 4px; color: #1976d2;")
@@ -12772,8 +12783,8 @@ class SupervertalerQt(QMainWindow):
         # Termbase list with table
         termbase_table = QTableWidget()
         self.termbase_table = termbase_table  # Store for external access (Superlookup navigation)
-        termbase_table.setColumnCount(7)
-        termbase_table.setHorizontalHeaderLabels(["Type", "Name", "Languages", "Terms", "Read", "Write", "Priority"])
+        termbase_table.setColumnCount(8)
+        termbase_table.setHorizontalHeaderLabels(["Type", "Name", "Languages", "Terms", "Read", "Write", "Priority", "AI"])
         termbase_table.horizontalHeader().setStretchLastSection(False)
         termbase_table.setColumnWidth(0, 80)   # Type (Project/Background)
         termbase_table.setColumnWidth(1, 180)  # Name
@@ -12782,6 +12793,7 @@ class SupervertalerQt(QMainWindow):
         termbase_table.setColumnWidth(4, 50)   # Read checkbox
         termbase_table.setColumnWidth(5, 50)   # Write checkbox
         termbase_table.setColumnWidth(6, 60)   # Priority
+        termbase_table.setColumnWidth(7, 40)   # AI checkbox
         termbase_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         termbase_table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
         termbase_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)  # Disable inline editing
@@ -13475,7 +13487,43 @@ class SupervertalerQt(QMainWindow):
                     priority_item.setToolTip("No priority - glossary not readable")
                     priority_item.setFlags(priority_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
                     termbase_table.setItem(row, 6, priority_item)
-            
+
+                # AI checkbox (purple/orange) - whether to inject terms into LLM prompts
+                ai_enabled = termbase_mgr.get_termbase_ai_inject(tb['id'])
+                ai_checkbox = OrangeCheckmarkCheckBox()
+                ai_checkbox.setChecked(ai_enabled)
+                ai_checkbox.setToolTip("AI: Send glossary terms to LLM with translation prompts")
+
+                def on_ai_toggle(checked, tb_id=tb['id'], tb_name=tb['name']):
+                    if checked:
+                        # Show warning when enabling
+                        from PyQt6.QtWidgets import QMessageBox
+                        msg = QMessageBox()
+                        msg.setWindowTitle("Enable AI Injection")
+                        msg.setText(f"Enable AI injection for '{tb_name}'?")
+                        msg.setInformativeText(
+                            "When enabled, ALL terms from this glossary will be sent to the LLM "
+                            "with every translation request.\n\n"
+                            "This increases prompt size and API costs, but helps the AI "
+                            "use your preferred terminology.\n\n"
+                            "Recommended for small, curated glossaries (< 500 terms)."
+                        )
+                        msg.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+                        msg.setDefaultButton(QMessageBox.StandardButton.Yes)
+                        if msg.exec() != QMessageBox.StandardButton.Yes:
+                            # User cancelled - revert checkbox
+                            sender = termbase_table.cellWidget(termbase_table.currentRow(), 7)
+                            if sender:
+                                sender.blockSignals(True)
+                                sender.setChecked(False)
+                                sender.blockSignals(False)
+                            return
+                    termbase_mgr.set_termbase_ai_inject(tb_id, checked)
+                    self.log(f"{'✅ Enabled' if checked else '❌ Disabled'} AI injection for glossary: {tb_name}")
+
+                ai_checkbox.toggled.connect(on_ai_toggle)
+                termbase_table.setCellWidget(row, 7, ai_checkbox)
+
             # Update header checkbox states based on current selection
             tb_read_header_checkbox.blockSignals(True)
             tb_write_header_checkbox.blockSignals(True)
@@ -31565,9 +31613,14 @@ class SupervertalerQt(QMainWindow):
         
         # Get source text
         source_text = current_segment.source
-        
+
+        # Get glossary terms for AI injection
+        glossary_terms = self.get_ai_inject_glossary_terms()
+
         # Build combined prompt
-        combined = self.prompt_manager_qt.build_final_prompt(source_text, source_lang, target_lang)
+        combined = self.prompt_manager_qt.build_final_prompt(
+            source_text, source_lang, target_lang, glossary_terms=glossary_terms
+        )
         
         # Check for figure/image context
         figure_info = ""
@@ -31594,11 +31647,14 @@ class SupervertalerQt(QMainWindow):
         composition_parts.append(f"📏 Total prompt: {len(combined):,} characters")
         
         if self.prompt_manager_qt.library.active_primary_prompt:
-            composition_parts.append(f"✓ Primary prompt attached")
+            composition_parts.append(f"✓ Custom prompt attached")
         
         if self.prompt_manager_qt.library.attached_prompts:
             composition_parts.append(f"✓ {len(self.prompt_manager_qt.library.attached_prompts)} additional prompt(s) attached")
-        
+
+        if glossary_terms:
+            composition_parts.append(f"📚 {len(glossary_terms)} glossary term(s) injected")
+
         if figure_info:
             composition_parts.append(figure_info)
         
@@ -31633,12 +31689,59 @@ class SupervertalerQt(QMainWindow):
             image_notice.setStyleSheet("padding: 10px; border-radius: 4px; margin-bottom: 10px; border-left: 4px solid #ff9800;")
             layout.addWidget(image_notice)
         
-        # Text editor for preview
+        # Text editor for preview with syntax highlighting
         text_edit = QTextEdit()
-        text_edit.setPlainText(combined)
         text_edit.setReadOnly(True)
         text_edit.setLineWrapMode(QTextEdit.LineWrapMode.WidgetWidth)
         text_edit.setStyleSheet("font-family: 'Consolas', 'Courier New', monospace; font-size: 9pt;")
+
+        # Format the prompt with color highlighting
+        import html
+        import re
+
+        # Escape HTML entities first
+        formatted_html = html.escape(combined)
+
+        # Replace newlines with <br> for HTML
+        formatted_html = formatted_html.replace('\n', '<br>')
+
+        # Make "# SYSTEM PROMPT" bold and red
+        formatted_html = re.sub(
+            r'(#\s*SYSTEM\s*PROMPT)',
+            r'<span style="color: #d32f2f; font-weight: bold; font-size: 11pt;">\1</span>',
+            formatted_html,
+            flags=re.IGNORECASE
+        )
+
+        # Make "# CUSTOM PROMPT" bold and red
+        formatted_html = re.sub(
+            r'(#\s*CUSTOM\s*PROMPT)',
+            r'<span style="color: #d32f2f; font-weight: bold; font-size: 11pt;">\1</span>',
+            formatted_html,
+            flags=re.IGNORECASE
+        )
+
+        # Make "# GLOSSARY" bold and orange
+        formatted_html = re.sub(
+            r'(#\s*GLOSSARY)',
+            r'<span style="color: #FF9800; font-weight: bold; font-size: 11pt;">\1</span>',
+            formatted_html,
+            flags=re.IGNORECASE
+        )
+
+        # Make source text section blue (pattern: "XX text:<br>..." until double line break or # header)
+        # Match language code + " text:" followed by content until "# " or end
+        formatted_html = re.sub(
+            r'(\w{2,5}\s+text:)(<br>)(.*?)(<br><br>(?:#|\*\*YOUR TRANSLATION)|$)',
+            r'<span style="color: #1565c0; font-weight: bold;">\1</span>\2<span style="color: #1565c0;">\3</span>\4',
+            formatted_html,
+            flags=re.DOTALL
+        )
+
+        # Wrap in pre-like styling div
+        formatted_html = f'<div style="font-family: Consolas, Courier New, monospace; white-space: pre-wrap;">{formatted_html}</div>'
+
+        text_edit.setHtml(formatted_html)
         layout.addWidget(text_edit, 1)
         
         # Close button
@@ -35380,7 +35483,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                     primary_prompt_text = f"✅ {prompt_path}"
             attached_count = len(library.attached_prompt_paths) if library.attached_prompt_paths else 0
         
-        ai_layout.addWidget(QLabel(f"<b>Primary Prompt:</b> {primary_prompt_text}"))
+        ai_layout.addWidget(QLabel(f"<b>Custom Prompt:</b> {primary_prompt_text}"))
         if attached_count > 0:
             ai_layout.addWidget(QLabel(f"<b>Attached Prompts:</b> {attached_count}"))
         
@@ -40466,13 +40569,17 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                         except Exception as e:
                             self.log(f"⚠ Could not add surrounding segments: {e}")
                     
+                    # Get glossary terms for AI injection
+                    glossary_terms = self.get_ai_inject_glossary_terms()
+
                     custom_prompt = self.prompt_manager_qt.build_final_prompt(
                         source_text=segment.source,
                         source_lang=self.current_project.source_lang,
                         target_lang=self.current_project.target_lang,
-                        mode="single"
+                        mode="single",
+                        glossary_terms=glossary_terms
                     )
-                    
+
                     # Add surrounding context before the translation delimiter
                     if surrounding_context:
                         # Insert before the "YOUR TRANSLATION" delimiter
@@ -42023,11 +42130,14 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                     if hasattr(self, 'prompt_manager_qt') and self.prompt_manager_qt and batch_segments:
                         try:
                             first_segment = batch_segments[0][1]
+                            # Get glossary terms for AI injection
+                            glossary_terms = self.get_ai_inject_glossary_terms()
                             base_prompt = self.prompt_manager_qt.build_final_prompt(
                                 source_text=first_segment.source,
                                 source_lang=source_lang,
                                 target_lang=target_lang,
-                                mode="single"
+                                mode="single",
+                                glossary_terms=glossary_terms
                             )
                             if "**SOURCE TEXT:**" in base_prompt:
                                 base_prompt = base_prompt.split("**SOURCE TEXT:**")[0].strip()
@@ -42455,11 +42565,14 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                     # Access parent through closure
                     parent = self
                     if hasattr(parent, 'prompt_manager_qt') and parent.prompt_manager_qt:
+                        # Get glossary terms for AI injection
+                        glossary_terms = parent.get_ai_inject_glossary_terms() if hasattr(parent, 'get_ai_inject_glossary_terms') else []
                         custom_prompt = parent.prompt_manager_qt.build_final_prompt(
                             source_text=source_text,
                             source_lang=source_lang,
                             target_lang=target_lang,
-                            mode="single"
+                            mode="single",
+                            glossary_terms=glossary_terms
                         )
                 except Exception as e:
                     self.log(f"⚠ Could not build LLM prompt from manager: {e}")
@@ -42942,7 +43055,22 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             api_keys['google'] = api_keys['gemini']
         
         return api_keys
-    
+
+    def get_ai_inject_glossary_terms(self) -> list:
+        """Get glossary terms from AI-inject-enabled termbases for the current project.
+
+        Returns:
+            List of term dictionaries with source_term, target_term, forbidden keys
+        """
+        if not hasattr(self, 'termbase_mgr') or not self.termbase_mgr:
+            return []
+
+        project_id = None
+        if hasattr(self, 'current_project') and self.current_project:
+            project_id = getattr(self.current_project, 'id', None)
+
+        return self.termbase_mgr.get_ai_inject_terms(project_id)
+
     def ensure_example_api_keys(self):
         """Create example API keys file on first launch for new users"""
         example_file = self.user_data_path / "api_keys.example.txt"
@@ -48257,7 +48385,87 @@ class BlueCheckmarkCheckBox(QCheckBox):
                 
                 painter.drawLine(QPointF(check_x2, check_y2), QPointF(check_x3, check_y3))
                 painter.drawLine(QPointF(check_x1, check_y1), QPointF(check_x2, check_y2))
-                
+
+                painter.end()
+
+
+class OrangeCheckmarkCheckBox(QCheckBox):
+    """Custom checkbox with orange background and white checkmark when checked (for AI injection)"""
+
+    def __init__(self, text="", parent=None):
+        super().__init__(text, parent)
+        self.setCheckable(True)
+        self.setEnabled(True)
+        self.setStyleSheet("""
+            QCheckBox {
+                font-size: 9pt;
+                spacing: 6px;
+            }
+            QCheckBox::indicator {
+                width: 16px;
+                height: 16px;
+                border: 2px solid #999;
+                border-radius: 3px;
+                background-color: white;
+            }
+            QCheckBox::indicator:checked {
+                background-color: #FF9800;
+                border-color: #FF9800;
+            }
+            QCheckBox::indicator:hover {
+                border-color: #666;
+            }
+            QCheckBox::indicator:checked:hover {
+                background-color: #F57C00;
+                border-color: #F57C00;
+            }
+        """)
+
+    def paintEvent(self, event):
+        """Override paint event to draw white checkmark when checked"""
+        super().paintEvent(event)
+
+        if self.isChecked():
+            from PyQt6.QtWidgets import QStyleOptionButton
+            from PyQt6.QtGui import QPainter, QPen, QColor
+            from PyQt6.QtCore import QPointF
+
+            opt = QStyleOptionButton()
+            self.initStyleOption(opt)
+            indicator_rect = self.style().subElementRect(
+                self.style().SubElement.SE_CheckBoxIndicator,
+                opt,
+                self
+            )
+
+            if indicator_rect.isValid():
+                painter = QPainter(self)
+                painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+                pen_width = max(2.0, min(indicator_rect.width(), indicator_rect.height()) * 0.12)
+                painter.setPen(QPen(QColor(255, 255, 255), pen_width, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin))
+                painter.setBrush(QColor(255, 255, 255))
+
+                x = indicator_rect.x()
+                y = indicator_rect.y()
+                w = indicator_rect.width()
+                h = indicator_rect.height()
+
+                padding = min(w, h) * 0.15
+                x += padding
+                y += padding
+                w -= padding * 2
+                h -= padding * 2
+
+                check_x1 = x + w * 0.10
+                check_y1 = y + h * 0.50
+                check_x2 = x + w * 0.35
+                check_y2 = y + h * 0.70
+                check_x3 = x + w * 0.90
+                check_y3 = y + h * 0.25
+
+                painter.drawLine(QPointF(check_x2, check_y2), QPointF(check_x3, check_y3))
+                painter.drawLine(QPointF(check_x1, check_y1), QPointF(check_x2, check_y2))
+
                 painter.end()
 
 
