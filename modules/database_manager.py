@@ -1477,120 +1477,225 @@ class DatabaseManager:
         # TODO: Implement in Phase 3
         pass
     
-    def search_termbases(self, search_term: str, source_lang: str = None, 
+    def search_termbases(self, search_term: str, source_lang: str = None,
                         target_lang: str = None, project_id: str = None,
-                        min_length: int = 0) -> List[Dict]:
+                        min_length: int = 0, bidirectional: bool = True) -> List[Dict]:
         """
-        Search termbases for matching source terms
-        
+        Search termbases for matching terms (bidirectional by default)
+
         Args:
-            search_term: Source term to search for
+            search_term: Term to search for
             source_lang: Filter by source language (optional)
             target_lang: Filter by target language (optional)
             project_id: Filter by project (optional)
             min_length: Minimum term length to return
-            
+            bidirectional: If True, also search target_term and swap results (default True)
+
         Returns:
             List of termbase hits, sorted by priority (lower = higher priority)
+            Each result includes 'match_direction' ('source' or 'target') indicating
+            which column matched. For 'target' matches, source_term and target_term
+            are swapped so results are always oriented correctly for the current project.
         """
         # Build query with filters - include termbase name and ranking via JOIN
         # Note: termbase_id is stored as TEXT in termbase_terms but INTEGER in termbases
         # Use CAST to ensure proper comparison
         # IMPORTANT: Join with termbase_activation to get the ACTUAL priority for this project
         # CRITICAL FIX: Also match when search_term starts with the glossary term
-        # This handles cases like searching for "ca." when glossary has "ca." 
+        # This handles cases like searching for "ca." when glossary has "ca."
         # AND searching for "ca" when glossary has "ca."
         # We also strip trailing punctuation from glossary terms for comparison
-        query = """
-            SELECT 
-                t.id, t.source_term, t.target_term, t.termbase_id, t.priority, 
+
+        # Build matching conditions for a given column
+        def build_match_conditions(column: str) -> str:
+            return f"""(
+                LOWER(t.{column}) = LOWER(?) OR
+                LOWER(t.{column}) LIKE LOWER(?) OR
+                LOWER(t.{column}) LIKE LOWER(?) OR
+                LOWER(t.{column}) LIKE LOWER(?) OR
+                LOWER(RTRIM(t.{column}, '.!?,;:')) = LOWER(?) OR
+                LOWER(?) LIKE LOWER(t.{column}) || '%' OR
+                LOWER(?) = LOWER(RTRIM(t.{column}, '.!?,;:'))
+            )"""
+
+        # Build match params for one direction
+        def build_match_params() -> list:
+            return [
+                search_term,
+                f"{search_term} %",
+                f"% {search_term}",
+                f"% {search_term} %",
+                search_term,  # For RTRIM comparison
+                search_term,  # For reverse LIKE
+                search_term   # For reverse RTRIM comparison
+            ]
+
+        # Matching patterns:
+        # 1. Exact match: column = search_term
+        # 2. Glossary term starts with search: column LIKE "search_term %"
+        # 3. Glossary term ends with search: column LIKE "% search_term"
+        # 4. Glossary term contains search: column LIKE "% search_term %"
+        # 5. Glossary term (stripped) = search_term: RTRIM(column) = search_term (handles "ca." = "ca")
+        # 6. Search starts with glossary term: search_term LIKE column || '%'
+        # 7. Search = glossary term stripped: search_term = RTRIM(column)
+
+        # Base SELECT for forward matches (source_term matches)
+        base_select_forward = """
+            SELECT
+                t.id, t.source_term, t.target_term, t.termbase_id, t.priority,
                 t.forbidden, t.source_lang, t.target_lang, t.definition, t.domain,
                 t.notes, t.project, t.client,
                 tb.name as termbase_name,
                 tb.source_lang as termbase_source_lang,
                 tb.target_lang as termbase_target_lang,
                 tb.is_project_termbase,
-                COALESCE(ta.priority, tb.ranking) as ranking
+                COALESCE(ta.priority, tb.ranking) as ranking,
+                'source' as match_direction
             FROM termbase_terms t
             LEFT JOIN termbases tb ON CAST(t.termbase_id AS INTEGER) = tb.id
             LEFT JOIN termbase_activation ta ON ta.termbase_id = tb.id AND ta.project_id = ? AND ta.is_active = 1
-            WHERE (
-                LOWER(t.source_term) = LOWER(?) OR 
-                LOWER(t.source_term) LIKE LOWER(?) OR 
-                LOWER(t.source_term) LIKE LOWER(?) OR 
-                LOWER(t.source_term) LIKE LOWER(?) OR
-                LOWER(RTRIM(t.source_term, '.!?,;:')) = LOWER(?) OR
-                LOWER(?) LIKE LOWER(t.source_term) || '%' OR
-                LOWER(?) = LOWER(RTRIM(t.source_term, '.!?,;:'))
-            )
+            WHERE {match_conditions}
             AND (ta.is_active = 1 OR tb.is_project_termbase = 1)
-        """
-        # Matching patterns:
-        # 1. Exact match: source_term = search_term
-        # 2. Glossary term starts with search: source_term LIKE "search_term %"
-        # 3. Glossary term ends with search: source_term LIKE "% search_term"
-        # 4. Glossary term contains search: source_term LIKE "% search_term %"
-        # 5. Glossary term (stripped) = search_term: RTRIM(source_term) = search_term (handles "ca." = "ca")
-        # 6. Search starts with glossary term: search_term LIKE source_term || '%' 
-        # 7. Search = glossary term stripped: search_term = RTRIM(source_term)
-        params = [
-            project_id if project_id else 0,  # Use 0 if no project (won't match any activation records)
-            search_term,
-            f"{search_term} %",
-            f"% {search_term}",
-            f"% {search_term} %",
-            search_term,  # For RTRIM comparison
-            search_term,  # For reverse LIKE
-            search_term   # For reverse RTRIM comparison
-        ]
-        
-        # Language filters - if term has no language, use termbase language for filtering
+        """.format(match_conditions=build_match_conditions('source_term'))
+
+        # Base SELECT for reverse matches (target_term matches) - swap source/target in output
+        base_select_reverse = """
+            SELECT
+                t.id, t.target_term as source_term, t.source_term as target_term,
+                t.termbase_id, t.priority,
+                t.forbidden, t.target_lang as source_lang, t.source_lang as target_lang,
+                t.definition, t.domain,
+                t.notes, t.project, t.client,
+                tb.name as termbase_name,
+                tb.target_lang as termbase_source_lang,
+                tb.source_lang as termbase_target_lang,
+                tb.is_project_termbase,
+                COALESCE(ta.priority, tb.ranking) as ranking,
+                'target' as match_direction
+            FROM termbase_terms t
+            LEFT JOIN termbases tb ON CAST(t.termbase_id AS INTEGER) = tb.id
+            LEFT JOIN termbase_activation ta ON ta.termbase_id = tb.id AND ta.project_id = ? AND ta.is_active = 1
+            WHERE {match_conditions}
+            AND (ta.is_active = 1 OR tb.is_project_termbase = 1)
+        """.format(match_conditions=build_match_conditions('target_term'))
+
+        # Build params
+        project_param = project_id if project_id else 0
+        forward_params = [project_param] + build_match_params()
+        reverse_params = [project_param] + build_match_params()
+
+        # Build language filter conditions
+        lang_conditions_forward = ""
+        lang_conditions_reverse = ""
+        lang_params_forward = []
+        lang_params_reverse = []
+
         if source_lang:
-            query += """ AND (
-                t.source_lang = ? OR 
+            # For forward: filter on source_lang
+            lang_conditions_forward += """ AND (
+                t.source_lang = ? OR
                 (t.source_lang IS NULL AND tb.source_lang = ?) OR
                 (t.source_lang IS NULL AND tb.source_lang IS NULL)
             )"""
-            params.extend([source_lang, source_lang])
-        
-        if target_lang:
-            query += """ AND (
-                t.target_lang = ? OR 
+            lang_params_forward.extend([source_lang, source_lang])
+            # For reverse: source_lang becomes target_lang (swapped)
+            lang_conditions_reverse += """ AND (
+                t.target_lang = ? OR
                 (t.target_lang IS NULL AND tb.target_lang = ?) OR
                 (t.target_lang IS NULL AND tb.target_lang IS NULL)
             )"""
-            params.extend([target_lang, target_lang])
-        
-        # Project filter: match project-specific terms OR global terms (project_id IS NULL)
+            lang_params_reverse.extend([source_lang, source_lang])
+
+        if target_lang:
+            # For forward: filter on target_lang
+            lang_conditions_forward += """ AND (
+                t.target_lang = ? OR
+                (t.target_lang IS NULL AND tb.target_lang = ?) OR
+                (t.target_lang IS NULL AND tb.target_lang IS NULL)
+            )"""
+            lang_params_forward.extend([target_lang, target_lang])
+            # For reverse: target_lang becomes source_lang (swapped)
+            lang_conditions_reverse += """ AND (
+                t.source_lang = ? OR
+                (t.source_lang IS NULL AND tb.source_lang = ?) OR
+                (t.source_lang IS NULL AND tb.source_lang IS NULL)
+            )"""
+            lang_params_reverse.extend([target_lang, target_lang])
+
+        # Project filter conditions
+        project_conditions = ""
+        project_params = []
         if project_id:
-            query += " AND (t.project_id = ? OR t.project_id IS NULL)"
-            params.append(project_id)
-        
+            project_conditions = " AND (t.project_id = ? OR t.project_id IS NULL)"
+            project_params = [project_id]
+
+        # Min length conditions
+        min_len_forward = ""
+        min_len_reverse = ""
         if min_length > 0:
-            query += f" AND LENGTH(t.source_term) >= {min_length}"
-        
-        # Sort by ranking (lower number = higher priority)
-        # Project termbases (ranking IS NULL) appear first, then by ranking, then alphabetically
-        # Use COALESCE to treat NULL as -1 (highest priority)
-        query += " ORDER BY COALESCE(tb.ranking, -1) ASC, t.source_term ASC"
-        
+            min_len_forward = f" AND LENGTH(t.source_term) >= {min_length}"
+            min_len_reverse = f" AND LENGTH(t.target_term) >= {min_length}"
+
+        # Build forward query
+        forward_query = base_select_forward + lang_conditions_forward + project_conditions + min_len_forward
+        forward_params.extend(lang_params_forward)
+        forward_params.extend(project_params)
+
+        if bidirectional:
+            # Build reverse query
+            reverse_query = base_select_reverse + lang_conditions_reverse + project_conditions + min_len_reverse
+            reverse_params.extend(lang_params_reverse)
+            reverse_params.extend(project_params)
+
+            # Combine with UNION and sort
+            query = f"""
+                SELECT * FROM (
+                    {forward_query}
+                    UNION ALL
+                    {reverse_query}
+                ) combined
+                ORDER BY COALESCE(ranking, -1) ASC, source_term ASC
+            """
+            params = forward_params + reverse_params
+        else:
+            # Original forward-only behavior
+            query = forward_query + " ORDER BY COALESCE(ranking, -1) ASC, source_term ASC"
+            params = forward_params
+
         self.cursor.execute(query, params)
         results = []
+        seen_combinations = set()  # Track (source_term, target_term, termbase_id) to avoid duplicates
+
         for row in self.cursor.fetchall():
             result_dict = dict(row)
+
+            # Deduplicate: same term pair from same termbase should only appear once
+            # Prefer 'source' match over 'target' match
+            combo_key = (
+                result_dict.get('source_term', '').lower(),
+                result_dict.get('target_term', '').lower(),
+                result_dict.get('termbase_id')
+            )
+            if combo_key in seen_combinations:
+                continue
+            seen_combinations.add(combo_key)
+
             # SQLite stores booleans as 0/1, explicitly convert to Python bool
             if 'is_project_termbase' in result_dict:
                 result_dict['is_project_termbase'] = bool(result_dict['is_project_termbase'])
-            
+
             # Fetch target synonyms for this term and include them in the result
             term_id = result_dict.get('id')
+            match_direction = result_dict.get('match_direction', 'source')
             if term_id:
                 try:
+                    # For reverse matches, fetch 'source' synonyms since they become targets
+                    synonym_lang = 'source' if match_direction == 'target' else 'target'
                     self.cursor.execute("""
                         SELECT synonym_text, forbidden FROM termbase_synonyms
-                        WHERE term_id = ? AND language = 'target'
+                        WHERE term_id = ? AND language = ?
                         ORDER BY display_order ASC
-                    """, (term_id,))
+                    """, (term_id, synonym_lang))
                     synonyms = []
                     for syn_row in self.cursor.fetchall():
                         syn_text = syn_row[0]
@@ -1600,7 +1705,7 @@ class DatabaseManager:
                     result_dict['target_synonyms'] = synonyms
                 except Exception:
                     result_dict['target_synonyms'] = []
-            
+
             results.append(result_dict)
         return results
     

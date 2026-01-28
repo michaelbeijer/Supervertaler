@@ -22319,20 +22319,24 @@ class SupervertalerQt(QMainWindow):
         """
         Search termbases using a provided cursor (thread-safe for background threads).
         This method allows background workers to query the database without SQLite threading errors.
-        
+
+        Implements BIDIRECTIONAL matching: searches both source_term and target_term columns.
+        When a match is found on target_term, source and target are swapped in the result.
+        This matches memoQ/Trados behavior where a NL→EN termbase also works for EN→NL projects.
+
         Args:
             source_text: The source text to search for
             cursor: A database cursor from a thread-local connection
             source_lang: Source language code
             target_lang: Target language code
             project_id: Current project ID (required to filter by activated termbases)
-        
+
         Returns:
             Dictionary of {term: translation} matches
         """
         if not source_text or not cursor:
             return {}
-        
+
         try:
             # Convert language names to codes (match interactive search logic)
             source_lang_code = self._convert_language_to_code(source_lang) if source_lang else None
@@ -22352,20 +22356,26 @@ class SupervertalerQt(QMainWindow):
                 try:
                     # JOIN termbases AND termbase_activation to filter by activated termbases
                     # This matches the logic in database_manager.py search_termbases()
+                    # BIDIRECTIONAL: Search both source_term (forward) and target_term (reverse)
+                    # Using UNION to combine both directions
                     query = """
-                        SELECT 
-                            t.id, t.source_term, t.target_term, t.termbase_id, t.priority,
-                            t.domain, t.notes, t.project, t.client, t.forbidden,
-                            tb.is_project_termbase, tb.name as termbase_name, 
-                            COALESCE(ta.priority, tb.ranking) as ranking
-                        FROM termbase_terms t
-                        LEFT JOIN termbases tb ON CAST(t.termbase_id AS INTEGER) = tb.id
-                        LEFT JOIN termbase_activation ta ON ta.termbase_id = tb.id AND ta.project_id = ? AND ta.is_active = 1
-                        WHERE LOWER(t.source_term) LIKE ?
-                        AND (ta.is_active = 1 OR tb.is_project_termbase = 1)
+                        SELECT * FROM (
+                            -- Forward match: search source_term
+                            SELECT
+                                t.id, t.source_term, t.target_term, t.termbase_id, t.priority,
+                                t.domain, t.notes, t.project, t.client, t.forbidden,
+                                tb.is_project_termbase, tb.name as termbase_name,
+                                COALESCE(ta.priority, tb.ranking) as ranking,
+                                'source' as match_direction
+                            FROM termbase_terms t
+                            LEFT JOIN termbases tb ON CAST(t.termbase_id AS INTEGER) = tb.id
+                            LEFT JOIN termbase_activation ta ON ta.termbase_id = tb.id AND ta.project_id = ? AND ta.is_active = 1
+                            WHERE LOWER(t.source_term) LIKE ?
+                            AND (ta.is_active = 1 OR tb.is_project_termbase = 1)
                     """
                     params = [project_id if project_id else 0, f"%{clean_word.lower()}%"]
 
+                    # Language filters for forward query
                     if source_lang_code:
                         query += " AND (t.source_lang = ? OR (t.source_lang IS NULL AND tb.source_lang = ?) OR (t.source_lang IS NULL AND tb.source_lang IS NULL))"
                         params.extend([source_lang_code, source_lang_code])
@@ -22373,15 +22383,45 @@ class SupervertalerQt(QMainWindow):
                         query += " AND (t.target_lang = ? OR (t.target_lang IS NULL AND tb.target_lang = ?) OR (t.target_lang IS NULL AND tb.target_lang IS NULL))"
                         params.extend([target_lang_code, target_lang_code])
 
-                    # Limit raw hits per word to keep batch worker light
-                    query += " LIMIT 15"
+                    # Reverse match: search target_term, swap source/target in output
+                    query += """
+                            UNION ALL
+                            -- Reverse match: search target_term, swap columns
+                            SELECT
+                                t.id, t.target_term as source_term, t.source_term as target_term,
+                                t.termbase_id, t.priority,
+                                t.domain, t.notes, t.project, t.client, t.forbidden,
+                                tb.is_project_termbase, tb.name as termbase_name,
+                                COALESCE(ta.priority, tb.ranking) as ranking,
+                                'target' as match_direction
+                            FROM termbase_terms t
+                            LEFT JOIN termbases tb ON CAST(t.termbase_id AS INTEGER) = tb.id
+                            LEFT JOIN termbase_activation ta ON ta.termbase_id = tb.id AND ta.project_id = ? AND ta.is_active = 1
+                            WHERE LOWER(t.target_term) LIKE ?
+                            AND (ta.is_active = 1 OR tb.is_project_termbase = 1)
+                    """
+                    params.extend([project_id if project_id else 0, f"%{clean_word.lower()}%"])
+
+                    # Language filters for reverse query (swapped)
+                    if source_lang_code:
+                        # For reverse: source_lang filters target_lang column
+                        query += " AND (t.target_lang = ? OR (t.target_lang IS NULL AND tb.target_lang = ?) OR (t.target_lang IS NULL AND tb.target_lang IS NULL))"
+                        params.extend([source_lang_code, source_lang_code])
+                    if target_lang_code:
+                        # For reverse: target_lang filters source_lang column
+                        query += " AND (t.source_lang = ? OR (t.source_lang IS NULL AND tb.source_lang = ?) OR (t.source_lang IS NULL AND tb.source_lang IS NULL))"
+                        params.extend([target_lang_code, target_lang_code])
+
+                    # Close UNION and limit
+                    query += ") combined LIMIT 30"
                     cursor.execute(query, params)
                     results = cursor.fetchall()
 
                     for row in results:
-                        # Uniform access
+                        # Uniform access (columns are already swapped for reverse matches)
                         source_term = row[1] if isinstance(row, tuple) else row['source_term']
                         target_term = row[2] if isinstance(row, tuple) else row['target_term']
+                        match_direction = row[13] if isinstance(row, tuple) else row.get('match_direction', 'source')
                         if not source_term or not target_term:
                             continue
 
@@ -22405,8 +22445,10 @@ class SupervertalerQt(QMainWindow):
                         existing = matches.get(source_term.strip())
                         # Deduplicate: keep numerically lowest ranking (highest priority)
                         # For project termbases, ranking is None so they always win
+                        # Also prefer 'source' matches over 'target' matches when equal
                         if existing:
                             existing_ranking = existing.get('ranking', None)
+                            existing_direction = existing.get('match_direction', 'source')
                             if is_project_tb:
                                 # Project termbase always wins
                                 pass
@@ -22415,8 +22457,12 @@ class SupervertalerQt(QMainWindow):
                                 continue
                             elif existing_ranking is not None and ranking is not None:
                                 # Both have rankings, keep lower (higher priority)
-                                if existing_ranking <= ranking:
+                                if existing_ranking < ranking:
                                     continue
+                                elif existing_ranking == ranking:
+                                    # Same ranking: prefer source match over target match
+                                    if existing_direction == 'source' and match_direction == 'target':
+                                        continue
 
                         matches[source_term.strip()] = {
                             'translation': target_term.strip(),
@@ -22431,15 +22477,18 @@ class SupervertalerQt(QMainWindow):
                             'forbidden': forbidden or False,
                             'is_project_termbase': bool(is_project_tb),
                             'termbase_name': termbase_name or '',
-                            'target_synonyms': []  # Will be populated below
+                            'target_synonyms': [],  # Will be populated below
+                            'match_direction': match_direction  # Track if this was a reverse match
                         }
-                        
+
                         # Fetch synonyms for this term
+                        # For reverse matches, fetch 'source' synonyms since they become targets
                         try:
+                            synonym_lang = 'source' if match_direction == 'target' else 'target'
                             cursor.execute("""
-                                SELECT synonym_text FROM termbase_synonyms 
-                                WHERE term_id = ? AND language = 'target' AND forbidden = 0
-                            """, (term_id,))
+                                SELECT synonym_text FROM termbase_synonyms
+                                WHERE term_id = ? AND language = ? AND forbidden = 0
+                            """, (term_id, synonym_lang))
                             synonym_rows = cursor.fetchall()
                             for syn_row in synonym_rows:
                                 synonym = syn_row[0] if isinstance(syn_row, tuple) else syn_row['synonym_text']

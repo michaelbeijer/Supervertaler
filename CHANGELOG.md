@@ -2,9 +2,17 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.176-beta (January 28, 2026)
+**Current Version:** v1.9.177-beta (January 28, 2026)
 
 
+
+## v1.9.177-beta - January 28, 2026
+
+### ✨ New Features
+
+- **Bidirectional Termbase Matching**: Glossaries now work like memoQ and Trados - a termbase created for NL→EN will also find matches when working on EN→NL projects (and vice versa). This "direction-insensitive" behavior means you no longer need separate termbases for different language directions. When a match is found on the target side, source and target are automatically swapped in the results.
+
+---
 
 ## v1.9.176-beta - January 28, 2026
 
