@@ -2,9 +2,23 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.177-beta (January 28, 2026)
+**Current Version:** v1.9.178-beta (January 28, 2026)
 
 
+
+## v1.9.178-beta - January 28, 2026
+
+### 🐛 Bug Fixes
+
+- **Slovak Language in Import Dialogs**: Slovak and other languages were missing from the Trados and Phrase import language dropdowns. Both dialogs now use the full language list matching the main New Project dialog.
+
+- **mqxliff Target Loading for Pretranslated Files**: When importing pretranslated mqxliff files, the target translations were not being loaded. Added new `extract_bilingual_segments()` method to properly extract both source and target text from memoQ XLIFF files.
+
+- **TM Activation for Global TMs**: Fixed issue where TMs created when no project was loaded would not save segments later. The TM activation system now properly handles global activations (project_id=0), so TMs activated before loading a project continue to work after a project is opened.
+
+- **TM Storage Consistency**: The `get_writable_tm_ids`, `get_active_tm_ids`, and `is_tm_active` functions now include globally-activated TMs in addition to project-specific activations.
+
+---
 
 ## v1.9.177-beta - January 28, 2026
 

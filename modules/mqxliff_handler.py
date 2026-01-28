@@ -159,9 +159,78 @@ class MQXLIFFHandler:
                 
                 segment = FormattedSegment(trans_unit_id, plain_text, formatted_xml)
                 segments.append(segment)
-        
+
         return segments
-    
+
+    def extract_bilingual_segments(self) -> List[Dict]:
+        """
+        Extract all source AND target segments from the MQXLIFF file.
+        Used for importing pretranslated mqxliff files.
+
+        Returns:
+            List of dicts with 'id', 'source', 'target', 'status' keys
+        """
+        segments = []
+
+        if self.body_element is None:
+            return segments
+
+        # Find all trans-unit elements (with or without namespace)
+        trans_units = self.body_element.findall('.//xliff:trans-unit', self.NAMESPACES)
+        if not trans_units:
+            trans_units = self.body_element.findall('.//trans-unit')
+
+        for trans_unit in trans_units:
+            trans_unit_id = trans_unit.get('id', 'unknown')
+
+            # Skip auxiliary segments (like hyperlink URLs with mq:nosplitjoin="true")
+            nosplitjoin = trans_unit.get('{MQXliff}nosplitjoin', 'false')
+            if nosplitjoin == 'true':
+                continue
+
+            # Find source element
+            source_elem = trans_unit.find('xliff:source', self.NAMESPACES)
+            if source_elem is None:
+                source_elem = trans_unit.find('source')
+
+            # Find target element
+            target_elem = trans_unit.find('xliff:target', self.NAMESPACES)
+            if target_elem is None:
+                target_elem = trans_unit.find('target')
+
+            source_text = ""
+            target_text = ""
+
+            if source_elem is not None:
+                source_text = self._extract_plain_text(source_elem)
+
+            if target_elem is not None:
+                target_text = self._extract_plain_text(target_elem)
+
+            # Get memoQ status if available
+            mq_status = trans_unit.get('{MQXliff}status', '')
+
+            # Map memoQ status to internal status
+            # memoQ statuses: "NotStarted", "Editing", "Confirmed", "Reviewed", "Rejected", etc.
+            status = 'not_started'
+            if mq_status in ['Confirmed', 'ProofRead', 'Reviewed']:
+                status = 'confirmed'
+            elif mq_status == 'Editing':
+                status = 'translated'
+            elif target_text.strip():
+                # Has target but unknown status - mark as pre-translated
+                status = 'pre_translated'
+
+            segments.append({
+                'id': trans_unit_id,
+                'source': source_text,
+                'target': target_text,
+                'status': status,
+                'mq_status': mq_status
+            })
+
+        return segments
+
     def _extract_plain_text(self, element: ET.Element) -> str:
         """
         Recursively extract plain text from an XML element, stripping all tags.

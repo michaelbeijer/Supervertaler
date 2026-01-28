@@ -10622,7 +10622,11 @@ class SupervertalerQt(QMainWindow):
         button_layout = QHBoxLayout()
         
         create_btn = QPushButton("+ Create New TM")
-        create_btn.clicked.connect(lambda: self._show_create_tm_dialog(tm_metadata_mgr, refresh_tm_list, project_id))
+        # Get project_id dynamically - use 0 (global) when no project is loaded
+        create_btn.clicked.connect(lambda: self._show_create_tm_dialog(
+            tm_metadata_mgr, refresh_tm_list,
+            self.current_project.id if (hasattr(self, 'current_project') and self.current_project and hasattr(self.current_project, 'id')) else 0
+        ))
         button_layout.addWidget(create_btn)
         
         import_btn = QPushButton("📥 Import TMX")
@@ -14974,8 +14978,8 @@ class SupervertalerQt(QMainWindow):
             )
             
             if result:
-                # Auto-activate for current project
-                if project_id:
+                # Auto-activate for current project (or global=0 if no project loaded)
+                if project_id is not None:
                     tm_metadata_mgr.activate_tm(result, project_id)
                 
                 QMessageBox.information(self, "Success", f"Translation Memory '{name}' created successfully!")
@@ -26694,24 +26698,32 @@ class SupervertalerQt(QMainWindow):
                 )
                 return
             
-            # Extract segments
-            mqxliff_segments = handler.extract_source_segments()
-            
+            # Extract segments (including targets for pretranslated files)
+            mqxliff_segments = handler.extract_bilingual_segments()
+
             if not mqxliff_segments:
                 QMessageBox.warning(
                     self, "No Segments",
                     "No segments found in the memoQ XLIFF file."
                 )
                 return
-            
+
+            # Count pretranslated segments
+            pretranslated_count = sum(1 for s in mqxliff_segments if s.get('target', '').strip())
+
             # Convert to internal Segment format
             segments = []
             for i, mq_seg in enumerate(mqxliff_segments):
+                # Map status from mqxliff
+                status = mq_seg.get('status', 'not_started')
+                if status not in ['not_started', 'pre_translated', 'translated', 'confirmed', 'locked']:
+                    status = 'not_started'
+
                 segment = Segment(
                     id=i + 1,
-                    source=mq_seg.plain_text,
-                    target="",
-                    status=DEFAULT_STATUS.key,
+                    source=mq_seg.get('source', ''),
+                    target=mq_seg.get('target', ''),
+                    status=status,
                     notes="",
                 )
                 segments.append(segment)
@@ -26755,11 +26767,17 @@ class SupervertalerQt(QMainWindow):
             # Log success
             self.log(f"✓ Imported {len(segments)} segments from memoQ XLIFF: {Path(file_path).name}")
             self.log(f"  Source: {source_lang}, Target: {target_lang}")
-            
+            if pretranslated_count > 0:
+                self.log(f"  Pretranslated: {pretranslated_count} segments with target text")
+
+            # Build message with pretranslation info
+            msg = f"Successfully imported {len(segments)} segment(s) from memoQ XLIFF.\n\nLanguages: {source_lang} → {target_lang}"
+            if pretranslated_count > 0:
+                msg += f"\n\nPretranslated: {pretranslated_count} segment(s) with target text loaded."
+
             QMessageBox.information(
                 self, "Import Successful",
-                f"Successfully imported {len(segments)} segment(s) from memoQ XLIFF.\n\n"
-                f"Languages: {source_lang} → {target_lang}"
+                msg
             )
         except Exception as e:
             self.log(f"❌ Error importing memoQ XLIFF: {e}")
@@ -27168,7 +27186,19 @@ class SupervertalerQt(QMainWindow):
             source_row = QHBoxLayout()
             source_row.addWidget(QLabel("Source Language:"))
             source_combo = QComboBox()
-            source_combo.addItems(["English", "Dutch", "German", "French", "Spanish", "Italian", "Portuguese", "Polish", "Chinese", "Japanese", "Korean", "Russian"])
+            # Full language list (same as New Project dialog)
+            available_languages = [
+                "Afrikaans", "Albanian", "Arabic", "Armenian", "Basque", "Bengali",
+                "Bulgarian", "Catalan", "Chinese (Simplified)", "Chinese (Traditional)",
+                "Croatian", "Czech", "Danish", "Dutch", "English", "Estonian",
+                "Finnish", "French", "Galician", "Georgian", "German", "Greek",
+                "Hebrew", "Hindi", "Hungarian", "Icelandic", "Indonesian", "Irish",
+                "Italian", "Japanese", "Korean", "Latvian", "Lithuanian", "Macedonian",
+                "Malay", "Norwegian", "Persian", "Polish", "Portuguese", "Romanian",
+                "Russian", "Serbian", "Slovak", "Slovenian", "Spanish", "Swahili",
+                "Swedish", "Thai", "Turkish", "Ukrainian", "Urdu", "Vietnamese", "Welsh"
+            ]
+            source_combo.addItems(available_languages)
             # Try to match current UI selection
             current_source = self.source_lang_combo.currentText() if hasattr(self, 'source_lang_combo') else "English"
             source_idx = source_combo.findText(current_source)
@@ -27176,12 +27206,12 @@ class SupervertalerQt(QMainWindow):
                 source_combo.setCurrentIndex(source_idx)
             source_row.addWidget(source_combo)
             lang_group_layout.addLayout(source_row)
-            
+
             # Target language
             target_row = QHBoxLayout()
             target_row.addWidget(QLabel("Target Language:"))
             target_combo = QComboBox()
-            target_combo.addItems(["English", "Dutch", "German", "French", "Spanish", "Italian", "Portuguese", "Polish", "Chinese", "Japanese", "Korean", "Russian"])
+            target_combo.addItems(available_languages)
             # Try to match current UI selection
             current_target = self.target_lang_combo.currentText() if hasattr(self, 'target_lang_combo') else "Dutch"
             target_idx = target_combo.findText(current_target)
@@ -27189,15 +27219,15 @@ class SupervertalerQt(QMainWindow):
                 target_combo.setCurrentIndex(target_idx)
             target_row.addWidget(target_combo)
             lang_group_layout.addLayout(target_row)
-            
+
             lang_layout.addWidget(lang_group)
-            
+
             # Buttons
             lang_buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
             lang_buttons.accepted.connect(lang_dialog.accept)
             lang_buttons.rejected.connect(lang_dialog.reject)
             lang_layout.addWidget(lang_buttons)
-            
+
             if lang_dialog.exec() != QDialog.DialogCode.Accepted:
                 self.log("✗ User cancelled Trados import during language selection")
                 return
@@ -27848,7 +27878,19 @@ class SupervertalerQt(QMainWindow):
             source_row = QHBoxLayout()
             source_row.addWidget(QLabel("Source Language:"))
             source_combo = QComboBox()
-            source_combo.addItems(["English", "Dutch", "German", "French", "Spanish", "Italian", "Portuguese", "Polish", "Chinese", "Japanese", "Korean", "Russian"])
+            # Full language list (same as New Project dialog)
+            available_languages = [
+                "Afrikaans", "Albanian", "Arabic", "Armenian", "Basque", "Bengali",
+                "Bulgarian", "Catalan", "Chinese (Simplified)", "Chinese (Traditional)",
+                "Croatian", "Czech", "Danish", "Dutch", "English", "Estonian",
+                "Finnish", "French", "Galician", "Georgian", "German", "Greek",
+                "Hebrew", "Hindi", "Hungarian", "Icelandic", "Indonesian", "Irish",
+                "Italian", "Japanese", "Korean", "Latvian", "Lithuanian", "Macedonian",
+                "Malay", "Norwegian", "Persian", "Polish", "Portuguese", "Romanian",
+                "Russian", "Serbian", "Slovak", "Slovenian", "Spanish", "Swahili",
+                "Swedish", "Thai", "Turkish", "Ukrainian", "Urdu", "Vietnamese", "Welsh"
+            ]
+            source_combo.addItems(available_languages)
             # Try to match current UI selection
             current_source = self.source_lang_combo.currentText() if hasattr(self, 'source_lang_combo') else "English"
             source_idx = source_combo.findText(current_source)
@@ -27861,7 +27903,7 @@ class SupervertalerQt(QMainWindow):
             target_row = QHBoxLayout()
             target_row.addWidget(QLabel("Target Language:"))
             target_combo = QComboBox()
-            target_combo.addItems(["English", "Dutch", "German", "French", "Spanish", "Italian", "Portuguese", "Polish", "Chinese", "Japanese", "Korean", "Russian"])
+            target_combo.addItems(available_languages)
             # Try to match current UI selection
             current_target = self.target_lang_combo.currentText() if hasattr(self, 'target_lang_combo') else "Dutch"
             target_idx = target_combo.findText(current_target)

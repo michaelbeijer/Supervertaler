@@ -344,19 +344,22 @@ class TMMetadataManager:
         """Check if a TM is active for a project (or global when project_id=0)"""
         if project_id is None:
             return False  # If None (not 0), default to inactive
-        
+
         try:
             cursor = self.db_manager.cursor
-            
+
+            # Check if TM is active for this project OR globally (project_id=0)
             cursor.execute("""
-                SELECT is_active FROM tm_activation 
-                WHERE tm_id = ? AND project_id = ?
+                SELECT is_active FROM tm_activation
+                WHERE tm_id = ? AND (project_id = ? OR project_id = 0)
+                ORDER BY project_id DESC
             """, (tm_db_id, project_id))
-            
-            row = cursor.fetchone()
-            if row:
-                return bool(row[0])
-            
+
+            # Return True if any activation is active (project-specific takes priority due to ORDER BY)
+            for row in cursor.fetchall():
+                if bool(row[0]):
+                    return True
+
             # If no activation record exists, TM is inactive by default
             return False
         except Exception as e:
@@ -382,15 +385,16 @@ class TMMetadataManager:
         
         try:
             cursor = self.db_manager.cursor
-            
+
             # Only return TMs that have been explicitly activated (is_active = 1)
+            # Include both project-specific activations AND global activations (project_id=0)
             cursor.execute("""
-                SELECT tm.tm_id 
+                SELECT DISTINCT tm.tm_id
                 FROM translation_memories tm
                 INNER JOIN tm_activation ta ON tm.id = ta.tm_id
-                WHERE ta.project_id = ? AND ta.is_active = 1
+                WHERE (ta.project_id = ? OR ta.project_id = 0) AND ta.is_active = 1
             """, (project_id,))
-            
+
             return [row[0] for row in cursor.fetchall()]
         except Exception as e:
             self.log(f"✗ Error fetching active tm_ids: {e}")
@@ -422,16 +426,17 @@ class TMMetadataManager:
         
         try:
             cursor = self.db_manager.cursor
-            
+
             # Return TMs where Write checkbox is enabled (read_only = 0)
-            # AND the TM has an activation record for this project
+            # AND the TM has an activation record for this project OR for global (project_id=0)
+            # This ensures TMs created when no project was loaded still work
             cursor.execute("""
-                SELECT tm.tm_id 
+                SELECT DISTINCT tm.tm_id
                 FROM translation_memories tm
                 INNER JOIN tm_activation ta ON tm.id = ta.tm_id
-                WHERE ta.project_id = ? AND tm.read_only = 0
+                WHERE (ta.project_id = ? OR ta.project_id = 0) AND tm.read_only = 0
             """, (project_id,))
-            
+
             return [row[0] for row in cursor.fetchall()]
         except Exception as e:
             self.log(f"✗ Error fetching writable tm_ids: {e}")
