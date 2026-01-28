@@ -34,7 +34,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.175-beta"
+__version__ = "1.9.176-beta"
 __phase__ = "0.9"
 __release_date__ = "2026-01-28"
 __edition__ = "Qt"
@@ -6435,13 +6435,10 @@ class SupervertalerQt(QMainWindow):
             from PyQt6.QtCore import QTimer
             QTimer.singleShot(2000, lambda: self._check_for_new_models(force=False))  # 2 second delay
         
-        # First-run check - show data location dialog, then Features tab
-        if self._needs_data_location_dialog:
+        # First-run check - show unified setup wizard
+        if self._needs_data_location_dialog or not general_settings.get('first_run_completed', False):
             from PyQt6.QtCore import QTimer
-            QTimer.singleShot(300, self._show_data_location_dialog)
-        elif not general_settings.get('first_run_completed', False):
-            from PyQt6.QtCore import QTimer
-            QTimer.singleShot(500, self._show_first_run_welcome)
+            QTimer.singleShot(300, lambda: self._show_setup_wizard(is_first_run=True))
     
     def _show_data_location_dialog(self):
         """Show dialog to let user choose their data folder location on first run."""
@@ -6672,7 +6669,273 @@ class SupervertalerQt(QMainWindow):
                 self.log("✅ First-run welcome shown (will show again next time)")
         except Exception as e:
             self.log(f"⚠️ First-run welcome error: {e}")
-    
+
+    def _show_setup_wizard(self, is_first_run: bool = False):
+        """
+        Show unified setup wizard that combines data folder selection and features intro.
+
+        Args:
+            is_first_run: If True, this is an automatic first-run trigger. If False, user
+                          manually invoked from menu (skip data folder if already configured).
+        """
+        try:
+            from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel,
+                                         QPushButton, QLineEdit, QFileDialog, QStackedWidget,
+                                         QWidget, QFrame, QCheckBox)
+            from PyQt6.QtCore import Qt
+
+            dialog = QDialog(self)
+            dialog.setWindowTitle("Supervertaler Setup Wizard")
+            dialog.setMinimumWidth(600)
+            dialog.setMinimumHeight(450)
+            dialog.setModal(True)
+
+            main_layout = QVBoxLayout(dialog)
+            main_layout.setSpacing(15)
+            main_layout.setContentsMargins(20, 20, 20, 20)
+
+            # Stacked widget for wizard pages
+            stacked = QStackedWidget()
+
+            # Determine if we need to show data folder page
+            show_data_folder_page = is_first_run and self._needs_data_location_dialog
+
+            # ==================== PAGE 1: Data Folder Selection ====================
+            page1 = QWidget()
+            page1_layout = QVBoxLayout(page1)
+            page1_layout.setSpacing(15)
+
+            # Step indicator
+            step1_indicator = QLabel("<span style='color: #888;'>Step 1 of 2</span>")
+            page1_layout.addWidget(step1_indicator)
+
+            # Title
+            page1_title = QLabel("<h2>📁 Choose Your Data Folder</h2>")
+            page1_layout.addWidget(page1_title)
+
+            # Explanation
+            page1_msg = QLabel(
+                "Supervertaler stores your data in a folder of your choice:<br><br>"
+                "• <b>API keys</b> – Your LLM provider credentials<br>"
+                "• <b>Translation memories</b> – Reusable translation pairs<br>"
+                "• <b>Glossaries</b> – Terminology databases<br>"
+                "• <b>Prompts</b> – Custom AI prompts<br>"
+                "• <b>Settings</b> – Application configuration<br><br>"
+                "Choose a location that's easy to find and backup."
+            )
+            page1_msg.setWordWrap(True)
+            page1_layout.addWidget(page1_msg)
+
+            # Path input with browse button
+            path_layout = QHBoxLayout()
+            path_edit = QLineEdit()
+            default_path = get_default_user_data_path()
+            path_edit.setText(str(default_path))
+            path_edit.setMinimumWidth(350)
+            path_layout.addWidget(path_edit)
+
+            browse_btn = QPushButton("Browse...")
+            def browse_folder():
+                folder = QFileDialog.getExistingDirectory(
+                    dialog,
+                    "Choose Data Folder",
+                    str(Path.home())
+                )
+                if folder:
+                    folder_path = Path(folder)
+                    if folder_path.name != "Supervertaler":
+                        folder_path = folder_path / "Supervertaler"
+                    path_edit.setText(str(folder_path))
+
+            browse_btn.clicked.connect(browse_folder)
+            path_layout.addWidget(browse_btn)
+            page1_layout.addLayout(path_layout)
+
+            # Tip
+            page1_tip = QLabel(
+                "💡 <b>Tip:</b> The default location is in your home folder, "
+                "making it easy to find and backup."
+            )
+            page1_tip.setWordWrap(True)
+            page1_tip.setStyleSheet("color: #666;")
+            page1_layout.addWidget(page1_tip)
+
+            page1_layout.addStretch()
+            stacked.addWidget(page1)
+
+            # ==================== PAGE 2: Features Introduction ====================
+            page2 = QWidget()
+            page2_layout = QVBoxLayout(page2)
+            page2_layout.setSpacing(15)
+
+            # Step indicator
+            step2_label = "Step 2 of 2" if show_data_folder_page else "Setup"
+            step2_indicator = QLabel(f"<span style='color: #888;'>{step2_label}</span>")
+            page2_layout.addWidget(step2_indicator)
+
+            # Data folder info (shown when skipping page 1)
+            if not show_data_folder_page:
+                from PyQt6.QtGui import QDesktopServices
+                from PyQt6.QtCore import QUrl
+
+                data_folder_path = str(self.user_data_path)
+                data_folder_info = QLabel(
+                    f"<b>📁 Data Folder:</b> <a href='file:///{data_folder_path}' "
+                    f"style='color: #3b82f6;'>{data_folder_path}</a><br>"
+                    "<span style='color: #666; font-size: 0.9em;'>"
+                    "Your settings, TMs, glossaries and prompts are stored here. "
+                    "Change in Settings → General.</span>"
+                )
+                data_folder_info.setWordWrap(True)
+                data_folder_info.setTextFormat(Qt.TextFormat.RichText)
+                data_folder_info.setOpenExternalLinks(False)  # Handle clicks ourselves
+                data_folder_info.linkActivated.connect(
+                    lambda url: QDesktopServices.openUrl(QUrl.fromLocalFile(data_folder_path))
+                )
+                data_folder_info.setStyleSheet(
+                    "background: #f0f4ff; padding: 12px; border-radius: 6px; "
+                    "border-left: 4px solid #3b82f6; margin-bottom: 10px;"
+                )
+                page2_layout.addWidget(data_folder_info)
+
+            # Title
+            page2_title = QLabel("<h2>✨ Modular Features</h2>")
+            page2_layout.addWidget(page2_title)
+
+            # Message
+            page2_msg = QLabel(
+                "Supervertaler uses a <b>modular architecture</b> – you can install "
+                "only the features you need.<br><br>"
+                "<b>Core features</b> (always available):<br>"
+                "• AI translation with OpenAI, Claude, Gemini, Ollama<br>"
+                "• Translation Memory and Glossaries<br>"
+                "• XLIFF, SDLXLIFF, memoQ support<br>"
+                "• Basic spellchecking<br><br>"
+                "<b>Optional features</b> (install via pip):<br>"
+                "• <code>openai-whisper</code> – Local voice dictation (no API needed)<br><br>"
+                "You can view and manage features in <b>Settings → Features</b>."
+            )
+            page2_msg.setWordWrap(True)
+            page2_msg.setTextFormat(Qt.TextFormat.RichText)
+            page2_layout.addWidget(page2_msg)
+
+            # Checkbox
+            dont_show_checkbox = CheckmarkCheckBox("Don't show this wizard on startup")
+            dont_show_checkbox.setChecked(True)
+            page2_layout.addWidget(dont_show_checkbox)
+
+            # Open Features tab checkbox
+            open_features_checkbox = CheckmarkCheckBox("Open Features tab after closing")
+            open_features_checkbox.setChecked(True)
+            page2_layout.addWidget(open_features_checkbox)
+
+            page2_layout.addStretch()
+            stacked.addWidget(page2)
+
+            main_layout.addWidget(stacked)
+
+            # ==================== Navigation Buttons ====================
+            nav_layout = QHBoxLayout()
+
+            back_btn = QPushButton("← Back")
+            back_btn.setVisible(False)  # Hidden on first page
+
+            next_btn = QPushButton("Next →")
+            finish_btn = QPushButton("Finish")
+            finish_btn.setVisible(False)
+            finish_btn.setDefault(True)
+
+            # Use Default button (only on page 1)
+            default_btn = QPushButton("Use Default")
+            default_btn.clicked.connect(lambda: path_edit.setText(str(default_path)))
+
+            nav_layout.addWidget(default_btn)
+            nav_layout.addStretch()
+            nav_layout.addWidget(back_btn)
+            nav_layout.addWidget(next_btn)
+            nav_layout.addWidget(finish_btn)
+
+            main_layout.addLayout(nav_layout)
+
+            # Track chosen path for later
+            chosen_path_holder = [None]
+
+            def go_to_page(page_index):
+                stacked.setCurrentIndex(page_index)
+                if page_index == 0:
+                    back_btn.setVisible(False)
+                    next_btn.setVisible(True)
+                    finish_btn.setVisible(False)
+                    default_btn.setVisible(True)
+                else:
+                    back_btn.setVisible(show_data_folder_page)
+                    next_btn.setVisible(False)
+                    finish_btn.setVisible(True)
+                    default_btn.setVisible(False)
+
+            def on_next():
+                # Save the data folder choice
+                chosen_path = Path(path_edit.text())
+                chosen_path_holder[0] = chosen_path
+
+                # Create the folder and save config
+                chosen_path.mkdir(parents=True, exist_ok=True)
+                save_user_data_path(chosen_path)
+
+                # Update our path if different
+                if chosen_path != self.user_data_path:
+                    self.user_data_path = chosen_path
+                    self._reinitialize_with_new_data_path()
+                else:
+                    if hasattr(self, 'db_manager') and self.db_manager and not self.db_manager.connection:
+                        self.db_manager.connect()
+
+                self.log(f"📁 Data folder set to: {chosen_path}")
+                go_to_page(1)
+
+            def on_back():
+                go_to_page(0)
+
+            def on_finish():
+                # Save first_run preference
+                if dont_show_checkbox.isChecked():
+                    settings = self.load_general_settings()
+                    settings['first_run_completed'] = True
+                    self.save_general_settings(settings)
+                    self.log("✅ Setup wizard completed (won't show again on startup)")
+                else:
+                    self.log("✅ Setup wizard shown (will show again next time)")
+
+                dialog.accept()
+
+                # Navigate to Features tab if checkbox is checked
+                if open_features_checkbox.isChecked():
+                    self.main_tabs.setCurrentIndex(4)  # Settings tab
+                    if hasattr(self, 'settings_tabs'):
+                        for i in range(self.settings_tabs.count()):
+                            if "Features" in self.settings_tabs.tabText(i):
+                                self.settings_tabs.setCurrentIndex(i)
+                                break
+
+            back_btn.clicked.connect(on_back)
+            next_btn.clicked.connect(on_next)
+            finish_btn.clicked.connect(on_finish)
+
+            # Start on appropriate page
+            if show_data_folder_page:
+                go_to_page(0)
+            else:
+                # Skip to features page if data folder already configured
+                go_to_page(1)
+                step2_indicator.setText("<span style='color: #888;'>Supervertaler Setup</span>")
+
+            dialog.exec()
+
+        except Exception as e:
+            self.log(f"⚠️ Setup wizard error: {e}")
+            import traceback
+            traceback.print_exc()
+
     def _check_for_new_models(self, force: bool = False):
         """
         Check for new LLM models from providers
@@ -7935,6 +8198,11 @@ class SupervertalerQt(QMainWindow):
         superdocs_action.setToolTip("Online documentation (GitBook)")
         superdocs_action.triggered.connect(lambda: self._open_url("https://supervertaler.gitbook.io/superdocs/"))
         help_menu.addAction(superdocs_action)
+
+        setup_wizard_action = QAction("🚀 Setup Wizard...", self)
+        setup_wizard_action.setToolTip("Run the initial setup wizard (data folder location, features overview)")
+        setup_wizard_action.triggered.connect(lambda: self._show_setup_wizard(is_first_run=False))
+        help_menu.addAction(setup_wizard_action)
 
         help_menu.addSeparator()
 

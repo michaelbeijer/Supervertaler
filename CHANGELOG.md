@@ -2,9 +2,23 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.175-beta (January 28, 2026)
+**Current Version:** v1.9.176-beta (January 28, 2026)
 
 
+
+## v1.9.176-beta - January 28, 2026
+
+### ✨ New Features
+
+- **Unified Setup Wizard**: Combined the first-run data folder selection and features introduction into a single, streamlined wizard. New users now see a clear 2-step wizard (data folder → features), while existing users see a 1-step version with their current data folder displayed. The wizard is also accessible anytime from **Help → Setup Wizard**.
+
+### 🎨 UI Improvements
+
+- **Clickable Data Folder Path**: In the Setup Wizard, the data folder path is now a clickable link that opens the folder in your system's file manager (Windows Explorer, Finder, etc.).
+
+- **Help Menu Enhancement**: Added "🚀 Setup Wizard..." menu item to the Help menu, allowing users to re-run the setup wizard at any time.
+
+---
 
 ## v1.9.175-beta - January 28, 2026
 
