@@ -2,11 +2,11 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.175 (January 28, 2026)
+**Current Version:** v1.9.175-beta (January 28, 2026)
 
 
 
-## v1.9.175 - January 28, 2026
+## v1.9.175-beta - January 28, 2026
 
 ### ✨ New Features
 

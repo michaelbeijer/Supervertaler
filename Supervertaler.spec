@@ -9,11 +9,9 @@ a = Analysis(
         ('docs', 'docs'),
         ('modules', 'modules'),
         ('assets', 'assets'),
-        ('user_data', 'user_data'),
         ('README.md', '.'),
         ('CHANGELOG.md', '.'),
         ('FAQ.md', '.'),
-        ('api_keys.example.txt', '.'),
     ],
     hiddenimports=[
         'PyQt6.QtCore',
