@@ -2,9 +2,33 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.173 (January 28, 2026)
+**Current Version:** v1.9.174 (January 28, 2026)
 
 
+
+## v1.9.174 - January 28, 2026
+
+### ✨ New Features
+
+- **Batch Status Change**: Change the status of multiple selected segments at once via right-click context menu or Edit → Bulk Operations → Change Status. Supports all status types (Not started, Pre-translated, Translated, Confirmed, etc.)
+
+- **Ctrl+, Tag Wrapping for HTML**: When text is selected, Ctrl+, now wraps it with HTML tag pairs (e.g., `<b>selection</b>`) in addition to memoQ tags and CafeTran pipes.
+
+- **Ctrl+, Tip in Grid**: Added a subtle tip label "💡 Tip: Ctrl+, inserts the next tag from source" in the pagination bar to help new users discover this powerful shortcut.
+
+### 🐛 Bug Fixes
+
+- **TM Overwrite Mode Fixed**: The "Save only latest translation (overwrite)" TM setting now actually overwrites existing entries with the same source text, instead of creating duplicate entries.
+
+- **Shift+Click Multi-Select Fixed**: Fixed grid selection where Shift+click to select a range was selecting extra rows. Now properly respects Qt's native range selection.
+
+- **Status Dropdown Width**: Widened the status dropdown to prevent text truncation (e.g., "Pre-translated", "TR confirmed" now fully visible).
+
+### 🎨 UI Improvements
+
+- **AI Settings Reorganized**: Moved "Model Version Checker" and "API Keys" sections higher in AI Settings, right after Model Selection for easier access.
+
+---
 
 ## v1.9.173 - January 28, 2026
 

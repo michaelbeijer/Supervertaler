@@ -753,7 +753,83 @@ def get_wrapping_tag_pair(source_text: str, target_text: str) -> tuple:
         opening, closing = get_tag_pair(num)
         if opening not in target_tags or closing not in target_tags:
             return (opening, closing)
-    
+
+    return (None, None)
+
+
+def get_html_wrapping_tag_pair(source_text: str, target_text: str) -> tuple:
+    """
+    Get the next available HTML tag pair for wrapping selected text.
+
+    Finds paired HTML tags (opening + closing) from source that are not yet
+    complete in target. Supports common formatting tags: b, i, u, em, strong,
+    span, li, p, a, sub, sup, etc.
+
+    Args:
+        source_text: Source segment text with HTML tags
+        target_text: Current target text
+
+    Returns:
+        Tuple of (opening_tag, closing_tag) or (None, None) if no pairs available
+    """
+    import re
+
+    # Find all HTML tags in source
+    # Match: <tag>, <tag attr="...">, </tag>
+    tag_pattern = r'<(/?)([a-zA-Z][a-zA-Z0-9-]*)(?:\s+[^>]*)?>'
+    source_matches = re.findall(tag_pattern, source_text)
+    target_matches = re.findall(tag_pattern, target_text)
+
+    if not source_matches:
+        return (None, None)
+
+    # Build lists of opening and closing tags in source
+    source_opening = []  # [(full_tag, tag_name), ...]
+    source_closing = []
+
+    for match in re.finditer(tag_pattern, source_text):
+        is_closing = match.group(1) == '/'
+        tag_name = match.group(2).lower()
+        full_tag = match.group(0)
+
+        if is_closing:
+            source_closing.append((full_tag, tag_name))
+        else:
+            source_opening.append((full_tag, tag_name))
+
+    # Build sets of tag names already in target
+    target_opening_names = set()
+    target_closing_names = set()
+
+    for is_closing, tag_name in target_matches:
+        if is_closing == '/':
+            target_closing_names.add(tag_name.lower())
+        else:
+            target_opening_names.add(tag_name.lower())
+
+    # Find first tag pair where both opening and closing exist in source
+    # but at least one is missing from target
+    seen_tags = set()
+    for full_tag, tag_name in source_opening:
+        if tag_name in seen_tags:
+            continue
+        seen_tags.add(tag_name)
+
+        # Check if there's a matching closing tag in source
+        has_closing = any(name == tag_name for _, name in source_closing)
+        if not has_closing:
+            continue
+
+        # Check if pair is incomplete in target
+        opening_in_target = tag_name in target_opening_names
+        closing_in_target = tag_name in target_closing_names
+
+        if not opening_in_target or not closing_in_target:
+            # Find the actual opening and closing tags from source
+            opening_tag = full_tag
+            closing_tag = f"</{tag_name}>"
+            return (opening_tag, closing_tag)
+
     return (None, None)
 
 
@@ -1148,48 +1224,48 @@ class GridTextEditor(QTextEdit):
     def _insert_next_tag_or_wrap_selection(self):
         """
         Insert the next memoQ tag, HTML tag, or CafeTran pipe symbol from source, or wrap selection.
-        
+
         Behavior:
-        - If text is selected: Wrap it with the next available tag pair [N}selection{N] or |selection|
+        - If text is selected: Wrap it with the next available tag pair [N}selection{N] or <tag>selection</tag> or |selection|
         - If no selection: Insert the next unused tag/pipe from source at cursor position
-        
+
         Supports:
         - memoQ tags: [1}, {1], [2}, {2], etc.
         - HTML/XML tags: <li>, </li>, <b>, </b>, <i>, </i>, etc.
         - CafeTran pipe symbols: |
-        
+
         Shortcut: Ctrl+, (comma)
         """
         # Get the main window and current segment
         if not self.table_widget or self.current_row is None:
             return
-        
+
         # Navigate up to find main window
         main_window = self.table_widget.parent()
         while main_window and not hasattr(main_window, 'current_project'):
             main_window = main_window.parent()
-        
+
         if not main_window or not hasattr(main_window, 'current_project'):
             return
-        
+
         if not main_window.current_project or self.current_row >= len(main_window.current_project.segments):
             return
-        
+
         segment = main_window.current_project.segments[self.current_row]
         source_text = segment.source
         current_target = self.toPlainText()
-        
+
         # Check what type of tags are in the source
         has_memoq_tags = bool(extract_memoq_tags(source_text))
         has_html_tags = bool(extract_html_tags(source_text))
         has_any_tags = has_memoq_tags or has_html_tags
         has_pipe_symbols = '|' in source_text
-        
+
         # Check if there's a selection
         cursor = self.textCursor()
         if cursor.hasSelection():
             selected_text = cursor.selectedText()
-            
+
             # Try memoQ tag pair first
             if has_memoq_tags:
                 opening_tag, closing_tag = get_wrapping_tag_pair(source_text, current_target)
@@ -1199,7 +1275,17 @@ class GridTextEditor(QTextEdit):
                     if hasattr(main_window, 'log'):
                         main_window.log(f"🏷️ Wrapped selection with {opening_tag}...{closing_tag}")
                     return
-            
+
+            # Try HTML tag pairs (e.g., <b>...</b>, <i>...</i>)
+            if has_html_tags:
+                opening_tag, closing_tag = get_html_wrapping_tag_pair(source_text, current_target)
+                if opening_tag and closing_tag:
+                    wrapped_text = f"{opening_tag}{selected_text}{closing_tag}"
+                    cursor.insertText(wrapped_text)
+                    if hasattr(main_window, 'log'):
+                        main_window.log(f"🏷️ Wrapped selection with {opening_tag}...{closing_tag}")
+                    return
+
             # Try CafeTran pipe symbols
             if has_pipe_symbols:
                 pipes_needed = get_next_pipe_count_needed(source_text, current_target)
@@ -1210,12 +1296,12 @@ class GridTextEditor(QTextEdit):
                     if hasattr(main_window, 'log'):
                         main_window.log(f"🏷️ Wrapped selection with |...|")
                     return
-            
+
             if hasattr(main_window, 'log'):
                 main_window.log("⚠️ No tag pairs available from source")
         else:
             # No selection - insert next unused tag or pipe at cursor
-            
+
             # Try memoQ tags and HTML tags (find_next_unused_tag handles both)
             if has_any_tags:
                 next_tag = find_next_unused_tag(source_text, current_target)
@@ -1224,7 +1310,7 @@ class GridTextEditor(QTextEdit):
                     if hasattr(main_window, 'log'):
                         main_window.log(f"🏷️ Inserted tag: {next_tag}")
                     return
-            
+
             # Try CafeTran pipe symbols
             if has_pipe_symbols:
                 pipes_needed = get_next_pipe_count_needed(source_text, current_target)
@@ -1233,7 +1319,7 @@ class GridTextEditor(QTextEdit):
                     if hasattr(main_window, 'log'):
                         main_window.log(f"🏷️ Inserted pipe symbol (|)")
                     return
-            
+
             if hasattr(main_window, 'log'):
                 main_window.log("✓ All tags from source already in target")
 
@@ -2080,16 +2166,27 @@ class ReadOnlyGridTextEditor(QTextEdit):
         # Use stored table reference and row number
         if self.table_ref and self.row >= 0:
             try:
-                self.table_ref.selectRow(self.row)
-                self.table_ref.setCurrentCell(self.row, 2)
+                # Check for Shift or Ctrl modifier - let Qt handle native multi-selection
+                modifiers = event.modifiers()
+                is_shift = modifiers & Qt.KeyboardModifier.ShiftModifier
+                is_ctrl = modifiers & Qt.KeyboardModifier.ControlModifier
 
-                # CRITICAL: Manually trigger on_cell_selected since signals aren't firing
-                # Find the main window and call the method directly
-                main_window = self.table_ref.parent()
-                while main_window and not hasattr(main_window, 'on_cell_selected'):
-                    main_window = main_window.parent()
-                if main_window and hasattr(main_window, 'on_cell_selected'):
-                    main_window.on_cell_selected(self.row, 2, -1, -1)
+                if is_shift or is_ctrl:
+                    # For Shift+click (range) or Ctrl+click (toggle), just set current cell
+                    # but don't call selectRow() which would clear the selection
+                    self.table_ref.setCurrentCell(self.row, 2)
+                else:
+                    # Normal click - select just this row
+                    self.table_ref.selectRow(self.row)
+                    self.table_ref.setCurrentCell(self.row, 2)
+
+                    # CRITICAL: Manually trigger on_cell_selected since signals aren't firing
+                    # Find the main window and call the method directly
+                    main_window = self.table_ref.parent()
+                    while main_window and not hasattr(main_window, 'on_cell_selected'):
+                        main_window = main_window.parent()
+                    if main_window and hasattr(main_window, 'on_cell_selected'):
+                        main_window.on_cell_selected(self.row, 2, -1, -1)
             except Exception as e:
                 print(f"Error triggering manual cell selection: {e}")
 
@@ -2166,20 +2263,32 @@ class ReadOnlyGridTextEditor(QTextEdit):
         """Select text when focused for easy copying and trigger row selection"""
         super().focusInEvent(event)
         # Don't auto-select - let user select manually
-        
+
         # Use stored table reference and row number
         if self.table_ref and self.row >= 0:
             try:
-                self.table_ref.selectRow(self.row)
-                self.table_ref.setCurrentCell(self.row, 2)
-                
-                # CRITICAL: Manually trigger on_cell_selected since signals aren't firing
-                # Find the main window and call the method directly
-                main_window = self.table_ref.parent()
-                while main_window and not hasattr(main_window, 'on_cell_selected'):
-                    main_window = main_window.parent()
-                if main_window and hasattr(main_window, 'on_cell_selected'):
-                    main_window.on_cell_selected(self.row, 2, -1, -1)
+                # Check for Shift or Ctrl modifier - let Qt handle native multi-selection
+                from PyQt6.QtWidgets import QApplication
+                modifiers = QApplication.keyboardModifiers()
+                is_shift = modifiers & Qt.KeyboardModifier.ShiftModifier
+                is_ctrl = modifiers & Qt.KeyboardModifier.ControlModifier
+
+                if is_shift or is_ctrl:
+                    # For Shift+click (range) or Ctrl+click (toggle), just set current cell
+                    # but don't call selectRow() which would clear the selection
+                    self.table_ref.setCurrentCell(self.row, 2)
+                else:
+                    # Normal focus - select just this row
+                    self.table_ref.selectRow(self.row)
+                    self.table_ref.setCurrentCell(self.row, 2)
+
+                    # CRITICAL: Manually trigger on_cell_selected since signals aren't firing
+                    # Find the main window and call the method directly
+                    main_window = self.table_ref.parent()
+                    while main_window and not hasattr(main_window, 'on_cell_selected'):
+                        main_window = main_window.parent()
+                    if main_window and hasattr(main_window, 'on_cell_selected'):
+                        main_window.on_cell_selected(self.row, 2, -1, -1)
             except Exception as e:
                 print(f"Error triggering manual cell selection: {e}")
 
@@ -3026,19 +3135,30 @@ class EditableGridTextEditor(QTextEdit):
         super().mousePressEvent(event)
         # Auto-select the row when clicking in the target cell
         if self.table and self.row >= 0:
-            self.table.selectRow(self.row)
-            self.table.setCurrentCell(self.row, 3)  # Column 3 is Target
+            # Check for Shift or Ctrl modifier - let Qt handle native multi-selection
+            modifiers = event.modifiers()
+            is_shift = modifiers & Qt.KeyboardModifier.ShiftModifier
+            is_ctrl = modifiers & Qt.KeyboardModifier.ControlModifier
 
-            # CRITICAL: Manually trigger on_cell_selected since signals aren't firing
-            # Find the main window and call the method directly
-            try:
-                main_window = self.table.parent()
-                while main_window and not hasattr(main_window, 'on_cell_selected'):
-                    main_window = main_window.parent()
-                if main_window and hasattr(main_window, 'on_cell_selected'):
-                    main_window.on_cell_selected(self.row, 3, -1, -1)
-            except Exception as e:
-                print(f"Error triggering manual cell selection: {e}")
+            if is_shift or is_ctrl:
+                # For Shift+click (range) or Ctrl+click (toggle), just set current cell
+                # but don't call selectRow() which would clear the selection
+                self.table.setCurrentCell(self.row, 3)  # Column 3 is Target
+            else:
+                # Normal click - select just this row
+                self.table.selectRow(self.row)
+                self.table.setCurrentCell(self.row, 3)  # Column 3 is Target
+
+                # CRITICAL: Manually trigger on_cell_selected since signals aren't firing
+                # Find the main window and call the method directly
+                try:
+                    main_window = self.table.parent()
+                    while main_window and not hasattr(main_window, 'on_cell_selected'):
+                        main_window = main_window.parent()
+                    if main_window and hasattr(main_window, 'on_cell_selected'):
+                        main_window.on_cell_selected(self.row, 3, -1, -1)
+                except Exception as e:
+                    print(f"Error triggering manual cell selection: {e}")
 
     def mouseReleaseEvent(self, event):
         """Smart word selection - expand partial selections to full words
@@ -3108,19 +3228,31 @@ class EditableGridTextEditor(QTextEdit):
         self.show()
         # Auto-select the row when focusing the target cell
         if self.table and self.row >= 0:
-            self.table.selectRow(self.row)
-            self.table.setCurrentCell(self.row, 3)  # Column 3 is Target
-            
-            # CRITICAL: Manually trigger on_cell_selected since signals aren't firing
-            # Find the main window and call the method directly
-            try:
-                main_window = self.table.parent()
-                while main_window and not hasattr(main_window, 'on_cell_selected'):
-                    main_window = main_window.parent()
-                if main_window and hasattr(main_window, 'on_cell_selected'):
-                    main_window.on_cell_selected(self.row, 3, -1, -1)
-            except Exception as e:
-                print(f"Error triggering manual cell selection: {e}")
+            # Check for Shift or Ctrl modifier - let Qt handle native multi-selection
+            from PyQt6.QtWidgets import QApplication
+            modifiers = QApplication.keyboardModifiers()
+            is_shift = modifiers & Qt.KeyboardModifier.ShiftModifier
+            is_ctrl = modifiers & Qt.KeyboardModifier.ControlModifier
+
+            if is_shift or is_ctrl:
+                # For Shift+click (range) or Ctrl+click (toggle), just set current cell
+                # but don't call selectRow() which would clear the selection
+                self.table.setCurrentCell(self.row, 3)  # Column 3 is Target
+            else:
+                # Normal focus - select just this row
+                self.table.selectRow(self.row)
+                self.table.setCurrentCell(self.row, 3)  # Column 3 is Target
+
+                # CRITICAL: Manually trigger on_cell_selected since signals aren't firing
+                # Find the main window and call the method directly
+                try:
+                    main_window = self.table.parent()
+                    while main_window and not hasattr(main_window, 'on_cell_selected'):
+                        main_window = main_window.parent()
+                    if main_window and hasattr(main_window, 'on_cell_selected'):
+                        main_window.on_cell_selected(self.row, 3, -1, -1)
+                except Exception as e:
+                    print(f"Error triggering manual cell selection: {e}")
     
     def keyPressEvent(self, event):
         """Handle Tab and Ctrl+E keys to cycle between source and target cells"""
@@ -3423,7 +3555,7 @@ class EditableGridTextEditor(QTextEdit):
         cursor = self.textCursor()
         if cursor.hasSelection():
             selected_text = cursor.selectedText()
-            
+
             # Try memoQ tag pair first
             if has_memoq_tags:
                 opening_tag, closing_tag = get_wrapping_tag_pair(source_text, current_target)
@@ -3433,7 +3565,17 @@ class EditableGridTextEditor(QTextEdit):
                     if hasattr(main_window, 'log'):
                         main_window.log(f"🏷️ Wrapped selection with {opening_tag}...{closing_tag}")
                     return
-            
+
+            # Try HTML tag pairs (e.g., <b>...</b>, <i>...</i>)
+            if has_html_tags:
+                opening_tag, closing_tag = get_html_wrapping_tag_pair(source_text, current_target)
+                if opening_tag and closing_tag:
+                    wrapped_text = f"{opening_tag}{selected_text}{closing_tag}"
+                    cursor.insertText(wrapped_text)
+                    if hasattr(main_window, 'log'):
+                        main_window.log(f"🏷️ Wrapped selection with {opening_tag}...{closing_tag}")
+                    return
+
             # Try CafeTran pipe symbols
             if has_pipe_symbols:
                 pipes_needed = get_next_pipe_count_needed(source_text, current_target)
@@ -3444,12 +3586,12 @@ class EditableGridTextEditor(QTextEdit):
                     if hasattr(main_window, 'log'):
                         main_window.log(f"🏷️ Wrapped selection with |...|")
                     return
-            
+
             if hasattr(main_window, 'log'):
                 main_window.log("⚠️ No tag pairs available from source")
         else:
             # No selection - insert next unused tag or pipe at cursor
-            
+
             # Try memoQ tags and HTML tags (find_next_unused_tag handles both)
             if has_any_tags:
                 next_tag = find_next_unused_tag(source_text, current_target)
@@ -3458,7 +3600,7 @@ class EditableGridTextEditor(QTextEdit):
                     if hasattr(main_window, 'log'):
                         main_window.log(f"🏷️ Inserted tag: {next_tag}")
                     return
-            
+
             # Try CafeTran pipe symbols
             if has_pipe_symbols:
                 pipes_needed = get_next_pipe_count_needed(source_text, current_target)
@@ -3467,10 +3609,10 @@ class EditableGridTextEditor(QTextEdit):
                     if hasattr(main_window, 'log'):
                         main_window.log(f"🏷️ Inserted pipe symbol (|)")
                     return
-            
+
             if hasattr(main_window, 'log'):
                 main_window.log("✓ All tags from source already in target")
-    
+
     def _copy_source_to_target(self):
         """
         Copy source text to target cell.
@@ -5179,12 +5321,14 @@ class AdvancedFiltersDialog(QDialog):
         
         self.status_not_started = CheckmarkCheckBox("Not started")
         self.status_edited = CheckmarkCheckBox("Edited")
+        self.status_pretranslated = CheckmarkCheckBox("Pre-translated")
         self.status_translated = CheckmarkCheckBox("Translated")
         self.status_confirmed = CheckmarkCheckBox("Confirmed")
         self.status_draft = CheckmarkCheckBox("Draft")
-        
+
         status_layout.addWidget(self.status_not_started)
         status_layout.addWidget(self.status_edited)
+        status_layout.addWidget(self.status_pretranslated)
         status_layout.addWidget(self.status_translated)
         status_layout.addWidget(self.status_confirmed)
         status_layout.addWidget(self.status_draft)
@@ -5257,6 +5401,7 @@ class AdvancedFiltersDialog(QDialog):
         
         self.status_not_started.setChecked(False)
         self.status_edited.setChecked(False)
+        self.status_pretranslated.setChecked(False)
         self.status_translated.setChecked(False)
         self.status_confirmed.setChecked(False)
         self.status_draft.setChecked(False)
@@ -5283,6 +5428,8 @@ class AdvancedFiltersDialog(QDialog):
             row_status.append('not_started')
         if self.status_edited.isChecked():
             row_status.append('edited')
+        if self.status_pretranslated.isChecked():
+            row_status.append('pretranslated')
         if self.status_translated.isChecked():
             row_status.append('translated')
         if self.status_confirmed.isChecked():
@@ -7499,13 +7646,30 @@ class SupervertalerQt(QMainWindow):
         
         # Bulk Operations submenu
         bulk_menu = edit_menu.addMenu("Bulk &Operations")
-        
+
         confirm_selected_action = QAction("✅ &Confirm Selected Segments", self)
         confirm_selected_action.setShortcut("Ctrl+Shift+Return")
         confirm_selected_action.setToolTip("Confirm all selected segments (Ctrl+Shift+Enter)")
         confirm_selected_action.triggered.connect(self.confirm_selected_segments_from_menu)
         bulk_menu.addAction(confirm_selected_action)
-        
+
+        # Change Status submenu
+        status_submenu = bulk_menu.addMenu("🏷️ Change &Status")
+        user_statuses = [
+            ("not_started", "❌ &Not started"),
+            ("pretranslated", "🤖 &Pre-translated"),
+            ("translated", "✏️ &Translated"),
+            ("confirmed", "✔ &Confirmed"),
+            ("tr_confirmed", "🌟 T&R confirmed"),
+            ("proofread", "🟪 Proo&fread"),
+            ("approved", "⭐ &Approved"),
+            ("rejected", "🚫 Re&jected"),
+        ]
+        for status_key, label in user_statuses:
+            action = QAction(label, self)
+            action.triggered.connect(lambda checked, s=status_key: self.change_status_selected(s, from_menu=True))
+            status_submenu.addAction(action)
+
         clear_translations_action = QAction("🗑️ &Clear Translations", self)
         clear_translations_action.setToolTip("Clear translations for selected segments")
         clear_translations_action.triggered.connect(self.clear_selected_translations_from_menu)
@@ -15408,7 +15572,57 @@ class SupervertalerQt(QMainWindow):
         
         model_group.setLayout(model_layout)
         layout.addWidget(model_group)
-        
+
+        # ========== SECTION 2b: Model Version Checker ==========
+        version_check_group = QGroupBox("🔄 Model Version Checker")
+        version_check_layout = QVBoxLayout()
+
+        version_check_info = QLabel(
+            "Automatically check for new LLM models from OpenAI, Anthropic, and Google.\n"
+            "Get notified when new models are available and easily add them to Supervertaler."
+        )
+        version_check_info.setWordWrap(True)
+        version_check_layout.addWidget(version_check_info)
+
+        # Auto-check setting
+        auto_check_models_cb = CheckmarkCheckBox("Enable automatic model checking (once per day on startup)")
+        auto_check_models_cb.setChecked(general_settings.get('auto_check_models', True))
+        auto_check_models_cb.setToolTip(
+            "When enabled, Supervertaler will check for new models once per day when you start the application.\n"
+            "You'll see a popup if new models are detected."
+        )
+        version_check_layout.addWidget(auto_check_models_cb)
+
+        # Manual check button
+        manual_check_btn = QPushButton("🔍 Check for New Models Now")
+        manual_check_btn.setToolTip("Manually check for new models from all providers")
+        manual_check_btn.clicked.connect(lambda: self._check_for_new_models(force=True))
+        version_check_layout.addWidget(manual_check_btn)
+
+        # Store reference for saving
+        self.auto_check_models_cb = auto_check_models_cb
+
+        version_check_group.setLayout(version_check_layout)
+        layout.addWidget(version_check_group)
+
+        # ========== SECTION 2c: API Keys ==========
+        api_keys_group = QGroupBox("🔑 API Keys")
+        api_keys_layout = QVBoxLayout()
+
+        api_keys_info = QLabel(
+            f"Configure your API keys in:<br>"
+            f"<code>{self.user_data_path / 'api_keys.txt'}</code>"
+        )
+        api_keys_info.setWordWrap(True)
+        api_keys_layout.addWidget(api_keys_info)
+
+        open_keys_btn = QPushButton("📝 Open API Keys File")
+        open_keys_btn.clicked.connect(lambda: self.open_api_keys_file())
+        api_keys_layout.addWidget(open_keys_btn)
+
+        api_keys_group.setLayout(api_keys_layout)
+        layout.addWidget(api_keys_group)
+
         # ========== SECTION 3: Enable/Disable LLM Providers ==========
         provider_enable_group = QGroupBox("✅ Enable/Disable LLM Providers")
         provider_enable_layout = QVBoxLayout()
@@ -15688,58 +15902,7 @@ class SupervertalerQt(QMainWindow):
         
         behavior_group.setLayout(behavior_layout)
         layout.addWidget(behavior_group)
-        
-        # ========== SECTION 7: API Keys ==========
-        # ========== MODEL VERSION CHECKER ==========
-        version_check_group = QGroupBox("🔄 Model Version Checker")
-        version_check_layout = QVBoxLayout()
 
-        version_check_info = QLabel(
-            "Automatically check for new LLM models from OpenAI, Anthropic, and Google.\n"
-            "Get notified when new models are available and easily add them to Supervertaler."
-        )
-        version_check_info.setWordWrap(True)
-        version_check_layout.addWidget(version_check_info)
-
-        # Auto-check setting
-        auto_check_models_cb = CheckmarkCheckBox("Enable automatic model checking (once per day on startup)")
-        auto_check_models_cb.setChecked(general_settings.get('auto_check_models', True))
-        auto_check_models_cb.setToolTip(
-            "When enabled, Supervertaler will check for new models once per day when you start the application.\n"
-            "You'll see a popup if new models are detected."
-        )
-        version_check_layout.addWidget(auto_check_models_cb)
-
-        # Manual check button
-        manual_check_btn = QPushButton("🔍 Check for New Models Now")
-        manual_check_btn.setToolTip("Manually check for new models from all providers")
-        manual_check_btn.clicked.connect(lambda: self._check_for_new_models(force=True))
-        version_check_layout.addWidget(manual_check_btn)
-
-        # Store reference for saving
-        self.auto_check_models_cb = auto_check_models_cb
-
-        version_check_group.setLayout(version_check_layout)
-        layout.addWidget(version_check_group)
-
-        # ========== API KEYS ==========
-        api_keys_group = QGroupBox("🔑 API Keys")
-        api_keys_layout = QVBoxLayout()
-
-        api_keys_info = QLabel(
-            f"Configure your API keys in:<br>"
-            f"<code>{self.user_data_path / 'api_keys.txt'}</code>"
-        )
-        api_keys_info.setWordWrap(True)
-        api_keys_layout.addWidget(api_keys_info)
-
-        open_keys_btn = QPushButton("📝 Open API Keys File")
-        open_keys_btn.clicked.connect(lambda: self.open_api_keys_file())
-        api_keys_layout.addWidget(open_keys_btn)
-
-        api_keys_group.setLayout(api_keys_layout)
-        layout.addWidget(api_keys_group)
-        
         # ========== SAVE BUTTON ==========
         save_btn = QPushButton("💾 Save AI Settings")
         save_btn.setStyleSheet("font-weight: bold; padding: 8px; outline: none;")
@@ -19844,7 +20007,13 @@ class SupervertalerQt(QMainWindow):
             self.pagination_label = QLabel("Segments 1-50 of 0")
         self.pagination_label.setStyleSheet("color: #555;")
         pagination_layout.addWidget(self.pagination_label)
-        
+
+        # Tip label for Ctrl+, shortcut (subtle, helpful for new users)
+        tip_label = QLabel("💡 Tip: Ctrl+, inserts the next tag from source")
+        tip_label.setStyleSheet("color: #888; font-size: 9pt; margin-left: 20px;")
+        tip_label.setToolTip("Select text first to wrap it with a tag pair (e.g., <b>selection</b>)")
+        pagination_layout.addWidget(tip_label)
+
         pagination_layout.addStretch()
         
         # Pagination controls (right side)
@@ -19972,6 +20141,7 @@ class SupervertalerQt(QMainWindow):
         from modules.statuses import get_status, STATUSES
         status_label = QLabel("Status:")
         tab_status_combo = QComboBox()
+        tab_status_combo.setMinimumWidth(130)  # Ensure full status text is visible
         for status_key in STATUSES.keys():
             definition = get_status(status_key)
             tab_status_combo.addItem(definition.label, status_key)
@@ -20870,6 +21040,7 @@ class SupervertalerQt(QMainWindow):
         from modules.statuses import STATUSES
         status_label = QLabel("Status:")
         tab_status_combo = QComboBox()
+        tab_status_combo.setMinimumWidth(130)  # Ensure full status text is visible
         for status_key in STATUSES.keys():
             definition = get_status(status_key)
             tab_status_combo.addItem(definition.label, status_key)
@@ -22319,27 +22490,31 @@ class SupervertalerQt(QMainWindow):
     def save_segment_to_activated_tms(self, source: str, target: str):
         """
         Save segment to all writable TMs for current project.
-        
+
         Note: Uses get_writable_tm_ids() which checks the Write checkbox (read_only=0),
         NOT get_active_tm_ids() which checks the Read checkbox (is_active=1).
-        
+
+        Respects tm_save_mode setting:
+        - 'latest': Overwrites existing entries with same source (keeps only newest translation)
+        - 'all': Keeps all translations with different targets (default SQLite behavior)
+
         Args:
             source: Source text
             target: Target text
         """
         if not self.current_project:
             return
-        
+
         if not hasattr(self.current_project, 'source_lang') or not hasattr(self.current_project, 'target_lang'):
             return
-        
+
         # Get WRITABLE TM IDs for this project (Write checkbox enabled)
         tm_ids = []
-        
+
         if hasattr(self, 'tm_metadata_mgr') and self.tm_metadata_mgr:
             if hasattr(self, 'current_project') and self.current_project:
                 project_id = self.current_project.id if hasattr(self.current_project, 'id') else None
-                
+
                 if project_id:
                     # Use get_writable_tm_ids() to find TMs with Write enabled
                     tm_ids = self.tm_metadata_mgr.get_writable_tm_ids(project_id)
@@ -22349,13 +22524,16 @@ class SupervertalerQt(QMainWindow):
                 self.log(f"⚠️ Cannot save to TM: No current project loaded!")
         else:
             self.log(f"⚠️ Cannot save to TM: TM metadata manager not available!")
-        
+
         # If no TMs have Write enabled, skip saving
         if not tm_ids:
             self.log("⚠️ No TMs with Write enabled - segment not saved to TM.")
             self.log(f"   - To fix: Go to Resources > Translation Memories > TM List and enable the Write checkbox")
             return
-        
+
+        # Check TM save mode: 'latest' = overwrite, 'all' = keep all variants
+        overwrite_mode = getattr(self, 'tm_save_mode', 'latest') == 'latest'
+
         # Save to each writable TM
         saved_count = 0
         for tm_id in tm_ids:
@@ -22365,14 +22543,16 @@ class SupervertalerQt(QMainWindow):
                     target=target,
                     source_lang=self.current_project.source_lang,
                     target_lang=self.current_project.target_lang,
-                    tm_id=tm_id
+                    tm_id=tm_id,
+                    overwrite=overwrite_mode
                 )
                 saved_count += 1
             except Exception as e:
                 self.log(f"⚠️ Could not save to TM '{tm_id}': {e}")
-        
+
         if saved_count > 0:
-            msg = f"💾 Saved segment to {saved_count} TM(s)"
+            mode_note = " (overwrite)" if overwrite_mode else ""
+            msg = f"💾 Saved segment to {saved_count} TM(s){mode_note}"
             self._queue_tm_save_log(msg)
             # Invalidate cache so prefetched segments get fresh TM matches
             self.invalidate_translation_cache()
@@ -31476,25 +31656,43 @@ class SupervertalerQt(QMainWindow):
     def show_grid_context_menu(self, position):
         """Show context menu for grid view with bulk operations"""
         selected_segments = self.get_selected_segments_from_grid()
-        
+
         if not selected_segments:
             return
-        
+
         menu = QMenu(self)
-        
+
         # Confirm selected segments action
         if len(selected_segments) >= 1:
             confirm_action = menu.addAction(f"✅ Confirm {len(selected_segments)} Segment(s)")
             confirm_action.setToolTip(f"Confirm {len(selected_segments)} selected segment(s)")
             confirm_action.triggered.connect(self.confirm_selected_segments)
-        
+
+        # Change Status submenu
+        from modules.statuses import get_status
+        status_menu = menu.addMenu(f"🏷️ Change Status ({len(selected_segments)})")
+        # Common user-settable statuses (excluding TM-specific ones like pm, cm, tm_100, etc.)
+        user_statuses = [
+            ("not_started", "❌ Not started"),
+            ("pretranslated", "🤖 Pre-translated"),
+            ("translated", "✏️ Translated"),
+            ("confirmed", "✔ Confirmed"),
+            ("tr_confirmed", "🌟 TR confirmed"),
+            ("proofread", "🟪 Proofread"),
+            ("approved", "⭐ Approved"),
+            ("rejected", "🚫 Rejected"),
+        ]
+        for status_key, label in user_statuses:
+            action = status_menu.addAction(label)
+            action.triggered.connect(lambda checked, s=status_key: self.change_status_selected(s))
+
         # Clear translations action
         clear_action = menu.addAction("🗑️ Clear Translations")
         clear_action.setToolTip(f"Clear translations for {len(selected_segments)} selected segment(s)")
         clear_action.triggered.connect(lambda: self.clear_selected_translations(selected_segments, 'grid'))
-        
+
         menu.addSeparator()
-        
+
         # Clear proofreading notes (if any selected segment has proofreading notes)
         has_proofreading = any(seg.notes and "⚠️ PROOFREAD:" in seg.notes for seg in selected_segments)
         if has_proofreading:
@@ -31502,11 +31700,11 @@ class SupervertalerQt(QMainWindow):
             clear_proofread_action.setToolTip("Remove proofreading issues from selected segment(s)")
             clear_proofread_action.triggered.connect(lambda: self._clear_proofreading_from_selected(selected_segments))
             menu.addSeparator()
-        
+
         # Select all action
         select_all_action = menu.addAction("📋 Select All (Ctrl+A)")
         select_all_action.triggered.connect(lambda: self.table.selectAll())
-        
+
         menu.exec(self.table.viewport().mapToGlobal(position))
     
     def _clear_proofreading_from_selected(self, segments):
@@ -38331,17 +38529,75 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         if not self.current_project:
             QMessageBox.information(self, "Not Available", "Please load a project first.")
             return
-        
+
         if not hasattr(self, 'table') or not self.table:
             QMessageBox.information(self, "Not Available", "Grid view is not available.")
             return
-        
+
         selected_segments = self.get_selected_segments_from_grid()
         if selected_segments:
             self.confirm_selected_segments()
         else:
             QMessageBox.information(self, "No Selection", "Please select one or more segments to confirm.")
-    
+
+    def change_status_selected(self, new_status: str, from_menu: bool = False):
+        """Change status of all selected segments to the specified status.
+
+        Args:
+            new_status: The status key to set (e.g., 'translated', 'pretranslated')
+            from_menu: If True, show message boxes for errors (called from menu)
+        """
+        if not self.current_project:
+            if from_menu:
+                QMessageBox.information(self, "Not Available", "Please load a project first.")
+            else:
+                self.log("⚠️ No project loaded")
+            return
+
+        if not hasattr(self, 'table') or not self.table:
+            if from_menu:
+                QMessageBox.information(self, "Not Available", "Grid view is not available.")
+            return
+
+        selected_segments = self.get_selected_segments_from_grid()
+
+        if not selected_segments:
+            if from_menu:
+                QMessageBox.information(self, "No Selection", "Please select one or more segments to change.")
+            else:
+                self.log("⚠️ No segments selected")
+            return
+
+        # Sync all target text from grid widgets first
+        self._sync_grid_targets_to_segments(selected_segments)
+
+        # Get status definition for logging
+        from modules.statuses import get_status
+        status_def = get_status(new_status)
+
+        changed_count = 0
+        for segment in selected_segments:
+            # Skip if already has this status
+            if segment.status == new_status:
+                continue
+
+            segment.status = new_status
+            changed_count += 1
+
+            # Update grid status icon
+            row = self._find_row_for_segment(segment.id)
+            if row >= 0:
+                self.update_status_icon(row, new_status)
+
+        if changed_count > 0:
+            self.project_modified = True
+            self.update_window_title()
+            self.log(f"✅ Changed {changed_count} segment(s) to '{status_def.label}'")
+            # Update status bar progress stats
+            self.update_progress_stats()
+        else:
+            self.log(f"ℹ️ All {len(selected_segments)} selected segment(s) already have status '{status_def.label}'")
+
     def _sync_grid_targets_to_segments(self, segments):
         """Sync target text from grid widgets to segment objects.
         
@@ -41580,7 +41836,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                             
                             if match_pct >= 75:  # Accept matches 75% and above
                                 segment.target = tm_match
-                                segment.status = "translated" if match_pct == 100 else "pre-translated"
+                                segment.status = "pretranslated"
                                 translated_count += 1
                                 
                                 # Update grid immediately
@@ -41694,7 +41950,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                                 if tm_match and len(tm_match) > 0:
                                     translation = tm_match[0]['target']
                                     segment.target = translation
-                                    segment.status = 'pre-translated'
+                                    segment.status = 'pretranslated'
                                     translated_count += 1
                                     self.log(f"  ✓ Segment {segment.id}: {segment.source[:40]}... → {translation[:40]}... (TM 100%)")
                                 else:
@@ -41741,7 +41997,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
 
                                 if translation and not translation.startswith('['):  # Skip error messages
                                     segment.target = translation
-                                    segment.status = 'pre-translated'
+                                    segment.status = 'pretranslated'
                                     translated_count += 1
                                     self.log(f"  ✓ Segment {segment.id}: {segment.source[:40]}... → {translation[:40]}...")
                                 else:

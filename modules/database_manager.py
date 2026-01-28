@@ -684,9 +684,23 @@ class DatabaseManager:
     def add_translation_unit(self, source: str, target: str, source_lang: str,
                             target_lang: str, tm_id: str = 'project',
                             project_id: str = None, context_before: str = None,
-                            context_after: str = None, notes: str = None) -> int:
+                            context_after: str = None, notes: str = None,
+                            overwrite: bool = False) -> int:
         """
         Add translation unit to database
+
+        Args:
+            source: Source text
+            target: Target text
+            source_lang: Source language code
+            target_lang: Target language code
+            tm_id: TM identifier
+            project_id: Optional project ID
+            context_before: Optional context before
+            context_after: Optional context after
+            notes: Optional notes
+            overwrite: If True, delete existing entries with same source before inserting
+                      (implements "Save only latest translation" mode)
 
         Returns: ID of inserted/updated entry
         """
@@ -694,11 +708,19 @@ class DatabaseManager:
         # This handles invisible differences like Unicode normalization, whitespace variations
         normalized_source = _normalize_for_matching(source)
         source_hash = hashlib.md5(normalized_source.encode('utf-8')).hexdigest()
-        
+
         try:
+            # If overwrite mode, delete ALL existing entries with same source_hash and tm_id
+            # This ensures only the latest translation is kept
+            if overwrite:
+                self.cursor.execute("""
+                    DELETE FROM translation_units
+                    WHERE source_hash = ? AND tm_id = ?
+                """, (source_hash, tm_id))
+
             self.cursor.execute("""
-                INSERT INTO translation_units 
-                (source_text, target_text, source_lang, target_lang, tm_id, 
+                INSERT INTO translation_units
+                (source_text, target_text, source_lang, target_lang, tm_id,
                  project_id, context_before, context_after, source_hash, notes)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(source_hash, target_text, tm_id) DO UPDATE SET
@@ -706,10 +728,10 @@ class DatabaseManager:
                     modified_date = CURRENT_TIMESTAMP
             """, (source, target, source_lang, target_lang, tm_id,
                   project_id, context_before, context_after, source_hash, notes))
-            
+
             self.connection.commit()
             return self.cursor.lastrowid
-            
+
         except Exception as e:
             self.log(f"Error adding translation unit: {e}")
             return None
