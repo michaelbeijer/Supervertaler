@@ -1,8 +1,8 @@
 # Supervertaler - Frequently Asked Questions
 
-**Current Version:** v1.9.27 (December 9, 2025)
+**Current Version:** v1.9.180 (January 30, 2026)
 **Framework:** PyQt6
-**Last Updated:** December 9, 2025
+**Last Updated:** January 30, 2026
 
 Welcome to the Supervertaler FAQ! Find answers to common questions about installation, features, workflow, and troubleshooting.
 
@@ -841,6 +841,24 @@ See: [UNIFIED_PROMPT_LIBRARY_GUIDE.md](../UNIFIED_PROMPT_LIBRARY_GUIDE.md) for f
 ---
 
 ## Troubleshooting
+
+### The UI text looks too small on Linux/macOS. How do I fix it?
+
+Qt applications can sometimes render with smaller fonts on Linux and macOS, especially on high-DPI displays. Supervertaler includes a **Global UI Font Scale** setting to fix this:
+
+1. Go to **Settings → View** tab
+2. Find the **🖥️ Global UI Font Scale** section
+3. Adjust the slider from 50% to 200% (default is 100%)
+4. Click **Apply** to see changes immediately
+5. Click **Save View Settings** to persist your choice
+
+**Recommended values:**
+- **Linux with HiDPI:** Try 120-150%
+- **macOS Retina:** Usually 100% is fine, try 110-120% if needed
+- **4K displays:** Try 130-150% depending on screen size
+- **Accessibility needs:** Up to 200% for maximum readability
+
+This setting affects menus, buttons, labels, tabs, and all other UI text throughout the application.
 
 ### Why is translation slow?
 

@@ -3,8 +3,6 @@ Supervertaler
 =============
 The Ultimate Translation Workbench.
 Modern PyQt6 interface with specialised modules to handle any problem.
-Version: 1.9.153 (Tab Layout Reorganization)
-Release Date: January 23, 2026
 Framework: PyQt6
 
 This is the modern edition of Supervertaler using PyQt6 framework.
@@ -34,9 +32,9 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.178-beta"
+__version__ = "1.9.181"
 __phase__ = "0.9"
-__release_date__ = "2026-01-28"
+__release_date__ = "2026-01-30"
 __edition__ = "Qt"
 
 import sys
@@ -6359,6 +6357,9 @@ class SupervertalerQt(QMainWindow):
         
         # Initialize theme manager and apply theme
         self.theme_manager = ThemeManager(self.user_data_path)
+        # Apply saved global UI font scale
+        saved_font_scale = self._get_global_ui_font_scale()
+        self.theme_manager.font_scale = saved_font_scale
         self.theme_manager.apply_theme(QApplication.instance())
         
         # Update widgets that were created before theme_manager existed
@@ -6598,6 +6599,9 @@ class SupervertalerQt(QMainWindow):
             # Update theme manager
             from modules.theme_manager import ThemeManager
             self.theme_manager = ThemeManager(self.user_data_path)
+            # Apply saved global UI font scale
+            saved_font_scale = self._get_global_ui_font_scale()
+            self.theme_manager.font_scale = saved_font_scale
             self.theme_manager.apply_theme(QApplication.instance())
             
             # Update recent projects file path
@@ -12198,27 +12202,90 @@ class SupervertalerQt(QMainWindow):
                     f"Error testing segmentation:\n\n{e}"
                 )
     
-    def _update_both_termviews(self, source_text, termbase_list, nt_matches):
+    def _update_both_termviews(self, source_text, termbase_list, nt_matches, status_hint=None):
         """Update all three Termview instances with the same data.
-        
+
         Termview locations:
         1. Under grid (collapsible via View menu)
         2. Match Panel tab (top section)
+
+        Args:
+            source_text: The source text for the current segment
+            termbase_list: List of termbase match dictionaries
+            nt_matches: List of NT (Never Translate) matches
+            status_hint: Optional hint for display when no matches:
+                         'no_termbases_activated' - no glossaries activated for project
+                         'wrong_language' - activated glossaries don't match project language
         """
         # Update left Termview (under grid)
         if hasattr(self, 'termview_widget') and self.termview_widget:
             try:
-                self.termview_widget.update_with_matches(source_text, termbase_list, nt_matches)
+                self.termview_widget.update_with_matches(source_text, termbase_list, nt_matches, status_hint)
             except Exception as e:
                 self.log(f"Error updating left termview: {e}")
-        
+
         # Update Match Panel Termview
         if hasattr(self, 'termview_widget_match') and self.termview_widget_match:
             try:
-                self.termview_widget_match.update_with_matches(source_text, termbase_list, nt_matches)
+                self.termview_widget_match.update_with_matches(source_text, termbase_list, nt_matches, status_hint)
             except Exception as e:
                 self.log(f"Error updating Match Panel termview: {e}")
-    
+
+    def _get_termbase_status_hint(self) -> str:
+        """Check termbase activation status and return appropriate hint.
+
+        Returns:
+            'no_termbases_activated' - if no glossaries are activated for this project
+            'wrong_language' - if activated glossaries don't match project language pair
+            None - if everything is correctly configured
+        """
+        if not self.current_project:
+            return None
+
+        project_id = self.current_project.id if hasattr(self.current_project, 'id') else None
+        if not project_id:
+            return None
+
+        # Check if termbase manager is available
+        if not hasattr(self, 'termbase_mgr') or not self.termbase_mgr:
+            return None
+
+        try:
+            # Get active termbase IDs for this project
+            active_tb_ids = self.termbase_mgr.get_active_termbase_ids(project_id)
+
+            # Check if no termbases are activated
+            if not active_tb_ids or len(active_tb_ids) == 0:
+                return 'no_termbases_activated'
+
+            # Check if any activated termbases match the project's language pair
+            project_source = (self.current_project.source_lang or '').lower()
+            project_target = (self.current_project.target_lang or '').lower()
+
+            # Get all termbases and check language pairs
+            all_termbases = self.termbase_mgr.list_termbases()
+            has_matching_language = False
+
+            for tb in all_termbases:
+                if tb['id'] in active_tb_ids:
+                    tb_source = (tb.get('source_lang') or '').lower()
+                    tb_target = (tb.get('target_lang') or '').lower()
+                    # Match if: no language set, or languages match (bidirectional)
+                    if (not tb_source and not tb_target) or \
+                       (tb_source == project_source and tb_target == project_target) or \
+                       (tb_source == project_target and tb_target == project_source):
+                        has_matching_language = True
+                        break
+
+            if not has_matching_language:
+                return 'wrong_language'
+
+            return None  # All good
+
+        except Exception as e:
+            self.log(f"Error checking termbase status: {e}")
+            return None
+
     def _refresh_termbase_display_for_current_segment(self):
         """Refresh only termbase/glossary display for the current segment.
         
@@ -12278,9 +12345,12 @@ class SupervertalerQt(QMainWindow):
                 
                 # Get NT matches
                 nt_matches = self.find_nt_matches_in_source(segment.source)
-                
+
+                # Get status hint for termbase activation
+                status_hint = self._get_termbase_status_hint()
+
                 # Update both Termview widgets (left and right)
-                self._update_both_termviews(segment.source, termbase_list, nt_matches)
+                self._update_both_termviews(segment.source, termbase_list, nt_matches, status_hint)
             except Exception as e:
                 self.log(f"Error updating termview: {e}")
         
@@ -12772,9 +12842,12 @@ class SupervertalerQt(QMainWindow):
                                     
                                     # Get NT matches
                                     nt_matches = self.find_nt_matches_in_source(segment.source)
-                                    
+
+                                    # Get status hint (although after adding a term, it should be fine)
+                                    status_hint = self._get_termbase_status_hint()
+
                                     # Update both Termview widgets (left and right)
-                                    self._update_both_termviews(segment.source, termbase_list, nt_matches)
+                                    self._update_both_termviews(segment.source, termbase_list, nt_matches, status_hint)
                                     self.log(f"✅ Both TermView widgets updated instantly with new term")
                                 
                                 # Update source cell highlighting with updated cache
@@ -15553,11 +15626,11 @@ class SupervertalerQt(QMainWindow):
         layout.addWidget(settings_tabs)
         
         # Apply saved UI font scale on startup
-        saved_scale = self._get_settings_ui_font_scale()
+        saved_scale = self._get_global_ui_font_scale()
         if saved_scale != 100:
             # Defer application to ensure widgets are fully created
             from PyQt6.QtCore import QTimer
-            QTimer.singleShot(100, lambda: self._apply_settings_ui_font_scale(saved_scale))
+            QTimer.singleShot(100, lambda: self._apply_global_ui_font_scale(saved_scale))
         
         return tab
     
@@ -17719,26 +17792,27 @@ class SupervertalerQt(QMainWindow):
         termview_group.setLayout(termview_layout)
         layout.addWidget(termview_group)
         
-        # ===== UI Font Scale (for Settings panels) =====
-        ui_scale_group = QGroupBox("🖥️ Settings Panel Font Size")
+        # ===== Global UI Font Scale =====
+        ui_scale_group = QGroupBox("🖥️ Global UI Font Scale")
         ui_scale_layout = QVBoxLayout()
-        
+
         ui_scale_info = QLabel(
-            "Adjust the font size for all Settings panel text. Useful for high-DPI/4K displays.\n"
+            "Adjust the font size for the entire application UI. Useful for Linux/macOS users where\n"
+            "Qt applications may render with smaller fonts, or for high-DPI displays.\n"
             "Changes apply immediately. Default is 100%."
         )
         ui_scale_info.setWordWrap(True)
         ui_scale_layout.addWidget(ui_scale_info)
-        
+
         ui_scale_row = QHBoxLayout()
         ui_scale_row.addWidget(QLabel("UI Font Scale:"))
         ui_scale_spin = QSpinBox()
-        ui_scale_spin.setMinimum(80)
+        ui_scale_spin.setMinimum(50)
         ui_scale_spin.setMaximum(200)
-        ui_scale_spin.setValue(font_settings.get('settings_ui_font_scale', 100))
+        ui_scale_spin.setValue(font_settings.get('global_ui_font_scale', font_settings.get('settings_ui_font_scale', 100)))
         ui_scale_spin.setSuffix("%")
         ui_scale_spin.setSingleStep(10)
-        ui_scale_spin.setToolTip("Scale Settings panel text (80%-200%)")
+        ui_scale_spin.setToolTip("Scale entire application UI text (50%-200%)")
         ui_scale_spin.setMinimumHeight(28)
         ui_scale_spin.setMinimumWidth(90)
         ui_scale_spin.setStyleSheet("""
@@ -17755,11 +17829,11 @@ class SupervertalerQt(QMainWindow):
             }
         """)
         ui_scale_row.addWidget(ui_scale_spin)
-        
+
         # Apply button for immediate feedback
         apply_scale_btn = QPushButton("Apply")
         apply_scale_btn.setToolTip("Apply font scale immediately")
-        apply_scale_btn.clicked.connect(lambda: self._apply_settings_ui_font_scale(ui_scale_spin.value()))
+        apply_scale_btn.clicked.connect(lambda: self._apply_global_ui_font_scale(ui_scale_spin.value()))
         ui_scale_row.addWidget(apply_scale_btn)
         
         ui_scale_row.addStretch()
@@ -17799,7 +17873,7 @@ class SupervertalerQt(QMainWindow):
         def save_view_settings_with_scale():
             # Save the UI scale setting first
             if hasattr(self, '_ui_scale_spin'):
-                self._apply_settings_ui_font_scale(self._ui_scale_spin.value())
+                self._apply_global_ui_font_scale(self._ui_scale_spin.value())
             # Then save other view settings
             self._save_view_settings_from_ui(
                 grid_font_spin, match_font_spin, compare_font_spin, show_tags_check, tag_color_btn,
@@ -19927,72 +20001,51 @@ class SupervertalerQt(QMainWindow):
         msg.setStandardButtons(QMessageBox.StandardButton.Ok)
         msg.exec()
     
-    def _apply_settings_ui_font_scale(self, scale_percent: int):
-        """Apply font scale to all Settings panels for better readability on high-DPI displays"""
-        # Save the setting
+    def _apply_global_ui_font_scale(self, scale_percent: int):
+        """Apply font scale to the entire application UI"""
         general_settings = self.load_general_settings()
-        general_settings['settings_ui_font_scale'] = scale_percent
+        general_settings['global_ui_font_scale'] = scale_percent
+        # Remove old key if present (migration)
+        if 'settings_ui_font_scale' in general_settings:
+            del general_settings['settings_ui_font_scale']
         self.save_general_settings(general_settings)
-        
-        # Calculate base font size (default system font is typically 9-10pt)
-        base_size = 10  # Base font size in points
-        scaled_size = int(base_size * scale_percent / 100)
-        
-        # Create stylesheet for Settings panels
-        settings_stylesheet = f"""
-            QGroupBox {{
-                font-size: {scaled_size + 1}pt;
-                font-weight: bold;
-            }}
-            QGroupBox QLabel {{
-                font-size: {scaled_size}pt;
-            }}
-            QGroupBox QCheckBox {{
-                font-size: {scaled_size}pt;
-            }}
-            QGroupBox QRadioButton {{
-                font-size: {scaled_size}pt;
-            }}
-            QGroupBox QComboBox {{
-                font-size: {scaled_size}pt;
-            }}
-            QGroupBox QSpinBox {{
-                font-size: {scaled_size}pt;
-            }}
-            QGroupBox QLineEdit {{
-                font-size: {scaled_size}pt;
-            }}
-            QGroupBox QPushButton {{
-                font-size: {scaled_size}pt;
-            }}
-            QGroupBox QTextEdit {{
-                font-size: {scaled_size}pt;
-            }}
-            QGroupBox QPlainTextEdit {{
-                font-size: {scaled_size}pt;
-            }}
-        """
-        
-        # Apply to settings_tabs if it exists
-        if hasattr(self, 'settings_tabs') and self.settings_tabs is not None:
-            self.settings_tabs.setStyleSheet(
-                "QTabBar::tab { outline: 0; font-size: " + str(scaled_size) + "pt; } "
-                "QTabBar::tab:focus { outline: none; } "
-                "QTabBar::tab:selected { border-bottom: 1px solid #2196F3; background-color: rgba(33, 150, 243, 0.08); }"
-            )
-            
-            # Apply to each tab's content
-            for i in range(self.settings_tabs.count()):
-                widget = self.settings_tabs.widget(i)
-                if widget:
-                    widget.setStyleSheet(settings_stylesheet)
-        
-        self.log(f"✓ Settings UI font scale set to {scale_percent}% (base: {scaled_size}pt)")
-    
-    def _get_settings_ui_font_scale(self) -> int:
-        """Get the current Settings UI font scale percentage"""
+
+        # Update ThemeManager and reapply theme
+        if hasattr(self, 'theme_manager') and self.theme_manager is not None:
+            self.theme_manager.font_scale = scale_percent
+            self.theme_manager.apply_theme(QApplication.instance())
+
+        # Update status bar and main tabs fonts
+        self._update_status_bar_fonts(scale_percent)
+        self._update_main_tabs_fonts(scale_percent)
+        self.log(f"✓ Global UI font scale set to {scale_percent}%")
+
+    def _update_status_bar_fonts(self, scale_percent: int):
+        """Update status bar label fonts based on scale percentage"""
+        base_size = int(9 * scale_percent / 100)
+        small_size = max(7, base_size)
+        style = f"font-size: {small_size}pt;"
+
+        # Update all status bar labels if they exist
+        for attr_name in ['segment_count_label', 'file_label', 'tm_status_label',
+                          'termbase_status_label', 'source_lang_label', 'target_lang_label']:
+            if hasattr(self, attr_name):
+                label = getattr(self, attr_name)
+                if label is not None:
+                    label.setStyleSheet(style)
+
+    def _update_main_tabs_fonts(self, scale_percent: int):
+        """Update main tab bar fonts based on scale percentage"""
+        base_size = int(10 * scale_percent / 100)
+        if hasattr(self, 'main_tabs') and self.main_tabs is not None:
+            self.main_tabs.tabBar().setStyleSheet(f"font-size: {base_size}pt;")
+
+    def _get_global_ui_font_scale(self) -> int:
+        """Get the current global UI font scale percentage"""
         general_settings = self.load_general_settings()
-        return general_settings.get('settings_ui_font_scale', 100)
+        # Check new key first, fall back to old key for migration
+        return general_settings.get('global_ui_font_scale',
+                                    general_settings.get('settings_ui_font_scale', 100))
     
     def create_grid_view_widget(self):
         """Create the Grid View widget (existing grid functionality)"""
@@ -21574,36 +21627,35 @@ class SupervertalerQt(QMainWindow):
         
         # Source language
         source_lang_combo = QComboBox()
-        common_langs = [
-            ("English", "en"),
-            ("Dutch", "nl"),
-            ("German", "de"),
-            ("French", "fr"),
-            ("Spanish", "es"),
-            ("Italian", "it"),
-            ("Portuguese", "pt"),
-            ("Russian", "ru"),
-            ("Chinese", "zh"),
-            ("Japanese", "ja"),
+        # Full language list matching Settings → Language Pair (with ISO 639-1 codes)
+        available_langs = [
+            ("Afrikaans", "af"), ("Albanian", "sq"), ("Arabic", "ar"), ("Armenian", "hy"),
+            ("Basque", "eu"), ("Bengali", "bn"), ("Bulgarian", "bg"), ("Catalan", "ca"),
+            ("Chinese (Simplified)", "zh-CN"), ("Chinese (Traditional)", "zh-TW"),
+            ("Croatian", "hr"), ("Czech", "cs"), ("Danish", "da"), ("Dutch", "nl"),
+            ("English", "en"), ("Estonian", "et"), ("Finnish", "fi"), ("French", "fr"),
+            ("Galician", "gl"), ("Georgian", "ka"), ("German", "de"), ("Greek", "el"),
+            ("Hebrew", "he"), ("Hindi", "hi"), ("Hungarian", "hu"), ("Icelandic", "is"),
+            ("Indonesian", "id"), ("Irish", "ga"), ("Italian", "it"), ("Japanese", "ja"),
+            ("Korean", "ko"), ("Latvian", "lv"), ("Lithuanian", "lt"), ("Macedonian", "mk"),
+            ("Malay", "ms"), ("Norwegian", "no"), ("Persian", "fa"), ("Polish", "pl"),
+            ("Portuguese", "pt"), ("Romanian", "ro"), ("Russian", "ru"), ("Serbian", "sr"),
+            ("Slovak", "sk"), ("Slovenian", "sl"), ("Spanish", "es"), ("Swahili", "sw"),
+            ("Swedish", "sv"), ("Thai", "th"), ("Turkish", "tr"), ("Ukrainian", "uk"),
+            ("Urdu", "ur"), ("Vietnamese", "vi"), ("Welsh", "cy"),
         ]
-        for lang_name, lang_code in common_langs:
+        for lang_name, lang_code in available_langs:
             source_lang_combo.addItem(lang_name, lang_code)
         settings_layout.addRow("Source Language:", source_lang_combo)
-        
+
         # Target language
         target_lang_combo = QComboBox()
-        for lang_name, lang_code in common_langs:
+        for lang_name, lang_code in available_langs:
             target_lang_combo.addItem(lang_name, lang_code)
-        
-        # Set defaults based on global language settings (if in common_langs)
-        try:
-            for lang_name, lang_code in common_langs:
-                if lang_name == self.source_language:
-                    source_lang_combo.setCurrentText(lang_name)
-                if lang_name == self.target_language:
-                    target_lang_combo.setCurrentText(lang_name)
-        except:
-            target_lang_combo.setCurrentIndex(1)  # Fallback to Dutch
+
+        # Set defaults based on global language settings
+        source_lang_combo.setCurrentText(self.source_language)
+        target_lang_combo.setCurrentText(self.target_language)
         
         settings_layout.addRow("Target Language:", target_lang_combo)
         
@@ -21725,7 +21777,11 @@ class SupervertalerQt(QMainWindow):
             target_lang=target_lang,
             segments=[]
         )
-        
+
+        # Sync global language settings with new project languages
+        self.source_language = source_lang
+        self.target_language = target_lang
+
         # Process source text if provided
         source_text = text_input.toPlainText().strip()
         if source_text:
@@ -21835,7 +21891,13 @@ class SupervertalerQt(QMainWindow):
             self.current_project = Project.from_dict(data)
             self.project_file_path = file_path
             self.project_modified = False
-            
+
+            # Sync global language settings with project languages
+            if self.current_project.source_lang:
+                self.source_language = self.current_project.source_lang
+            if self.current_project.target_lang:
+                self.target_language = self.current_project.target_lang
+
             # Restore prompt settings if they exist (unified library)
             if hasattr(self.current_project, 'prompt_settings') and self.current_project.prompt_settings:
                 prompt_settings = self.current_project.prompt_settings
@@ -23750,9 +23812,9 @@ class SupervertalerQt(QMainWindow):
             # Initialize TM for this project
             self.initialize_tm_database()
             
-            # Deactivate all resources for new project (user explicitly activates what they need)
+            # Deactivate all resources for new project, then auto-activate language-matching ones
             self._deactivate_all_resources_for_new_project()
-            
+
             # Auto-resize rows for better initial display
             self.auto_resize_rows()
 
@@ -26226,7 +26288,11 @@ class SupervertalerQt(QMainWindow):
             
             # Store memoQ source path in project for persistence across saves
             self.current_project.memoq_source_path = file_path
-            
+
+            # Sync global language settings with imported project languages
+            self.source_language = source_lang
+            self.target_language = target_lang
+
             # Create segments with simple sequential IDs
             for idx, source_text in enumerate(source_segments):
                 existing_target = target_segments[idx] if idx < len(target_segments) else ""
@@ -26250,15 +26316,15 @@ class SupervertalerQt(QMainWindow):
             self.load_segments_to_grid()
             self.initialize_tm_database()
             
-            # Deactivate all resources for new project (user explicitly activates what they need)
+            # Deactivate all resources for new project, then auto-activate language-matching ones
             self._deactivate_all_resources_for_new_project()
-            
+
             # Auto-resize rows for better initial display
             self.auto_resize_rows()
-            
+
             # Initialize spellcheck for target language
             self._initialize_spellcheck_for_target_language(target_lang)
-            
+
             # If smart formatting was used, auto-enable Tags view so user sees the tags
             if self.memoq_smart_formatting:
                 self._enable_tag_view_after_import()
@@ -26747,7 +26813,11 @@ class SupervertalerQt(QMainWindow):
             
             # Store memoQ XLIFF source path in project for persistence across saves
             self.current_project.mqxliff_source_path = file_path
-            
+
+            # Sync global language settings with imported project languages
+            self.source_language = source_lang
+            self.target_language = target_lang
+
             # Update UI
             self.project_file_path = None
             self.project_modified = True
@@ -26755,15 +26825,15 @@ class SupervertalerQt(QMainWindow):
             self.load_segments_to_grid()
             self.initialize_tm_database()
             
-            # Deactivate all resources for new project (user explicitly activates what they need)
+            # Deactivate all resources for new project, then auto-activate language-matching ones
             self._deactivate_all_resources_for_new_project()
-            
+
             # Auto-resize rows for better initial display
             self.auto_resize_rows()
-            
+
             # Initialize spellcheck for target language
             self._initialize_spellcheck_for_target_language(target_lang)
-            
+
             # Log success
             self.log(f"✓ Imported {len(segments)} segments from memoQ XLIFF: {Path(file_path).name}")
             self.log(f"  Source: {source_lang}, Target: {target_lang}")
@@ -27022,7 +27092,11 @@ class SupervertalerQt(QMainWindow):
             
             # Store CafeTran source path in project for persistence across saves
             self.current_project.cafetran_source_path = file_path
-            
+
+            # Sync global language settings with imported project languages
+            self.source_language = self.current_project.source_lang
+            self.target_language = self.current_project.target_lang
+
             # Update UI
             self.project_file_path = None
             self.project_modified = True
@@ -27030,16 +27104,16 @@ class SupervertalerQt(QMainWindow):
             self.load_segments_to_grid()
             self.initialize_tm_database()
             
-            # Deactivate all resources for new project (user explicitly activates what they need)
+            # Deactivate all resources for new project, then auto-activate language-matching ones
             self._deactivate_all_resources_for_new_project()
-            
+
             # Auto-resize rows for better initial display
             self.auto_resize_rows()
-            
+
             # Initialize spellcheck for target language
             target_lang = self.current_project.target_lang if self.current_project else 'nl'
             self._initialize_spellcheck_for_target_language(target_lang)
-            
+
             # Log success
             self.log(f"✓ Imported {len(segments)} segments from CafeTran bilingual DOCX: {Path(file_path).name}")
             
@@ -27246,7 +27320,11 @@ class SupervertalerQt(QMainWindow):
             
             # Store Trados source path in project for persistence across saves
             self.current_project.trados_source_path = file_path
-            
+
+            # Sync global language settings with imported project languages
+            self.source_language = source_lang
+            self.target_language = target_lang
+
             # Update UI
             self.project_file_path = None
             self.project_modified = True
@@ -27254,15 +27332,15 @@ class SupervertalerQt(QMainWindow):
             self.load_segments_to_grid()
             self.initialize_tm_database()
             
-            # Deactivate all resources for new project (user explicitly activates what they need)
+            # Deactivate all resources for new project, then auto-activate language-matching ones
             self._deactivate_all_resources_for_new_project()
-            
+
             # Auto-resize rows for better initial display
             self.auto_resize_rows()
-            
+
             # Initialize spellcheck for target language
             self._initialize_spellcheck_for_target_language(target_lang)
-            
+
             # Count segments with tags
             tagged_count = sum(1 for s in trados_segments if s.source_tags)
             
@@ -27606,7 +27684,11 @@ class SupervertalerQt(QMainWindow):
             self.sdlppx_handler = handler
             self.sdlppx_source_file = file_path
             self.current_project.sdlppx_source_path = file_path
-            
+
+            # Sync global language settings with imported project languages
+            self.source_language = source_lang
+            self.target_language = target_lang
+
             # Update UI
             self.project_file_path = None
             self.project_modified = True
@@ -27939,6 +28021,10 @@ class SupervertalerQt(QMainWindow):
             # Store Phrase source path in project for persistence across saves
             self.current_project.phrase_source_path = file_path
 
+            # Sync global language settings with imported project languages
+            self.source_language = source_lang
+            self.target_language = target_lang
+
             # Update UI
             self.project_file_path = None
             self.project_modified = True
@@ -28219,7 +28305,11 @@ class SupervertalerQt(QMainWindow):
             
             # Store Déjà Vu source path in project for persistence
             self.current_project.dejavu_source_path = file_path
-            
+
+            # Sync global language settings with imported project languages
+            self.source_language = source_lang
+            self.target_language = target_lang
+
             # Create segments
             for idx, seg_data in enumerate(segments_data):
                 segment = Segment(
@@ -31551,9 +31641,12 @@ class SupervertalerQt(QMainWindow):
                             ]
                             # Also get NT matches (fresh, not cached - they may have changed)
                             nt_matches = self.find_nt_matches_in_source(segment.source)
-                            
+
+                            # Get status hint for termbase activation
+                            status_hint = self._get_termbase_status_hint()
+
                             # Update both Termview widgets (left and right)
-                            self._update_both_termviews(segment.source, termbase_matches, nt_matches)
+                            self._update_both_termviews(segment.source, termbase_matches, nt_matches, status_hint)
                         except Exception as e:
                             self.log(f"Error updating termview from cache: {e}")
                     
@@ -31637,9 +31730,12 @@ class SupervertalerQt(QMainWindow):
                                     ] if stored_matches else []
                                     # Also get NT matches
                                     nt_matches = self.find_nt_matches_in_source(segment.source)
-                                    
+
+                                    # Get status hint for termbase activation
+                                    status_hint = self._get_termbase_status_hint()
+
                                     # Update both Termview widgets (left and right)
-                                    self._update_both_termviews(segment.source, termbase_matches, nt_matches)
+                                    self._update_both_termviews(segment.source, termbase_matches, nt_matches, status_hint)
                                 except Exception as e:
                                     self.log(f"Error refreshing termview: {e}")
 
@@ -33781,7 +33877,8 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                 self.nt_manager.set_list_active(list_name, False)
         
         self.log("📋 New project: All TMs, glossaries, and NT lists deactivated (start clean)")
-    
+        self.log("💡 Tip: Go to Resources tab to activate TMs and glossaries for this project")
+
     def search_and_display_tm_matches(self, source_text: str):
         """Search TM and Termbases and display matches with visual diff for fuzzy matches"""
         self.log(f"🚨 search_and_display_tm_matches called with source_text: '{source_text[:50]}...'")
@@ -33804,11 +33901,34 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         try:
             # Get activated TM IDs for current project
             tm_ids = None
+            no_tms_activated = False
+            tms_wrong_language = False
             if hasattr(self, 'tm_metadata_mgr') and self.tm_metadata_mgr and self.current_project:
                 project_id = self.current_project.id if hasattr(self.current_project, 'id') else None
                 if project_id:
                     tm_ids = self.tm_metadata_mgr.get_active_tm_ids(project_id)
-            
+                    # Check if no TMs are activated for this project
+                    if tm_ids is not None and len(tm_ids) == 0:
+                        no_tms_activated = True
+                    elif tm_ids and len(tm_ids) > 0:
+                        # Check if any activated TMs match the project's language pair
+                        project_source = (self.current_project.source_lang or '').lower()
+                        project_target = (self.current_project.target_lang or '').lower()
+                        all_tms = self.tm_metadata_mgr.get_all_tms()
+                        has_matching_language = False
+                        for tm in all_tms:
+                            if tm['id'] in tm_ids:
+                                tm_source = (tm.get('source_lang') or '').lower()
+                                tm_target = (tm.get('target_lang') or '').lower()
+                                # Match if languages align (bidirectional) or TM has no language set
+                                if (not tm_source and not tm_target) or \
+                                   (tm_source == project_source and tm_target == project_target) or \
+                                   (tm_source == project_target and tm_target == project_source):
+                                    has_matching_language = True
+                                    break
+                        if not has_matching_language:
+                            tms_wrong_language = True
+
             # Search for matches (using activated TMs if available)
             matches = self.tm_database.search_all(source_text, tm_ids=tm_ids, max_matches=5)
             
@@ -33855,10 +33975,26 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             
             if not matches:
                 if hasattr(self, 'tm_display'):
-                    self.tm_display.setHtml(
-                        f"<p style='color: #666;'><b>Source:</b> {source_text}</p>"
-                        f"<p style='color: #999;'><i>No translation memory matches found</i></p>"
-                    )
+                    if no_tms_activated:
+                        # Show helpful message when no TMs are activated
+                        self.tm_display.setHtml(
+                            f"<p style='color: #666;'><b>Source:</b> {source_text}</p>"
+                            f"<p style='color: #E65100;'><i>No TMs activated for this project.</i></p>"
+                            f"<p style='color: #999; font-size: 9pt;'>Go to <b>Resources → TM</b> to activate translation memories.</p>"
+                        )
+                    elif tms_wrong_language:
+                        # Show message when TMs are activated but don't match project language pair
+                        project_lang_pair = f"{self.current_project.source_lang} → {self.current_project.target_lang}" if self.current_project else ""
+                        self.tm_display.setHtml(
+                            f"<p style='color: #666;'><b>Source:</b> {source_text}</p>"
+                            f"<p style='color: #E65100;'><i>Activated TMs don't match project language ({project_lang_pair}).</i></p>"
+                            f"<p style='color: #999; font-size: 9pt;'>Go to <b>Resources → TM</b> to activate TMs for this language pair.</p>"
+                        )
+                    else:
+                        self.tm_display.setHtml(
+                            f"<p style='color: #666;'><b>Source:</b> {source_text}</p>"
+                            f"<p style='color: #999;'><i>No translation memory matches found</i></p>"
+                        )
                 return
             
             # If using TranslationResultsPanel, populate it with TM and Termbase results
@@ -35510,8 +35646,11 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                         'termbase_id': match_info.get('termbase_id'),
                         'notes': match_info.get('notes', '')
                     })
+                # Get status hint for termbase activation
+                status_hint = self._get_termbase_status_hint()
+
                 # Update both Termview widgets
-                self._update_both_termviews(segment.source, tb_list, nt_matches)
+                self._update_both_termviews(segment.source, tb_list, nt_matches, status_hint)
                 self.log("   ✓ TermView updated")
             except Exception as e:
                 self.log(f"   ⚠️ TermView update error: {e}")

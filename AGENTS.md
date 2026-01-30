@@ -767,6 +767,89 @@ deepl=...
 ## 🔄 Recent Development History
 
 
+### January 30, 2026 - Global UI Font Scale Feature (v1.9.180)
+
+**✨ Feature Summary**
+
+A user-configurable setting (50%-200%) that scales the entire application UI. Particularly useful for Linux/macOS users where Qt applications may render with smaller fonts, or for high-DPI displays.
+
+**Files Modified:**
+
+1. **`modules/theme_manager.py`**
+2. **`Supervertaler.py`**
+3. **`CHANGELOG.md`**
+4. **`FAQ.md`**
+
+**Implementation Details:**
+
+**Step 1: ThemeManager (`modules/theme_manager.py`)**
+
+In `__init__` method, added after `self.custom_themes`:
+```python
+# Global UI font scale (50-200%, default 100%)
+self.font_scale: int = 100
+```
+
+In `apply_theme` method, added at the beginning (after getting `theme = self.current_theme`):
+```python
+# Calculate scaled font sizes based on font_scale (default 100%)
+base_font_size = int(10 * self.font_scale / 100)  # Base: 10pt at 100%
+small_font_size = max(7, int(9 * self.font_scale / 100))  # Small text (status bar)
+
+# Font scaling rules (only applied if scale != 100%)
+font_rules = ""
+if self.font_scale != 100:
+    font_rules = f"""
+    /* Global font scaling ({self.font_scale}%) */
+    QWidget {{ font-size: {base_font_size}pt; }}
+    QMenuBar {{ font-size: {base_font_size}pt; }}
+    # ... (all Qt widget types)
+    """
+```
+
+Then prepended `font_rules` to the stylesheet: `stylesheet = font_rules + f"""...`
+
+**Step 2: Supervertaler.py**
+
+- Replaced "Settings Panel Font Size" UI (~line 17721) in `_create_view_settings_tab()` with "Global UI Font Scale"
+- Changed SpinBox range from 80-200 to 50-200
+- Updated setting key from `settings_ui_font_scale` to `global_ui_font_scale`
+- Replaced `_apply_settings_ui_font_scale()` with `_apply_global_ui_font_scale()`:
+  ```python
+  def _apply_global_ui_font_scale(self, scale_percent: int):
+      """Apply font scale to the entire application UI"""
+      general_settings = self.load_general_settings()
+      general_settings['global_ui_font_scale'] = scale_percent
+      # Remove old key if present (migration)
+      if 'settings_ui_font_scale' in general_settings:
+          del general_settings['settings_ui_font_scale']
+      self.save_general_settings(general_settings)
+
+      # Update ThemeManager and reapply theme
+      if hasattr(self, 'theme_manager') and self.theme_manager is not None:
+          self.theme_manager.font_scale = scale_percent
+          self.theme_manager.apply_theme(QApplication.instance())
+
+      # Update status bar and main tabs fonts
+      self._update_status_bar_fonts(scale_percent)
+      self._update_main_tabs_fonts(scale_percent)
+      self.log(f"✓ Global UI font scale set to {scale_percent}%")
+  ```
+- Added helper methods: `_update_status_bar_fonts()`, `_update_main_tabs_fonts()`, `_get_global_ui_font_scale()`
+- Applied font scale at startup after `self.theme_manager = ThemeManager(...)`:
+  ```python
+  saved_font_scale = self._get_global_ui_font_scale()
+  self.theme_manager.font_scale = saved_font_scale
+  ```
+
+**Settings Storage:**
+- Key: `global_ui_font_scale` (replaces `settings_ui_font_scale`)
+- File: `general_settings.json`
+- Default: 100
+- Range: 50-200
+
+---
+
 ### January 28, 2026 - Fresh Projects Start Clean (v1.9.172)
 
 **🐛 Bug Fix: TM/Glossary Deactivation on Project Load**

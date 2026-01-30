@@ -2,9 +2,31 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.178-beta (January 28, 2026)
+**Current Version:** v1.9.181 (January 30, 2026)
 
 
+
+## v1.9.181 - January 30, 2026
+
+### ✨ New Features
+
+- **Expanded Language Support in New Project**: The New Project dialog now includes 53 languages (up from 10), matching the full list available in Settings. Languages now include Czech, Slovak, Romanian, Hungarian, and many more.
+
+- **Global Language Sync**: When importing projects (memoQ, Trados, Phrase, XLIFF, etc.), the global language settings are now automatically synchronized with the imported project's source and target languages.
+
+### 🎨 UI Improvements
+
+- **TM/Glossary Activation Guidance**: When no TMs or glossaries are activated for a project, or when activated resources don't match the project's language pair, helpful guidance messages now appear in the Match Panel and Termview. Messages guide users to the Resources tab to activate appropriate resources.
+
+---
+
+## v1.9.180 - January 30, 2026
+
+### ✨ New Features
+
+- **Global UI Font Scale**: New user-configurable setting (50%-200%) that scales the entire application UI. Particularly useful for Linux/macOS users where Qt applications may render with smaller fonts, or for high-DPI displays. Find it in Settings → View → Global UI Font Scale.
+
+---
 
 ## v1.9.178-beta - January 28, 2026
 

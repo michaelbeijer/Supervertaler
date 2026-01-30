@@ -212,7 +212,10 @@ class ThemeManager:
         self.themes_file = user_data_path / "themes.json"
         self.current_theme: Theme = self.PREDEFINED_THEMES["Light (Default)"]
         self.custom_themes: Dict[str, Theme] = {}
-        
+
+        # Global UI font scale (50-200%, default 100%)
+        self.font_scale: int = 100
+
         # Load custom themes
         self.load_custom_themes()
     
@@ -289,14 +292,48 @@ class ThemeManager:
     def apply_theme(self, app: QApplication):
         """
         Apply current theme to application
-        
+
         Args:
             app: QApplication instance
         """
         theme = self.current_theme
-        
+
+        # Calculate scaled font sizes based on font_scale (default 100%)
+        base_font_size = int(10 * self.font_scale / 100)  # Base: 10pt at 100%
+        small_font_size = max(7, int(9 * self.font_scale / 100))  # Small text (status bar)
+
+        # Font scaling rules (only applied if scale != 100%)
+        font_rules = ""
+        if self.font_scale != 100:
+            font_rules = f"""
+            /* Global font scaling ({self.font_scale}%) */
+            QWidget {{ font-size: {base_font_size}pt; }}
+            QMenuBar {{ font-size: {base_font_size}pt; }}
+            QMenuBar::item {{ font-size: {base_font_size}pt; }}
+            QMenu {{ font-size: {base_font_size}pt; }}
+            QMenu::item {{ font-size: {base_font_size}pt; }}
+            QStatusBar {{ font-size: {small_font_size}pt; }}
+            QTabBar::tab {{ font-size: {base_font_size}pt; }}
+            QToolBar {{ font-size: {base_font_size}pt; }}
+            QLabel {{ font-size: {base_font_size}pt; }}
+            QCheckBox {{ font-size: {base_font_size}pt; }}
+            QRadioButton {{ font-size: {base_font_size}pt; }}
+            QComboBox {{ font-size: {base_font_size}pt; }}
+            QSpinBox {{ font-size: {base_font_size}pt; }}
+            QDoubleSpinBox {{ font-size: {base_font_size}pt; }}
+            QLineEdit {{ font-size: {base_font_size}pt; }}
+            QPushButton {{ font-size: {base_font_size}pt; }}
+            QGroupBox {{ font-size: {base_font_size}pt; }}
+            QGroupBox::title {{ font-size: {base_font_size}pt; }}
+            QTextEdit {{ font-size: {base_font_size}pt; }}
+            QPlainTextEdit {{ font-size: {base_font_size}pt; }}
+            QListWidget {{ font-size: {base_font_size}pt; }}
+            QTreeWidget {{ font-size: {base_font_size}pt; }}
+            QHeaderView::section {{ font-size: {base_font_size}pt; }}
+            """
+
         # Create and apply stylesheet - COLORS ONLY, preserves native sizes/spacing
-        stylesheet = f"""
+        stylesheet = font_rules + f"""
             /* Main window background */
             QMainWindow, QWidget {{
                 background-color: {theme.window_bg};

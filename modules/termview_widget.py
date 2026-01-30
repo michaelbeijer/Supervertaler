@@ -694,27 +694,28 @@ class TermviewWidget(QWidget):
                     font.setBold(self.current_font_bold)
                     block.source_label.setFont(font)
     
-    def update_with_matches(self, source_text: str, termbase_matches: List[Dict], nt_matches: List[Dict] = None):
+    def update_with_matches(self, source_text: str, termbase_matches: List[Dict], nt_matches: List[Dict] = None, status_hint: str = None):
         """
         Update the termview display with pre-computed termbase and NT matches
-        
+
         RYS-STYLE DISPLAY: Show source text as tokens with translations underneath
-        
+
         Args:
             source_text: Source segment text
             termbase_matches: List of termbase match dicts from Translation Results
             nt_matches: Optional list of NT match dicts with 'text', 'start', 'end', 'list_name' keys
+            status_hint: Optional hint about why there might be no matches (e.g., 'no_termbases_activated', 'wrong_language')
         """
         self.current_source = source_text
-        
+
         # Clear existing blocks and shortcut mappings
         self.clear_terms()
         self.shortcut_terms = {}  # Reset shortcut mappings
-        
+
         if not source_text or not source_text.strip():
             self.info_label.setText("No segment selected")
             return
-        
+
         # Strip HTML/XML tags from source text for display in TermView
         # This handles CAT tool tags like <b>, </b>, <i>, </i>, <u>, </u>, <bi>, <sub>, <sup>, <li-o>, <li-b>
         # as well as memoQ tags {1}, [2}, {3], Trados tags <1>, </1>, and Déjà Vu tags {00001}
@@ -725,16 +726,22 @@ class TermviewWidget(QWidget):
         display_text = re.sub(r'\[[^\[\]]*\}', '', display_text)  # Opening: [anything}
         display_text = re.sub(r'\{[^\{\}]*\]', '', display_text)  # Closing: {anything]
         display_text = display_text.strip()
-        
+
         # If stripping tags leaves nothing, fall back to original
         if not display_text:
             display_text = source_text
-        
+
         has_termbase = termbase_matches and len(termbase_matches) > 0
         has_nt = nt_matches and len(nt_matches) > 0
-        
+
         if not has_termbase and not has_nt:
-            self.info_label.setText("No terminology or NT matches for this segment")
+            # Show appropriate message based on status hint
+            if status_hint == 'no_termbases_activated':
+                self.info_label.setText("No glossaries activated. Go to Resources → Glossary to activate.")
+            elif status_hint == 'wrong_language':
+                self.info_label.setText("Activated glossaries don't match project language pair.")
+            else:
+                self.info_label.setText("No terminology or NT matches for this segment")
             return
         
         # Convert termbase matches to dict for easy lookup: {source_term.lower(): [translations]}
