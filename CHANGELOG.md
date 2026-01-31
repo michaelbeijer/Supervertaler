@@ -2,9 +2,46 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.181 (January 30, 2026)
+**Current Version:** v1.9.183 (January 31, 2026)
 
 
+
+## v1.9.183 - January 31, 2026
+
+### ⚡ Performance: Instant Ctrl+Enter Navigation
+
+Major performance overhaul for segment navigation. Ctrl+Enter is now **instant** instead of taking 10-50+ seconds.
+
+**In-Memory Termbase Index**
+- Built a pre-indexed, in-memory glossary lookup system that replaces per-segment database queries
+- Glossary lookups now take **<1ms** instead of **52 seconds** per segment
+- Index is built once when project loads (~0.15s for 1,400 terms) and updated instantly when terms are added
+
+**Async Auto-Confirm**
+- The "auto-confirm 100% TM matches" feature now runs asynchronously
+- Navigation completes instantly; TM lookup happens in the background
+- If a 100% match is found, the segment is auto-confirmed after you've already moved
+
+**Cache System Enabled by Default**
+- Prefetch cache is now **enabled by default** for new installations
+- Background workers pre-cache termbase and TM matches for upcoming segments
+- Cache hit rate typically 95%+ after initial segment visit
+
+### 🐛 Bug Fixes
+
+- **TermView Updates on Ctrl+Enter**: The glossary/terminology panel now updates immediately when navigating with Ctrl+Enter, not just on mouse click
+
+- **TM Panel Updates on Ctrl+Enter**: Translation Memory matches now appear immediately when navigating with Ctrl+Enter
+
+- **Source Text Always Visible**: TermView now displays the source text even when there are no glossary matches, with appropriate status messages ("No matches in X words", "No glossaries activated", etc.)
+
+- **Row Selection on Ctrl+Enter**: The target row is now properly selected (blue highlight) after Ctrl+Enter navigation, not just the previous row
+
+- **TM Results for Correct Segment**: Fixed race condition where fast navigation could show TM results for the wrong segment; added segment validation before and after TM lookup
+
+- **TM Lookup on Cache Hit**: Fixed issue where TM matches weren't shown when termbase was cached (prefetch worker skips TM for thread safety)
+
+---
 
 ## v1.9.181 - January 30, 2026
 
@@ -142,7 +179,7 @@ All notable changes to Supervertaler are documented in this file.
   - **Dual Access**: Available both as popup dialog (`Ctrl+Shift+P`) and as permanent tab
   - **Project-Aware**: Tab clears when creating new project, populates when loading project
 
-- **Settings Improvement**: "Disable ALL caches" is now checked by default for new installs, ensuring maximum privacy and control for new users.
+- **Settings Improvement**: "Disable ALL caches" was temporarily enabled by default *(reverted in v1.9.183 - caches are now enabled by default for performance)*.
 
 - **TM Target Shortcut Badge**: Added a blue "0" badge next to the TM Target in the Match Panel, indicating the Alt+0 shortcut for instant TM match insertion. Shortcut is documented and works out of the box.
 

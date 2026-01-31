@@ -734,15 +734,9 @@ class TermviewWidget(QWidget):
         has_termbase = termbase_matches and len(termbase_matches) > 0
         has_nt = nt_matches and len(nt_matches) > 0
 
-        if not has_termbase and not has_nt:
-            # Show appropriate message based on status hint
-            if status_hint == 'no_termbases_activated':
-                self.info_label.setText("No glossaries activated. Go to Resources → Glossary to activate.")
-            elif status_hint == 'wrong_language':
-                self.info_label.setText("Activated glossaries don't match project language pair.")
-            else:
-                self.info_label.setText("No terminology or NT matches for this segment")
-            return
+        # Store status hint for info label (will be set at the end)
+        self._status_hint = status_hint
+        self._has_any_matches = has_termbase or has_nt
         
         # Convert termbase matches to dict for easy lookup: {source_term.lower(): [translations]}
         matches_dict = {}
@@ -874,11 +868,18 @@ class TermviewWidget(QWidget):
             info_parts.append(f"{blocks_with_translations} terms")
         if blocks_with_nt > 0:
             info_parts.append(f"{blocks_with_nt} NTs")
-        
+
         if info_parts:
             self.info_label.setText(f"✓ Found {', '.join(info_parts)} in {len(tokens)} words")
         else:
-            self.info_label.setText(f"No matches in {len(tokens)} words")
+            # Show appropriate message based on status hint when no matches
+            status_hint = getattr(self, '_status_hint', None)
+            if status_hint == 'no_termbases_activated':
+                self.info_label.setText(f"No glossaries activated ({len(tokens)} words)")
+            elif status_hint == 'wrong_language':
+                self.info_label.setText(f"Glossaries don't match language pair ({len(tokens)} words)")
+            else:
+                self.info_label.setText(f"No matches in {len(tokens)} words")
     
     def get_all_termbase_matches(self, text: str) -> Dict[str, List[Dict]]:
         """

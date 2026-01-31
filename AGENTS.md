@@ -1,7 +1,23 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** January 28, 2026 | **Version:** v1.9.174
+> **Last Updated:** January 31, 2026 | **Version:** v1.9.182
+
+---
+
+## ⚡ QUICK START FOR AI AGENTS
+
+**IMPORTANT: If you're continuing from a previous session or ran out of context:**
+
+1. **Skip to the end of this file** - The most recent development context is in the **"🔄 Recent Development History"** section (search for the latest date)
+2. **Current version: v1.9.182** - In-Memory Termbase Index for instant navigation
+3. **Read only what you need** - The Project Overview and Architecture sections are reference material; the dated history entries contain the actual working context
+
+**Quick Navigation:**
+- **Latest context:** Search for `### January 31, 2026 - In-Memory Termbase Index` (near end of file)
+- **Module list:** Search for `## 🔌 Complete Module List`
+- **Architecture:** Search for `## 🏗️ Architecture Patterns`
+- **Common pitfalls:** Search for `## ⚠️ Common Pitfalls`
 
 ---
 
@@ -766,6 +782,158 @@ deepl=...
 
 ## 🔄 Recent Development History
 
+
+### January 30-31, 2026 - Total Recall Architecture & Build System Unification
+
+**✨ Feature Summary**
+
+Implemented CafeTran-inspired "Total Recall" architecture for instant grid navigation. Instead of querying giant TMs on every segment click, relevant segments are extracted into lightweight in-memory structures on project load.
+
+**Status:** Implementation complete, ready for testing
+
+**Files Created:**
+
+1. **`modules/project_tm.py`** - In-memory TM for instant lookups
+2. **`modules/extract_tm.py`** - Persistent TM extraction to .svtm files
+
+**Files Modified:**
+
+1. **`Supervertaler.py`** (~938 lines changed)
+2. **`modules/database_manager.py`** - Reduced candidate limit
+3. **`build_windows_release.ps1`** - Unified build system
+
+---
+
+#### Implementation 1: In-Memory Termbase Index (Quick Win)
+
+On project load, builds a Python dict mapping `lowercase_word -> [term_info, ...]` for O(1) termbase lookups.
+
+**Key code locations in Supervertaler.py:**
+- `self.termbase_index` initialization: ~line 6243
+- `_build_termbase_index()`: ~line 22502
+- `_search_termbase_index()`: ~line 22645
+- Integration (called on project load): ~line 22265
+
+---
+
+#### Implementation 2: ProjectTM - In-Memory TM
+
+**File:** `modules/project_tm.py`
+
+On project load, extracts relevant TM segments (fuzzy matches ≥75%) into an in-memory SQLite database with FTS5 for fast fuzzy search.
+
+**Features:**
+- `ProjectTM` class with in-memory SQLite + FTS5
+- `extract_from_database()` - extracts segments matching project content
+- `search()` - instant lookup (exact match first, then FTS5 fuzzy)
+- Thread-safe with locking
+
+**Integration in Supervertaler.py:**
+- `self.project_tm` initialization: ~line 6250
+- Progress signal: `_project_tm_progress_signal` at ~line 6128
+- Background extraction: `_start_project_tm_extraction_background()` at ~line 7553
+- UI indicator in status bar: `self.project_tm_indicator` at ~line 7439
+
+---
+
+#### Implementation 3: ExtractTM - Persistent TM Extraction
+
+**File:** `modules/extract_tm.py`
+
+Extracts relevant segments from selected TMs into a `.svtm` file (SQLite) that persists across sessions.
+
+**Features:**
+- `ExtractTM` class with persistent SQLite storage
+- `extract_and_save()` - extracts and saves to file
+- `load()` - loads existing extraction
+- `search()` - fast lookup with FTS5
+- `export_to_tmx()` - export to standard TMX format
+- File saved as `{ProjectName}_Extract.svtm` next to project
+
+**Integration in Supervertaler.py:**
+- Menu action: **Bulk → Extract from TMs...**
+- Dialog: `show_extract_tm_dialog()` at ~line 33840
+
+---
+
+#### Implementation 4: Database Manager Optimization
+
+**File:** `modules/database_manager.py`
+
+Reduced TM candidate limit from 500 to 100 (~line 1016):
+
+```python
+# Before
+candidate_limit = max(500, max_results * 50)
+
+# After
+candidate_limit = max(100, max_results * 10)
+```
+
+---
+
+#### Implementation 5: Unified Build System
+
+**File:** `build_windows_release.ps1`
+
+Removed CORE/FULL split, now uses single unified `Supervertaler.spec`:
+
+```powershell
+# New usage
+.\build_windows_release.ps1           # Build release
+.\build_windows_release.ps1 -Clean    # Clean build
+
+# Output
+dist\Supervertaler-v{version}-Windows.zip
+```
+
+---
+
+#### Expected Performance Improvements
+
+| Metric | Before | After |
+|--------|--------|-------|
+| Termbase lookup | 20-100ms | <1ms |
+| TM lookup (grid) | 50-200ms | <5ms |
+| Project load | Fast | Slightly slower (background extraction) |
+
+---
+
+#### Testing Checklist
+
+- [ ] Open project with TMs - see ProjectTM extraction progress indicator
+- [ ] Grid navigation feels faster after extraction
+- [ ] Termbase matches appear instantly
+- [ ] Bulk → Extract from TMs... dialog works
+- [ ] .svtm file created next to project
+- [ ] Build script: `.\build_windows_release.ps1`
+
+---
+
+#### Bug Fix (January 31, 2026)
+
+Fixed attribute name mismatch: segment classes use `source_text`, but ProjectTM/ExtractTM were looking for `source`. Changed to try both:
+```python
+source = getattr(seg, 'source', None) or getattr(seg, 'source_text', None)
+```
+
+#### Git Status (Uncommitted)
+
+```
+M Supervertaler.py
+M build_windows_release.ps1
+M modules/database_manager.py
+?? modules/extract_tm.py
+?? modules/project_tm.py
+```
+
+---
+
+#### Related Documentation
+
+- **Design doc:** `CLAUDE_SESSION_HANDOFF.md` - original architecture design
+
+---
 
 ### January 30, 2026 - Global UI Font Scale Feature (v1.9.180)
 
@@ -4819,6 +4987,117 @@ Extended `TagHighlighter` to color ALL CAT tool tags with pink (`#FFB6C1`) in th
 
 ---
 
+### January 31, 2026 - Performance Optimization Session
+
+**Problem:** Grid navigation was extremely slow compared to memoQ. User reported waiting times when clicking between segments.
+
+**Root Causes Identified:**
+
+1. **Destructive Cache Invalidation** - Every Ctrl+Enter (confirm segment) was calling `invalidate_translation_cache()` which cleared 20-45 future segments from the cache, destroying the batch worker's pre-populated data.
+
+2. **Non-existent TM Method** - The prefetch worker was calling `db_manager.search_translation_memory()` which doesn't exist. This caused silent failures and 0 TM matches in prefetch.
+
+3. **Empty Results Cached** - The prefetch worker was caching empty results (`{TM: [], Termbases: [], ...}`), which blocked future lookups from finding actual matches.
+
+4. **Excessive Debug Prints** - Dozens of debug print statements firing on every navigation:
+   - `[HIGHLIGHT DEBUG]` prints in `highlight_termbase_matches`
+   - `[PROACTIVE DEBUG]` prints in `_trigger_idle_prefetch` and `_apply_proactive_highlighting`
+   - `[PROACTIVE NAV DEBUG]` prints in `on_cell_selected`
+   - `[DEBUG] Superlookup` prints in `perform_lookup`
+   - `[DEBUG] TMDatabase.search_all` prints (7 per TM search)
+   - `📋 Found X active termbases` logs firing constantly
+   - `🎯 TranslationResultsPanel.set_matches()` debug output
+
+5. **No Debounce for Mouse Clicks** - Arrow key navigation had 75ms debounce, but mouse clicks went directly to full lookup.
+
+**Changes Made:**
+
+| File | Change |
+|------|--------|
+| `Supervertaler.py:22950-22955` | Removed `invalidate_translation_cache()` call on TM save |
+| `Supervertaler.py:22755-22779` | Replaced broken TM lookup in prefetch with `pass` (skip TM in prefetch) |
+| `Supervertaler.py:22686-22689` | Changed to only cache if `total_matches > 0` |
+| `Supervertaler.py:31387` | Reduced debounce from 75ms to 10ms |
+| `Supervertaler.py:31370-31396` | Applied debounce to ALL navigation (including mouse clicks) |
+| `Supervertaler.py:1674-1835` | Removed `[HIGHLIGHT DEBUG]` prints |
+| `Supervertaler.py:22568-22617` | Removed `[PROACTIVE DEBUG]` prints |
+| `Supervertaler.py:31903-31944` | Removed `[PROACTIVE NAV DEBUG]` prints |
+| `Supervertaler.py:34568-34633` | Cleaned up `_apply_proactive_highlighting` debug prints |
+| `Supervertaler.py:10325-10330` | Removed SuperlookupTab initialization debug prints |
+| `Supervertaler.py:47020-47072` | Removed Superlookup perform_lookup debug prints and file writes |
+| `modules/termbase_manager.py:612` | Removed frequent `📋 Found X active termbases` log |
+| `modules/translation_results_panel.py:1679-1684` | Removed `set_matches()` debug prints |
+| `modules/translation_memory.py:208-253` | Removed all `[DEBUG] TMDatabase.search_all` prints |
+
+**Remaining Issue:** ✅ **FIXED in v1.9.182** (see below)
+
+---
+
+### January 31, 2026 - In-Memory Termbase Index (v1.9.182) ⚡
+
+**Problem:** Termbase lookup taking 52+ seconds per segment navigation. Ctrl+Enter felt frozen.
+
+**Root Cause:** The `_search_termbases_thread_safe()` method was running a complex SQL UNION query **for every word** in the source text. A 50-word patent segment = 50+ database queries per segment.
+
+For 349 segments × 50 words = **~17,500 database queries** taking 365 seconds!
+
+**Solution:** Load ALL terms from activated termbases into memory ONCE, then do fast in-memory matching.
+
+**New Architecture:**
+
+1. **`_build_termbase_index()`** - Called on project load:
+   - Single SQL query loads all terms from activated termbases
+   - Pre-compiles regex patterns for word-boundary matching
+   - Sorts by term length (longest first) for proper phrase matching
+   - Stores in `self.termbase_index` (thread-safe with lock)
+
+2. **`_search_termbase_in_memory()`** - Called for each segment lookup:
+   - Iterates through pre-loaded terms (typically ~1000 terms)
+   - Fast `in` substring check (implemented in C)
+   - Pre-compiled regex validation for word boundaries
+   - Returns matches in <1ms per segment
+
+**Performance Improvement:**
+
+| Metric | Before | After |
+|--------|--------|-------|
+| Per-segment lookup | 1-52 seconds | <1 millisecond |
+| 349 segments batch | 365 seconds | <1 second |
+| Ctrl+Enter response | 52+ seconds | Instant |
+
+**Files Modified:**
+
+- `Supervertaler.py` (v1.9.182):
+  - Added `self.termbase_index` and `self.termbase_index_lock`
+  - Added `_build_termbase_index()` method (~80 lines)
+  - Added `_search_termbase_in_memory()` method (~40 lines)
+  - Modified `_start_termbase_batch_worker()` to build index first
+  - Modified `_termbase_batch_worker_run()` to use in-memory search
+  - Modified `find_termbase_matches_in_source()` to use index when available
+  - Modified `on_read_toggle()` to rebuild index on termbase activation change
+  - Modified `_quick_add_term_with_priority()` to update index when terms added
+
+**Key Code Locations:**
+
+- Index building: `_build_termbase_index()` at ~line 22249
+- In-memory search: `_search_termbase_in_memory()` at ~line 22346
+- Index initialization: line ~6217 (`self.termbase_index = []`)
+
+**Next Steps (if needed):**
+1. Investigate why `_search_termbases_thread_safe` returns empty for most segments
+2. Compare its query with `find_termbase_matches_in_source` (which works in Force Refresh)
+3. Consider unified TM+Termbase lookup system (user's suggestion)
+
+**Architecture Notes:**
+
+Two separate caches exist:
+- `termbase_cache` - Raw termbase matches per segment (populated by batch worker)
+- `translation_matches_cache` - Combined TM+TB+MT+LLM matches (populated by prefetch worker)
+
+The prefetch worker checks `termbase_cache` first, then falls back to `_search_termbases_thread_safe` if not found.
+
+---
+
 ## 🗄️ Database Schema (SQLite)
 
 ### Core Tables
@@ -4875,4 +5154,8 @@ An intelligent proofreading system that uses LLMs to verify translation quality.
 ---
 
 *This file replaces the previous CLAUDE.md and PROJECT_CONTEXT.md files.*
-*Last updated: January 26, 2026 - v1.9.163*
+*Last updated: January 31, 2026 - v1.9.182 (In-Memory Termbase Index)*
+
+---
+
+**💡 TIP FOR AI AGENTS:** When starting a new session, read the Quick Start section at the top, then jump directly to the most recent dated entry in "Recent Development History" for current context.

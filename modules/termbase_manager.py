@@ -609,7 +609,6 @@ class TermbaseManager:
             """, (project_id,))
             
             active_ids = [row[0] for row in cursor.fetchall()]
-            self.log(f"📋 Found {len(active_ids)} active termbases for project {project_id}: {active_ids}")
             return active_ids
         except Exception as e:
             self.log(f"✗ Error getting active termbase IDs: {e}")
