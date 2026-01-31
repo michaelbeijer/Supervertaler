@@ -651,6 +651,17 @@ class TermviewWidget(QWidget):
             is_dark = theme.name == "Dark"
             info_label_color = "#909090" if is_dark else info_text
             self.info_label.setStyleSheet(f"color: {info_label_color}; font-size: 10px; padding: 5px;")
+
+        # Refresh term blocks to pick up new theme colors
+        if hasattr(self, '_last_termbase_matches') and hasattr(self, '_last_nt_matches') and hasattr(self, 'current_source'):
+            # Re-render with stored matches to apply new theme colors
+            if self.current_source:
+                self.update_with_matches(
+                    self.current_source,
+                    self._last_termbase_matches or [],
+                    self._last_nt_matches,
+                    self._status_hint if hasattr(self, '_status_hint') else None
+                )
     
     def set_font_settings(self, font_family: str = "Segoe UI", font_size: int = 10, bold: bool = False):
         """Update font settings for Termview
@@ -721,6 +732,9 @@ class TermviewWidget(QWidget):
             status_hint: Optional hint about why there might be no matches (e.g., 'no_termbases_activated', 'wrong_language')
         """
         self.current_source = source_text
+        # Store matches for theme refresh
+        self._last_termbase_matches = termbase_matches
+        self._last_nt_matches = nt_matches
 
         # Clear existing blocks and shortcut mappings
         self.clear_terms()
