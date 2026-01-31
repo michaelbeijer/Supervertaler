@@ -224,10 +224,17 @@ class TermBlock(QWidget):
         if self.translations:
             target_text = primary_translation.get('target_term', primary_translation.get('target', ''))
             termbase_name = primary_translation.get('termbase_name', '')
-            
-            # Background color based on termbase type
-            bg_color = "#FFE5F0" if self.is_effective_project else "#D6EBFF"  # Pink for project, light blue for regular
-            hover_color = "#FFD0E8" if self.is_effective_project else "#BBDEFB"  # Slightly darker on hover
+
+            # Background color based on termbase type (theme-aware)
+            is_dark = self.theme_manager and self.theme_manager.current_theme.name == "Dark"
+            if is_dark:
+                # Dark mode: darker backgrounds
+                bg_color = "#4A2D3A" if self.is_effective_project else "#2D3E4A"  # Dark pink/blue
+                hover_color = "#5A3D4A" if self.is_effective_project else "#3D4E5A"  # Lighter on hover
+            else:
+                # Light mode: original colors
+                bg_color = "#FFE5F0" if self.is_effective_project else "#D6EBFF"  # Pink for project, light blue for regular
+                hover_color = "#FFD0E8" if self.is_effective_project else "#BBDEFB"  # Slightly darker on hover
             
             # Create horizontal layout for target + shortcut badge
             # Apply background to container so it covers both text and badge
@@ -251,9 +258,11 @@ class TermBlock(QWidget):
             target_font.setBold(self.font_bold)
             target_label.setFont(target_font)
             target_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            # Theme-aware text color
+            target_text_color = "#B0C4DE" if is_dark else "#0052A3"  # Light blue in dark mode
             target_label.setStyleSheet(f"""
                 QLabel {{
-                    color: #0052A3;
+                    color: {target_text_color};
                     padding: 0px;
                     background-color: transparent;
                     border: none;
@@ -312,11 +321,12 @@ class TermBlock(QWidget):
                     if len(self.translations) > 1:
                         count_label = QLabel(f"+{len(self.translations) - 1}")
                         count_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-                        count_label.setStyleSheet("""
-                            QLabel {
-                                color: #999;
+                        count_color = "#AAA" if is_dark else "#999"  # Lighter in dark mode
+                        count_label.setStyleSheet(f"""
+                            QLabel {{
+                                color: {count_color};
                                 font-size: 7px;
-                            }
+                            }}
                         """)
                         layout.addWidget(count_label)
                     return
@@ -336,10 +346,13 @@ class TermBlock(QWidget):
                 badge_label = QLabel(badge_text)
                 badge_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
                 badge_label.setFixedSize(badge_width, 14)
+                # Theme-aware badge colors
+                badge_bg = "#4A90E2" if is_dark else "#1976D2"  # Lighter blue in dark mode
+                badge_text_color = "#FFFFFF" if is_dark else "white"
                 badge_label.setStyleSheet(f"""
                     QLabel {{
-                        background-color: #1976D2;
-                        color: white;
+                        background-color: {badge_bg};
+                        color: {badge_text_color};
                         font-size: 9px;
                         font-weight: bold;
                         border-radius: 7px;
@@ -352,16 +365,17 @@ class TermBlock(QWidget):
                 target_layout.addWidget(badge_label)
             
             layout.addWidget(target_container)
-            
+
             # Show count if multiple translations - very compact
             if len(self.translations) > 1:
                 count_label = QLabel(f"+{len(self.translations) - 1}")
                 count_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-                count_label.setStyleSheet("""
-                    QLabel {
-                        color: #999;
+                count_color = "#AAA" if is_dark else "#999"  # Lighter in dark mode
+                count_label.setStyleSheet(f"""
+                    QLabel {{
+                        color: {count_color};
                         font-size: 7px;
-                    }
+                    }}
                 """)
                 layout.addWidget(count_label)
         else:
