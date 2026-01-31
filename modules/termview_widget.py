@@ -453,7 +453,7 @@ class NTBlock(QWidget):
         
         # Get theme colors
         is_dark = self.theme_manager and self.theme_manager.current_theme.name == "Dark"
-        source_text_color = "#E0E0E0" if is_dark else "#5D4E37"
+        source_text_color = "#FFFFFF" if is_dark else "#5D4E37"
         
         # Pastel yellow border for non-translatables
         border_color = "#E6C200"  # Darker yellow for border
