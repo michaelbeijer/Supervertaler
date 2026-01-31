@@ -172,7 +172,7 @@ class TermBlock(QWidget):
         # Get theme colors
         is_dark = self.theme_manager and self.theme_manager.current_theme.name == "Dark"
         separator_color = "#555555" if is_dark else "#CCCCCC"
-        source_text_color = "#E0E0E0" if is_dark else "#333"
+        source_text_color = "#FFFFFF" if is_dark else "#333"
         no_match_color = "#666666" if is_dark else "#ddd"
         no_match_bg = "#2A2A2A" if is_dark else "#F5F5F5"
         

@@ -1401,10 +1401,15 @@ class ReadOnlyGridTextEditor(QTextEdit):
         self.setMouseTracking(True)
 
         # Add syntax highlighter for tags (no spellcheck for source cells)
-        # Get invisible char color from main window if available
+        # Get invisible char color and tag color from main window (theme-aware)
         main_window = self._get_main_window()
         invisible_char_color = main_window.invisible_char_color if main_window and hasattr(main_window, 'invisible_char_color') else '#999999'
-        self.highlighter = TagHighlighter(self.document(), self.tag_highlight_color, invisible_char_color, enable_spellcheck=False)
+
+        # Use theme-aware tag color (light pink in dark mode, dark red in light mode)
+        is_dark = main_window and hasattr(main_window, 'theme_manager') and main_window.theme_manager and main_window.theme_manager.current_theme.name == "Dark"
+        tag_color = '#FFB6C1' if is_dark else self.tag_highlight_color  # Light pink in dark mode
+
+        self.highlighter = TagHighlighter(self.document(), tag_color, invisible_char_color, enable_spellcheck=False)
 
         # Store raw text (with tags) for mode switching
         self._raw_text = text
@@ -2726,10 +2731,15 @@ class EditableGridTextEditor(QTextEdit):
         self.setPalette(palette)
 
         # Add syntax highlighter for tags (with spellcheck enabled for target cells)
-        # Get invisible char color from main window if available
+        # Get invisible char color and tag color from main window (theme-aware)
         main_window = self._get_main_window()
         invisible_char_color = main_window.invisible_char_color if main_window and hasattr(main_window, 'invisible_char_color') else '#999999'
-        self.highlighter = TagHighlighter(self.document(), self.tag_highlight_color, invisible_char_color, enable_spellcheck=True)
+
+        # Use theme-aware tag color (light pink in dark mode, dark red in light mode)
+        is_dark = main_window and hasattr(main_window, 'theme_manager') and main_window.theme_manager and main_window.theme_manager.current_theme.name == "Dark"
+        tag_color = '#FFB6C1' if is_dark else self.tag_highlight_color  # Light pink in dark mode
+
+        self.highlighter = TagHighlighter(self.document(), tag_color, invisible_char_color, enable_spellcheck=True)
 
         # Style to look like a normal cell with subtle selection
         # Background and text colors now managed by theme system
