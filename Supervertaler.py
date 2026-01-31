@@ -29488,9 +29488,13 @@ class SupervertalerQt(QMainWindow):
         termview_layout.setContentsMargins(4, 4, 4, 0)
         termview_layout.setSpacing(2)
         
-        # Termview header label
+        # Termview header label (theme-aware)
         termview_header = QLabel("📖 Termview")
-        termview_header.setStyleSheet("font-weight: bold; font-size: 9px; color: #666;")
+        if hasattr(self, 'theme_manager') and self.theme_manager:
+            header_color = self.theme_manager.current_theme.text_disabled
+        else:
+            header_color = "#666"
+        termview_header.setStyleSheet(f"font-weight: bold; font-size: 9px; color: {header_color};")
         termview_layout.addWidget(termview_header)
         
         # Third Termview instance for Match Panel
@@ -29514,11 +29518,19 @@ class SupervertalerQt(QMainWindow):
         tm_layout = QHBoxLayout(tm_container)
         tm_layout.setContentsMargins(0, 0, 0, 0)
         tm_layout.setSpacing(0)
-        
-        # Hardcode the green color for TM boxes (same as TM Target in Compare Panel)
-        tm_box_bg = "#d4edda"    # Green (same as TM Target in Compare Panel)
-        text_color = "#333"
-        border_color = "#ddd"
+
+        # Get theme-aware colors for TM boxes (same as Compare Panel)
+        if hasattr(self, 'theme_manager') and self.theme_manager:
+            theme = self.theme_manager.current_theme
+            is_dark = getattr(theme, 'is_dark', 'dark' in theme.name.lower())
+            border_color = theme.border
+            text_color = theme.text
+            # Green background - theme-appropriate shade
+            tm_box_bg = theme.panel_success if hasattr(theme, 'panel_success') else ("#1e3a2f" if is_dark else "#d4edda")
+        else:
+            tm_box_bg = "#d4edda"    # Green (light mode)
+            text_color = "#333"
+            border_color = "#ddd"
         
         # TM Source box (GREEN, with navigation)
         self.match_panel_tm_matches = []  # Separate match list
