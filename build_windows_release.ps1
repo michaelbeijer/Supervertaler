@@ -109,6 +109,13 @@ if (Test-Path "$userDataSrc\voice_scripts") {
   }
 }
 
+# Copy Start Menu shortcut creation script
+Write-Host "=== Copying Start Menu shortcut script ===" -ForegroundColor Cyan
+if (Test-Path "create_start_menu_shortcut.ps1") {
+  Copy-Item "create_start_menu_shortcut.ps1" "$distDir\create_start_menu_shortcut.ps1"
+  Write-Host "  - Copied create_start_menu_shortcut.ps1"
+}
+
 $zipPath = "dist\Supervertaler-v$version-Windows.zip"
 
 Write-Host "=== Zipping to $zipPath ===" -ForegroundColor Cyan
