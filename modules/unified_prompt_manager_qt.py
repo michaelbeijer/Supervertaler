@@ -2372,8 +2372,20 @@ class UnifiedPromptManagerQt:
                 else:
                     # Name unchanged, just update in place
                     if self.library.save_prompt(path, prompt_data):
+                        # Refresh active prompts if this prompt is currently active or attached
+                        # This ensures "Preview Combined" shows the updated content immediately
+                        if self.library.active_primary_prompt_path == path:
+                            # Update cached primary prompt content
+                            self.library.active_primary_prompt = self.library.prompts[path]['content']
+
+                        if path in self.library.attached_prompt_paths:
+                            # Update cached attached prompt content
+                            idx = self.library.attached_prompt_paths.index(path)
+                            self.library.attached_prompts[idx] = self.library.prompts[path]['content']
+
                         QMessageBox.information(self.main_widget, "Saved", "Prompt updated successfully!")
                         self._refresh_tree()
+                        self._update_attached_list()  # Refresh attached list to show updated names
                     else:
                         QMessageBox.warning(self.main_widget, "Error", "Failed to save prompt")
             else:
