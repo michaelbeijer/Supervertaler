@@ -29110,6 +29110,9 @@ class SupervertalerQt(QMainWindow):
                 segment_num_color = "black" if theme.name in ["Light (Default)", "Soft Gray", "Warm Cream", "Sepia", "High Contrast"] else theme.text
                 id_item.setForeground(QColor(segment_num_color))
                 id_item.setBackground(QColor())  # Default background from theme
+                # Smaller font for segment numbers
+                seg_num_font = QFont(self.default_font_family, max(8, self.default_font_size - 2))
+                id_item.setFont(seg_num_font)
                 self.table.setItem(row, 0, id_item)
                 
                 # Type - show segment type based on style and content
@@ -29192,13 +29195,17 @@ class SupervertalerQt(QMainWindow):
                 type_item = QTableWidgetItem(type_display)
                 type_item.setFlags(type_item.flags() & ~Qt.ItemFlag.ItemIsEditable)  # Read-only
                 type_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                
+
                 # Color-code by type for better visibility
                 if type_display in ("H1", "H2", "H3", "H4", "Title"):
                     type_item.setForeground(QColor("#1976D2"))  # Blue for headings (works in both themes)
                 elif type_display.startswith("#") or type_display in ("•", "li"):
                     type_item.setForeground(QColor("#388E3C"))  # Green for list items (works in both themes)
-                
+
+                # Smaller font for type symbols
+                type_font = QFont(self.default_font_family, max(8, self.default_font_size - 2))
+                type_item.setFont(type_font)
+
                 self.table.setItem(row, 1, type_item)
                 
                 # Source - Use read-only QTextEdit widget for easy text selection
@@ -30611,8 +30618,8 @@ class SupervertalerQt(QMainWindow):
         status_label = QLabel(status_def.icon)
         status_label.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
         status_label.setToolTip(status_def.label)
-        # Slightly smaller X for "not_started" to match other icons better
-        font_size = "10px" if segment.status == "not_started" else "14px"
+        # Smaller red X for "not_started" to match green checkmark visual size
+        font_size = "8px" if segment.status == "not_started" else "13px"
         # Make confirmed checkmark green
         color = "color: #2e7d32;" if segment.status == "confirmed" else ""
         
