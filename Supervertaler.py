@@ -29672,23 +29672,14 @@ class SupervertalerQt(QMainWindow):
             header_layout.addWidget(nav_label)
 
         if has_navigation:
-            # Detect dark mode for button text color (use bright color for visibility)
-            is_dark_bg = False
+            # Simple dark mode detection: check theme name and use white arrows in dark mode
+            is_dark_theme = False
             if hasattr(self, 'theme_manager') and self.theme_manager:
-                theme = self.theme_manager.current_theme
-                # Check if background is dark by parsing hex color
-                if bg_color.startswith('#') and len(bg_color) == 7:
-                    try:
-                        r = int(bg_color[1:3], 16)
-                        g = int(bg_color[3:5], 16)
-                        b = int(bg_color[5:7], 16)
-                        avg_brightness = (r + g + b) / 3
-                        is_dark_bg = avg_brightness < 100  # Dark if average RGB < 100
-                    except:
-                        pass
+                theme_name = self.theme_manager.current_theme.name.lower()
+                is_dark_theme = 'dark' in theme_name
 
-            # Use bright color for arrows on dark backgrounds
-            arrow_color = "#E0E0E0" if is_dark_bg else text_color
+            # Use white arrows in dark mode for maximum visibility
+            arrow_color = "#FFFFFF" if is_dark_theme else text_color
 
             # Prev button
             prev_btn = QPushButton("◄")
