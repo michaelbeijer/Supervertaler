@@ -30802,8 +30802,8 @@ class SupervertalerQt(QMainWindow):
         
         self.table.setFont(font)
         
-        # Also update header font
-        header_font = QFont(self.default_font_family, self.default_font_size, QFont.Weight.Bold)
+        # Also update header font - slightly larger and bold for better visibility
+        header_font = QFont(self.default_font_family, self.default_font_size + 1, QFont.Weight.Bold)
         self.table.horizontalHeader().setFont(header_font)
         
         # Update fonts in QTextEdit widgets (source and target columns)
