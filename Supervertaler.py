@@ -6370,7 +6370,13 @@ class SupervertalerQt(QMainWindow):
             self.termview_widget.theme_manager = self.theme_manager
             if hasattr(self.termview_widget, 'apply_theme'):
                 self.termview_widget.apply_theme()
-        
+
+        # Also update the Match Panel TermView (right panel)
+        if hasattr(self, 'termview_widget_match') and self.termview_widget_match:
+            self.termview_widget_match.theme_manager = self.theme_manager
+            if hasattr(self.termview_widget_match, 'apply_theme'):
+                self.termview_widget_match.apply_theme()
+
         if hasattr(self, 'translation_results_panel') and self.translation_results_panel:
             self.translation_results_panel.theme_manager = self.theme_manager
             # Also update class-level theme_manager for CompactMatchItem
@@ -43991,6 +43997,11 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         if hasattr(self, 'termview_widget') and self.termview_widget:
             if hasattr(self.termview_widget, 'apply_theme'):
                 self.termview_widget.apply_theme()
+
+        # Also refresh Match Panel TermView (right panel)
+        if hasattr(self, 'termview_widget_match') and self.termview_widget_match:
+            if hasattr(self.termview_widget_match, 'apply_theme'):
+                self.termview_widget_match.apply_theme()
 
     def show_file_progress_dialog(self):
         """Show File Progress dialog for multi-file projects.
