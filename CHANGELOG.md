@@ -2,19 +2,35 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.193 (February 1, 2026)
+**Current Version:** v1.9.194 (February 1, 2026)
 
 
+
+## v1.9.194 - February 1, 2026
+
+### 🎨 Branding & Naming
+
+- **Tool Suite Naming**: Established consistent naming for Supervertaler's modular tools:
+  - **Supervertaler** - Main CAT tool / translation workbench
+  - **SuperLookup** - Comprehensive research tool (TM, TB, MT, web, dictionaries)
+  - **QuickTrans** - Instant translation popup (MT + LLM, GT4T-style)
+  - **QuickMenu** - Quick access menu with various tools
+
+- **QuickTrans** (formerly "MT Quick Lookup"): Renamed to better reflect that it provides instant translations from both MT engines AND LLMs. The tool can work standalone or integrated with Supervertaler.
+
+- **SuperLookup** (formerly "Superlookup"): Updated to CamelCase for consistency and readability. Now clearly distinguished from QuickTrans - SuperLookup is for deep research, QuickTrans is for instant translations.
+
+---
 
 ## v1.9.193 - February 1, 2026
 
 ### ✨ New Features
 
-- **MT Quick Lookup - LLM Support**: Added Claude, OpenAI (GPT), and Gemini as translation providers in MT Quick Lookup. Now you can get translations from both MT engines AND LLMs in a single popup. Configure which providers to use in the MT Quick Lookup settings (click the ⚙️ button in the popup).
+- **QuickTrans - LLM Support**: Added Claude, OpenAI (GPT), and Gemini as translation providers in QuickTrans. Now you can get translations from both MT engines AND LLMs in a single popup. Configure which providers to use in the QuickTrans settings (click the ⚙️ button in the popup).
 
-- **Global MT Quick Lookup Hotkey (Ctrl+Alt+M)**: Use MT Quick Lookup from ANY application (memoQ, Word, browser, etc.) via AutoHotkey. Select text anywhere, press **Ctrl+Alt+M**, and the MT Quick Lookup popup appears as an overlay at your cursor position - without switching focus to Supervertaler. Perfect for quick translations while working in your CAT tool.
+- **Global QuickTrans Hotkey (Ctrl+Alt+M)**: Use QuickTrans from ANY application (memoQ, Word, browser, etc.) via AutoHotkey. Select text anywhere, press **Ctrl+Alt+M**, and the QuickTrans popup appears as an overlay at your cursor position - without switching focus to Supervertaler. Perfect for quick translations while working in your CAT tool.
 
-- **MT Quick Lookup Settings**: Added dedicated settings tab (Settings → MT Quick Lookup) to configure:
+- **QuickTrans Settings**: Added dedicated settings tab (Settings → QuickTrans) to configure:
   - Which MT engines to include (Google, DeepL, Microsoft, Amazon, ModernMT, MyMemory)
   - Which LLMs to include (Claude, OpenAI, Gemini) with model selection
   - Access settings directly from the popup via the ⚙️ button
@@ -31,16 +47,16 @@ All notable changes to Supervertaler are documented in this file.
 
 ### ✨ New Features
 
-- **MT Quick Lookup (GT4T-style)**: Added a new popup window for machine translation suggestions, inspired by GT4T. Press **Ctrl+M** (default) or use the **right-click context menu** to open a popup showing translations from all enabled MT engines (Google Translate, DeepL, Microsoft Translator, Amazon Translate, ModernMT, MyMemory). Features include:
+- **QuickTrans (GT4T-style)**: Added a new popup window for instant translation suggestions, inspired by GT4T. Press **Ctrl+M** (default) or use the **right-click context menu** to open a popup showing translations from all enabled MT engines (Google Translate, DeepL, Microsoft Translator, Amazon Translate, ModernMT, MyMemory). Features include:
   - Source text displayed at the top for context
-  - Numbered list of MT suggestions with provider badges
+  - Numbered list of translation suggestions with provider badges
   - Press **1-9** to quickly insert a translation
   - Arrow keys to navigate, **Enter** to insert selected
   - **Escape** to dismiss
   - Translations fetched in parallel for fast results
   - Color-coded provider badges for easy identification
   - **Smart text selection**: If you have text selected in source or target, only that selection gets translated; otherwise translates the full source segment
-  - Available from both source and target cell context menus ("🌐 MT Quick Lookup")
+  - Available from both source and target cell context menus ("⚡ QuickTrans")
   - **Resizable and movable**: Popup window can be dragged and resized to your preference
   - **Customizable shortcut**: Change the keyboard shortcut in Settings → Keyboard Shortcuts
 

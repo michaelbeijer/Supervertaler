@@ -32,7 +32,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.193"
+__version__ = "1.9.194"
 __phase__ = "0.9"
 __release_date__ = "2026-02-01"
 __edition__ = "Qt"
@@ -2298,12 +2298,12 @@ class ReadOnlyGridTextEditor(QTextEdit):
         
         # Superlookup search action
         if self.textCursor().hasSelection():
-            superlookup_action = QAction("🔍 Search in Superlookup (Ctrl+K)", self)
+            superlookup_action = QAction("🔍 Search in SuperLookup (Ctrl+K)", self)
             superlookup_action.triggered.connect(self._handle_superlookup_search)
             menu.addAction(superlookup_action)
 
         # MT Quick Lookup action
-        mt_lookup_action = QAction("🌐 MT Quick Lookup (Ctrl+Shift+Q)", self)
+        mt_lookup_action = QAction("⚡ QuickTrans (Ctrl+M)", self)
         mt_lookup_action.triggered.connect(self._handle_mt_quick_lookup)
         menu.addAction(mt_lookup_action)
         menu.addSeparator()
@@ -3006,12 +3006,12 @@ class EditableGridTextEditor(QTextEdit):
         
         # Superlookup search action
         if self.textCursor().hasSelection():
-            superlookup_action = QAction("🔍 Search in Superlookup (Ctrl+K)", self)
+            superlookup_action = QAction("🔍 Search in SuperLookup (Ctrl+K)", self)
             superlookup_action.triggered.connect(self._handle_superlookup_search)
             menu.addAction(superlookup_action)
 
         # MT Quick Lookup action
-        mt_lookup_action = QAction("🌐 MT Quick Lookup (Ctrl+Shift+Q)", self)
+        mt_lookup_action = QAction("⚡ QuickTrans (Ctrl+M)", self)
         mt_lookup_action.triggered.connect(self._handle_mt_quick_lookup)
         menu.addAction(mt_lookup_action)
         menu.addSeparator()
@@ -8132,7 +8132,7 @@ class SupervertalerQt(QMainWindow):
         edit_menu.addSeparator()
         
         # Superlookup
-        superlookup_action = QAction("🔍 &Superlookup...", self)
+        superlookup_action = QAction("🔍 &SuperLookup...", self)
         superlookup_action.setShortcut("Ctrl+Alt+L")
         # Tab indices: Grid=0, Project resources=1, Tools=2, Settings=3
         superlookup_action.triggered.connect(lambda: self._go_to_superlookup() if hasattr(self, 'main_tabs') else None)  # Navigate to Superlookup
@@ -10279,7 +10279,7 @@ class SupervertalerQt(QMainWindow):
             
             # Create detached window
             self.lookup_detached_window = QDialog(self)
-            self.lookup_detached_window.setWindowTitle("🔍 Superlookup - Supervertaler")
+            self.lookup_detached_window.setWindowTitle("🔍 SuperLookup - Supervertaler")
             self.lookup_detached_window.setMinimumSize(600, 700)
             self.lookup_detached_window.resize(700, 800)
             
@@ -10333,7 +10333,7 @@ class SupervertalerQt(QMainWindow):
             # Header with reattach button
             header_layout = QVBoxLayout()
             
-            header_title = QLabel("🔍 Superlookup")
+            header_title = QLabel("🔍 SuperLookup")
             header_title.setStyleSheet("font-size: 16px; font-weight: bold; color: #333;")
             header_layout.addWidget(header_title)
             
@@ -10487,7 +10487,7 @@ class SupervertalerQt(QMainWindow):
 
         lookup_tab = SuperlookupTab(self, user_data_path=self.user_data_path)
         self.lookup_tab = lookup_tab  # Store reference for later use
-        modules_tabs.addTab(lookup_tab, "🔍 Superlookup")
+        modules_tabs.addTab(lookup_tab, "🔍 SuperLookup")
 
         # Supervoice - Voice Commands & Dictation
         supervoice_tab = self._create_voice_dictation_settings_tab()
@@ -15813,7 +15813,7 @@ class SupervertalerQt(QMainWindow):
 
         # ===== TAB 5: MT Quick Lookup Settings =====
         mt_quick_tab = self._create_mt_quick_lookup_settings_tab()
-        settings_tabs.addTab(scroll_area_wrapper(mt_quick_tab), "⚡ MT Quick Lookup")
+        settings_tabs.addTab(scroll_area_wrapper(mt_quick_tab), "⚡ QuickTrans")
         self.mt_quick_lookup_tab_index = settings_tabs.count() - 1  # Store index for opening
 
         # ===== TAB 6: View Settings =====
@@ -16644,7 +16644,7 @@ class SupervertalerQt(QMainWindow):
 
         # Header info
         header_info = QLabel(
-            "⚡ <b>MT Quick Lookup</b> - Configure which providers appear in the MT Quick Lookup popup (Ctrl+M).<br>"
+            "⚡ <b>QuickTrans</b> - Configure which providers appear in the QuickTrans popup (Ctrl+M / Ctrl+Alt+M).<br>"
             "Enable MT engines and/or LLMs to get instant translation suggestions."
         )
         header_info.setTextFormat(Qt.TextFormat.RichText)
@@ -16687,7 +16687,7 @@ class SupervertalerQt(QMainWindow):
                 checkbox.setToolTip(f"API key not configured for {name}")
                 checkbox.setStyleSheet("color: #999;")
             else:
-                checkbox.setToolTip(f"Include {name} in MT Quick Lookup results")
+                checkbox.setToolTip(f"Include {name} in QuickTrans results")
 
             self._mtql_checkboxes[f"mtql_{code}"] = checkbox
             mt_layout.addWidget(checkbox)
@@ -16745,7 +16745,7 @@ class SupervertalerQt(QMainWindow):
                 checkbox.setToolTip(f"API key not configured for {name}. Add it in AI Settings.")
                 checkbox.setStyleSheet("color: #999;")
             else:
-                checkbox.setToolTip(f"Include {name} translations in MT Quick Lookup")
+                checkbox.setToolTip(f"Include {name} translations in QuickTrans")
 
             self._mtql_checkboxes[f"mtql_{code}"] = checkbox
             llm_row.addWidget(checkbox)
@@ -16774,7 +16774,7 @@ class SupervertalerQt(QMainWindow):
         layout.addWidget(llm_group)
 
         # Save button
-        save_btn = QPushButton("💾 Save MT Quick Lookup Settings")
+        save_btn = QPushButton("💾 Save QuickTrans Settings")
         save_btn.setStyleSheet("font-weight: bold; padding: 8px;")
         save_btn.clicked.connect(self._save_mt_quick_lookup_settings)
         layout.addWidget(save_btn)
@@ -16800,8 +16800,8 @@ class SupervertalerQt(QMainWindow):
         general_settings['mt_quick_lookup'] = mt_quick_settings
         self.save_general_settings(general_settings)
 
-        self.log("✓ MT Quick Lookup settings saved")
-        QMessageBox.information(self, "Settings Saved", "MT Quick Lookup settings have been saved.")
+        self.log("✓ QuickTrans settings saved")
+        QMessageBox.information(self, "Settings Saved", "QuickTrans settings have been saved.")
 
     def open_mt_quick_lookup_settings(self):
         """Open Settings and navigate to MT Quick Lookup tab"""
@@ -22455,16 +22455,16 @@ class SupervertalerQt(QMainWindow):
                 if hasattr(self.lookup_tab, '_ahk') and self.lookup_tab._ahk:
                     try:
                         self.lookup_tab._ahk.stop_hotkeys()
-                        print("[Superlookup] ahk library hotkeys stopped")
+                        print("[SuperLookup] ahk library hotkeys stopped")
                     except Exception as e:
-                        print(f"[Superlookup] Error stopping ahk library: {e}")
+                        print(f"[SuperLookup] Error stopping ahk library: {e}")
             
             # Terminate external AutoHotkey process if running (fallback method)
             if hasattr(self, 'lookup_tab') and hasattr(self.lookup_tab, 'ahk_process') and self.lookup_tab.ahk_process:
                 try:
                     self.lookup_tab.ahk_process.terminate()
                     self.lookup_tab.ahk_process.wait(timeout=2)
-                    print("[Superlookup] AHK process terminated")
+                    print("[SuperLookup] AHK process terminated")
                 except:
                     # Force kill if terminate doesn't work
                     try:
@@ -22472,7 +22472,7 @@ class SupervertalerQt(QMainWindow):
                     except:
                         pass
         except Exception as e:
-            print(f"[Superlookup] Error terminating AHK: {e}")
+            print(f"[SuperLookup] Error terminating AHK: {e}")
         
         # Accept the close event
         event.accept()
@@ -45823,7 +45823,7 @@ class SuperlookupTab(QWidget):
         self.main_window = parent  # Store reference to main window for database access
         self.user_data_path = user_data_path  # Store user data path for web cache
         
-        print("[Superlookup] SuperlookupTab.__init__ called")
+        print("[SuperLookup] SuperlookupTab.__init__ called")
         
         # Get theme manager from main window (try parent first, then parent's parent for dialogs)
         self.theme_manager = getattr(parent, 'theme_manager', None)
@@ -45832,16 +45832,16 @@ class SuperlookupTab(QWidget):
             parent_parent = getattr(parent, 'parent', lambda: None)()
             if parent_parent:
                 self.theme_manager = getattr(parent_parent, 'theme_manager', None)
-        print(f"[Superlookup] theme_manager: {self.theme_manager is not None}")
+        print(f"[SuperLookup] theme_manager: {self.theme_manager is not None}")
         
         # Import lookup engine
         try:
             from modules.superlookup import SuperlookupEngine, LookupResult
             self.SuperlookupEngine = SuperlookupEngine
             self.LookupResult = LookupResult
-            print("[Superlookup] Successfully imported SuperlookupEngine")
+            print("[SuperLookup] Successfully imported SuperlookupEngine")
         except ImportError as e:
-            print(f"[Superlookup] IMPORT ERROR: {e}")
+            print(f"[SuperLookup] IMPORT ERROR: {e}")
             QMessageBox.critical(
                 self,
                 "Missing Module",
@@ -45923,7 +45923,7 @@ class SuperlookupTab(QWidget):
         if self.db_manager or self.termbase_mgr:
             self.populate_language_dropdowns()
             self._languages_populated = True
-            print("[Superlookup] Languages populated on first show")
+            print("[SuperLookup] Languages populated on first show")
     
     def init_ui(self):
         """Initialize the UI"""
@@ -45932,7 +45932,7 @@ class SuperlookupTab(QWidget):
         layout.setSpacing(5)  # Reduced from 10 to 5 for consistency
         
         # Header
-        header = QLabel("🔍 Superlookup")
+        header = QLabel("🔍 SuperLookup")
         header.setStyleSheet("font-size: 16pt; font-weight: bold; color: #1976D2;")
         layout.addWidget(header, 0)  # 0 = no stretch, stays compact
         
@@ -46426,7 +46426,7 @@ class SuperlookupTab(QWidget):
                     })
                     
             except Exception as e:
-                print(f"[Superlookup] MT error ({provider_name}): {e}")
+                print(f"[SuperLookup] MT error ({provider_name}): {e}")
                 results.append({
                     'provider': provider_name,
                     'translation': f"[Error: {str(e)}]",
@@ -46517,9 +46517,9 @@ class SuperlookupTab(QWidget):
             self.web_profile = QWebEngineProfile("SuperlookupProfile", self)
             self.web_profile.setPersistentStoragePath(storage_path)
             self.web_profile.setPersistentCookiesPolicy(QWebEngineProfile.PersistentCookiesPolicy.ForcePersistentCookies)
-            print(f"[Superlookup] QWebEngineView available - embedded browser enabled with persistent storage at {storage_path}")
+            print(f"[SuperLookup] QWebEngineView available - embedded browser enabled with persistent storage at {storage_path}")
         except ImportError:
-            print("[Superlookup] QWebEngineView not available - external browser only")
+            print("[SuperLookup] QWebEngineView not available - external browser only")
             self.QWebEngineView = None
             self.QWebEngineProfile = None
         
@@ -46971,7 +46971,7 @@ class SuperlookupTab(QWidget):
         self.web_view_stack.addWidget(web_view)
         self.web_views[resource['id']] = web_view
         
-        print(f"[Superlookup] Created web view for {resource['name']} (lazy load)")
+        print(f"[SuperLookup] Created web view for {resource['name']} (lazy load)")
     
     def _get_web_view_index(self, resource_id):
         """Get the stack index for a web view by resource ID"""
@@ -46988,7 +46988,7 @@ class SuperlookupTab(QWidget):
         
         self._update_web_view_for_mode()
         self._show_web_welcome_message()
-        print(f"[Superlookup] Web browser mode changed to: {self.web_browser_mode}")
+        print(f"[SuperLookup] Web browser mode changed to: {self.web_browser_mode}")
     
     def _update_web_view_for_mode(self):
         """Update the view stack based on current mode"""
@@ -47621,11 +47621,11 @@ class SuperlookupTab(QWidget):
         if index == 2:
             # Initialize Supermemory when tab is first viewed
             if not self.supermemory_engine:
-                print("[Superlookup] Supermemory tab viewed - initializing engine")
+                print("[SuperLookup] Supermemory tab viewed - initializing engine")
                 self.init_supermemory()
         # Settings tab is at index 5
         elif index == 5:
-            print("[Superlookup] Settings tab viewed - refreshing resource lists")
+            print("[SuperLookup] Settings tab viewed - refreshing resource lists")
             self.refresh_tm_list()
             self.refresh_termbase_list()
             self.populate_language_dropdowns()
@@ -47633,19 +47633,19 @@ class SuperlookupTab(QWidget):
     def on_tm_search_toggled(self, state):
         """Handle TM search checkbox toggle"""
         self.search_tm_enabled = (state == Qt.CheckState.Checked.value)
-        print(f"[Superlookup] TM search {'enabled' if self.search_tm_enabled else 'disabled'}")
+        print(f"[SuperLookup] TM search {'enabled' if self.search_tm_enabled else 'disabled'}")
     
     def on_termbase_search_toggled(self, state):
         """Handle termbase search checkbox toggle"""
         self.search_termbase_enabled = (state == Qt.CheckState.Checked.value)
-        print(f"[Superlookup] Termbase search {'enabled' if self.search_termbase_enabled else 'disabled'}")
+        print(f"[SuperLookup] Termbase search {'enabled' if self.search_termbase_enabled else 'disabled'}")
     
     def _on_web_resource_checkbox_changed(self, index: int, state: int):
         """Handle web resource checkbox change - show/hide corresponding sidebar button"""
         is_checked = (state == Qt.CheckState.Checked.value)
         if hasattr(self, 'web_resource_buttons') and index < len(self.web_resource_buttons):
             self.web_resource_buttons[index].setVisible(is_checked)
-            print(f"[Superlookup] Web resource {index} {'shown' if is_checked else 'hidden'}")
+            print(f"[SuperLookup] Web resource {index} {'shown' if is_checked else 'hidden'}")
             
             # If the hidden resource was selected, select the first visible one
             if not is_checked and hasattr(self, 'current_web_resource_index') and self.current_web_resource_index == index:
@@ -47663,18 +47663,18 @@ class SuperlookupTab(QWidget):
             checkbox.deleteLater()
         self.tm_checkboxes.clear()
         
-        print(f"[Superlookup] refresh_tm_list called")
-        print(f"[Superlookup]   main_window exists: {self.main_window is not None}")
+        print(f"[SuperLookup] refresh_tm_list called")
+        print(f"[SuperLookup]   main_window exists: {self.main_window is not None}")
         
         # Get TMs from main window's database
         if self.main_window and hasattr(self.main_window, 'db_manager') and self.main_window.db_manager:
             try:
-                print(f"[Superlookup]   db_manager found, querying TMs...")
+                print(f"[SuperLookup]   db_manager found, querying TMs...")
                 cursor = self.main_window.db_manager.cursor
                 cursor.execute("SELECT id, name, tm_id FROM translation_memories ORDER BY name")
                 tms = cursor.fetchall()
                 
-                print(f"[Superlookup]   Query returned {len(tms)} TMs")
+                print(f"[SuperLookup]   Query returned {len(tms)} TMs")
                 
                 for db_id, tm_name, tm_id_str in tms:
                     checkbox = CheckmarkCheckBox(f"{tm_name} (ID: {db_id})")
@@ -47685,13 +47685,13 @@ class SuperlookupTab(QWidget):
                     # Insert before the stretch at the end
                     self.tm_scroll_layout.insertWidget(len(self.tm_checkboxes) - 1, checkbox)
                 
-                print(f"[Superlookup] ✓ Loaded {len(tms)} TMs")
+                print(f"[SuperLookup] ✓ Loaded {len(tms)} TMs")
             except Exception as e:
-                print(f"[Superlookup] ✗ Error loading TMs: {e}")
+                print(f"[SuperLookup] ✗ Error loading TMs: {e}")
                 import traceback
                 traceback.print_exc()
         else:
-            print(f"[Superlookup]   db_manager not available")
+            print(f"[SuperLookup]   db_manager not available")
             # Add placeholder label
             placeholder = QLabel("No database connection - TMs unavailable")
             placeholder.setStyleSheet("color: #999; font-style: italic;")
@@ -47705,16 +47705,16 @@ class SuperlookupTab(QWidget):
             checkbox.deleteLater()
         self.tb_checkboxes.clear()
         
-        print(f"[Superlookup] refresh_termbase_list called")
-        print(f"[Superlookup]   main_window exists: {self.main_window is not None}")
+        print(f"[SuperLookup] refresh_termbase_list called")
+        print(f"[SuperLookup]   main_window exists: {self.main_window is not None}")
         
         # Try termbase_mgr first (preferred method)
         if self.main_window and hasattr(self.main_window, 'termbase_mgr') and self.main_window.termbase_mgr:
             try:
-                print(f"[Superlookup]   termbase_mgr found, querying termbases...")
+                print(f"[SuperLookup]   termbase_mgr found, querying termbases...")
                 termbases = self.main_window.termbase_mgr.get_all_termbases()
                 
-                print(f"[Superlookup]   get_all_termbases() returned {len(termbases)} termbases")
+                print(f"[SuperLookup]   get_all_termbases() returned {len(termbases)} termbases")
                 
                 for tb in termbases:
                     tb_id = tb.get('id')
@@ -47726,22 +47726,22 @@ class SuperlookupTab(QWidget):
                     # Insert before the stretch at the end
                     self.tb_scroll_layout.insertWidget(len(self.tb_checkboxes) - 1, checkbox)
                 
-                print(f"[Superlookup] ✓ Loaded {len(termbases)} termbases via termbase_mgr")
+                print(f"[SuperLookup] ✓ Loaded {len(termbases)} termbases via termbase_mgr")
                 return
             except Exception as e:
-                print(f"[Superlookup] ✗ Error loading termbases via termbase_mgr: {e}")
+                print(f"[SuperLookup] ✗ Error loading termbases via termbase_mgr: {e}")
                 import traceback
                 traceback.print_exc()
         
         # Fallback to direct database query
         if self.main_window and hasattr(self.main_window, 'db_manager') and self.main_window.db_manager:
             try:
-                print(f"[Superlookup]   db_manager found, querying termbases...")
+                print(f"[SuperLookup]   db_manager found, querying termbases...")
                 cursor = self.main_window.db_manager.cursor
                 cursor.execute("SELECT id, name FROM termbases ORDER BY name")
                 termbases = cursor.fetchall()
                 
-                print(f"[Superlookup]   Query returned {len(termbases)} termbases")
+                print(f"[SuperLookup]   Query returned {len(termbases)} termbases")
                 
                 for tb_id, tb_name in termbases:
                     checkbox = CheckmarkCheckBox(f"{tb_name} (ID: {tb_id})")
@@ -47751,13 +47751,13 @@ class SuperlookupTab(QWidget):
                     # Insert before the stretch at the end
                     self.tb_scroll_layout.insertWidget(len(self.tb_checkboxes) - 1, checkbox)
                 
-                print(f"[Superlookup] ✓ Loaded {len(termbases)} termbases via db_manager")
+                print(f"[SuperLookup] ✓ Loaded {len(termbases)} termbases via db_manager")
             except Exception as e:
-                print(f"[Superlookup] ✗ Error loading termbases via db_manager: {e}")
+                print(f"[SuperLookup] ✗ Error loading termbases via db_manager: {e}")
                 import traceback
                 traceback.print_exc()
         else:
-            print(f"[Superlookup]   Neither termbase_mgr nor db_manager available")
+            print(f"[SuperLookup]   Neither termbase_mgr nor db_manager available")
             # Add placeholder label
             placeholder = QLabel("No database connection - Glossaries unavailable")
             placeholder.setStyleSheet("color: #999; font-style: italic;")
@@ -48568,7 +48568,7 @@ class SuperlookupTab(QWidget):
                 self.status_label.setText(f"Navigated to glossary entry: {source_term}")
             
         except Exception as e:
-            print(f"[Superlookup] Error navigating to glossary: {e}")
+            print(f"[SuperLookup] Error navigating to glossary: {e}")
             self.status_label.setText(f"Error navigating to glossary: {e}")
     
     def _select_first_term_in_table(self, main):
@@ -48582,7 +48582,7 @@ class SuperlookupTab(QWidget):
                     if item:
                         table.scrollToItem(item)
         except Exception as e:
-            print(f"[Superlookup] Error selecting term: {e}")
+            print(f"[SuperLookup] Error selecting term: {e}")
 
     def display_mt_results(self, results):
         """Display MT results in the table"""
@@ -49117,7 +49117,7 @@ class SuperlookupTab(QWidget):
         if self.main_window and hasattr(self.main_window, 'general_settings'):
             saved_path = self.main_window.general_settings.get('autohotkey_path', '')
             if saved_path and os.path.exists(saved_path):
-                print(f"[Superlookup] Using saved AutoHotkey path: {saved_path}")
+                print(f"[SuperLookup] Using saved AutoHotkey path: {saved_path}")
                 return saved_path, 'saved'
         
         # Standard installation paths
@@ -49135,7 +49135,7 @@ class SuperlookupTab(QWidget):
         
         for path in ahk_paths:
             if os.path.exists(path):
-                print(f"[Superlookup] Detected AutoHotkey at: {path}")
+                print(f"[SuperLookup] Detected AutoHotkey at: {path}")
                 return path, 'detected'
         
         return None, None
@@ -49262,7 +49262,7 @@ class SuperlookupTab(QWidget):
             if self.main_window and hasattr(self.main_window, 'general_settings'):
                 self.main_window.general_settings['autohotkey_path'] = file_path
                 self.main_window.save_general_settings()
-                print(f"[Superlookup] Saved AutoHotkey path: {file_path}")
+                print(f"[SuperLookup] Saved AutoHotkey path: {file_path}")
             
             self._ahk_setup_status.setText(f"✓ Saved: {file_path}\n\nRestart Supervertaler to use this path.")
             
@@ -49283,11 +49283,11 @@ class SuperlookupTab(QWidget):
         Note: AutoHotkey is Windows-only, so skip on Linux/Mac.
         """
         global _ahk_process
-        print("[Superlookup] register_global_hotkey called")
+        print("[SuperLookup] register_global_hotkey called")
         
         # AutoHotkey is Windows-only - skip on other platforms
         if sys.platform != 'win32':
-            print("[Superlookup] Skipping AutoHotkey registration (not Windows)")
+            print("[SuperLookup] Skipping AutoHotkey registration (not Windows)")
             self.hotkey_registered = False
             return
         
@@ -49301,24 +49301,24 @@ class SuperlookupTab(QWidget):
         """
         try:
             from ahk import AHK
-            print("[Superlookup] ahk library available, attempting to use it...")
+            print("[SuperLookup] ahk library available, attempting to use it...")
             
             # Find AutoHotkey executable using shared function
             ahk_exe, source = self._find_autohotkey_executable()
             
             # Create AHK instance (with executable path if found)
             if ahk_exe:
-                print(f"[Superlookup] Using AutoHotkey at: {ahk_exe} (source: {source})")
+                print(f"[SuperLookup] Using AutoHotkey at: {ahk_exe} (source: {source})")
                 self._ahk = AHK(executable_path=ahk_exe)
             else:
                 # Let it try to find AHK on PATH (may fail)
                 self._ahk = AHK()
-            print(f"[Superlookup] AHK instance created: {self._ahk}")
+            print(f"[SuperLookup] AHK instance created: {self._ahk}")
             
             # Define hotkey callback
             def on_hotkey():
                 """Called when Ctrl+Alt+L is pressed"""
-                print("[Superlookup] Hotkey triggered via ahk library!")
+                print("[SuperLookup] Hotkey triggered via ahk library!")
                 try:
                     # Copy selection to clipboard
                     self._ahk.send('^c')  # Ctrl+C
@@ -49331,7 +49331,7 @@ class SuperlookupTab(QWidget):
                     try:
                         self._ahk.win_activate('Supervertaler')
                     except Exception as e:
-                        print(f"[Superlookup] win_activate error (non-critical): {e}")
+                        print(f"[SuperLookup] win_activate error (non-critical): {e}")
                     
                     # Trigger lookup in main thread
                     if text:
@@ -49339,22 +49339,22 @@ class SuperlookupTab(QWidget):
                         QTimer.singleShot(0, lambda: self.on_ahk_capture(text))
                         
                 except Exception as e:
-                    print(f"[Superlookup] Error in hotkey callback: {e}")
+                    print(f"[SuperLookup] Error in hotkey callback: {e}")
             
             # Register the hotkey
             self._ahk.add_hotkey('^!l', callback=on_hotkey)  # Ctrl+Alt+L
             self._ahk.start_hotkeys()
             
-            print("[Superlookup] ✓ Hotkey registered via ahk library: Ctrl+Alt+L")
+            print("[SuperLookup] ✓ Hotkey registered via ahk library: Ctrl+Alt+L")
             self.hotkey_registered = True
             self._using_ahk_library = True
             return True
             
         except ImportError:
-            print("[Superlookup] ahk library not installed (pip install ahk)")
+            print("[SuperLookup] ahk library not installed (pip install ahk)")
             return False
         except Exception as e:
-            print(f"[Superlookup] ahk library method failed: {e}")
+            print(f"[SuperLookup] ahk library method failed: {e}")
             # Clean up on failure
             if hasattr(self, '_ahk'):
                 try:
@@ -49440,8 +49440,8 @@ class SuperlookupTab(QWidget):
         self.capture_file = Path(__file__).parent / "temp_capture.txt"
         self.mt_lookup_signal_file = Path(__file__).parent / "mt_lookup_signal.txt"
 
-        print(f"[Superlookup] File watcher started, watching: {self.signal_file}")
-        print(f"[MT Quick Lookup] File watcher started, watching: {self.mt_lookup_signal_file}")
+        print(f"[SuperLookup] File watcher started, watching: {self.signal_file}")
+        print(f"[QuickTrans] File watcher started, watching: {self.mt_lookup_signal_file}")
         
         # Create timer to check for signal file
         self.file_check_timer = QTimer()
@@ -49452,11 +49452,11 @@ class SuperlookupTab(QWidget):
         """Check if AHK wrote a signal file"""
         # Check for Superlookup signal
         if self.signal_file.exists():
-            print(f"[Superlookup] Signal file detected!")
+            print(f"[SuperLookup] Signal file detected!")
             try:
                 # Delete signal file
                 self.signal_file.unlink()
-                print(f"[Superlookup] Signal file deleted")
+                print(f"[SuperLookup] Signal file deleted")
 
                 # Get text from clipboard (AHK already copied it)
                 time.sleep(0.1)  # Give clipboard a moment
@@ -49466,11 +49466,11 @@ class SuperlookupTab(QWidget):
                 if text:
                     self.on_ahk_capture(text)
             except Exception as e:
-                print(f"[Superlookup] Error reading capture: {e}")
+                print(f"[SuperLookup] Error reading capture: {e}")
 
         # Check for MT Quick Lookup signal
         if hasattr(self, 'mt_lookup_signal_file') and self.mt_lookup_signal_file.exists():
-            print(f"[MT Quick Lookup] Signal file detected!")
+            print(f"[QuickTrans] Signal file detected!")
             try:
                 # Small delay to let AHK finish writing/close the file
                 time.sleep(0.05)
@@ -49479,7 +49479,7 @@ class SuperlookupTab(QWidget):
                 for attempt in range(3):
                     try:
                         self.mt_lookup_signal_file.unlink()
-                        print(f"[MT Quick Lookup] Signal file deleted")
+                        print(f"[QuickTrans] Signal file deleted")
                         break
                     except PermissionError:
                         if attempt < 2:
@@ -49495,12 +49495,12 @@ class SuperlookupTab(QWidget):
                 if text:
                     self.on_ahk_mt_lookup_capture(text)
             except Exception as e:
-                print(f"[MT Quick Lookup] Error reading capture: {e}")
+                print(f"[QuickTrans] Error reading capture: {e}")
     
     def on_ahk_capture(self, text):
         """Handle text captured by AHK"""
         try:
-            print(f"[Superlookup] on_ahk_capture called with text: {text[:50]}...")
+            print(f"[SuperLookup] on_ahk_capture called with text: {text[:50]}...")
             
             # Bring Supervertaler to foreground
             main_window = self.window()
@@ -49530,24 +49530,24 @@ class SuperlookupTab(QWidget):
             QTimer.singleShot(250, lambda: self.show_superlookup(text))
             
         except Exception as e:
-            print(f"[Superlookup] Error handling capture: {e}")
+            print(f"[SuperLookup] Error handling capture: {e}")
 
     def on_ahk_mt_lookup_capture(self, text):
         """Handle MT Quick Lookup text captured by AHK (Ctrl+Alt+M)"""
         try:
-            print(f"[MT Quick Lookup] on_ahk_mt_lookup_capture called with text: {text[:50]}...")
+            print(f"[QuickTrans] on_ahk_mt_lookup_capture called with text: {text[:50]}...")
 
             # Show popup directly without bringing Supervertaler to foreground
             # The popup has WindowStaysOnTopHint so it will appear over any app
             QTimer.singleShot(100, lambda: self.show_mt_quick_lookup_from_ahk(text))
 
         except Exception as e:
-            print(f"[MT Quick Lookup] Error handling capture: {e}")
+            print(f"[QuickTrans] Error handling capture: {e}")
 
     def show_mt_quick_lookup_from_ahk(self, text):
         """Show MT Quick Lookup popup with text from AHK capture"""
         try:
-            print(f"[MT Quick Lookup] show_mt_quick_lookup_from_ahk called with text: {text[:50]}...")
+            print(f"[QuickTrans] show_mt_quick_lookup_from_ahk called with text: {text[:50]}...")
 
             # Get main window reference for settings access
             main_window = self.main_window
@@ -49555,7 +49555,7 @@ class SuperlookupTab(QWidget):
                 main_window = self.window()
 
             if not main_window:
-                print("[MT Quick Lookup] ERROR: Could not find main window")
+                print("[QuickTrans] ERROR: Could not find main window")
                 return
 
             # Get language settings
@@ -49582,44 +49582,44 @@ class SuperlookupTab(QWidget):
             popup.show()
             popup.raise_()
             popup.activateWindow()
-            print(f"[MT Quick Lookup] Popup shown for text: {text[:30]}...")
+            print(f"[QuickTrans] Popup shown for text: {text[:30]}...")
 
         except Exception as e:
-            print(f"[MT Quick Lookup] Error showing popup: {e}")
+            print(f"[QuickTrans] Error showing popup: {e}")
             import traceback
             traceback.print_exc()
 
     def show_superlookup(self, text):
         """Show Superlookup with pre-filled text"""
         try:
-            print(f"[Superlookup] show_superlookup called with text: {text[:50]}...")
+            print(f"[SuperLookup] show_superlookup called with text: {text[:50]}...")
             
             # Get main window reference
             main_window = self.main_window
             if not main_window:
                 main_window = self.window()
             
-            print(f"[Superlookup] Main window found: {main_window is not None}")
-            print(f"[Superlookup] Main window type: {type(main_window).__name__}")
-            print(f"[Superlookup] Has main_tabs: {hasattr(main_window, 'main_tabs')}")
+            print(f"[SuperLookup] Main window found: {main_window is not None}")
+            print(f"[SuperLookup] Main window type: {type(main_window).__name__}")
+            print(f"[SuperLookup] Has main_tabs: {hasattr(main_window, 'main_tabs')}")
             
             # Switch to Tools tab (main_tabs index 3)
             # Tab structure: Grid=0, Resources=1, QuickMenu=2, Tools=3, Settings=4
             if hasattr(main_window, 'main_tabs'):
-                print(f"[Superlookup] Current main_tab index: {main_window.main_tabs.currentIndex()}")
+                print(f"[SuperLookup] Current main_tab index: {main_window.main_tabs.currentIndex()}")
                 main_window.main_tabs.setCurrentIndex(3)  # Tools tab
-                print(f"[Superlookup] Switched to Tools tab (index 2)")
+                print(f"[SuperLookup] Switched to Tools tab (index 2)")
                 QApplication.processEvents()  # Force GUI update
             else:
-                print(f"[Superlookup] WARNING: Main window has no main_tabs attribute!")
+                print(f"[SuperLookup] WARNING: Main window has no main_tabs attribute!")
             
             # Switch to Superlookup within modules_tabs
             if hasattr(main_window, 'modules_tabs'):
-                print(f"[Superlookup] Current modules_tab index: {main_window.modules_tabs.currentIndex()}")
+                print(f"[SuperLookup] Current modules_tab index: {main_window.modules_tabs.currentIndex()}")
                 for i in range(main_window.modules_tabs.count()):
                     if "Superlookup" in main_window.modules_tabs.tabText(i):
                         main_window.modules_tabs.setCurrentIndex(i)
-                        print(f"[Superlookup] Switched to Superlookup tab (index {i})")
+                        print(f"[SuperLookup] Switched to Superlookup tab (index {i})")
                         QApplication.processEvents()  # Force GUI update
                         break
             
@@ -49627,23 +49627,23 @@ class SuperlookupTab(QWidget):
             QTimer.singleShot(100, lambda: self._fill_and_search(text))
                     
         except Exception as e:
-            print(f"[Superlookup] Error showing lookup: {e}")
+            print(f"[SuperLookup] Error showing lookup: {e}")
     
     def _fill_and_search(self, text):
         """Fill in text and trigger search (called after tab switching completes)"""
         try:
-            print(f"[Superlookup] _fill_and_search called")
+            print(f"[SuperLookup] _fill_and_search called")
             # Fill in text and trigger lookup
             if hasattr(self, 'source_text'):
                 self.source_text.setCurrentText(text)
-                print(f"[Superlookup] Text filled in source_text field")
+                print(f"[SuperLookup] Text filled in source_text field")
                 # Trigger lookup by calling perform_lookup directly
                 self.perform_lookup()
-                print(f"[Superlookup] perform_lookup() called")
+                print(f"[SuperLookup] perform_lookup() called")
             else:
-                print(f"[Superlookup] ERROR: source_text widget not found!")
+                print(f"[SuperLookup] ERROR: source_text widget not found!")
         except Exception as e:
-            print(f"[Superlookup] Error in _fill_and_search: {e}")
+            print(f"[SuperLookup] Error in _fill_and_search: {e}")
             import traceback
             traceback.print_exc()
 

@@ -1,12 +1,12 @@
 """
-MT Quick Popup - GT4T-style machine translation suggestions popup
+QuickTrans - Instant translation popup (GT4T-style)
 
-A popup window that shows machine translation suggestions from all enabled
-MT engines, similar to GT4T. Triggered by keyboard shortcut (Ctrl+Shift+Q).
+A popup window that shows translations from all enabled MT engines and LLMs.
+Part of the Supervertaler tool suite. Triggered by Ctrl+M (in-app) or Ctrl+Alt+M (global).
 
 Features:
 - Shows source text at the top
-- Displays numbered list of MT suggestions from all enabled providers
+- Displays numbered list of translations from MT engines and LLMs
 - Press number key (1-9) or click to insert translation
 - Escape to dismiss
 - Translations fetched in parallel for speed
@@ -222,7 +222,7 @@ class MTQuickPopup(QDialog):
 
     def setup_ui(self):
         """Setup the popup UI"""
-        self.setWindowTitle("🌐 MT Quick Lookup")
+        self.setWindowTitle("⚡ QuickTrans")
         # Use standard dialog with title bar for resize/move support
         self.setWindowFlags(
             Qt.WindowType.Dialog |
@@ -269,7 +269,7 @@ class MTQuickPopup(QDialog):
         header_layout = QHBoxLayout()
         header_layout.setContentsMargins(0, 0, 0, 4)
 
-        title_label = QLabel("🌐 MT Quick Lookup")
+        title_label = QLabel("⚡ QuickTrans")
         title_label.setStyleSheet("font-size: 11px; font-weight: bold; color: #333;")
         header_layout.addWidget(title_label)
 
@@ -278,7 +278,7 @@ class MTQuickPopup(QDialog):
         # Settings button
         settings_btn = QPushButton("⚙️")
         settings_btn.setFixedSize(24, 24)
-        settings_btn.setToolTip("Configure MT Quick Lookup providers")
+        settings_btn.setToolTip("Configure QuickTrans providers")
         settings_btn.setStyleSheet("""
             QPushButton {
                 border: none;

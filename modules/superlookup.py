@@ -1,5 +1,5 @@
 """
-Superlookup Engine
+SuperLookup Engine
 ==================
 System-wide translation lookup that works anywhere on your computer.
 Captures text from any application and provides:
@@ -37,7 +37,7 @@ class LookupResult:
 
 class SuperlookupEngine:
     """
-    Superlookup text lookup engine.
+    SuperLookup text lookup engine.
     Captures text from any application and provides translation results.
     """
     
@@ -164,7 +164,7 @@ class SuperlookupEngine:
                     # Use 'source' and 'target' keys (matches database column names)
                     source_text = match.get('source', '')
                     target_text = match.get('target', '')
-                    print(f"[Superlookup] Extracted: source='{source_text[:50]}...', target='{target_text[:50]}...'")
+                    print(f"[SuperLookup] Extracted: source='{source_text[:50]}...', target='{target_text[:50]}...'")
                     results.append(LookupResult(
                         source=source_text,
                         target=target_text,

@@ -585,10 +585,10 @@ class ShortcutManager:
             "action": "filter_on_selected_text"
         },
 
-        # MT Quick Lookup (GT4T-style popup)
+        # QuickTrans (GT4T-style instant translation popup)
         "mt_quick_lookup": {
             "category": "Translation",
-            "description": "MT Quick Lookup (GT4T-style popup)",
+            "description": "QuickTrans (instant translation popup)",
             "default": "Ctrl+M",
             "action": "show_mt_quick_popup",
             "context": "editor"

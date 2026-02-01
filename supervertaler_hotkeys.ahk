@@ -6,8 +6,8 @@
 ; difficult or impossible to implement reliably in Python/Qt.
 ;
 ; HOTKEYS:
-;   Ctrl+Alt+L     - Superlookup: Copy selection and trigger lookup
-;   Ctrl+Alt+M     - MT Quick Lookup: Copy selection and show MT translations
+;   Ctrl+Alt+L     - SuperLookup: Copy selection and trigger lookup
+;   Ctrl+Alt+M     - QuickTrans: Copy selection and show MT/LLM translations
 ;   Shift+Shift    - Context menu: Double-tap Shift opens context menu (in Supervertaler only)
 ;
 ; Author: Michael Beijer / Supervertaler
@@ -24,7 +24,7 @@ A_IconTip := "Supervertaler Hotkeys"
 ; ============================================================================
 ; SUPERLOOKUP HOTKEY (Ctrl+Alt+L) - Works globally
 ; ============================================================================
-; Copies selected text and triggers Superlookup in Supervertaler.
+; Copies selected text and triggers SuperLookup in Supervertaler.
 ; Works from any application (memoQ, Word, browser, etc.)
 
 ^!l::
@@ -51,10 +51,10 @@ A_IconTip := "Supervertaler Hotkeys"
 }
 
 ; ============================================================================
-; MT QUICK LOOKUP HOTKEY (Ctrl+Alt+M) - Works globally
+; QUICKTRANS HOTKEY (Ctrl+Alt+M) - Works globally
 ; ============================================================================
-; Copies selected text and triggers MT Quick Lookup popup in Supervertaler.
-; Shows machine translations from all enabled MT engines and LLMs.
+; Copies selected text and triggers QuickTrans popup in Supervertaler.
+; Shows translations from all enabled MT engines and LLMs.
 ; Works from any application (memoQ, Word, browser, etc.)
 
 ^!m::
@@ -63,13 +63,13 @@ A_IconTip := "Supervertaler Hotkeys"
     Send "^c"
     Sleep 200  ; Give clipboard time to update
 
-    ; Write signal file to trigger Python MT Quick Lookup
+    ; Write signal file to trigger Python QuickTrans
     signalFile := A_ScriptDir "\mt_lookup_signal.txt"
     if FileExist(signalFile)
         FileDelete signalFile
     FileAppend "trigger", signalFile
 
-    ; NOTE: We do NOT bring Supervertaler to foreground for MT Quick Lookup
+    ; NOTE: We do NOT bring Supervertaler to foreground for QuickTrans
     ; The popup will appear as an overlay at the cursor position
 
     return
