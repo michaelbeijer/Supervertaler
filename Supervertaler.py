@@ -20580,7 +20580,7 @@ class SupervertalerQt(QMainWindow):
         # WYSIWYG button (left)
         wysiwyg_btn = QPushButton("WYSIWYG")
         wysiwyg_btn.setCheckable(True)
-        wysiwyg_btn.setChecked(True)  # Default: WYSIWYG mode
+        wysiwyg_btn.setChecked(False)
         wysiwyg_btn.setToolTip("WYSIWYG View (Ctrl+Alt+T)\nShows formatted text without raw tags")
         wysiwyg_btn.setStyleSheet("""
             QPushButton {
@@ -20606,7 +20606,7 @@ class SupervertalerQt(QMainWindow):
         # Tags button (right)
         tags_btn = QPushButton("Tags")
         tags_btn.setCheckable(True)
-        tags_btn.setChecked(False)
+        tags_btn.setChecked(True)  # Default: Tags mode
         tags_btn.setToolTip("Tag View (Ctrl+Alt+T)\nShows raw tags like <b>bold</b>")
         tags_btn.setStyleSheet("""
             QPushButton {
@@ -20638,7 +20638,7 @@ class SupervertalerQt(QMainWindow):
         
         # Initialize tag view state
         if not hasattr(self, 'show_tags'):
-            self.show_tags = False
+            self.show_tags = True  # Default: show tags
         
         # Status selector
         from modules.statuses import get_status, STATUSES
