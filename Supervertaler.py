@@ -20565,26 +20565,76 @@ class SupervertalerQt(QMainWindow):
         tab_seg_info.setStyleSheet("font-weight: bold;")
         toolbar_layout.addWidget(tab_seg_info)
         
-        # Tag View toggle button
-        tag_view_btn = QPushButton("🏷️ Tags OFF")
-        tag_view_btn.setCheckable(True)
-        tag_view_btn.setChecked(False)  # Default: WYSIWYG mode (tags hidden)
-        tag_view_btn.setStyleSheet("""
+        # View mode segmented control (WYSIWYG / Tags)
+        from PyQt6.QtWidgets import QButtonGroup, QHBoxLayout
+
+        view_mode_container = QWidget()
+        view_mode_layout = QHBoxLayout(view_mode_container)
+        view_mode_layout.setContentsMargins(0, 0, 0, 0)
+        view_mode_layout.setSpacing(0)
+
+        # Create button group to ensure only one is checked
+        view_mode_group = QButtonGroup(self)
+        view_mode_group.setExclusive(True)
+
+        # WYSIWYG button (left)
+        wysiwyg_btn = QPushButton("Preview")
+        wysiwyg_btn.setCheckable(True)
+        wysiwyg_btn.setChecked(True)  # Default: WYSIWYG mode
+        wysiwyg_btn.setToolTip("WYSIWYG View (Ctrl+Alt+T)\nShows formatted text without raw tags")
+        wysiwyg_btn.setStyleSheet("""
             QPushButton {
                 background-color: #757575;
                 color: white;
                 font-weight: bold;
-                padding: 4px 8px;
-                border-radius: 3px;
+                padding: 4px 12px;
+                border: none;
+                border-top-left-radius: 3px;
+                border-bottom-left-radius: 3px;
             }
             QPushButton:checked {
                 background-color: #9C27B0;
             }
+            QPushButton:hover:!checked {
+                background-color: #858585;
+            }
         """)
-        tag_view_btn.setToolTip("Toggle Tag View (Ctrl+Alt+T)\n\nTags OFF: Shows formatted text (WYSIWYG)\nTags ON: Shows raw tags like <b>bold</b>")
-        tag_view_btn.clicked.connect(lambda checked: self.toggle_tag_view(checked, tag_view_btn))
-        toolbar_layout.addWidget(tag_view_btn)
-        self.tag_view_btn = tag_view_btn  # Store reference
+        wysiwyg_btn.clicked.connect(lambda: self.toggle_tag_view(False, None))
+        view_mode_group.addButton(wysiwyg_btn, 0)
+        view_mode_layout.addWidget(wysiwyg_btn)
+
+        # Tags button (right)
+        tags_btn = QPushButton("Tags")
+        tags_btn.setCheckable(True)
+        tags_btn.setChecked(False)
+        tags_btn.setToolTip("Tag View (Ctrl+Alt+T)\nShows raw tags like <b>bold</b>")
+        tags_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #757575;
+                color: white;
+                font-weight: bold;
+                padding: 4px 12px;
+                border: none;
+                border-top-right-radius: 3px;
+                border-bottom-right-radius: 3px;
+            }
+            QPushButton:checked {
+                background-color: #9C27B0;
+            }
+            QPushButton:hover:!checked {
+                background-color: #858585;
+            }
+        """)
+        tags_btn.clicked.connect(lambda: self.toggle_tag_view(True, None))
+        view_mode_group.addButton(tags_btn, 1)
+        view_mode_layout.addWidget(tags_btn)
+
+        toolbar_layout.addWidget(view_mode_container)
+
+        # Store references for keyboard shortcut and programmatic access
+        self.wysiwyg_btn = wysiwyg_btn
+        self.tags_btn = tags_btn
+        self.view_mode_group = view_mode_group
         
         # Initialize tag view state
         if not hasattr(self, 'show_tags'):
@@ -39560,32 +39610,30 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
 
     def _toggle_tag_view_via_shortcut(self):
         """Toggle tag view using keyboard shortcut (Ctrl+Alt+T)"""
-        if hasattr(self, 'tag_view_btn'):
-            # Toggle the button state (which triggers toggle_tag_view)
-            new_state = not self.tag_view_btn.isChecked()
-            self.tag_view_btn.setChecked(new_state)
-            self.toggle_tag_view(new_state, self.tag_view_btn)
+        if hasattr(self, 'wysiwyg_btn') and hasattr(self, 'tags_btn'):
+            # Toggle between the two modes
+            new_state = not self.show_tags
+            self.toggle_tag_view(new_state, None)
 
     def _enable_tag_view_after_import(self):
         """Auto-enable Tag View after importing a document with formatting tags"""
-        if hasattr(self, 'tag_view_btn'):
-            self.tag_view_btn.setChecked(True)
-            self.toggle_tag_view(True, self.tag_view_btn)
+        if hasattr(self, 'tags_btn'):
+            self.toggle_tag_view(True, None)
             self.log("🏷️ Tag View auto-enabled (formatting tags detected in import)")
 
     def toggle_tag_view(self, checked: bool, button: QPushButton = None):
         """Toggle between Tag View (showing raw tags) and WYSIWYG View (formatted display)"""
         self.show_tags = checked
-        
-        # Update button text
-        if button:
+
+        # Update segmented control buttons if they exist
+        if hasattr(self, 'wysiwyg_btn') and hasattr(self, 'tags_btn'):
             if checked:
-                button.setText("🏷️ Tags ON")
+                self.tags_btn.setChecked(True)
             else:
-                button.setText("🏷️ Tags OFF")
-        
+                self.wysiwyg_btn.setChecked(True)
+
         self.log(f"{'🏷️ Tag View ENABLED - showing raw tags' if checked else '✨ WYSIWYG View ENABLED - showing formatted text'}")
-        
+
         # Refresh the grid to update display
         if hasattr(self, 'table') and self.current_project:
             self._refresh_grid_display_mode()
@@ -40960,20 +41008,40 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
     def _cleanup_web_views(self):
         """Clean up WebEngine views to prevent 'Release of profile requested' warning"""
         try:
-            # Close any SuperBrowser tabs
+            from PyQt6.QtWidgets import QApplication
+            from PyQt6.QtCore import QUrl
+
+            # Find and cleanup Superbrowser widget
+            if hasattr(self, 'modules_tabs'):
+                for i in range(self.modules_tabs.count()):
+                    widget = self.modules_tabs.widget(i)
+                    if widget and hasattr(widget, '__class__') and 'Superbrowser' in widget.__class__.__name__:
+                        # Call cleanup method if available
+                        if hasattr(widget, 'cleanup'):
+                            try:
+                                widget.cleanup()
+                            except:
+                                pass
+                        # Delete the Superbrowser widget itself
+                        try:
+                            widget.deleteLater()
+                        except:
+                            pass
+
+            # Close any SuperBrowser tabs (legacy cleanup)
             if hasattr(self, 'superbrowser_tabs'):
                 for tab in self.superbrowser_tabs.values():
                     try:
                         if hasattr(tab, 'web_view'):
-                            # Stop any loading/rendering
                             tab.web_view.stop()
-                            # Clear page to release resources
                             tab.web_view.setPage(None)
                             tab.web_view.setUrl(QUrl('about:blank'))
                             tab.web_view.deleteLater()
+                        if hasattr(tab, 'profile'):
+                            tab.profile.deleteLater()
                     except:
                         pass
-            
+
             # Close Superlookup web views (from Web Resources tab)
             if hasattr(self, 'web_views'):
                 for resource_id, web_view in list(self.web_views.items()):
@@ -40985,16 +41053,17 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                     except:
                         pass
                 self.web_views.clear()
-            
+
             # Process events multiple times to ensure cleanup completes
-            from PyQt6.QtWidgets import QApplication
-            from PyQt6.QtCore import QUrl
-            for _ in range(3):
+            for _ in range(5):  # Increased from 3 to 5
                 QApplication.processEvents()
-                
+
             # Small delay to allow Qt to finish cleanup
             import time
-            time.sleep(0.1)
+            time.sleep(0.2)  # Increased from 0.1 to 0.2
+
+            # Final event processing
+            QApplication.processEvents()
         except:
             pass
     
