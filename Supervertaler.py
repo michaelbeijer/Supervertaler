@@ -20566,7 +20566,7 @@ class SupervertalerQt(QMainWindow):
         toolbar_layout.addWidget(tab_seg_info)
         
         # View mode segmented control (WYSIWYG / Tags)
-        from PyQt6.QtWidgets import QButtonGroup, QHBoxLayout
+        from PyQt6.QtWidgets import QButtonGroup
 
         view_mode_container = QWidget()
         view_mode_layout = QHBoxLayout(view_mode_container)
