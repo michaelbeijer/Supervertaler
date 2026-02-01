@@ -41010,6 +41010,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         try:
             from PyQt6.QtWidgets import QApplication
             from PyQt6.QtCore import QUrl
+            from PyQt6.QtWebEngineCore import QWebEngineProfile
 
             # Find and cleanup Superbrowser widget
             if hasattr(self, 'modules_tabs'):
@@ -41022,8 +41023,10 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                                 widget.cleanup()
                             except:
                                 pass
-                        # Delete the Superbrowser widget itself
+                        # Remove from parent and schedule deletion
                         try:
+                            self.modules_tabs.removeTab(i)
+                            widget.setParent(None)
                             widget.deleteLater()
                         except:
                             pass
@@ -41034,7 +41037,10 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                     try:
                         if hasattr(tab, 'web_view'):
                             tab.web_view.stop()
+                            page = tab.web_view.page()
                             tab.web_view.setPage(None)
+                            if page:
+                                page.deleteLater()
                             tab.web_view.setUrl(QUrl('about:blank'))
                             tab.web_view.deleteLater()
                         if hasattr(tab, 'profile'):
@@ -41047,7 +41053,10 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                 for resource_id, web_view in list(self.web_views.items()):
                     try:
                         web_view.stop()
+                        page = web_view.page()
                         web_view.setPage(None)
+                        if page:
+                            page.deleteLater()
                         web_view.setUrl(QUrl('about:blank'))
                         web_view.deleteLater()
                     except:
@@ -41055,15 +41064,16 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                 self.web_views.clear()
 
             # Process events multiple times to ensure cleanup completes
-            for _ in range(5):  # Increased from 3 to 5
+            for _ in range(10):  # Increased from 5 to 10
                 QApplication.processEvents()
 
-            # Small delay to allow Qt to finish cleanup
+            # Longer delay to allow Qt to finish WebEngine cleanup
             import time
-            time.sleep(0.2)  # Increased from 0.1 to 0.2
+            time.sleep(0.5)  # Increased from 0.2 to 0.5
 
             # Final event processing
-            QApplication.processEvents()
+            for _ in range(5):
+                QApplication.processEvents()
         except:
             pass
     
