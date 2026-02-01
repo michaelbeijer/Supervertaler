@@ -2,9 +2,63 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.190 (February 1, 2026)
+**Current Version:** v1.9.193 (February 1, 2026)
 
 
+
+## v1.9.193 - February 1, 2026
+
+### ✨ New Features
+
+- **MT Quick Lookup - LLM Support**: Added Claude, OpenAI (GPT), and Gemini as translation providers in MT Quick Lookup. Now you can get translations from both MT engines AND LLMs in a single popup. Configure which providers to use in the MT Quick Lookup settings (click the ⚙️ button in the popup).
+
+- **Global MT Quick Lookup Hotkey (Ctrl+Alt+M)**: Use MT Quick Lookup from ANY application (memoQ, Word, browser, etc.) via AutoHotkey. Select text anywhere, press **Ctrl+Alt+M**, and the MT Quick Lookup popup appears as an overlay at your cursor position - without switching focus to Supervertaler. Perfect for quick translations while working in your CAT tool.
+
+- **MT Quick Lookup Settings**: Added dedicated settings tab (Settings → MT Quick Lookup) to configure:
+  - Which MT engines to include (Google, DeepL, Microsoft, Amazon, ModernMT, MyMemory)
+  - Which LLMs to include (Claude, OpenAI, Gemini) with model selection
+  - Access settings directly from the popup via the ⚙️ button
+
+### 🐛 Bug Fixes
+
+- **View Settings Freeze Fixed**: Fixed a freeze that occurred when changing View settings (like "Termview under grid") and clicking "Save View Settings". The freeze was caused by TM saves being triggered for all confirmed segments during the update.
+
+- **Termview Under Grid Default**: Changed "Termview/Session Log tabs under grid" to be OFF by default for new users. Setting is now properly persisted when changed.
+
+---
+
+## v1.9.192 - February 1, 2026
+
+### ✨ New Features
+
+- **MT Quick Lookup (GT4T-style)**: Added a new popup window for machine translation suggestions, inspired by GT4T. Press **Ctrl+M** (default) or use the **right-click context menu** to open a popup showing translations from all enabled MT engines (Google Translate, DeepL, Microsoft Translator, Amazon Translate, ModernMT, MyMemory). Features include:
+  - Source text displayed at the top for context
+  - Numbered list of MT suggestions with provider badges
+  - Press **1-9** to quickly insert a translation
+  - Arrow keys to navigate, **Enter** to insert selected
+  - **Escape** to dismiss
+  - Translations fetched in parallel for fast results
+  - Color-coded provider badges for easy identification
+  - **Smart text selection**: If you have text selected in source or target, only that selection gets translated; otherwise translates the full source segment
+  - Available from both source and target cell context menus ("🌐 MT Quick Lookup")
+  - **Resizable and movable**: Popup window can be dragged and resized to your preference
+  - **Customizable shortcut**: Change the keyboard shortcut in Settings → Keyboard Shortcuts
+
+---
+
+## v1.9.191 - February 1, 2026
+
+### 🎨 UI Improvements
+
+- **Status Icon Enhancement**: Confirmed status checkmarks now display in green (#2e7d32) for better visual distinction. Status icons in rows with capitalized text no longer clip vertically.
+
+- **Button Padding Standardization**: Unified button padding across all toolbar buttons (Show Invisibles, Advanced Filters, Sort, Clear Filters, Quick Filters, Spellcheck, etc.) to 3px vertical and 5px horizontal for consistent appearance and better text spacing.
+
+- **Font Size Optimization**: Increased font size for segment numbers and type column symbols (¶, •, #1, H1, etc.) from size 8 to size 9 for better readability and visual proportion relative to grid content.
+
+- **Column Width Optimization**: Segment number column now uses optimized width with reduced padding (12px total) and 55px maximum cap, accommodating up to 4-digit segment numbers (1-1000) without excess horizontal space.
+
+---
 
 ## v1.9.190 - February 1, 2026
 

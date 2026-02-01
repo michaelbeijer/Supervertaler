@@ -5,14 +5,83 @@ Provides UI for viewing, editing, and managing keyboard shortcuts
 
 from pathlib import Path
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QTableWidget, 
-    QTableWidgetItem, QHeaderView, QLineEdit, QLabel, QDialog, 
-    QDialogButtonBox, QMessageBox, QFileDialog, QGroupBox, QCheckBox
+    QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QTableWidget,
+    QTableWidgetItem, QHeaderView, QLineEdit, QLabel, QDialog,
+    QDialogButtonBox, QMessageBox, QFileDialog, QGroupBox, QCheckBox,
+    QStyleOptionButton
 )
-from PyQt6.QtCore import Qt, QEvent
-from PyQt6.QtGui import QKeySequence, QKeyEvent, QFont
+from PyQt6.QtCore import Qt, QEvent, QPointF, QRect
+from PyQt6.QtGui import QKeySequence, QKeyEvent, QFont, QPainter, QPen, QColor
 
 from modules.shortcut_manager import ShortcutManager
+
+
+class CheckmarkCheckBox(QCheckBox):
+    """Custom checkbox with green background and white checkmark when checked"""
+
+    def __init__(self, text="", parent=None):
+        super().__init__(text, parent)
+        self.setCheckable(True)
+        self.setEnabled(True)
+        self.setStyleSheet("""
+            QCheckBox {
+                font-size: 9pt;
+                spacing: 6px;
+            }
+            QCheckBox::indicator {
+                width: 16px;
+                height: 16px;
+                border: 2px solid #999;
+                border-radius: 3px;
+                background-color: white;
+            }
+            QCheckBox::indicator:checked {
+                background-color: #4CAF50;
+                border-color: #4CAF50;
+            }
+            QCheckBox::indicator:hover {
+                border-color: #666;
+            }
+            QCheckBox::indicator:checked:hover {
+                background-color: #45a049;
+                border-color: #45a049;
+            }
+        """)
+
+    def paintEvent(self, event):
+        """Override paint event to draw white checkmark when checked"""
+        super().paintEvent(event)
+
+        if self.isChecked():
+            opt = QStyleOptionButton()
+            self.initStyleOption(opt)
+            indicator_rect = self.style().subElementRect(
+                self.style().SubElement.SE_CheckBoxIndicator,
+                opt,
+                self
+            )
+
+            if indicator_rect.isValid():
+                # Draw white checkmark
+                painter = QPainter(self)
+                painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+                pen_width = max(2.0, min(indicator_rect.width(), indicator_rect.height()) * 0.12)
+                painter.setPen(QPen(QColor(255, 255, 255), pen_width, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin))
+
+                # Draw checkmark (✓ shape)
+                x = indicator_rect.x()
+                y = indicator_rect.y()
+                w = indicator_rect.width()
+                h = indicator_rect.height()
+
+                # Checkmark coordinates (relative to indicator)
+                p1 = QPointF(x + w * 0.20, y + h * 0.50)  # Start left
+                p2 = QPointF(x + w * 0.40, y + h * 0.70)  # Bottom middle
+                p3 = QPointF(x + w * 0.80, y + h * 0.30)  # End right-top
+
+                painter.drawLine(p1, p2)
+                painter.drawLine(p2, p3)
+                painter.end()
 
 
 class KeySequenceEdit(QLineEdit):
@@ -317,10 +386,9 @@ class KeyboardShortcutsWidget(QWidget):
             for shortcut_id, data in sorted(shortcuts, key=lambda x: x[1]["description"]):
                 self.table.insertRow(row)
                 
-                # Enabled checkbox (column 0)
-                checkbox = QCheckBox()
+                # Enabled checkbox (column 0) - using green checkmark style
+                checkbox = CheckmarkCheckBox()
                 checkbox.setChecked(data.get("is_enabled", True))
-                checkbox.setStyleSheet("margin-left: 10px;")
                 checkbox.setToolTip("Enable or disable this shortcut")
                 # Store shortcut_id in checkbox for reference
                 checkbox.setProperty("shortcut_id", shortcut_id)

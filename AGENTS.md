@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** February 1, 2026 | **Version:** v1.9.184
+> **Last Updated:** February 1, 2026 | **Version:** v1.9.191
 
 ---
 
@@ -10,11 +10,11 @@
 **IMPORTANT: If you're continuing from a previous session or ran out of context:**
 
 1. **Skip to the end of this file** - The most recent development context is in the **"🔄 Recent Development History"** section (search for the latest date)
-2. **Current version: v1.9.184** - Dark mode refinements and UI improvements
+2. **Current version: v1.9.191** - UI improvements (status icons, button padding, font sizes)
 3. **Read only what you need** - The Project Overview and Architecture sections are reference material; the dated history entries contain the actual working context
 
 **Quick Navigation:**
-- **Latest context:** Search for `### February 1, 2026 - Dark Mode Refinements` (near end of file)
+- **Latest context:** See CHANGELOG.md for v1.9.191 UI improvements (near end of file)
 - **Module list:** Search for `## 🔌 Complete Module List`
 - **Architecture:** Search for `## 🏗️ Architecture Patterns`
 - **Common pitfalls:** Search for `## ⚠️ Common Pitfalls`
@@ -28,7 +28,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.174 (January 2026) |
+| **Version** | v1.9.191 (February 2026) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -5226,7 +5226,7 @@ An intelligent proofreading system that uses LLMs to verify translation quality.
 ---
 
 *This file replaces the previous CLAUDE.md and PROJECT_CONTEXT.md files.*
-*Last updated: January 31, 2026 - v1.9.182 (In-Memory Termbase Index)*
+*Last updated: February 1, 2026 - v1.9.191 (UI Improvements)*
 
 ---
 

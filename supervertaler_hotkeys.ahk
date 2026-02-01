@@ -7,6 +7,7 @@
 ;
 ; HOTKEYS:
 ;   Ctrl+Alt+L     - Superlookup: Copy selection and trigger lookup
+;   Ctrl+Alt+M     - MT Quick Lookup: Copy selection and show MT translations
 ;   Shift+Shift    - Context menu: Double-tap Shift opens context menu (in Supervertaler only)
 ;
 ; Author: Michael Beijer / Supervertaler
@@ -31,13 +32,13 @@ A_IconTip := "Supervertaler Hotkeys"
     ; Copy selected text with Ctrl+C
     Send "^c"
     Sleep 200  ; Give clipboard time to update
-    
+
     ; Write signal file to trigger Python
     signalFile := A_ScriptDir "\lookup_signal.txt"
     if FileExist(signalFile)
         FileDelete signalFile
     FileAppend "trigger", signalFile
-    
+
     ; Bring Supervertaler window to foreground
     if WinExist("Supervertaler")
         WinActivate
@@ -45,7 +46,32 @@ A_IconTip := "Supervertaler Hotkeys"
         WinActivate "Supervertaler"
     else if WinExist("ahk_exe pythonw.exe") && WinExist("Supervertaler")
         WinActivate "Supervertaler"
-    
+
+    return
+}
+
+; ============================================================================
+; MT QUICK LOOKUP HOTKEY (Ctrl+Alt+M) - Works globally
+; ============================================================================
+; Copies selected text and triggers MT Quick Lookup popup in Supervertaler.
+; Shows machine translations from all enabled MT engines and LLMs.
+; Works from any application (memoQ, Word, browser, etc.)
+
+^!m::
+{
+    ; Copy selected text with Ctrl+C
+    Send "^c"
+    Sleep 200  ; Give clipboard time to update
+
+    ; Write signal file to trigger Python MT Quick Lookup
+    signalFile := A_ScriptDir "\mt_lookup_signal.txt"
+    if FileExist(signalFile)
+        FileDelete signalFile
+    FileAppend "trigger", signalFile
+
+    ; NOTE: We do NOT bring Supervertaler to foreground for MT Quick Lookup
+    ; The popup will appear as an overlay at the cursor position
+
     return
 }
 

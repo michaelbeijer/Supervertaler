@@ -584,6 +584,15 @@ class ShortcutManager:
             "default": "Ctrl+Shift+F",
             "action": "filter_on_selected_text"
         },
+
+        # MT Quick Lookup (GT4T-style popup)
+        "mt_quick_lookup": {
+            "category": "Translation",
+            "description": "MT Quick Lookup (GT4T-style popup)",
+            "default": "Ctrl+M",
+            "action": "show_mt_quick_popup",
+            "context": "editor"
+        },
     }
     
     def __init__(self, settings_file: Optional[Path] = None):
@@ -744,25 +753,30 @@ class ShortcutManager:
     def find_conflicts(self, shortcut_id: str, key_sequence: str) -> List[str]:
         """
         Find conflicts with a proposed shortcut
-        
+
         Args:
             shortcut_id: The shortcut being changed
             key_sequence: The proposed new key sequence
-            
+
         Returns:
-            List of conflicting shortcut IDs
+            List of conflicting shortcut IDs (only enabled shortcuts)
         """
         conflicts = []
         for other_id, data in self.get_all_shortcuts().items():
             if other_id != shortcut_id and data["current"] == key_sequence:
+                # Skip disabled shortcuts - they don't count as conflicts
+                # (their key combination is freed up for other uses)
+                if not self.is_enabled(other_id):
+                    continue
+
                 # Check if they're in different contexts (context-specific shortcuts don't conflict)
                 this_context = self.DEFAULT_SHORTCUTS.get(shortcut_id, {}).get("context")
                 other_context = self.DEFAULT_SHORTCUTS.get(other_id, {}).get("context")
-                
+
                 # Only conflict if same context or no context specified
                 if this_context == other_context or not this_context or not other_context:
                     conflicts.append(other_id)
-        
+
         return conflicts
     
     def export_shortcuts(self, file_path: Path):

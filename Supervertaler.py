@@ -32,7 +32,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.190"
+__version__ = "1.9.193"
 __phase__ = "0.9"
 __release_date__ = "2026-02-01"
 __edition__ = "Qt"
@@ -2301,7 +2301,12 @@ class ReadOnlyGridTextEditor(QTextEdit):
             superlookup_action = QAction("🔍 Search in Superlookup (Ctrl+K)", self)
             superlookup_action.triggered.connect(self._handle_superlookup_search)
             menu.addAction(superlookup_action)
-            menu.addSeparator()
+
+        # MT Quick Lookup action
+        mt_lookup_action = QAction("🌐 MT Quick Lookup (Ctrl+Shift+Q)", self)
+        mt_lookup_action.triggered.connect(self._handle_mt_quick_lookup)
+        menu.addAction(mt_lookup_action)
+        menu.addSeparator()
 
         # QuickMenu (prompt-based actions)
         try:
@@ -2355,7 +2360,7 @@ class ReadOnlyGridTextEditor(QTextEdit):
         """Handle Ctrl+Alt+N: Add selected text to active non-translatable list(s)"""
         # Get selected text
         selected_text = self.textCursor().selectedText().strip()
-        
+
         if not selected_text:
             from PyQt6.QtWidgets import QMessageBox
             QMessageBox.warning(
@@ -2364,14 +2369,14 @@ class ReadOnlyGridTextEditor(QTextEdit):
                 "Please select text in the Source cell before adding to non-translatables."
             )
             return
-        
+
         # Find main window and call add_to_nt method
         table = self.table_ref if hasattr(self, 'table_ref') else self.parent()
         if table:
             main_window = table.parent()
             while main_window and not hasattr(main_window, 'add_text_to_non_translatables'):
                 main_window = main_window.parent()
-            
+
             if main_window and hasattr(main_window, 'add_text_to_non_translatables'):
                 main_window.add_text_to_non_translatables(selected_text)
             else:
@@ -2381,6 +2386,16 @@ class ReadOnlyGridTextEditor(QTextEdit):
                     "Feature Not Available",
                     "Non-translatables functionality not available."
                 )
+
+    def _handle_mt_quick_lookup(self):
+        """Handle right-click: Open MT Quick Lookup popup for selected text or full source"""
+        # Get selected text (if any)
+        selected_text = self.textCursor().selectedText().strip() if self.textCursor().hasSelection() else None
+
+        # Find main window and call show_mt_quick_popup
+        main_window = self._get_main_window()
+        if main_window and hasattr(main_window, 'show_mt_quick_popup'):
+            main_window.show_mt_quick_popup(text_override=selected_text)
 
     def set_background_color(self, color: str):
         """Set the background color for this text editor (for alternating row colors)"""
@@ -2994,7 +3009,12 @@ class EditableGridTextEditor(QTextEdit):
             superlookup_action = QAction("🔍 Search in Superlookup (Ctrl+K)", self)
             superlookup_action.triggered.connect(self._handle_superlookup_search)
             menu.addAction(superlookup_action)
-            menu.addSeparator()
+
+        # MT Quick Lookup action
+        mt_lookup_action = QAction("🌐 MT Quick Lookup (Ctrl+Shift+Q)", self)
+        mt_lookup_action.triggered.connect(self._handle_mt_quick_lookup)
+        menu.addAction(mt_lookup_action)
+        menu.addSeparator()
 
         # QuickMenu (prompt-based actions)
         try:
@@ -3506,6 +3526,24 @@ class EditableGridTextEditor(QTextEdit):
                     "Feature Not Available",
                     "Non-translatables functionality not available."
                 )
+
+    def _handle_mt_quick_lookup(self):
+        """Handle right-click: Open MT Quick Lookup popup for selected text or full source"""
+        # Get selected text (if any) - prefer from target, then try source
+        selected_text = self.textCursor().selectedText().strip() if self.textCursor().hasSelection() else None
+
+        if not selected_text and self.table and self.row >= 0:
+            # Try getting selected text from source cell
+            source_widget = self.table.cellWidget(self.row, 2)
+            if source_widget and hasattr(source_widget, 'textCursor'):
+                cursor = source_widget.textCursor()
+                if cursor.hasSelection():
+                    selected_text = cursor.selectedText().strip()
+
+        # Find main window and call show_mt_quick_popup
+        main_window = self._get_main_window()
+        if main_window and hasattr(main_window, 'show_mt_quick_popup'):
+            main_window.show_mt_quick_popup(text_override=selected_text)
 
     def _insert_next_tag_or_wrap_selection(self):
         """
@@ -6435,7 +6473,7 @@ class SupervertalerQt(QMainWindow):
         
         # Restore Termview under grid visibility state
         if hasattr(self, 'bottom_tabs'):
-            termview_visible = general_settings.get('termview_under_grid_visible', True)
+            termview_visible = general_settings.get('termview_under_grid_visible', False)
             self.bottom_tabs.setVisible(termview_visible)
             if hasattr(self, 'termview_visible_action'):
                 self.termview_visible_action.setChecked(termview_visible)
@@ -7283,7 +7321,12 @@ class SupervertalerQt(QMainWindow):
         
         # Alt+K - Open QuickMenu directly
         create_shortcut("editor_open_quickmenu", "Alt+K", self.open_quickmenu)
-    
+
+        # Ctrl+Shift+Q - MT Quick Lookup (GT4T-style popup)
+        mt_quick_shortcut = create_shortcut("mt_quick_lookup", "Ctrl+Shift+Q", self.show_mt_quick_popup)
+        # Use ApplicationShortcut context so it works even when focus is in QTextEdit widgets
+        mt_quick_shortcut.setContext(Qt.ShortcutContext.ApplicationShortcut)
+
     def focus_segment_notes(self):
         """Switch to Segment Note tab and focus the notes editor so user can start typing immediately"""
         if not hasattr(self, 'right_tabs'):
@@ -7355,7 +7398,105 @@ class SupervertalerQt(QMainWindow):
             
         except Exception as e:
             self.log(f"❌ Error opening QuickMenu: {e}")
-    
+
+    def show_mt_quick_popup(self, text_override: str = None):
+        """Show GT4T-style MT Quick Lookup popup with translations from all enabled MT engines.
+
+        Triggered by Ctrl+Shift+Q or right-click menu. Shows machine translation
+        suggestions from all configured and enabled MT providers in a popup window.
+
+        Args:
+            text_override: Optional text to translate. If None, uses selected text
+                          in the current cell, or falls back to the full source text.
+
+        Features:
+        - Displays source text at top
+        - Shows numbered list of MT suggestions from each provider
+        - Press 1-9 to quickly insert a translation
+        - Arrow keys to navigate, Enter to insert selected
+        - Escape to dismiss
+        """
+        try:
+            # Get current segment
+            current_row = self.table.currentRow()
+            if current_row < 0:
+                self.log("⚠️ No segment selected")
+                return
+
+            # Determine what text to translate
+            text_to_translate = text_override
+
+            if not text_to_translate:
+                # Check for selected text in the currently focused widget
+                focus_widget = QApplication.focusWidget()
+                if focus_widget and hasattr(focus_widget, 'textCursor'):
+                    cursor = focus_widget.textCursor()
+                    if cursor.hasSelection():
+                        text_to_translate = cursor.selectedText().strip()
+
+            if not text_to_translate:
+                # Fall back to full source text
+                source_widget = self.table.cellWidget(current_row, 2)
+                if not source_widget or not hasattr(source_widget, 'toPlainText'):
+                    self.log("⚠️ Could not get source text")
+                    return
+                text_to_translate = source_widget.toPlainText().strip()
+
+            if not text_to_translate:
+                self.log("⚠️ No text to translate")
+                return
+
+            # Import and create the popup
+            from modules.mt_quick_popup import MTQuickPopup
+
+            # Create popup
+            popup = MTQuickPopup(
+                parent_app=self,
+                source_text=text_to_translate,
+                source_lang=getattr(self, 'source_language', 'en'),
+                target_lang=getattr(self, 'target_language', 'nl'),
+                parent=self
+            )
+
+            # Connect signal to insert translation into target cell
+            def insert_translation(translation: str):
+                # Get the target widget
+                target_widget = self.table.cellWidget(current_row, 3)
+                if not target_widget or not hasattr(target_widget, 'toPlainText'):
+                    return
+
+                # Check if there was a selection in the target - replace just that
+                focus_widget = QApplication.focusWidget()
+                if focus_widget == target_widget and hasattr(focus_widget, 'textCursor'):
+                    cursor = focus_widget.textCursor()
+                    if cursor.hasSelection():
+                        # Replace selection only
+                        cursor.insertText(translation)
+                        self.log(f"✅ Replaced selection with MT translation")
+                    else:
+                        # No selection in target, replace entire target
+                        target_widget.setPlainText(translation)
+                        self.log(f"✅ Inserted MT translation")
+                else:
+                    # Focus was elsewhere, replace entire target
+                    target_widget.setPlainText(translation)
+                    self.log(f"✅ Inserted MT translation")
+
+                # Mark segment as modified
+                if hasattr(self, 'segments') and current_row < len(self.segments):
+                    self.segments[current_row].target = target_widget.toPlainText()
+                    self.mark_segment_modified(current_row)
+
+            popup.translation_selected.connect(insert_translation)
+
+            # Show the popup (it positions itself near cursor)
+            popup.show()
+
+        except ImportError as e:
+            self.log(f"❌ MT Quick Popup module not found: {e}")
+        except Exception as e:
+            self.log(f"❌ Error showing MT Quick Popup: {e}")
+
     def refresh_shortcut_enabled_states(self):
         """Refresh enabled/disabled states and key bindings of all global shortcuts from shortcut manager.
         
@@ -8098,7 +8239,7 @@ class SupervertalerQt(QMainWindow):
         # Termview visibility toggle
         self.termview_visible_action = QAction("🔍 &Termview Under Grid", self)
         self.termview_visible_action.setCheckable(True)
-        self.termview_visible_action.setChecked(True)  # Default: visible
+        self.termview_visible_action.setChecked(False)  # Default: hidden (restored from settings if enabled)
         self.termview_visible_action.triggered.connect(self.toggle_termview_under_grid)
         self.termview_visible_action.setToolTip("Show/hide the Termview panel under the grid")
         view_menu.addAction(self.termview_visible_action)
@@ -15669,8 +15810,13 @@ class SupervertalerQt(QMainWindow):
         # ===== TAB 4: MT Settings =====
         mt_tab = self._create_mt_settings_tab()
         settings_tabs.addTab(scroll_area_wrapper(mt_tab), "🌐 MT Settings")
-        
-        # ===== TAB 5: View Settings =====
+
+        # ===== TAB 5: MT Quick Lookup Settings =====
+        mt_quick_tab = self._create_mt_quick_lookup_settings_tab()
+        settings_tabs.addTab(scroll_area_wrapper(mt_quick_tab), "⚡ MT Quick Lookup")
+        self.mt_quick_lookup_tab_index = settings_tabs.count() - 1  # Store index for opening
+
+        # ===== TAB 6: View Settings =====
         view_tab = self._create_view_settings_tab()
         settings_tabs.addTab(scroll_area_wrapper(view_tab), "🔍 View Settings")
 
@@ -16478,9 +16624,199 @@ class SupervertalerQt(QMainWindow):
         layout.addWidget(save_btn)
         
         layout.addStretch()
-        
+
         return tab
-    
+
+    def _create_mt_quick_lookup_settings_tab(self):
+        """Create MT Quick Lookup settings tab content"""
+        from PyQt6.QtWidgets import QCheckBox, QGroupBox, QPushButton, QComboBox
+
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(15)
+
+        # Load current settings
+        general_settings = self.load_general_settings()
+        mt_quick_settings = general_settings.get('mt_quick_lookup', {})
+        api_keys = self.load_api_keys()
+        enabled_providers = self.load_provider_enabled_states()
+
+        # Header info
+        header_info = QLabel(
+            "⚡ <b>MT Quick Lookup</b> - Configure which providers appear in the MT Quick Lookup popup (Ctrl+M).<br>"
+            "Enable MT engines and/or LLMs to get instant translation suggestions."
+        )
+        header_info.setTextFormat(Qt.TextFormat.RichText)
+        header_info.setStyleSheet("font-size: 9pt; color: #444; padding: 10px; background-color: #E3F2FD; border-radius: 4px;")
+        header_info.setWordWrap(True)
+        layout.addWidget(header_info)
+
+        # ===== MT Providers Group =====
+        mt_group = QGroupBox("🌐 Machine Translation Providers")
+        mt_layout = QVBoxLayout()
+
+        mt_info = QLabel("Select which MT engines to query. Only enabled providers with valid API keys are shown.")
+        mt_info.setWordWrap(True)
+        mt_info.setStyleSheet("font-size: 8pt; color: #666; padding-bottom: 8px;")
+        mt_layout.addWidget(mt_info)
+
+        # MT provider checkboxes
+        self._mtql_checkboxes = {}
+
+        mt_providers = [
+            ("gt", "Google Translate", "mt_google_translate", "google_translate"),
+            ("dl", "DeepL", "mt_deepl", "deepl"),
+            ("ms", "Microsoft Translator", "mt_microsoft", "microsoft_translate"),
+            ("at", "Amazon Translate", "mt_amazon", "amazon_translate"),
+            ("mmt", "ModernMT", "mt_modernmt", "modernmt"),
+            ("mm", "MyMemory (Free)", "mt_mymemory", None),
+        ]
+
+        for code, name, enabled_key, api_key_name in mt_providers:
+            # Check if provider is available (has API key or doesn't need one)
+            has_key = api_key_name is None or bool(api_keys.get(api_key_name))
+            is_enabled_globally = enabled_providers.get(enabled_key, True)
+
+            checkbox = CheckmarkCheckBox(name)
+            # Default: use global MT enabled state
+            checkbox.setChecked(mt_quick_settings.get(f"mtql_{code}", is_enabled_globally and has_key))
+            checkbox.setEnabled(has_key)
+
+            if not has_key:
+                checkbox.setToolTip(f"API key not configured for {name}")
+                checkbox.setStyleSheet("color: #999;")
+            else:
+                checkbox.setToolTip(f"Include {name} in MT Quick Lookup results")
+
+            self._mtql_checkboxes[f"mtql_{code}"] = checkbox
+            mt_layout.addWidget(checkbox)
+
+        mt_group.setLayout(mt_layout)
+        layout.addWidget(mt_group)
+
+        # ===== LLM Providers Group =====
+        llm_group = QGroupBox("🤖 AI/LLM Providers")
+        llm_layout = QVBoxLayout()
+
+        llm_info = QLabel(
+            "Enable AI models for translation suggestions. LLMs may provide more context-aware translations but are slower.<br>"
+            "<b>Note:</b> LLM calls cost more than MT APIs. Use sparingly for quick lookups."
+        )
+        llm_info.setTextFormat(Qt.TextFormat.RichText)
+        llm_info.setWordWrap(True)
+        llm_info.setStyleSheet("font-size: 8pt; color: #666; padding-bottom: 8px;")
+        llm_layout.addWidget(llm_info)
+
+        # LLM provider checkboxes with model selection
+        self._mtql_llm_combos = {}
+
+        llm_providers = [
+            ("claude", "Claude", "claude", [
+                ("claude-sonnet-4-5-20250929", "Claude Sonnet 4.5 (Recommended)"),
+                ("claude-haiku-4-5-20251001", "Claude Haiku 4.5 (Fast)"),
+                ("claude-opus-4-1-20250924", "Claude Opus 4.1 (Premium)"),
+            ]),
+            ("openai", "OpenAI", "openai", [
+                ("gpt-4o", "GPT-4o (Recommended)"),
+                ("gpt-4o-mini", "GPT-4o Mini (Fast)"),
+                ("gpt-4-turbo", "GPT-4 Turbo"),
+                ("o1", "o1 (Reasoning)"),
+            ]),
+            ("gemini", "Gemini", "gemini", [
+                ("gemini-2.5-flash", "Gemini 2.5 Flash (Recommended)"),
+                ("gemini-2.5-pro", "Gemini 2.5 Pro"),
+                ("gemini-2.0-flash", "Gemini 2.0 Flash"),
+            ]),
+        ]
+
+        for code, name, api_key_name, models in llm_providers:
+            has_key = bool(api_keys.get(api_key_name))
+
+            # Container for checkbox and model combo
+            llm_row = QHBoxLayout()
+
+            checkbox = CheckmarkCheckBox(name)
+            # Default: disabled (LLMs are opt-in)
+            checkbox.setChecked(mt_quick_settings.get(f"mtql_{code}", False))
+            checkbox.setEnabled(has_key)
+
+            if not has_key:
+                checkbox.setToolTip(f"API key not configured for {name}. Add it in AI Settings.")
+                checkbox.setStyleSheet("color: #999;")
+            else:
+                checkbox.setToolTip(f"Include {name} translations in MT Quick Lookup")
+
+            self._mtql_checkboxes[f"mtql_{code}"] = checkbox
+            llm_row.addWidget(checkbox)
+
+            # Model selection combo
+            model_combo = QComboBox()
+            model_combo.setMinimumWidth(200)
+            for model_id, model_name in models:
+                model_combo.addItem(model_name, model_id)
+
+            # Restore saved model selection
+            saved_model = mt_quick_settings.get(f"mtql_{code}_model")
+            if saved_model:
+                idx = model_combo.findData(saved_model)
+                if idx >= 0:
+                    model_combo.setCurrentIndex(idx)
+
+            model_combo.setEnabled(has_key)
+            self._mtql_llm_combos[f"mtql_{code}_model"] = model_combo
+            llm_row.addWidget(model_combo)
+
+            llm_row.addStretch()
+            llm_layout.addLayout(llm_row)
+
+        llm_group.setLayout(llm_layout)
+        layout.addWidget(llm_group)
+
+        # Save button
+        save_btn = QPushButton("💾 Save MT Quick Lookup Settings")
+        save_btn.setStyleSheet("font-weight: bold; padding: 8px;")
+        save_btn.clicked.connect(self._save_mt_quick_lookup_settings)
+        layout.addWidget(save_btn)
+
+        layout.addStretch()
+
+        return tab
+
+    def _save_mt_quick_lookup_settings(self):
+        """Save MT Quick Lookup settings"""
+        general_settings = self.load_general_settings()
+
+        mt_quick_settings = {}
+
+        # Save MT provider states
+        for key, checkbox in self._mtql_checkboxes.items():
+            mt_quick_settings[key] = checkbox.isChecked()
+
+        # Save LLM model selections
+        for key, combo in self._mtql_llm_combos.items():
+            mt_quick_settings[key] = combo.currentData()
+
+        general_settings['mt_quick_lookup'] = mt_quick_settings
+        self.save_general_settings(general_settings)
+
+        self.log("✓ MT Quick Lookup settings saved")
+        QMessageBox.information(self, "Settings Saved", "MT Quick Lookup settings have been saved.")
+
+    def open_mt_quick_lookup_settings(self):
+        """Open Settings and navigate to MT Quick Lookup tab"""
+        # Switch to Settings tab
+        if hasattr(self, 'main_tabs'):
+            # Find Settings tab index
+            for i in range(self.main_tabs.count()):
+                if "Settings" in self.main_tabs.tabText(i):
+                    self.main_tabs.setCurrentIndex(i)
+                    break
+
+            # Navigate to MT Quick Lookup sub-tab
+            if hasattr(self, 'settings_tabs') and hasattr(self, 'mt_quick_lookup_tab_index'):
+                self.settings_tabs.setCurrentIndex(self.mt_quick_lookup_tab_index)
+
     def _find_autohotkey_for_settings(self):
         """Find AutoHotkey executable for settings display (doesn't modify state)"""
         # Standard installation paths
@@ -19864,6 +20200,27 @@ class SupervertalerQt(QMainWindow):
                                      grid_font_family_combo=None, termview_font_family_combo=None, termview_font_spin=None, termview_bold_check=None,
                                      border_color_btn=None, border_thickness_spin=None, badge_text_color_btn=None, tabs_above_check=None):
         """Save view settings from UI"""
+        # CRITICAL: Suppress TM saves during view settings update
+        # Grid operations (setStyleSheet, rehighlight, etc.) can trigger textChanged events
+        # which would cause mass TM saves for all confirmed segments
+        previous_suppression = getattr(self, '_suppress_target_change_handlers', False)
+        self._suppress_target_change_handlers = True
+
+        try:
+            self._save_view_settings_from_ui_impl(
+                grid_spin, match_spin, compare_spin, show_tags_check, tag_color_btn,
+                alt_colors_check, even_color_btn, odd_color_btn, invisible_char_color_btn,
+                grid_font_family_combo, termview_font_family_combo, termview_font_spin, termview_bold_check,
+                border_color_btn, border_thickness_spin, badge_text_color_btn, tabs_above_check
+            )
+        finally:
+            self._suppress_target_change_handlers = previous_suppression
+
+    def _save_view_settings_from_ui_impl(self, grid_spin, match_spin, compare_spin, show_tags_check=None, tag_color_btn=None,
+                                     alt_colors_check=None, even_color_btn=None, odd_color_btn=None, invisible_char_color_btn=None,
+                                     grid_font_family_combo=None, termview_font_family_combo=None, termview_font_spin=None, termview_bold_check=None,
+                                     border_color_btn=None, border_thickness_spin=None, badge_text_color_btn=None, tabs_above_check=None):
+        """Implementation of save view settings (called with TM saves suppressed)"""
         general_settings = {
             'restore_last_project': self.load_general_settings().get('restore_last_project', False),
             'auto_propagate_exact_matches': self.auto_propagate_exact_matches,  # Keep existing value
@@ -20034,8 +20391,10 @@ class SupervertalerQt(QMainWindow):
         if invisible_char_color_btn and hasattr(self, 'table') and self.table is not None:
             invisible_char_color = invisible_char_color_btn.property('selected_color')
             if invisible_char_color:
-                # Update all cell highlighters
+                # Update all cell highlighters (with processEvents to keep UI responsive)
                 for row in range(self.table.rowCount()):
+                    if row % 50 == 0:
+                        QApplication.processEvents()
                     for col in [2, 3]:  # Source and target columns
                         widget = self.table.cellWidget(row, col)
                         if widget and hasattr(widget, 'highlighter'):
@@ -20047,8 +20406,10 @@ class SupervertalerQt(QMainWindow):
             border_color = EditableGridTextEditor.focus_border_color
             border_thickness = EditableGridTextEditor.focus_border_thickness
             self.log(f"Applying focus border: color={border_color}, thickness={border_thickness}px")
-            
+
             for row in range(self.table.rowCount()):
+                if row % 50 == 0:
+                    QApplication.processEvents()
                 widget = self.table.cellWidget(row, 3)  # Target column
                 if widget and isinstance(widget, EditableGridTextEditor):
                     # Update the stylesheet with new border settings
@@ -20424,7 +20785,7 @@ class SupervertalerQt(QMainWindow):
         # Show Invisibles button with dropdown menu
         show_invisibles_btn_home = QPushButton("¶ Show Invisibles")
         show_invisibles_btn_home.setMaximumWidth(140)
-        show_invisibles_btn_home.setStyleSheet("background-color: #607D8B; color: white; font-weight: bold;")
+        show_invisibles_btn_home.setStyleSheet("background-color: #607D8B; color: white; font-weight: bold; padding: 3px 5px;")
         show_invisibles_menu_home = QMenu(show_invisibles_btn_home)
 
         # Use the same actions (they're stored as instance variables)
@@ -29314,7 +29675,7 @@ class SupervertalerQt(QMainWindow):
                 id_item.setForeground(QColor(segment_num_color))
                 id_item.setBackground(QColor())  # Default background from theme
                 # Smaller font for segment numbers
-                seg_num_font = QFont(self.default_font_family, max(8, self.default_font_size - 2))
+                seg_num_font = QFont(self.default_font_family, max(9, self.default_font_size - 1))
                 id_item.setFont(seg_num_font)
                 self.table.setItem(row, 0, id_item)
                 
@@ -29406,7 +29767,7 @@ class SupervertalerQt(QMainWindow):
                     type_item.setForeground(QColor("#388E3C"))  # Green for list items (works in both themes)
 
                 # Smaller font for type symbols
-                type_font = QFont(self.default_font_family, max(8, self.default_font_size - 2))
+                type_font = QFont(self.default_font_family, max(9, self.default_font_size - 1))
                 type_item.setFont(type_font)
 
                 self.table.setItem(row, 1, type_item)
@@ -30977,14 +31338,17 @@ class SupervertalerQt(QMainWindow):
         """Auto-resize all rows to fit content - Compact version"""
         if not hasattr(self, 'table') or not self.table:
             return
-        
+
         # Reduce width slightly to account for padding and prevent text cut-off
         width_reduction = 8
-        
+
         # Manually calculate and set row heights for compact display
         for row in range(self.table.rowCount()):
+            # Keep UI responsive during large grid updates
+            if row % 50 == 0:
+                QApplication.processEvents()
             self._auto_resize_single_row(row, width_reduction)
-        
+
         self.log("✓ Auto-resized rows to fit content (compact)")
         self._enforce_status_row_heights()
     
@@ -31031,26 +31395,30 @@ class SupervertalerQt(QMainWindow):
     def apply_font_to_grid(self):
         """Apply selected font to all grid cells"""
         font = QFont(self.default_font_family, self.default_font_size)
-        
+
         self.table.setFont(font)
-        
+
         # Also update header font - same size as grid content, normal weight
         header_font = QFont(self.default_font_family, self.default_font_size, QFont.Weight.Normal)
         self.table.horizontalHeader().setFont(header_font)
-        
+
         # Update fonts in QTextEdit widgets (source and target columns)
         if hasattr(self, 'table') and self.table:
             for row in range(self.table.rowCount()):
+                # Keep UI responsive during large grid updates
+                if row % 50 == 0:
+                    QApplication.processEvents()
+
                 # Source column (2) - ReadOnlyGridTextEditor
                 source_widget = self.table.cellWidget(row, 2)
                 if source_widget and isinstance(source_widget, ReadOnlyGridTextEditor):
                     source_widget.setFont(font)
-                
+
                 # Target column (3) - EditableGridTextEditor
                 target_widget = self.table.cellWidget(row, 3)
                 if target_widget and isinstance(target_widget, EditableGridTextEditor):
                     target_widget.setFont(font)
-        
+
         # Adjust segment number column width based on font size
         self._update_segment_column_width()
     
@@ -31111,14 +31479,18 @@ class SupervertalerQt(QMainWindow):
         """Refresh tag highlight colors in all grid cells"""
         if not hasattr(self, 'table') or not self.table:
             return
-        
+
         for row in range(self.table.rowCount()):
+            # Keep UI responsive during large grid updates
+            if row % 50 == 0:
+                QApplication.processEvents()
+
             # Source column (2) - ReadOnlyGridTextEditor
             source_widget = self.table.cellWidget(row, 2)
             if source_widget and isinstance(source_widget, ReadOnlyGridTextEditor):
                 if hasattr(source_widget, 'highlighter'):
                     source_widget.highlighter.set_tag_color(EditableGridTextEditor.tag_highlight_color)
-            
+
             # Target column (3) - EditableGridTextEditor
             target_widget = self.table.cellWidget(row, 3)
             if target_widget and isinstance(target_widget, EditableGridTextEditor):
@@ -31183,18 +31555,22 @@ class SupervertalerQt(QMainWindow):
         """Apply alternating row colors to all source and target cells in the grid"""
         if not hasattr(self, 'table') or not self.table:
             return
-        
+
         # Clear cached settings to force reload
         if hasattr(self, '_row_color_settings_cached'):
             delattr(self, '_row_color_settings_cached')
-        
+
         for row in range(self.table.rowCount()):
+            # Keep UI responsive during large grid updates
+            if row % 50 == 0:
+                QApplication.processEvents()
+
             source_widget = self.table.cellWidget(row, 2)
             target_widget = self.table.cellWidget(row, 3)
-            
+
             if source_widget and target_widget:
                 self._apply_row_color(row, source_widget, target_widget)
-        
+
         self.log("✓ Alternating row colors applied")
     
     def on_font_changed(self):
@@ -43857,23 +44233,58 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         """Call DeepL API"""
         try:
             import deepl
-            
+
             if not api_key:
                 api_keys = self.load_api_keys()
                 api_key = api_keys.get("deepl")
-            
+
             if not api_key:
                 return "[DeepL requires API key]"
-            
+
             translator = deepl.Translator(api_key)
-            
-            # Convert language codes (DeepL uses uppercase)
+
+            # Convert source language code (DeepL uses uppercase, no variant needed for source)
             src_code = source_lang.split('-')[0].split('_')[0].upper()
-            tgt_code = target_lang.split('-')[0].split('_')[0].upper()
-            
+
+            # Convert target language code - DeepL requires variants for some languages
+            # Handle full codes like "en-US", "en-GB", "pt-BR", "pt-PT"
+            tgt_upper = target_lang.upper().replace('_', '-')
+
+            # DeepL target language mapping - some require specific variants
+            deepl_target_map = {
+                # English variants (EN alone is deprecated)
+                'EN': 'EN-US',      # Default to US English
+                'EN-US': 'EN-US',
+                'EN-GB': 'EN-GB',
+                'EN-AU': 'EN-GB',   # Map Australian to British
+                'EN-CA': 'EN-US',   # Map Canadian to US
+                # Portuguese variants
+                'PT': 'PT-PT',      # Default to European Portuguese
+                'PT-PT': 'PT-PT',
+                'PT-BR': 'PT-BR',
+                # Chinese variants
+                'ZH': 'ZH-HANS',    # Default to Simplified
+                'ZH-CN': 'ZH-HANS',
+                'ZH-TW': 'ZH-HANT',
+                'ZH-HANS': 'ZH-HANS',
+                'ZH-HANT': 'ZH-HANT',
+            }
+
+            # Check if full code matches first, then base code
+            if tgt_upper in deepl_target_map:
+                tgt_code = deepl_target_map[tgt_upper]
+            else:
+                # Extract base code and check
+                base_code = tgt_upper.split('-')[0]
+                if base_code in deepl_target_map:
+                    tgt_code = deepl_target_map[base_code]
+                else:
+                    # Use base code as-is for other languages
+                    tgt_code = base_code
+
             result = translator.translate_text(text, source_lang=src_code, target_lang=tgt_code)
             return result.text
-            
+
         except ImportError:
             return "[DeepL requires: pip install deepl]"
         except Exception as e:
@@ -44319,8 +44730,11 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             # Determine segment number color based on theme
             is_dark_theme = theme.name == "Dark"
             segment_num_color = theme.text if is_dark_theme else "black"
-            
+
             for row in range(self.table.rowCount()):
+                # Keep UI responsive during large grid updates
+                if row % 50 == 0:
+                    QApplication.processEvents()
                 id_item = self.table.item(row, 0)
                 if id_item:
                     # Don't change currently highlighted row (orange background)
@@ -49021,11 +49435,13 @@ class SuperlookupTab(QWidget):
             self.hotkey_registered = False
     
     def start_file_watcher(self):
-        """Watch for signal file from AHK"""
+        """Watch for signal files from AHK (Superlookup and MT Quick Lookup)"""
         self.signal_file = Path(__file__).parent / "lookup_signal.txt"
         self.capture_file = Path(__file__).parent / "temp_capture.txt"
-        
+        self.mt_lookup_signal_file = Path(__file__).parent / "mt_lookup_signal.txt"
+
         print(f"[Superlookup] File watcher started, watching: {self.signal_file}")
+        print(f"[MT Quick Lookup] File watcher started, watching: {self.mt_lookup_signal_file}")
         
         # Create timer to check for signal file
         self.file_check_timer = QTimer()
@@ -49034,22 +49450,52 @@ class SuperlookupTab(QWidget):
     
     def check_for_signal(self):
         """Check if AHK wrote a signal file"""
+        # Check for Superlookup signal
         if self.signal_file.exists():
             print(f"[Superlookup] Signal file detected!")
             try:
                 # Delete signal file
                 self.signal_file.unlink()
                 print(f"[Superlookup] Signal file deleted")
-                
+
                 # Get text from clipboard (AHK already copied it)
                 time.sleep(0.1)  # Give clipboard a moment
                 text = pyperclip.paste()
-                
+
                 # Trigger lookup
                 if text:
                     self.on_ahk_capture(text)
             except Exception as e:
                 print(f"[Superlookup] Error reading capture: {e}")
+
+        # Check for MT Quick Lookup signal
+        if hasattr(self, 'mt_lookup_signal_file') and self.mt_lookup_signal_file.exists():
+            print(f"[MT Quick Lookup] Signal file detected!")
+            try:
+                # Small delay to let AHK finish writing/close the file
+                time.sleep(0.05)
+
+                # Delete signal file with retry for file lock
+                for attempt in range(3):
+                    try:
+                        self.mt_lookup_signal_file.unlink()
+                        print(f"[MT Quick Lookup] Signal file deleted")
+                        break
+                    except PermissionError:
+                        if attempt < 2:
+                            time.sleep(0.05)
+                        else:
+                            raise
+
+                # Get text from clipboard (AHK already copied it)
+                time.sleep(0.1)  # Give clipboard a moment
+                text = pyperclip.paste()
+
+                # Trigger MT Quick Lookup
+                if text:
+                    self.on_ahk_mt_lookup_capture(text)
+            except Exception as e:
+                print(f"[MT Quick Lookup] Error reading capture: {e}")
     
     def on_ahk_capture(self, text):
         """Handle text captured by AHK"""
@@ -49085,7 +49531,64 @@ class SuperlookupTab(QWidget):
             
         except Exception as e:
             print(f"[Superlookup] Error handling capture: {e}")
-    
+
+    def on_ahk_mt_lookup_capture(self, text):
+        """Handle MT Quick Lookup text captured by AHK (Ctrl+Alt+M)"""
+        try:
+            print(f"[MT Quick Lookup] on_ahk_mt_lookup_capture called with text: {text[:50]}...")
+
+            # Show popup directly without bringing Supervertaler to foreground
+            # The popup has WindowStaysOnTopHint so it will appear over any app
+            QTimer.singleShot(100, lambda: self.show_mt_quick_lookup_from_ahk(text))
+
+        except Exception as e:
+            print(f"[MT Quick Lookup] Error handling capture: {e}")
+
+    def show_mt_quick_lookup_from_ahk(self, text):
+        """Show MT Quick Lookup popup with text from AHK capture"""
+        try:
+            print(f"[MT Quick Lookup] show_mt_quick_lookup_from_ahk called with text: {text[:50]}...")
+
+            # Get main window reference for settings access
+            main_window = self.main_window
+            if not main_window:
+                main_window = self.window()
+
+            if not main_window:
+                print("[MT Quick Lookup] ERROR: Could not find main window")
+                return
+
+            # Get language settings
+            source_lang = getattr(main_window, 'source_language', 'English')
+            target_lang = getattr(main_window, 'target_language', 'Dutch')
+
+            # Import and show MT Quick Lookup popup
+            from modules.mt_quick_popup import MTQuickPopup
+
+            # Create popup without Qt parent so it can appear independently over any app
+            # Pass main_window as parent_app for API access
+            popup = MTQuickPopup(
+                parent_app=main_window,
+                source_text=text,
+                source_lang=source_lang,
+                target_lang=target_lang,
+                parent=None  # No Qt parent - allows independent window
+            )
+
+            # Store reference to prevent garbage collection
+            self._ahk_mt_popup = popup
+
+            # Show and ensure it's on top
+            popup.show()
+            popup.raise_()
+            popup.activateWindow()
+            print(f"[MT Quick Lookup] Popup shown for text: {text[:30]}...")
+
+        except Exception as e:
+            print(f"[MT Quick Lookup] Error showing popup: {e}")
+            import traceback
+            traceback.print_exc()
+
     def show_superlookup(self, text):
         """Show Superlookup with pre-filled text"""
         try:
