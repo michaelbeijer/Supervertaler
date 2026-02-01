@@ -32,9 +32,9 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.183"
+__version__ = "1.9.184"
 __phase__ = "0.9"
-__release_date__ = "2026-01-31"
+__release_date__ = "2026-02-01"
 __edition__ = "Qt"
 
 import sys
@@ -29672,50 +29672,58 @@ class SupervertalerQt(QMainWindow):
             header_layout.addWidget(nav_label)
 
         if has_navigation:
-            # Simple dark mode detection: check theme name and use white arrows in dark mode
-            is_dark_theme = False
-            if hasattr(self, 'theme_manager') and self.theme_manager:
-                theme_name = self.theme_manager.current_theme.name.lower()
-                is_dark_theme = 'dark' in theme_name
+            # Detect theme for arrow color
+            is_dark_theme = hasattr(self, 'theme_manager') and self.theme_manager and 'dark' in self.theme_manager.current_theme.name.lower()
+            arrow_color = "#FFFFFF" if is_dark_theme else "#333333"
 
-            # Use white arrows in dark mode for maximum visibility
-            arrow_color = "#FFFFFF" if is_dark_theme else text_color
+            # Create clickable label class with theme update capability
+            from PyQt6.QtCore import pyqtSignal
 
-            # Prev button
-            prev_btn = QPushButton("◄")
-            prev_btn.setFixedSize(18, 16)
-            prev_btn.setStyleSheet(f"""
-                QPushButton {{
-                    font-size: 9px;
-                    padding: 0px;
-                    background: transparent;
-                    border: 1px solid {border_color};
-                    border-radius: 2px;
-                    color: {arrow_color};
-                }}
-                QPushButton:hover {{
-                    background: rgba(128,128,128,0.2);
-                }}
-            """)
+            class ClickableArrow(QLabel):
+                clicked = pyqtSignal()
+
+                def __init__(self, arrow_symbol, parent=None):
+                    """arrow_symbol: '◀' or '▶'"""
+                    self.arrow_symbol = arrow_symbol
+                    super().__init__("", parent)
+                    self.setCursor(Qt.CursorShape.PointingHandCursor)
+
+                def set_color(self, color):
+                    """Update arrow color for current theme"""
+                    self.setStyleSheet(f"""
+                        QLabel {{
+                            color: {color};
+                            background: transparent;
+                            border: none;
+                            font-size: 11px;
+                            font-weight: bold;
+                        }}
+                    """)
+                    self.setText(self.arrow_symbol)
+
+                def mousePressEvent(self, event):
+                    self.clicked.emit()
+                    super().mousePressEvent(event)
+
+            # Prev arrow - using ◀
+            prev_btn = ClickableArrow("◀")
+            prev_btn.set_color(arrow_color)
+            prev_btn.setFixedSize(16, 16)
+            prev_btn.setAlignment(Qt.AlignmentFlag.AlignCenter)
             header_layout.addWidget(prev_btn)
 
-            # Next button
-            next_btn = QPushButton("►")
-            next_btn.setFixedSize(18, 16)
-            next_btn.setStyleSheet(f"""
-                QPushButton {{
-                    font-size: 9px;
-                    padding: 0px;
-                    background: transparent;
-                    border: 1px solid {border_color};
-                    border-radius: 2px;
-                    color: {arrow_color};
-                }}
-                QPushButton:hover {{
-                    background: rgba(128,128,128,0.2);
-                }}
-            """)
+            # Next arrow - using ▶
+            next_btn = ClickableArrow("▶")
+            next_btn.set_color(arrow_color)
+            next_btn.setFixedSize(16, 16)
+            next_btn.setAlignment(Qt.AlignmentFlag.AlignCenter)
             header_layout.addWidget(next_btn)
+
+            # Store reference for theme updates
+            if not hasattr(self, 'theme_aware_arrows'):
+                self.theme_aware_arrows = []
+            self.theme_aware_arrows.extend([prev_btn, next_btn])
+
             nav_buttons = [prev_btn, next_btn]
         
         header_layout.addStretch()
@@ -30822,8 +30830,8 @@ class SupervertalerQt(QMainWindow):
         
         self.table.setFont(font)
         
-        # Also update header font - slightly larger and bold for better visibility
-        header_font = QFont(self.default_font_family, self.default_font_size + 1, QFont.Weight.Bold)
+        # Also update header font - same size as grid content, just bold
+        header_font = QFont(self.default_font_family, self.default_font_size, QFont.Weight.Bold)
         self.table.horizontalHeader().setFont(header_font)
         
         # Update fonts in QTextEdit widgets (source and target columns)
@@ -43981,7 +43989,15 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         # Reapply alternating row colors with new theme
         if hasattr(self, 'apply_alternating_row_colors'):
             self.apply_alternating_row_colors()
-        
+
+        # Update navigation arrow colors based on theme
+        if hasattr(self, 'theme_aware_arrows'):
+            is_dark = theme.name == "Dark"
+            arrow_color = "#FFFFFF" if is_dark else "#333333"
+            for arrow in self.theme_aware_arrows:
+                if hasattr(arrow, 'set_color'):
+                    arrow.set_color(arrow_color)
+
         # Refresh segment numbers color
         if hasattr(self, 'table') and self.table:
             # Determine segment number color based on theme

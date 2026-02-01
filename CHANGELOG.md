@@ -2,9 +2,29 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.183 (January 31, 2026)
+**Current Version:** v1.9.184 (February 1, 2026)
 
 
+
+## v1.9.184 - February 1, 2026
+
+### 🎨 UI Improvements
+
+- **Dark Mode Refinements**: Improved text visibility in TermView panels (both bottom and right panel source text now use #FFFFFF for better contrast). HTML formatting tags (`<b>`, `</b>`, etc.) now display in light pink (#FFB6C1) in dark mode for enhanced readability.
+
+- **TM Navigation Arrows**: Fixed navigation arrows in Match Panel and Compare Panel that were invisible or incorrectly rendered in dark mode. Now using crisp Unicode triangle symbols (◀ ▶) with theme-aware colors (white in dark mode, dark gray in light mode).
+
+- **Table Header Font Size**: Reduced column header font size to match grid content (only bold, not larger), resulting in better visual proportions.
+
+### 🐛 Bug Fixes
+
+- **Prompt Library Updates**: Fixed Issue #112 where edited prompts were not immediately reflected in the Prompt Library or Preview Combined sections. Changes now update both the active primary prompt and attached prompts immediately after saving.
+
+### 🛠️ Developer Experience
+
+- **Windows Start Menu Shortcuts**: Added PowerShell scripts to create Start Menu shortcuts for both end users (`Supervertaler.exe`) and developers (`run.cmd`). Scripts are automatically included in release packages.
+
+---
 
 ## v1.9.183 - January 31, 2026
 
