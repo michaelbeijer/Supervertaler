@@ -20,7 +20,7 @@ STATUSES: Dict[str, StatusDefinition] = {
     "not_started": StatusDefinition(
         key="not_started",
         label="Not started",
-        icon="❌",  # Red X - clear "not done" indicator (matches memoQ style)
+        icon="❌",  # Red X emoji (naturally colored, slightly larger)
         color="#ffe6e6",
         memoq_label="Not started",
         memoQ_equivalents=("not started", "not translated"),
@@ -46,7 +46,7 @@ STATUSES: Dict[str, StatusDefinition] = {
     "confirmed": StatusDefinition(
         key="confirmed",
         label="Confirmed",
-        icon="✔",  # Checkmark - will be styled green via CSS
+        icon="✔",  # Checkmark (text character - will be black)
         color="#d1ffd6",
         memoq_label="Confirmed",
         memoQ_equivalents=("confirmed",),

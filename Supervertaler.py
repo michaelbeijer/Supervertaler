@@ -14995,7 +14995,7 @@ class SupervertalerQt(QMainWindow):
         
         # Delete selected term button
         delete_term_btn = QPushButton("🗑️ Delete Selected Term")
-        delete_term_btn.setStyleSheet("background-color: #f44336; color: white; font-weight: bold;")
+        delete_term_btn.setStyleSheet("background-color: #f44336; color: white; font-weight: bold; padding: 3px 5px;")
         def delete_selected_term():
             selected_row = terms_table.currentRow()
             if selected_row < 0:
@@ -18487,7 +18487,7 @@ class SupervertalerQt(QMainWindow):
                         background-color: #2E7D32;
                         color: white;
                         font-weight: bold;
-                        padding: 4px 8px;
+                        padding: 3px 5px;
                         border-radius: 3px;
                     }
                     QPushButton:checked {
@@ -18501,7 +18501,7 @@ class SupervertalerQt(QMainWindow):
                         background-color: #C62828;
                         color: white;
                         font-weight: bold;
-                        padding: 4px 8px;
+                        padding: 3px 5px;
                         border-radius: 3px;
                     }
                     QPushButton:checked {
@@ -18515,7 +18515,7 @@ class SupervertalerQt(QMainWindow):
                         background-color: #F57C00;
                         color: white;
                         font-weight: bold;
-                        padding: 4px 8px;
+                        padding: 3px 5px;
                         border-radius: 3px;
                     }
                     QPushButton:checked {
@@ -18530,7 +18530,7 @@ class SupervertalerQt(QMainWindow):
                         background-color: #757575;
                         color: white;
                         font-weight: bold;
-                        padding: 4px 8px;
+                        padding: 3px 5px;
                         border-radius: 3px;
                     }
                     QPushButton:checked {
@@ -20175,11 +20175,12 @@ class SupervertalerQt(QMainWindow):
         clear_filters_btn = QPushButton("Clear Filters")
         clear_filters_btn.clicked.connect(self.clear_filters)
         clear_filters_btn.setMaximumWidth(100)
+        clear_filters_btn.setStyleSheet("padding: 3px 5px;")
 
         # Show Invisibles button with dropdown menu
         show_invisibles_btn = QPushButton("¶ Show Invisibles")
         show_invisibles_btn.setMaximumWidth(140)
-        show_invisibles_btn.setStyleSheet("background-color: #607D8B; color: white; font-weight: bold;")
+        show_invisibles_btn.setStyleSheet("background-color: #607D8B; color: white; font-weight: bold; padding: 3px 5px;")
         show_invisibles_menu = QMenu(show_invisibles_btn)
 
         # Create checkable actions for each invisible character type
@@ -20323,17 +20324,18 @@ class SupervertalerQt(QMainWindow):
         apply_filter_btn = QPushButton("Filter")
         apply_filter_btn.clicked.connect(self.apply_filters)
         apply_filter_btn.setMaximumWidth(80)
-        apply_filter_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold;")
+        apply_filter_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 3px 5px;")
         
         # Clear filters button
         clear_filters_btn = QPushButton("Clear Filters")
         clear_filters_btn.clicked.connect(self.clear_filters)
         clear_filters_btn.setMaximumWidth(100)
+        clear_filters_btn.setStyleSheet("padding: 3px 5px;")
         
         # Quick Filters dropdown menu
         quick_filter_btn = QPushButton("⚡ Quick Filters")
         quick_filter_btn.setMaximumWidth(130)
-        quick_filter_btn.setStyleSheet("background-color: #D84315; color: white; font-weight: bold;")
+        quick_filter_btn.setStyleSheet("background-color: #D84315; color: white; font-weight: bold; padding: 3px 5px;")
         quick_filter_menu = QMenu(self)
         quick_filter_menu.addAction("🔍 Empty segments", lambda: self.apply_quick_filter("empty"))
         quick_filter_menu.addAction("❌ Not translated", lambda: self.apply_quick_filter("not_translated"))
@@ -20347,12 +20349,12 @@ class SupervertalerQt(QMainWindow):
         advanced_filter_btn = QPushButton("⚙️ Advanced Filters")
         advanced_filter_btn.clicked.connect(self.show_advanced_filters_dialog)
         advanced_filter_btn.setMaximumWidth(160)
-        advanced_filter_btn.setStyleSheet("background-color: #2196F3; color: white; font-weight: bold;")
+        advanced_filter_btn.setStyleSheet("background-color: #2196F3; color: white; font-weight: bold; padding: 3px 5px;")
 
         # Sort dropdown button (similar to memoQ)
         sort_btn = QPushButton("⇅ Sort")
         sort_btn.setMaximumWidth(100)
-        sort_btn.setStyleSheet("background-color: #FF9800; color: white; font-weight: bold;")
+        sort_btn.setStyleSheet("background-color: #FF9800; color: white; font-weight: bold; padding: 3px 5px;")
         sort_menu = QMenu(self)
 
         # Initialize sort state if not exists
@@ -20718,12 +20720,12 @@ class SupervertalerQt(QMainWindow):
         
         preview_prompt_btn = QPushButton("🧪 Preview Prompts")
         preview_prompt_btn.setToolTip("Preview the complete assembled prompt\n(System Prompt + Custom Prompts + current segment)")
-        preview_prompt_btn.setStyleSheet("background-color: #9C27B0; color: white; font-weight: bold; padding: 4px 8px; border: none; outline: none;")
+        preview_prompt_btn.setStyleSheet("background-color: #9C27B0; color: white; font-weight: bold; padding: 3px 5px; border: none; outline: none;")
         preview_prompt_btn.clicked.connect(self._preview_combined_prompt_from_grid)
         toolbar_layout.addWidget(preview_prompt_btn)
         
         dictate_btn = QPushButton("🎤 Dictation")
-        dictate_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 4px 8px; border: none; outline: none;")
+        dictate_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 3px 5px; border: none; outline: none;")
         dictate_btn.clicked.connect(self.start_voice_dictation)
         dictate_btn.setToolTip("Start/stop voice dictation (F9)")
         toolbar_layout.addWidget(dictate_btn)
@@ -20737,7 +20739,7 @@ class SupervertalerQt(QMainWindow):
                 background-color: #757575;
                 color: white;
                 font-weight: bold;
-                padding: 4px 8px;
+                padding: 3px 5px;
                 border-radius: 3px;
             }
             QPushButton:checked {
@@ -20752,7 +20754,7 @@ class SupervertalerQt(QMainWindow):
         toolbar_layout.addStretch()
         
         save_next_btn = QPushButton("✓ Confirm && Next")
-        save_next_btn.setStyleSheet("background-color: #2196F3; color: white; font-weight: bold; padding: 4px 8px; border: none; outline: none;")
+        save_next_btn.setStyleSheet("background-color: #2196F3; color: white; font-weight: bold; padding: 3px 5px; border: none; outline: none;")
         save_next_btn.clicked.connect(self.confirm_selected_or_next)
         save_next_btn.setToolTip("Confirm current segment and go to next unconfirmed (Ctrl+Enter)")
         toolbar_layout.addWidget(save_next_btn)
@@ -21361,9 +21363,21 @@ class SupervertalerQt(QMainWindow):
         # Configure columns
         self.table.setColumnCount(5)
         self.table.setHorizontalHeaderLabels(["#", "Type", "Source", "Target", "Status"])
-        
-        # Column widths - Source and Target columns stretch to fill space, others are interactive
+
+        # Explicitly set header font to normal weight (not bold)
         header = self.table.horizontalHeader()
+        header_font = QFont(self.default_font_family, self.default_font_size, QFont.Weight.Normal)
+        header.setFont(header_font)
+
+        # Also set font on individual header items through the model (extra insurance)
+        model = self.table.model()
+        if model:
+            for col in range(5):
+                item = model.headerData(col, Qt.Orientation.Horizontal, Qt.ItemDataRole.DisplayRole)
+                model.setHeaderData(col, Qt.Orientation.Horizontal, item, Qt.ItemDataRole.DisplayRole)
+                model.setHeaderData(col, Qt.Orientation.Horizontal, header_font, Qt.ItemDataRole.FontRole)
+
+        # Column widths - Source and Target columns stretch to fill space, others are interactive
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.Interactive)  # ID
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.Interactive)  # Type
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)  # Source - stretch to fill space
@@ -21701,10 +21715,10 @@ class SupervertalerQt(QMainWindow):
         editor_widget.dictate_btn = dictate_btn
 
         save_btn = QPushButton("💾 Save")
-        save_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold;")
+        save_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 3px 5px;")
         save_btn.clicked.connect(self.save_tab_segment)
         save_next_btn = QPushButton("✓ Confirm && Next (Ctrl+Enter)")
-        save_next_btn.setStyleSheet("background-color: #2196F3; color: white; font-weight: bold;")
+        save_next_btn.setStyleSheet("background-color: #2196F3; color: white; font-weight: bold; padding: 3px 5px;")
         save_next_btn.clicked.connect(self.confirm_selected_or_next)
 
         button_layout.addWidget(copy_btn)
@@ -30834,19 +30848,24 @@ class SupervertalerQt(QMainWindow):
             widget.setToolTip(f"Notes: {segment.notes.strip()}")
             
         status_def = get_status(segment.status)
-        status_label = QLabel(status_def.icon)
-        status_label.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
-        status_label.setToolTip(status_def.label)
-        # Smaller red X for "not_started" to match green checkmark visual size
-        font_size = "8px" if segment.status == "not_started" else "13px"
-        # Make confirmed checkmark green
-        color = "color: #2e7d32;" if segment.status == "confirmed" else ""
-        
-        # Apply orange background highlight to status icon if segment has notes
-        if has_notes:
-            status_label.setStyleSheet(f"font-size: {font_size}; {color} padding: 2px 4px; background-color: rgba(255, 152, 0, 0.35); border-radius: 3px;")
+
+        # Status icons: ✔ (green) and ❌ (naturally red emoji)
+        icon_text = status_def.icon
+        if segment.status == "confirmed":
+            icon_html = f'<font color="#2e7d32" size="2">{icon_text}</font>'  # Green checkmark
         else:
-            status_label.setStyleSheet(f"font-size: {font_size}; {color} padding-right: 4px;")
+            icon_html = f'<font size="2">{icon_text}</font>'  # Other icons (including ❌ emoji)
+
+        status_label = QLabel(icon_html)
+        status_label.setTextFormat(Qt.TextFormat.RichText)  # Enable HTML rendering
+        status_label.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
+        status_label.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)  # Expand vertically to match row height
+        status_label.setToolTip(status_def.label)
+
+        # Add orange background if segment has notes (using stylesheet for background only)
+        if has_notes:
+            status_label.setStyleSheet("padding: 2px 4px; background-color: rgba(255, 152, 0, 0.35); border-radius: 3px;")
+        # Note: No stylesheet for non-notes case to avoid interfering with HTML color
         layout.addWidget(status_label)
 
         # Only add match label if there's a match percentage
@@ -31055,12 +31074,12 @@ class SupervertalerQt(QMainWindow):
         # Measure the width of the largest number (as string)
         text_width = fm.horizontalAdvance(str(max_segment))
         
-        # Add padding (10px on each side = 20px total)
-        new_width = text_width + 20
-        
-        # Ensure minimum width for very small numbers
-        new_width = max(30, new_width)
-        
+        # Add padding (6px on each side = 12px total)
+        new_width = text_width + 12
+
+        # Ensure minimum width for very small numbers, cap at width for ~1000
+        new_width = max(30, min(new_width, 55))
+
         self.table.setColumnWidth(0, new_width)
     
     def set_font_family(self, family_name: str):
@@ -37049,9 +37068,9 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         """Update spellcheck button style based on enabled state"""
         if hasattr(self, 'spellcheck_btn'):
             if self.spellcheck_enabled:
-                self.spellcheck_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold;")
+                self.spellcheck_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 3px 5px;")
             else:
-                self.spellcheck_btn.setStyleSheet("background-color: #9E9E9E; color: white; font-weight: bold;")
+                self.spellcheck_btn.setStyleSheet("background-color: #9E9E9E; color: white; font-weight: bold; padding: 3px 5px;")
 
     def _toggle_spellcheck(self, checked=None):
         """Toggle spellcheck on/off"""
