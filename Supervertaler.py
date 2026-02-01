@@ -41006,62 +41006,12 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             event.accept()
     
     def _cleanup_web_views(self):
-        """Clean up WebEngine views to prevent 'Release of profile requested' warning"""
-        try:
-            from PyQt6.QtWidgets import QApplication
-            from PyQt6.QtCore import QUrl
-            from PyQt6.QtWebEngineWidgets import QWebEngineView
-            import time
-
-            # Find ALL QWebEngineView widgets in the entire application
-            all_web_views = self.findChildren(QWebEngineView)
-
-            print(f"[WebEngine Cleanup] Found {len(all_web_views)} QWebEngineView widgets")
-
-            # Clean up each web view
-            for idx, web_view in enumerate(all_web_views):
-                try:
-                    print(f"[WebEngine Cleanup] Cleaning view {idx + 1}/{len(all_web_views)}")
-
-                    # Stop loading
-                    web_view.stop()
-
-                    # Get and clear the page (don't delete it manually, let Qt handle it)
-                    page = web_view.page()
-                    if page:
-                        web_view.setPage(None)
-
-                    # Navigate to blank
-                    web_view.setUrl(QUrl('about:blank'))
-
-                    # Process events after each view
-                    QApplication.processEvents()
-                except Exception as e:
-                    print(f"[WebEngine Cleanup] Error cleaning view {idx}: {e}")
-
-            # Clear web_views dict if it exists
-            if hasattr(self, 'web_views'):
-                self.web_views.clear()
-
-            # Process events
-            print("[WebEngine Cleanup] Processing events...")
-            for i in range(10):
-                QApplication.processEvents()
-                if i % 3 == 0:
-                    time.sleep(0.05)
-
-            # Reduced delay for WebEngine cleanup
-            print("[WebEngine Cleanup] Waiting for WebEngine cleanup...")
-            time.sleep(0.3)
-
-            # Final event processing
-            print("[WebEngine Cleanup] Final event processing...")
-            for _ in range(5):
-                QApplication.processEvents()
-
-            print("[WebEngine Cleanup] Cleanup complete")
-        except Exception as e:
-            print(f"[WebEngine Cleanup] Error: {e}")
+        """Clean up WebEngine views - DISABLED to prevent crash"""
+        # WebEngine cleanup has been disabled because it was causing Python crashes
+        # on program exit. Qt will handle WebEngine cleanup automatically, though
+        # you may see a "Release of profile requested" warning which is harmless.
+        print("[WebEngine Cleanup] Skipping manual cleanup - letting Qt handle it")
+        pass
     
     def _close_detached_log_windows(self):
         """Close all detached log windows when main window closes"""
