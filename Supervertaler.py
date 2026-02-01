@@ -29771,7 +29771,10 @@ class SupervertalerQt(QMainWindow):
             if shortcut_badge_tooltip:
                 badge_label.setToolTip(f"Press {shortcut_badge_tooltip} to insert")
             header_layout.addWidget(badge_label)
-        
+
+        # Add stretch to push navigation controls to the right (aligned with scrollbar)
+        header_layout.addStretch()
+
         nav_label = None
         nav_buttons = None
 
@@ -29837,8 +29840,7 @@ class SupervertalerQt(QMainWindow):
             self.theme_aware_arrows.extend([prev_btn, next_btn])
 
             nav_buttons = [prev_btn, next_btn]
-        
-        header_layout.addStretch()
+
         main_layout.addLayout(header_layout)
         
         # Text area
