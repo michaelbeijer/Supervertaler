@@ -37687,16 +37687,16 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         if not self.current_project.segments:
             return
 
-        # Show progress dialog for large projects
+        # Show progress dialog during sorting
         from PyQt6.QtWidgets import QProgressDialog
         from PyQt6.QtCore import Qt
 
         progress = QProgressDialog("Sorting segments, please wait...", None, 0, 0, self)
         progress.setWindowTitle("Sorting")
         progress.setWindowModality(Qt.WindowModality.WindowModal)
-        progress.setMinimumDuration(500)  # Only show if operation takes > 500ms
-        progress.setValue(0)
-        QApplication.processEvents()  # Show dialog immediately
+        progress.setMinimumDuration(0)  # Show immediately
+        progress.show()
+        QApplication.processEvents()  # Force UI update
 
         try:
             # Store original document order if not already stored
