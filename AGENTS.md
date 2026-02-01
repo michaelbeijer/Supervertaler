@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** January 31, 2026 | **Version:** v1.9.182
+> **Last Updated:** February 1, 2026 | **Version:** v1.9.184
 
 ---
 
@@ -10,11 +10,11 @@
 **IMPORTANT: If you're continuing from a previous session or ran out of context:**
 
 1. **Skip to the end of this file** - The most recent development context is in the **"🔄 Recent Development History"** section (search for the latest date)
-2. **Current version: v1.9.182** - In-Memory Termbase Index for instant navigation
+2. **Current version: v1.9.184** - Dark mode refinements and UI improvements
 3. **Read only what you need** - The Project Overview and Architecture sections are reference material; the dated history entries contain the actual working context
 
 **Quick Navigation:**
-- **Latest context:** Search for `### January 31, 2026 - In-Memory Termbase Index` (near end of file)
+- **Latest context:** Search for `### February 1, 2026 - Dark Mode Refinements` (near end of file)
 - **Module list:** Search for `## 🔌 Complete Module List`
 - **Architecture:** Search for `## 🏗️ Architecture Patterns`
 - **Common pitfalls:** Search for `## ⚠️ Common Pitfalls`
@@ -782,6 +782,78 @@ deepl=...
 
 ## 🔄 Recent Development History
 
+
+### February 1, 2026 - Dark Mode Refinements & UI Improvements
+
+**✨ Feature Summary**
+
+Improved dark mode text visibility and fixed TM navigation arrows that were invisible or rendering incorrectly across light and dark themes.
+
+**Status:** Implementation complete, version 1.9.184 released
+
+**Files Modified:**
+
+1. **`Supervertaler.py`** - Multiple UI improvements:
+   - TermView source text color: Changed to #FFFFFF in dark mode for better contrast (lines 175, 456)
+   - HTML tag colors: Light pink (#FFB6C1) in dark mode for `<b>`, `</b>` tags (lines 1403-1413, 2733-2743)
+   - Navigation arrows: Implemented ClickableArrow class with Unicode symbols (◀ ▶) and theme-aware colors (lines 29674-29733)
+   - Table header font: Reduced from `font_size + 1` to `font_size` for better proportions (line 30834)
+   - Theme refresh: Added arrow color updates in `refresh_theme_colors()` (lines 43993-43999)
+
+2. **`modules/unified_prompt_manager_qt.py`** - Fixed Issue #112:
+   - Prompt edits now immediately reflected in Prompt Library and Preview Combined
+   - Cache refresh for both active primary and attached prompts (lines 2377-2384)
+
+3. **`build_windows_release.ps1`** - Added Start Menu shortcut scripts to release packages (lines 111-116)
+
+4. **`create_release_zip.py`** - Added shortcut creation instructions to README (lines 28-31)
+
+**Key Code Locations:**
+
+**ClickableArrow Class** (Supervertaler.py:29684-29705):
+```python
+class ClickableArrow(QLabel):
+    clicked = pyqtSignal()
+
+    def __init__(self, arrow_symbol, parent=None):
+        self.arrow_symbol = arrow_symbol
+        super().__init__("", parent)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+
+    def set_color(self, color):
+        """Update arrow color for current theme"""
+        self.setStyleSheet(f"""
+            QLabel {{
+                color: {color};
+                background: transparent;
+                border: none;
+                font-size: 11px;
+                font-weight: bold;
+            }}
+        """)
+        self.setText(self.arrow_symbol)
+```
+
+**Theme Color Logic:**
+- Dark mode: White arrows (#FFFFFF), light pink tags (#FFB6C1)
+- Light mode: Dark gray arrows (#333333), standard tag colors
+
+**Development Notes:**
+
+- Initially tried PNG arrow images but they rendered fuzzy
+- Attempted Unicode angle brackets (❮ ❯) but font support was inconsistent
+- Final solution: Unicode triangle symbols (◀ ▶) render crisply on all systems
+- Arrow visibility issues were caused by arrows being created at startup before theme was applied
+- Solution: ClickableArrow class with `set_color()` method called during theme refresh
+
+**PowerShell Scripts Created:**
+- `create_start_menu_shortcut.ps1` - For end users (Supervertaler.exe)
+- `create_dev_start_menu_shortcut.ps1` - For developers (run.cmd)
+
+**Related Issues:**
+- Fixed #112: Prompt editing bug where saved prompts weren't updating in UI
+
+---
 
 ### January 30-31, 2026 - Total Recall Architecture & Build System Unification
 
