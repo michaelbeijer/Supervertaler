@@ -32,7 +32,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.189"
+__version__ = "1.9.190"
 __phase__ = "0.9"
 __release_date__ = "2026-02-01"
 __edition__ = "Qt"
@@ -21377,7 +21377,7 @@ class SupervertalerQt(QMainWindow):
         self.table.setColumnWidth(1, 40)   # Type - narrower
         self.table.setColumnWidth(2, 400)  # Source
         self.table.setColumnWidth(3, 400)  # Target
-        self.table.setColumnWidth(4, 60)   # Status - compact
+        self.table.setColumnWidth(4, 50)   # Status - compact width
         
         # Enable word wrap in cells (both display and edit mode)
         self.table.setWordWrap(True)
@@ -21407,6 +21407,51 @@ class SupervertalerQt(QMainWindow):
             QTableWidget::item:last-child {
                 border-right: none;
             }
+
+            /* Narrower scrollbar with visible arrow buttons */
+            QScrollBar:vertical {
+                border: none;
+                background: #F0F0F0;
+                width: 12px;
+                margin: 12px 0 12px 0;
+            }
+            QScrollBar::handle:vertical {
+                background: #C0C0C0;
+                min-height: 20px;
+                border-radius: 2px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background: #A0A0A0;
+            }
+            QScrollBar::add-line:vertical {
+                height: 12px;
+                background: #E0E0E0;
+                subcontrol-position: bottom;
+                subcontrol-origin: margin;
+            }
+            QScrollBar::add-line:vertical:hover {
+                background: #2196F3;
+            }
+            QScrollBar::sub-line:vertical {
+                height: 12px;
+                background: #E0E0E0;
+                subcontrol-position: top;
+                subcontrol-origin: margin;
+            }
+            QScrollBar::sub-line:vertical:hover {
+                background: #2196F3;
+            }
+            /* Arrow images */
+            QScrollBar::up-arrow:vertical {
+                image: url(assets/scrollbar_up.png);
+                width: 8px;
+                height: 8px;
+            }
+            QScrollBar::down-arrow:vertical {
+                image: url(assets/scrollbar_down.png);
+                width: 8px;
+                height: 8px;
+            }
         """)
         
         # Simplified editing: Double-click only (no F2 key) - companion tool philosophy
@@ -21429,8 +21474,8 @@ class SupervertalerQt(QMainWindow):
         # Debug: Confirm signal connections
         self.log("🔌 Table signals connected: currentCellChanged, itemClicked, cellDoubleClicked, itemSelectionChanged")
         
-        # Add precision scroll buttons (memoQ-style)
-        self.add_precision_scroll_buttons()
+        # Precision scroll buttons removed (user preference)
+        # self.add_precision_scroll_buttons()
     
     def add_precision_scroll_buttons(self):
         """Add precision scroll buttons at top/bottom of scrollbar (memoQ-style)"""
@@ -22090,6 +22135,9 @@ class SupervertalerQt(QMainWindow):
 
             # Store original segment order for "Document Order" sort reset
             self._original_segment_order = self.current_project.segments.copy()
+
+            # Always reset sort state when loading - project should open in document order
+            self.current_sort = None
 
             # Sync global language settings with project languages
             if self.current_project.source_lang:
@@ -23442,9 +23490,21 @@ class SupervertalerQt(QMainWindow):
             original_path = getattr(self, 'original_docx', None) or getattr(self, 'current_document_path', None)
             if original_path and os.path.exists(original_path):
                 self.current_project.original_docx_path = original_path
-            
+
+            # IMPORTANT: Always save segments in original document order, not sorted order
+            # Store current sort state and temporarily restore original order
+            current_sort_state = getattr(self, 'current_sort', None)
+            current_segments = self.current_project.segments.copy()  # Save current (possibly sorted) order
+
+            # Restore original order for saving
+            if hasattr(self, '_original_segment_order') and self._original_segment_order:
+                self.current_project.segments = self._original_segment_order.copy()
+
             with open(file_path, 'w', encoding='utf-8') as f:
                 json.dump(self.current_project.to_dict(), f, indent=2, ensure_ascii=False)
+
+            # Restore the current (sorted) order after saving
+            self.current_project.segments = current_segments
             
             self.project_modified = False
             self.update_window_title()
@@ -30955,8 +31015,8 @@ class SupervertalerQt(QMainWindow):
         
         self.table.setFont(font)
         
-        # Also update header font - same size as grid content, just bold
-        header_font = QFont(self.default_font_family, self.default_font_size, QFont.Weight.Bold)
+        # Also update header font - same size as grid content, normal weight
+        header_font = QFont(self.default_font_family, self.default_font_size, QFont.Weight.Normal)
         self.table.horizontalHeader().setFont(header_font)
         
         # Update fonts in QTextEdit widgets (source and target columns)
@@ -37721,7 +37781,12 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
 
             # If sort_type is None, restore document order
             if sort_type is None:
-                self.current_project.segments = self._original_segment_order.copy()
+                # Restore document order by sorting by segment ID (original position)
+                # This works even if the stored original order is wrong
+                self.current_project.segments.sort(key=lambda seg: int(seg.id))
+
+                # Update stored original order to this correct order
+                self._original_segment_order = self.current_project.segments.copy()
 
                 # Set pagination to "All" to show all segments
                 if hasattr(self, 'page_size_combo') and self._widget_is_alive(self.page_size_combo):

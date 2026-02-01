@@ -2,9 +2,25 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.189 (February 1, 2026)
+**Current Version:** v1.9.190 (February 1, 2026)
 
 
+
+## v1.9.190 - February 1, 2026
+
+### 🎨 UI Improvements
+
+- **Scrollbar Refinement**: Made main grid scrollbar narrower (12px) for cleaner appearance. Added visible triangle arrow icons to scrollbar buttons for better visual clarity. Removed custom floating precision scroll buttons for simpler interface.
+
+- **Column Optimization**: Reduced Status column width from 60px to 50px to save horizontal space while maintaining full functionality. Changed table header font from bold to normal weight for more consistent typography.
+
+### 🐛 Bug Fixes
+
+- **Document Order Sort Fixed**: Document Order sort now correctly restores segments to their original sequence (1, 2, 3...) by sorting by segment ID. Previously, if segments were saved while sorted, the sorted order would become the "original" order, making it impossible to restore true document order.
+
+- **Save/Load Order Preservation**: Projects now always save segments in original document order, not sorted order. When loading a project, sort state is reset to document order (no sort applied). This ensures consistent behavior and prevents sorted order from being permanently baked into project files.
+
+---
 
 ## v1.9.189 - February 1, 2026
 
