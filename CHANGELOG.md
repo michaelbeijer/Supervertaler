@@ -2,9 +2,21 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.187 (February 1, 2026)
+**Current Version:** v1.9.188 (February 1, 2026)
 
 
+
+## v1.9.188 - February 1, 2026
+
+### 🎨 UI Improvements
+
+- **Sort Menu Styling**: Fixed sort dropdown menu to use clean white background matching Quick Filters menu style. Previous version incorrectly inherited orange button styling in menu items.
+
+### ✨ Enhancements
+
+- **Auto-Pagination on Sort**: Sorting now automatically sets pagination to "All" to display the complete sorted list. This prevents the confusing behavior where only the first page of sorted results would be visible. When you sort alphabetically, by length, by match rate, or any other criterion, you'll now see all sorted segments immediately.
+
+---
 
 ## v1.9.187 - February 1, 2026
 

@@ -32,7 +32,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.187"
+__version__ = "1.9.188"
 __phase__ = "0.9"
 __release_date__ = "2026-02-01"
 __edition__ = "Qt"
@@ -20353,7 +20353,7 @@ class SupervertalerQt(QMainWindow):
         sort_btn = QPushButton("⇅ Sort")
         sort_btn.setMaximumWidth(100)
         sort_btn.setStyleSheet("background-color: #FF9800; color: white; font-weight: bold;")
-        sort_menu = QMenu(sort_btn)
+        sort_menu = QMenu(self)
 
         # Initialize sort state if not exists
         if not hasattr(self, 'current_sort'):
@@ -37697,8 +37697,18 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         # If sort_type is None, restore document order
         if sort_type is None:
             self.current_project.segments = self._original_segment_order.copy()
+
+            # Set pagination to "All" to show all segments
+            if hasattr(self, 'page_size_combo') and self._widget_is_alive(self.page_size_combo):
+                self.page_size_combo.blockSignals(True)
+                self.page_size_combo.setCurrentText("All")
+                self.page_size_combo.blockSignals(False)
+                # Update the internal page size variable
+                if hasattr(self, 'grid_page_size'):
+                    self.grid_page_size = 999999
+
             self.load_segments_to_grid()
-            self.log("↩️ Restored document order")
+            self.log("↩️ Restored document order (showing all segments)")
             return
 
         # Helper function to get text without tags for more accurate sorting
@@ -37779,9 +37789,18 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                 self.log(f"⚠️ Unknown sort type: {sort_type}")
                 return
 
+            # Set pagination to "All" to show all sorted segments
+            if hasattr(self, 'page_size_combo') and self._widget_is_alive(self.page_size_combo):
+                self.page_size_combo.blockSignals(True)
+                self.page_size_combo.setCurrentText("All")
+                self.page_size_combo.blockSignals(False)
+                # Update the internal page size variable
+                if hasattr(self, 'grid_page_size'):
+                    self.grid_page_size = 999999
+
             # Reload grid to reflect new order
             self.load_segments_to_grid()
-            self.log(f"⇅ Sorted by: {sort_name}")
+            self.log(f"⇅ Sorted by: {sort_name} (showing all segments)")
 
         except Exception as e:
             self.log(f"❌ Error sorting segments: {e}")
