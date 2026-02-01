@@ -20578,7 +20578,7 @@ class SupervertalerQt(QMainWindow):
         view_mode_group.setExclusive(True)
 
         # WYSIWYG button (left)
-        wysiwyg_btn = QPushButton("Preview")
+        wysiwyg_btn = QPushButton("WYSIWYG")
         wysiwyg_btn.setCheckable(True)
         wysiwyg_btn.setChecked(True)  # Default: WYSIWYG mode
         wysiwyg_btn.setToolTip("WYSIWYG View (Ctrl+Alt+T)\nShows formatted text without raw tags")
