@@ -2,9 +2,17 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.188 (February 1, 2026)
+**Current Version:** v1.9.189 (February 1, 2026)
 
 
+
+## v1.9.189 - February 1, 2026
+
+### 🎨 UI Improvements
+
+- **Sort Progress Feedback**: Added progress dialog during sorting operations showing "Sorting segments, please wait..." message. Dialog only appears for operations taking longer than 500ms, providing clear user feedback without interrupting quick sorts on small projects. Automatically closes when sorting completes.
+
+---
 
 ## v1.9.188 - February 1, 2026
 

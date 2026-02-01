@@ -32,7 +32,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.188"
+__version__ = "1.9.189"
 __phase__ = "0.9"
 __release_date__ = "2026-02-01"
 __edition__ = "Qt"
@@ -37687,51 +37687,62 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         if not self.current_project.segments:
             return
 
-        # Store original document order if not already stored
-        if not hasattr(self, '_original_segment_order'):
-            self._original_segment_order = self.current_project.segments.copy()
+        # Show progress dialog for large projects
+        from PyQt6.QtWidgets import QProgressDialog
+        from PyQt6.QtCore import Qt
 
-        # Update current sort state
-        self.current_sort = sort_type
+        progress = QProgressDialog("Sorting segments, please wait...", None, 0, 0, self)
+        progress.setWindowTitle("Sorting")
+        progress.setWindowModality(Qt.WindowModality.WindowModal)
+        progress.setMinimumDuration(500)  # Only show if operation takes > 500ms
+        progress.setValue(0)
+        QApplication.processEvents()  # Show dialog immediately
 
-        # If sort_type is None, restore document order
-        if sort_type is None:
-            self.current_project.segments = self._original_segment_order.copy()
-
-            # Set pagination to "All" to show all segments
-            if hasattr(self, 'page_size_combo') and self._widget_is_alive(self.page_size_combo):
-                self.page_size_combo.blockSignals(True)
-                self.page_size_combo.setCurrentText("All")
-                self.page_size_combo.blockSignals(False)
-                # Update the internal page size variable
-                if hasattr(self, 'grid_page_size'):
-                    self.grid_page_size = 999999
-
-            self.load_segments_to_grid()
-            self.log("↩️ Restored document order (showing all segments)")
-            return
-
-        # Helper function to get text without tags for more accurate sorting
-        def strip_tags(text: str) -> str:
-            """Remove HTML/XML tags from text for sorting"""
-            import re
-            return re.sub(r'<[^>]+>', '', text).strip()
-
-        # Calculate frequency maps if needed
-        frequency_cache = {}
-        if 'freq' in sort_type:
-            from collections import Counter
-            if 'source' in sort_type:
-                counter = Counter(strip_tags(seg.source).lower() for seg in self.current_project.segments)
-                frequency_cache = {strip_tags(seg.source).lower(): counter[strip_tags(seg.source).lower()]
-                                 for seg in self.current_project.segments}
-            else:  # target frequency
-                counter = Counter(strip_tags(seg.target).lower() for seg in self.current_project.segments if seg.target)
-                frequency_cache = {strip_tags(seg.target).lower(): counter[strip_tags(seg.target).lower()]
-                                 for seg in self.current_project.segments if seg.target}
-
-        # Sort based on selected criterion
         try:
+            # Store original document order if not already stored
+            if not hasattr(self, '_original_segment_order'):
+                self._original_segment_order = self.current_project.segments.copy()
+
+            # Update current sort state
+            self.current_sort = sort_type
+
+            # If sort_type is None, restore document order
+            if sort_type is None:
+                self.current_project.segments = self._original_segment_order.copy()
+
+                # Set pagination to "All" to show all segments
+                if hasattr(self, 'page_size_combo') and self._widget_is_alive(self.page_size_combo):
+                    self.page_size_combo.blockSignals(True)
+                    self.page_size_combo.setCurrentText("All")
+                    self.page_size_combo.blockSignals(False)
+                    # Update the internal page size variable
+                    if hasattr(self, 'grid_page_size'):
+                        self.grid_page_size = 999999
+
+                self.load_segments_to_grid()
+                self.log("↩️ Restored document order (showing all segments)")
+                return
+
+            # Helper function to get text without tags for more accurate sorting
+            def strip_tags(text: str) -> str:
+                """Remove HTML/XML tags from text for sorting"""
+                import re
+                return re.sub(r'<[^>]+>', '', text).strip()
+
+            # Calculate frequency maps if needed
+            frequency_cache = {}
+            if 'freq' in sort_type:
+                from collections import Counter
+                if 'source' in sort_type:
+                    counter = Counter(strip_tags(seg.source).lower() for seg in self.current_project.segments)
+                    frequency_cache = {strip_tags(seg.source).lower(): counter[strip_tags(seg.source).lower()]
+                                     for seg in self.current_project.segments}
+                else:  # target frequency
+                    counter = Counter(strip_tags(seg.target).lower() for seg in self.current_project.segments if seg.target)
+                    frequency_cache = {strip_tags(seg.target).lower(): counter[strip_tags(seg.target).lower()]
+                                     for seg in self.current_project.segments if seg.target}
+
+            # Sort based on selected criterion
             if sort_type == 'source_asc':
                 self.current_project.segments.sort(key=lambda s: strip_tags(s.source).lower())
                 sort_name = "Source A → Z"
@@ -37806,6 +37817,9 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             self.log(f"❌ Error sorting segments: {e}")
             import traceback
             traceback.print_exc()
+        finally:
+            # Close progress dialog
+            progress.close()
 
     # ========================================================================
     # TABBED SEGMENT EDITOR METHODS (for Grid view)
