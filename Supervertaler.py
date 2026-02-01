@@ -20154,7 +20154,7 @@ class SupervertalerQt(QMainWindow):
         filter_layout.setSpacing(10)
         
         # Source filter
-        source_filter_label = QLabel("Filter Source:")
+        source_filter_label = QLabel("Source:")
         self.source_filter = self._ensure_shared_filter(
             'source_filter',
             "Type to filter source segments...",
@@ -20163,7 +20163,7 @@ class SupervertalerQt(QMainWindow):
         )
         
         # Target filter
-        target_filter_label = QLabel("Filter Target:")
+        target_filter_label = QLabel("Target:")
         self.target_filter = self._ensure_shared_filter(
             'target_filter',
             "Type to filter target segments...",
@@ -20304,7 +20304,7 @@ class SupervertalerQt(QMainWindow):
         filter_layout.setSpacing(10)
         
         # Source filter
-        source_filter_label = QLabel("Filter Source:")
+        source_filter_label = QLabel("Source:")
         self.source_filter = self._ensure_shared_filter(
             'source_filter',
             "Type to filter source segments... (Press Enter or click Filter)",
@@ -20312,7 +20312,7 @@ class SupervertalerQt(QMainWindow):
         )
         
         # Target filter
-        target_filter_label = QLabel("Filter Target:")
+        target_filter_label = QLabel("Target:")
         self.target_filter = self._ensure_shared_filter(
             'target_filter',
             "Type to filter target segments... (Press Enter or click Filter)",
