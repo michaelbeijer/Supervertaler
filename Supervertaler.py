@@ -32,7 +32,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.184"
+__version__ = "1.9.185"
 __phase__ = "0.9"
 __release_date__ = "2026-02-01"
 __edition__ = "Qt"
@@ -8029,7 +8029,7 @@ class SupervertalerQt(QMainWindow):
         grid_zoom_menu = view_menu.addMenu("📊 &Grid Text Zoom")
         
         grid_zoom_in = QAction("Grid Zoom &In", self)
-        grid_zoom_in.setShortcut(QKeySequence.StandardKey.ZoomIn)
+        grid_zoom_in.setShortcut("Ctrl+=")
         grid_zoom_in.triggered.connect(self.zoom_in)
         grid_zoom_menu.addAction(grid_zoom_in)
         

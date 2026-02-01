@@ -2,9 +2,17 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.184 (February 1, 2026)
+**Current Version:** v1.9.185 (February 1, 2026)
 
 
+
+## v1.9.185 - February 1, 2026
+
+### 🎨 UI Improvements
+
+- **Grid Zoom Shortcut**: Changed Grid Zoom In keyboard shortcut from Ctrl++ to Ctrl+= for easier access (no need to hold Shift). The = and + keys are on the same physical key, making this more intuitive and faster to use.
+
+---
 
 ## v1.9.184 - February 1, 2026
 
