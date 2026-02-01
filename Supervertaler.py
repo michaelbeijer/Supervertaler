@@ -22003,6 +22003,10 @@ class SupervertalerQt(QMainWindow):
         # Update UI
         self.project_file_path = None
         self.project_modified = True  # Mark as modified since it hasn't been saved
+
+        # Store original segment order for "Document Order" sort reset
+        self._original_segment_order = self.current_project.segments.copy()
+
         self.update_window_title()
         self.load_segments_to_grid()
         self.initialize_tm_database()  # Initialize TM for this project
@@ -22083,6 +22087,9 @@ class SupervertalerQt(QMainWindow):
             self.current_project = Project.from_dict(data)
             self.project_file_path = file_path
             self.project_modified = False
+
+            # Store original segment order for "Document Order" sort reset
+            self._original_segment_order = self.current_project.segments.copy()
 
             # Sync global language settings with project languages
             if self.current_project.source_lang:
@@ -29152,7 +29159,11 @@ class SupervertalerQt(QMainWindow):
     def load_segments_to_grid(self):
         """Load segments into the grid with termbase highlighting"""
         self.log(f"🔄🔄🔄 load_segments_to_grid CALLED - this will RELOAD grid from segment data!")
-        
+
+        # Ensure original segment order is stored (for Document Order sort)
+        if self.current_project and not hasattr(self, '_original_segment_order'):
+            self._original_segment_order = self.current_project.segments.copy()
+
         # Clear row color settings cache to ensure fresh settings are loaded
         if hasattr(self, '_row_color_settings_cached'):
             delattr(self, '_row_color_settings_cached')
