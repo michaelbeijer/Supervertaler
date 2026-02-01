@@ -2,9 +2,25 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.185 (February 1, 2026)
+**Current Version:** v1.9.186 (February 1, 2026)
 
 
+
+## v1.9.186 - February 1, 2026
+
+### 🐛 Bug Fixes
+
+- **Exit Crash Fixed**: Resolved Python crash that occurred when closing the program via File > Exit. The crash was caused by manual WebEngine cleanup interfering with Qt's internal shutdown sequence. Now lets Qt handle WebEngine cleanup naturally, resulting in clean program exit without crashes.
+
+- **Import Shadowing Fixed**: Fixed UnboundLocalError crashes on startup caused by local imports shadowing global imports (QWidget, QHBoxLayout). Only QButtonGroup is now imported locally where needed.
+
+### 🎨 UI Improvements
+
+- **View Toggle Clarity**: Replaced confusing single "Tags OFF" toggle button with clear segmented control showing both "WYSIWYG" and "Tags" options. One button is always highlighted to show the current view mode.
+
+- **Default View Mode**: Changed default view from WYSIWYG to Tags mode for better alignment with actual initial state. Tags button is now highlighted by default on startup.
+
+---
 
 ## v1.9.185 - February 1, 2026
 

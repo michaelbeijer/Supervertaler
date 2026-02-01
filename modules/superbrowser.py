@@ -160,6 +160,20 @@ class ChatColumn(QWidget):
         """Update URL bar when page changes"""
         self.url_input.setText(url.toString())
 
+    def cleanup(self):
+        """Clean up web engine resources before deletion"""
+        try:
+            from PyQt6.QtCore import QUrl
+            if hasattr(self, 'web_view'):
+                self.web_view.stop()
+                self.web_view.setPage(None)
+                self.web_view.setUrl(QUrl('about:blank'))
+                self.web_view.deleteLater()
+            if hasattr(self, 'profile'):
+                self.profile.deleteLater()
+        except:
+            pass
+
 
 class SuperbrowserWidget(QWidget):
     """
@@ -303,6 +317,14 @@ class SuperbrowserWidget(QWidget):
         self.chatgpt_column.go_home()
         self.claude_column.go_home()
         self.gemini_column.go_home()
+
+    def cleanup(self):
+        """Clean up all web engine resources before widget deletion"""
+        try:
+            for column in self.chat_columns:
+                column.cleanup()
+        except:
+            pass
 
 
 # ============================================================================

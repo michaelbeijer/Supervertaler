@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/**)",
+      "Bash(git -C \"c:\\\\Dev\\\\Supervertaler\" status)"
+    ]
+  }
+}
