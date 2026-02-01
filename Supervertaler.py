@@ -41010,72 +41010,63 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         try:
             from PyQt6.QtWidgets import QApplication
             from PyQt6.QtCore import QUrl
-            from PyQt6.QtWebEngineCore import QWebEngineProfile
+            from PyQt6.QtWebEngineWidgets import QWebEngineView
+            import time
 
-            # Find and cleanup Superbrowser widget
-            if hasattr(self, 'modules_tabs'):
-                for i in range(self.modules_tabs.count()):
-                    widget = self.modules_tabs.widget(i)
-                    if widget and hasattr(widget, '__class__') and 'Superbrowser' in widget.__class__.__name__:
-                        # Call cleanup method if available
-                        if hasattr(widget, 'cleanup'):
-                            try:
-                                widget.cleanup()
-                            except:
-                                pass
-                        # Remove from parent and schedule deletion
-                        try:
-                            self.modules_tabs.removeTab(i)
-                            widget.setParent(None)
-                            widget.deleteLater()
-                        except:
-                            pass
+            # Find ALL QWebEngineView widgets in the entire application
+            all_web_views = self.findChildren(QWebEngineView)
 
-            # Close any SuperBrowser tabs (legacy cleanup)
-            if hasattr(self, 'superbrowser_tabs'):
-                for tab in self.superbrowser_tabs.values():
-                    try:
-                        if hasattr(tab, 'web_view'):
-                            tab.web_view.stop()
-                            page = tab.web_view.page()
-                            tab.web_view.setPage(None)
-                            if page:
-                                page.deleteLater()
-                            tab.web_view.setUrl(QUrl('about:blank'))
-                            tab.web_view.deleteLater()
-                        if hasattr(tab, 'profile'):
-                            tab.profile.deleteLater()
-                    except:
-                        pass
+            print(f"[WebEngine Cleanup] Found {len(all_web_views)} QWebEngineView widgets")
 
-            # Close Superlookup web views (from Web Resources tab)
-            if hasattr(self, 'web_views'):
-                for resource_id, web_view in list(self.web_views.items()):
-                    try:
-                        web_view.stop()
-                        page = web_view.page()
+            # Clean up each web view
+            for idx, web_view in enumerate(all_web_views):
+                try:
+                    print(f"[WebEngine Cleanup] Cleaning view {idx + 1}/{len(all_web_views)}")
+
+                    # Stop loading
+                    web_view.stop()
+
+                    # Get and delete the page
+                    page = web_view.page()
+                    if page:
                         web_view.setPage(None)
-                        if page:
-                            page.deleteLater()
-                        web_view.setUrl(QUrl('about:blank'))
-                        web_view.deleteLater()
-                    except:
-                        pass
+                        page.deleteLater()
+                        del page
+
+                    # Navigate to blank
+                    web_view.setUrl(QUrl('about:blank'))
+
+                    # Hide the view
+                    web_view.hide()
+
+                    # Process events after each view
+                    QApplication.processEvents()
+                except Exception as e:
+                    print(f"[WebEngine Cleanup] Error cleaning view {idx}: {e}")
+
+            # Clear web_views dict if it exists
+            if hasattr(self, 'web_views'):
                 self.web_views.clear()
 
-            # Process events multiple times to ensure cleanup completes
-            for _ in range(10):  # Increased from 5 to 10
+            # Process events extensively
+            print("[WebEngine Cleanup] Processing events...")
+            for i in range(20):
                 QApplication.processEvents()
+                if i % 5 == 0:
+                    time.sleep(0.1)
 
-            # Longer delay to allow Qt to finish WebEngine cleanup
-            import time
-            time.sleep(0.5)  # Increased from 0.2 to 0.5
+            # Long delay to ensure WebEngine has time to clean up
+            print("[WebEngine Cleanup] Waiting for WebEngine cleanup...")
+            time.sleep(1.0)
 
             # Final event processing
-            for _ in range(5):
+            print("[WebEngine Cleanup] Final event processing...")
+            for _ in range(10):
                 QApplication.processEvents()
-        except:
-            pass
+
+            print("[WebEngine Cleanup] Cleanup complete")
+        except Exception as e:
+            print(f"[WebEngine Cleanup] Error: {e}")
     
     def _close_detached_log_windows(self):
         """Close all detached log windows when main window closes"""
