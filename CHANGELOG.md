@@ -2,9 +2,26 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.186 (February 1, 2026)
+**Current Version:** v1.9.187 (February 1, 2026)
 
 
+
+## v1.9.187 - February 1, 2026
+
+### ✨ New Features
+
+- **Segment Sorting**: Added comprehensive sort dropdown button (⇅ Sort) in the toolbar, positioned after Advanced Filters. Similar to memoQ's sorting functionality, you can now sort segments by:
+  - **Alphabetical**: Source/Target text (A → Z or Z → A)
+  - **Text Length**: Source/Target (longer or shorter first)
+  - **Match Rate**: TM match percentage (higher or lower first)
+  - **Frequency**: Source/Target text occurrence count (higher or lower first)
+  - **Last Changed**: Modification timestamp (newest or older first)
+  - **Row Status**: Grouped by translation status (not started → draft → translated → confirmed)
+  - **Document Order**: Reset to original document structure
+
+  Sorting is applied to the entire project and reloads the grid to reflect the new order. The orange sort button with dropdown menu makes it easy to organize segments for review, identify patterns, or work systematically through similar content.
+
+---
 
 ## v1.9.186 - February 1, 2026
 

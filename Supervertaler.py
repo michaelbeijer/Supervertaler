@@ -32,7 +32,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.186"
+__version__ = "1.9.187"
 __phase__ = "0.9"
 __release_date__ = "2026-02-01"
 __edition__ = "Qt"
@@ -20348,7 +20348,68 @@ class SupervertalerQt(QMainWindow):
         advanced_filter_btn.clicked.connect(self.show_advanced_filters_dialog)
         advanced_filter_btn.setMaximumWidth(160)
         advanced_filter_btn.setStyleSheet("background-color: #2196F3; color: white; font-weight: bold;")
-        
+
+        # Sort dropdown button (similar to memoQ)
+        sort_btn = QPushButton("⇅ Sort")
+        sort_btn.setMaximumWidth(100)
+        sort_btn.setStyleSheet("background-color: #FF9800; color: white; font-weight: bold;")
+        sort_menu = QMenu(sort_btn)
+
+        # Initialize sort state if not exists
+        if not hasattr(self, 'current_sort'):
+            self.current_sort = None  # None = document order
+
+        # Sort by source text
+        sort_menu.addAction("📝 Source A → Z", lambda: self.apply_sort('source_asc'))
+        sort_menu.addAction("📝 Source Z → A", lambda: self.apply_sort('source_desc'))
+
+        sort_menu.addSeparator()
+
+        # Sort by target text
+        sort_menu.addAction("📄 Target A → Z", lambda: self.apply_sort('target_asc'))
+        sort_menu.addAction("📄 Target Z → A", lambda: self.apply_sort('target_desc'))
+
+        sort_menu.addSeparator()
+
+        # Sort by text length
+        sort_menu.addAction("📏 Source (longer first)", lambda: self.apply_sort('source_length_desc'))
+        sort_menu.addAction("📏 Source (shorter first)", lambda: self.apply_sort('source_length_asc'))
+        sort_menu.addAction("📏 Target (longer first)", lambda: self.apply_sort('target_length_desc'))
+        sort_menu.addAction("📏 Target (shorter first)", lambda: self.apply_sort('target_length_asc'))
+
+        sort_menu.addSeparator()
+
+        # Sort by match rate
+        sort_menu.addAction("🎯 Match Rate (higher first)", lambda: self.apply_sort('match_desc'))
+        sort_menu.addAction("🎯 Match Rate (lower first)", lambda: self.apply_sort('match_asc'))
+
+        sort_menu.addSeparator()
+
+        # Sort by frequency
+        sort_menu.addAction("📊 Source Frequency (higher first)", lambda: self.apply_sort('source_freq_desc'))
+        sort_menu.addAction("📊 Source Frequency (lower first)", lambda: self.apply_sort('source_freq_asc'))
+        sort_menu.addAction("📊 Target Frequency (higher first)", lambda: self.apply_sort('target_freq_desc'))
+        sort_menu.addAction("📊 Target Frequency (lower first)", lambda: self.apply_sort('target_freq_asc'))
+
+        sort_menu.addSeparator()
+
+        # Sort by last changed
+        sort_menu.addAction("🕒 Last Changed (newest first)", lambda: self.apply_sort('modified_desc'))
+        sort_menu.addAction("🕒 Last Changed (oldest first)", lambda: self.apply_sort('modified_asc'))
+
+        sort_menu.addSeparator()
+
+        # Sort by row status
+        sort_menu.addAction("🚦 Row Status", lambda: self.apply_sort('status'))
+
+        sort_menu.addSeparator()
+
+        # Reset to document order
+        sort_menu.addAction("↩️ Document Order (default)", lambda: self.apply_sort(None))
+
+        sort_btn.setMenu(sort_menu)
+        sort_btn.setToolTip("Sort segments by various criteria")
+
         # File filter dropdown (for multi-file projects)
         self.file_filter_combo = QComboBox()
         self.file_filter_combo.setMinimumWidth(150)
@@ -20442,6 +20503,7 @@ class SupervertalerQt(QMainWindow):
         filter_layout.addWidget(clear_filters_btn)
         filter_layout.addWidget(quick_filter_btn)
         filter_layout.addWidget(advanced_filter_btn)
+        filter_layout.addWidget(sort_btn)  # Sort dropdown
         filter_layout.addWidget(self.file_filter_combo)  # File filter for multi-file projects
         filter_layout.addWidget(show_invisibles_btn_home)
         filter_layout.addWidget(self.spellcheck_btn)
@@ -37616,7 +37678,116 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             self.table.setUpdatesEnabled(True)
         
         self.log(f"🔍 Advanced filters: showing {visible_count} of {len(self.current_project.segments)} segments")
-    
+
+    def apply_sort(self, sort_type: str = None):
+        """Sort segments by various criteria (similar to memoQ)"""
+        if not self.current_project or not hasattr(self, 'table') or self.table is None:
+            return
+
+        if not self.current_project.segments:
+            return
+
+        # Store original document order if not already stored
+        if not hasattr(self, '_original_segment_order'):
+            self._original_segment_order = self.current_project.segments.copy()
+
+        # Update current sort state
+        self.current_sort = sort_type
+
+        # If sort_type is None, restore document order
+        if sort_type is None:
+            self.current_project.segments = self._original_segment_order.copy()
+            self.load_segments_to_grid()
+            self.log("↩️ Restored document order")
+            return
+
+        # Helper function to get text without tags for more accurate sorting
+        def strip_tags(text: str) -> str:
+            """Remove HTML/XML tags from text for sorting"""
+            import re
+            return re.sub(r'<[^>]+>', '', text).strip()
+
+        # Calculate frequency maps if needed
+        frequency_cache = {}
+        if 'freq' in sort_type:
+            from collections import Counter
+            if 'source' in sort_type:
+                counter = Counter(strip_tags(seg.source).lower() for seg in self.current_project.segments)
+                frequency_cache = {strip_tags(seg.source).lower(): counter[strip_tags(seg.source).lower()]
+                                 for seg in self.current_project.segments}
+            else:  # target frequency
+                counter = Counter(strip_tags(seg.target).lower() for seg in self.current_project.segments if seg.target)
+                frequency_cache = {strip_tags(seg.target).lower(): counter[strip_tags(seg.target).lower()]
+                                 for seg in self.current_project.segments if seg.target}
+
+        # Sort based on selected criterion
+        try:
+            if sort_type == 'source_asc':
+                self.current_project.segments.sort(key=lambda s: strip_tags(s.source).lower())
+                sort_name = "Source A → Z"
+            elif sort_type == 'source_desc':
+                self.current_project.segments.sort(key=lambda s: strip_tags(s.source).lower(), reverse=True)
+                sort_name = "Source Z → A"
+            elif sort_type == 'target_asc':
+                self.current_project.segments.sort(key=lambda s: strip_tags(s.target).lower() if s.target else "")
+                sort_name = "Target A → Z"
+            elif sort_type == 'target_desc':
+                self.current_project.segments.sort(key=lambda s: strip_tags(s.target).lower() if s.target else "", reverse=True)
+                sort_name = "Target Z → A"
+            elif sort_type == 'source_length_asc':
+                self.current_project.segments.sort(key=lambda s: len(strip_tags(s.source)))
+                sort_name = "Source (shorter first)"
+            elif sort_type == 'source_length_desc':
+                self.current_project.segments.sort(key=lambda s: len(strip_tags(s.source)), reverse=True)
+                sort_name = "Source (longer first)"
+            elif sort_type == 'target_length_asc':
+                self.current_project.segments.sort(key=lambda s: len(strip_tags(s.target)) if s.target else 0)
+                sort_name = "Target (shorter first)"
+            elif sort_type == 'target_length_desc':
+                self.current_project.segments.sort(key=lambda s: len(strip_tags(s.target)) if s.target else 0, reverse=True)
+                sort_name = "Target (longer first)"
+            elif sort_type == 'match_asc':
+                self.current_project.segments.sort(key=lambda s: getattr(s, 'match_percent', 0) or 0)
+                sort_name = "Match Rate (lower first)"
+            elif sort_type == 'match_desc':
+                self.current_project.segments.sort(key=lambda s: getattr(s, 'match_percent', 0) or 0, reverse=True)
+                sort_name = "Match Rate (higher first)"
+            elif sort_type == 'source_freq_asc':
+                self.current_project.segments.sort(key=lambda s: frequency_cache.get(strip_tags(s.source).lower(), 0))
+                sort_name = "Source Frequency (lower first)"
+            elif sort_type == 'source_freq_desc':
+                self.current_project.segments.sort(key=lambda s: frequency_cache.get(strip_tags(s.source).lower(), 0), reverse=True)
+                sort_name = "Source Frequency (higher first)"
+            elif sort_type == 'target_freq_asc':
+                self.current_project.segments.sort(key=lambda s: frequency_cache.get(strip_tags(s.target).lower(), 0) if s.target else 0)
+                sort_name = "Target Frequency (lower first)"
+            elif sort_type == 'target_freq_desc':
+                self.current_project.segments.sort(key=lambda s: frequency_cache.get(strip_tags(s.target).lower(), 0) if s.target else 0, reverse=True)
+                sort_name = "Target Frequency (higher first)"
+            elif sort_type == 'modified_asc':
+                self.current_project.segments.sort(key=lambda s: s.modified_at if s.modified_at else "")
+                sort_name = "Last Changed (oldest first)"
+            elif sort_type == 'modified_desc':
+                self.current_project.segments.sort(key=lambda s: s.modified_at if s.modified_at else "", reverse=True)
+                sort_name = "Last Changed (newest first)"
+            elif sort_type == 'status':
+                # Sort by status in a logical order: not_started, draft, translated, confirmed
+                status_order = {'not_started': 0, 'draft': 1, 'translated': 2, 'confirmed': 3}
+                self.current_project.segments.sort(key=lambda s: status_order.get(s.status, 99))
+                sort_name = "Row Status"
+            else:
+                self.log(f"⚠️ Unknown sort type: {sort_type}")
+                return
+
+            # Reload grid to reflect new order
+            self.load_segments_to_grid()
+            self.log(f"⇅ Sorted by: {sort_name}")
+
+        except Exception as e:
+            self.log(f"❌ Error sorting segments: {e}")
+            import traceback
+            traceback.print_exc()
+
     # ========================================================================
     # TABBED SEGMENT EDITOR METHODS (for Grid view)
     # ========================================================================
