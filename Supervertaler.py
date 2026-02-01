@@ -41026,18 +41026,13 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                     # Stop loading
                     web_view.stop()
 
-                    # Get and delete the page
+                    # Get and clear the page (don't delete it manually, let Qt handle it)
                     page = web_view.page()
                     if page:
                         web_view.setPage(None)
-                        page.deleteLater()
-                        del page
 
                     # Navigate to blank
                     web_view.setUrl(QUrl('about:blank'))
-
-                    # Hide the view
-                    web_view.hide()
 
                     # Process events after each view
                     QApplication.processEvents()
@@ -41048,20 +41043,20 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             if hasattr(self, 'web_views'):
                 self.web_views.clear()
 
-            # Process events extensively
+            # Process events
             print("[WebEngine Cleanup] Processing events...")
-            for i in range(20):
+            for i in range(10):
                 QApplication.processEvents()
-                if i % 5 == 0:
-                    time.sleep(0.1)
+                if i % 3 == 0:
+                    time.sleep(0.05)
 
-            # Long delay to ensure WebEngine has time to clean up
+            # Reduced delay for WebEngine cleanup
             print("[WebEngine Cleanup] Waiting for WebEngine cleanup...")
-            time.sleep(1.0)
+            time.sleep(0.3)
 
             # Final event processing
             print("[WebEngine Cleanup] Final event processing...")
-            for _ in range(10):
+            for _ in range(5):
                 QApplication.processEvents()
 
             print("[WebEngine Cleanup] Cleanup complete")
