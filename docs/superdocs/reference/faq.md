@@ -722,6 +722,34 @@ ollama pull qwen2.5:3b
 - Multiple API keys (GPT-4o, Claude, Gemini)
 - Sufficient API credits for testing runs
 
+### Why is my antivirus flagging Supervertaler as malware?
+
+This is a **known false positive** that affects applications built with PyInstaller (the tool used to create the Windows EXE).
+
+**Why it happens:**
+- PyInstaller bundles Python + all libraries into a single package
+- This binary pattern triggers heuristic detection in some AV software (especially Norton 360)
+- Generic detections like "Win64:Malware-gen" are pattern matches, not actual malware signatures
+- The executable is not code-signed (certificates cost ~$300/year)
+
+**Solutions:**
+
+1. **Use pip install (Recommended)**
+   - Install: `pip install supervertaler`
+   - Run: `supervertaler`
+   - No AV warnings because it runs from Python source
+
+2. **Whitelist the application**
+   - Add an exception in your antivirus settings
+   - The application is safe - you can verify by checking the [source code on GitHub](https://github.com/michaelbeijer/Supervertaler)
+
+3. **Report as false positive**
+   - Norton: https://submit.norton.com/
+   - Windows Defender: Click "More info" → "Run anyway"
+   - Other AV: Check vendor's false positive submission page
+
+**This is common for PyInstaller apps** - it affects tools like Calibre, many game mods, and scientific software. See the [PyInstaller FAQ](https://pyinstaller.org/en/stable/faq.html) for more details.
+
 ---
 
 ## Workflow & Integration
