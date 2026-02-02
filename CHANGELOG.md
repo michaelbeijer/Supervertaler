@@ -2,9 +2,27 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.195 (February 2, 2026)
+**Current Version:** v1.9.196 (February 2, 2026)
 
 
+
+## v1.9.196 - February 2, 2026
+
+### 🐛 Bug Fixes
+
+- **AI Assistant "Analyze Project" Fixed**: Fixed a bug where clicking "Analyze Project & Generate Prompts" in the AI Assistant would fail with "AI responded but no actions were found". The issue was that the LLM wasn't receiving a system prompt explaining the ACTION format. Now all providers (OpenAI, Claude, Gemini, Ollama) receive proper instructions on how to format their responses.
+
+### 🎨 UI Improvements
+
+- **Supervoice Settings Two-Column Layout**: Reorganized the Supervoice settings tab into a two-column layout. Voice commands table now displays on the right side, allowing more commands to be visible at once. Settings (Always-On Listening, Speech Recognition Model, AutoHotkey) remain on the left.
+
+- **Green Checkmark Checkbox**: The "Enable voice commands" checkbox in Supervoice settings now uses the standard green checkmark style (CheckmarkCheckBox) for visual consistency with the rest of the application.
+
+### 🏗️ Code Architecture
+
+- **LLM Client System Prompt Support**: Added `system_prompt` parameter to the LLM client's `translate()` method and all provider-specific methods. This enables passing behavioral instructions to AI models for features like the AI Assistant.
+
+---
 
 ## v1.9.195 - February 2, 2026
 

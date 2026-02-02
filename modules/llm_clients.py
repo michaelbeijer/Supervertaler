@@ -594,18 +594,20 @@ class LLMClient:
         context: Optional[str] = None,
         custom_prompt: Optional[str] = None,
         max_tokens: Optional[int] = None,
-        images: Optional[List] = None
+        images: Optional[List] = None,
+        system_prompt: Optional[str] = None
     ) -> str:
         """
         Translate text using configured LLM
-        
+
         Args:
             text: Text to translate
             source_lang: Source language code
             target_lang: Target language code
             context: Optional context for translation
             custom_prompt: Optional custom prompt (overrides default simple prompt)
-        
+            system_prompt: Optional system prompt for AI behavior context
+
         Returns:
             Translated text
         """
@@ -615,30 +617,30 @@ class LLMClient:
         else:
             # Build prompt
             prompt = f"Translate the following text from {source_lang} to {target_lang}:\n\n{text}"
-            
+
             if context:
                 prompt = f"Context: {context}\n\n{prompt}"
-        
+
         # Log warning if images provided but model doesn't support vision
         if images and not self.model_supports_vision(self.provider, self.model):
             print(f"⚠️ Warning: Model {self.model} doesn't support vision. Images will be ignored.")
             images = None  # Don't pass to API
-        
+
         # Call appropriate provider
         if self.provider == "openai":
-            return self._call_openai(prompt, max_tokens=max_tokens, images=images)
+            return self._call_openai(prompt, max_tokens=max_tokens, images=images, system_prompt=system_prompt)
         elif self.provider == "claude":
-            return self._call_claude(prompt, max_tokens=max_tokens, images=images)
+            return self._call_claude(prompt, max_tokens=max_tokens, images=images, system_prompt=system_prompt)
         elif self.provider == "gemini":
-            return self._call_gemini(prompt, max_tokens=max_tokens, images=images)
+            return self._call_gemini(prompt, max_tokens=max_tokens, images=images, system_prompt=system_prompt)
         elif self.provider == "ollama":
-            return self._call_ollama(prompt, max_tokens=max_tokens)
+            return self._call_ollama(prompt, max_tokens=max_tokens, system_prompt=system_prompt)
         else:
             raise ValueError(f"Unsupported provider: {self.provider}")
     
-    def _call_openai(self, prompt: str, max_tokens: Optional[int] = None, images: Optional[List] = None) -> str:
+    def _call_openai(self, prompt: str, max_tokens: Optional[int] = None, images: Optional[List] = None, system_prompt: Optional[str] = None) -> str:
         """Call OpenAI API with GPT-5/o1/o3 reasoning model support and vision capability"""
-        print(f"🔵 _call_openai START: model={self.model}, prompt_len={len(prompt)}, max_tokens={max_tokens}, images={len(images) if images else 0}")
+        print(f"🔵 _call_openai START: model={self.model}, prompt_len={len(prompt)}, max_tokens={max_tokens}, images={len(images) if images else 0}, has_system={bool(system_prompt)}")
 
         try:
             from openai import OpenAI
@@ -686,10 +688,16 @@ class LLMClient:
             # Standard text-only format
             content = prompt
 
+        # Build messages list
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": content})
+
         # Build API call parameters
         api_params = {
             "model": self.model,
-            "messages": [{"role": "user", "content": content}],
+            "messages": messages,
             "timeout": timeout_seconds
         }
 
@@ -742,7 +750,7 @@ class LLMClient:
                 print(f"   Response: {e.response}")
             raise  # Re-raise to be caught by calling code
     
-    def _call_claude(self, prompt: str, max_tokens: Optional[int] = None, images: Optional[List] = None) -> str:
+    def _call_claude(self, prompt: str, max_tokens: Optional[int] = None, images: Optional[List] = None, system_prompt: Optional[str] = None) -> str:
         """Call Anthropic Claude API with vision support"""
         try:
             import anthropic
@@ -786,12 +794,19 @@ class LLMClient:
             # Standard text-only format
             content = prompt
         
-        response = client.messages.create(
-            model=self.model,
-            max_tokens=tokens_to_use,
-            messages=[{"role": "user", "content": content}],
-            timeout=timeout_seconds  # Explicit timeout
-        )
+        # Build API call parameters
+        api_params = {
+            "model": self.model,
+            "max_tokens": tokens_to_use,
+            "messages": [{"role": "user", "content": content}],
+            "timeout": timeout_seconds  # Explicit timeout
+        }
+
+        # Add system prompt if provided (Claude uses 'system' parameter, not a message)
+        if system_prompt:
+            api_params["system"] = system_prompt
+
+        response = client.messages.create(**api_params)
         
         translation = response.content[0].text.strip()
         
@@ -800,7 +815,7 @@ class LLMClient:
         
         return translation
     
-    def _call_gemini(self, prompt: str, max_tokens: Optional[int] = None, images: Optional[List] = None) -> str:
+    def _call_gemini(self, prompt: str, max_tokens: Optional[int] = None, images: Optional[List] = None, system_prompt: Optional[str] = None) -> str:
         """Call Google Gemini API with vision support"""
         try:
             import google.generativeai as genai
@@ -809,10 +824,15 @@ class LLMClient:
             raise ImportError(
                 "Google AI library not installed. Install with: pip install google-generativeai pillow"
             )
-        
+
         genai.configure(api_key=self.api_key)
-        model = genai.GenerativeModel(self.model)
-        
+
+        # Gemini supports system instructions via GenerativeModel parameter
+        if system_prompt:
+            model = genai.GenerativeModel(self.model, system_instruction=system_prompt)
+        else:
+            model = genai.GenerativeModel(self.model)
+
         # Build content (text + optional images)
         if images:
             # Gemini format: list with prompt text followed by PIL Image objects
@@ -823,7 +843,7 @@ class LLMClient:
         else:
             # Standard text-only
             content = prompt
-        
+
         response = model.generate_content(content)
         translation = response.text.strip()
         
@@ -832,20 +852,21 @@ class LLMClient:
         
         return translation
     
-    def _call_ollama(self, prompt: str, max_tokens: Optional[int] = None) -> str:
+    def _call_ollama(self, prompt: str, max_tokens: Optional[int] = None, system_prompt: Optional[str] = None) -> str:
         """
         Call local Ollama server for translation.
-        
+
         Ollama provides a simple REST API compatible with local LLM inference.
         Models run entirely on the user's computer - no API keys, no internet required.
-        
+
         Args:
             prompt: The full prompt to send
             max_tokens: Maximum tokens to generate (default: 4096)
-            
+            system_prompt: Optional system prompt for AI behavior context
+
         Returns:
             Translated text
-            
+
         Raises:
             ConnectionError: If Ollama is not running
             ValueError: If model is not available
@@ -866,13 +887,17 @@ class LLMClient:
         print(f"🟠 _call_ollama START: model={self.model}, prompt_len={len(prompt)}, max_tokens={tokens_to_use}")
         print(f"🟠 Ollama endpoint: {endpoint}")
         
+        # Build messages list
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": prompt})
+
         # Build request payload
         # Using /api/chat for chat-style interaction (better for translation prompts)
         payload = {
             "model": self.model,
-            "messages": [
-                {"role": "user", "content": prompt}
-            ],
+            "messages": messages,
             "stream": False,  # Get complete response at once
             "options": {
                 "temperature": 0.3,  # Low temperature for consistent translations

@@ -3795,6 +3795,26 @@ Output complete ACTION."""
                 from PyQt6.QtWidgets import QApplication
                 QApplication.processEvents()
 
+            # System prompt that explains the ACTION format to the AI
+            ai_system_prompt = """You are an AI assistant for Supervertaler, a professional translation workbench.
+
+You can execute actions using a special format. When you need to create, modify, or manage prompts, output ACTION blocks in this EXACT format:
+
+ACTION:function_name PARAMS:{"param1": "value1", "param2": "value2"}
+
+Available actions:
+- create_prompt: Create a new prompt. Required params: name, content. Optional: folder, description, activate
+- update_prompt: Update an existing prompt. Required params: name. Optional: content, folder, description
+- delete_prompt: Delete a prompt. Required params: name
+- list_prompts: List all prompts. Optional params: folder
+- activate_prompt: Set a prompt as active. Required params: name
+
+IMPORTANT:
+1. Output ONLY the ACTION block when asked to create/modify prompts - no explanatory text
+2. The ACTION must be on a single line (PARAMS JSON can be multiline if needed)
+3. Use valid JSON for PARAMS (double quotes for strings, escape special characters)
+4. Do not wrap in code fences or add any markdown formatting"""
+
             # Call LLM using translate method with custom prompt
             # The translate method accepts a custom_prompt parameter that we can use for any text generation
             self.log_message("[AI Assistant] Calling LLM translate method...")
@@ -3802,7 +3822,8 @@ Output complete ACTION."""
                 text="",  # Empty text since we're using custom_prompt
                 source_lang="en",
                 target_lang="en",
-                custom_prompt=prompt
+                custom_prompt=prompt,
+                system_prompt=ai_system_prompt
             )
 
             # Log the response

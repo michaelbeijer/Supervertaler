@@ -32,7 +32,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.195"
+__version__ = "1.9.196"
 __phase__ = "0.9"
 __release_date__ = "2026-02-02"
 __edition__ = "Qt"
@@ -18307,14 +18307,15 @@ class SupervertalerQt(QMainWindow):
 
     def _create_voice_dictation_settings_tab(self):
         """Create Supervoice Settings tab content with Voice Commands"""
-        from PyQt6.QtWidgets import (QGroupBox, QPushButton, QComboBox, QSpinBox, 
+        from PyQt6.QtWidgets import (QGroupBox, QPushButton, QComboBox, QSpinBox,
                                      QTableWidget, QTableWidgetItem, QHeaderView,
-                                     QAbstractItemView, QCheckBox)
+                                     QAbstractItemView, QCheckBox, QSplitter)
+        from modules.keyboard_shortcuts_widget import CheckmarkCheckBox
 
         tab = QWidget()
-        layout = QVBoxLayout(tab)
-        layout.setContentsMargins(20, 20, 20, 20)
-        layout.setSpacing(15)
+        main_layout = QVBoxLayout(tab)
+        main_layout.setContentsMargins(20, 20, 20, 20)
+        main_layout.setSpacing(15)
 
         # Load current dictation settings
         dictation_settings = self.load_dictation_settings()
@@ -18327,18 +18328,32 @@ class SupervertalerQt(QMainWindow):
         header_info.setTextFormat(Qt.TextFormat.RichText)
         header_info.setStyleSheet("font-size: 9pt; color: #444; padding: 10px; background-color: #E3F2FD; border-radius: 4px;")
         header_info.setWordWrap(True)
-        layout.addWidget(header_info)
+        main_layout.addWidget(header_info)
 
-        # ===== Voice Commands Section =====
-        commands_group = QGroupBox("🗣️ Voice Commands (Talon-style)")
-        commands_layout = QVBoxLayout()
+        # ===== Two-column layout: Left = Settings, Right = Voice Commands Table =====
+        columns_layout = QHBoxLayout()
+        columns_layout.setSpacing(15)
 
-        # Enable voice commands checkbox
-        voice_cmd_enabled = QCheckBox("Enable voice commands (spoken phrases trigger actions)")
+        # --- LEFT COLUMN: Settings ---
+        left_column = QVBoxLayout()
+        left_column.setSpacing(15)
+
+        # Enable voice commands checkbox (green checkmark style)
+        voice_cmd_enabled = CheckmarkCheckBox("Enable voice commands (spoken phrases trigger actions)")
         voice_cmd_enabled.setChecked(dictation_settings.get('voice_commands_enabled', True))
         voice_cmd_enabled.setToolTip("When enabled, spoken phrases like 'confirm' or 'next segment' will execute commands instead of being inserted as text")
-        commands_layout.addWidget(voice_cmd_enabled)
+        left_column.addWidget(voice_cmd_enabled)
         self.voice_commands_enabled_checkbox = voice_cmd_enabled
+
+        # Create a layout variable for settings sections to be added below
+        layout = left_column
+
+        # --- RIGHT COLUMN: Voice Commands Table ---
+        right_column = QVBoxLayout()
+        right_column.setSpacing(10)
+
+        commands_group = QGroupBox("🗣️ Voice Commands (Talon-style)")
+        commands_layout = QVBoxLayout()
 
         commands_info = QLabel(
             "Voice commands let you control Supervertaler by voice. Say a phrase to execute an action.\n"
@@ -18358,38 +18373,47 @@ class SupervertalerQt(QMainWindow):
         self.voice_commands_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
         self.voice_commands_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.voice_commands_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
-        self.voice_commands_table.setMinimumHeight(200)
-        self.voice_commands_table.setMaximumHeight(300)
-        
+        self.voice_commands_table.setMinimumHeight(350)
+
         # Populate table with current commands
         self._populate_voice_commands_table()
         commands_layout.addWidget(self.voice_commands_table)
 
         # Command buttons
         cmd_btn_layout = QHBoxLayout()
-        
-        add_cmd_btn = QPushButton("➕ Add Command")
+
+        add_cmd_btn = QPushButton("➕ Add")
         add_cmd_btn.clicked.connect(self._add_voice_command)
         cmd_btn_layout.addWidget(add_cmd_btn)
-        
-        edit_cmd_btn = QPushButton("✏️ Edit Command")
+
+        edit_cmd_btn = QPushButton("✏️ Edit")
         edit_cmd_btn.clicked.connect(self._edit_voice_command)
         cmd_btn_layout.addWidget(edit_cmd_btn)
-        
-        remove_cmd_btn = QPushButton("🗑️ Remove Command")
+
+        remove_cmd_btn = QPushButton("🗑️ Remove")
         remove_cmd_btn.clicked.connect(self._remove_voice_command)
         cmd_btn_layout.addWidget(remove_cmd_btn)
-        
+
         cmd_btn_layout.addStretch()
-        
-        reset_cmd_btn = QPushButton("🔄 Reset to Defaults")
+
+        reset_cmd_btn = QPushButton("🔄 Reset")
         reset_cmd_btn.clicked.connect(self._reset_voice_commands)
         cmd_btn_layout.addWidget(reset_cmd_btn)
-        
+
         commands_layout.addLayout(cmd_btn_layout)
 
         commands_group.setLayout(commands_layout)
-        layout.addWidget(commands_group)
+        right_column.addWidget(commands_group)
+        right_column.addStretch()
+
+        # Add columns to the two-column layout
+        left_widget = QWidget()
+        left_widget.setLayout(left_column)
+        right_widget = QWidget()
+        right_widget.setLayout(right_column)
+
+        columns_layout.addWidget(left_widget, stretch=1)
+        columns_layout.addWidget(right_widget, stretch=1)
 
         # ===== Always-On Mode Section =====
         alwayson_group = QGroupBox("🎧 Always-On Listening Mode")
@@ -18552,7 +18576,13 @@ class SupervertalerQt(QMainWindow):
         ahk_group.setLayout(ahk_layout)
         layout.addWidget(ahk_group)
 
-        # Save button
+        # Add stretch to left column to push content up
+        layout.addStretch()
+
+        # Add two-column layout to main layout
+        main_layout.addLayout(columns_layout, stretch=1)
+
+        # Save button (full width, below the two columns)
         save_btn = QPushButton("💾 Save Supervoice Settings")
         save_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 10px; border: none; outline: none;")
         save_btn.clicked.connect(lambda: self._save_voice_settings(
@@ -18561,14 +18591,12 @@ class SupervertalerQt(QMainWindow):
             lang_combo.currentText(),
             voice_cmd_enabled.isChecked()
         ))
-        layout.addWidget(save_btn)
+        main_layout.addWidget(save_btn)
 
         # Store references
         self.dictation_model_combo = model_combo
         self.dictation_duration_spin = duration_spin
         self.dictation_lang_combo = lang_combo
-
-        layout.addStretch()
 
         return tab
 
