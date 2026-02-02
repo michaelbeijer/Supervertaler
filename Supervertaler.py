@@ -474,33 +474,6 @@ def strip_outer_wrapping_tags(text: str) -> tuple:
     return (inner_content, tag_name)
 
 
-def get_list_prefix_for_tag(tag_name: str, list_position: int = 1) -> str:
-    """
-    Get visual prefix for list items in WYSIWYG mode.
-
-    Args:
-        tag_name: The outer wrapping tag name (e.g., 'li-o', 'li-b', 'li')
-        list_position: Position within the list (1-indexed) for ordered lists
-
-    Returns:
-        Visual prefix string: "1. ", "2. ", "• ", etc., or "" if not a list tag
-    """
-    if not tag_name:
-        return ""
-
-    tag_lower = tag_name.lower()
-
-    # Ordered list items
-    if tag_lower == 'li-o':
-        return f"{list_position}. "
-
-    # Unordered/bullet list items
-    if tag_lower in ('li-b', 'li'):
-        return "• "
-
-    return ""
-
-
 def has_formatting_tags(text: str) -> bool:
     """
     Check if text contains any formatting tags.
@@ -20435,7 +20408,6 @@ class SupervertalerQt(QMainWindow):
             hide_tags_value = hide_wrapping_tags_check.isChecked()
             general_settings['hide_outer_wrapping_tags'] = hide_tags_value
             self.hide_outer_wrapping_tags = hide_tags_value
-            self.log(f"🏷️ Saving hide_outer_wrapping_tags = {hide_tags_value}")
 
         # Add focus border settings if provided
         if border_color_btn is not None:
@@ -23799,12 +23771,20 @@ class SupervertalerQt(QMainWindow):
         - 'latest': Overwrites existing entries with same source (keeps only newest translation)
         - 'all': Keeps all translations with different targets (default SQLite behavior)
 
+        If hide_outer_wrapping_tags is enabled, strips structural tags (like <li-o>, <p>)
+        before saving to TM for better matching leverage.
+
         Args:
             source: Source text
             target: Target text
         """
         if not self.current_project:
             return
+
+        # Strip outer structural tags if setting is enabled (for cleaner TM matching)
+        if self.hide_outer_wrapping_tags:
+            source, _ = strip_outer_wrapping_tags(source)
+            target, _ = strip_outer_wrapping_tags(target)
 
         if not hasattr(self.current_project, 'source_lang') or not hasattr(self.current_project, 'target_lang'):
             return
@@ -29948,19 +29928,9 @@ class SupervertalerQt(QMainWindow):
                 # Strip outer wrapping tags if setting is enabled (display only, data unchanged)
                 source_for_display = segment.source
                 stripped_source_tag = None
-                list_prefix = ""
-                # Debug: Log the setting value on first row only
-                if row == 0:
-                    self.log(f"🏷️ hide_outer_wrapping_tags = {self.hide_outer_wrapping_tags}")
                 if self.hide_outer_wrapping_tags:
                     stripped, stripped_source_tag = strip_outer_wrapping_tags(segment.source)
                     source_for_display = stripped
-                    # Add WYSIWYG list prefix (e.g., "1. " or "• ") for list items
-                    if stripped_source_tag:
-                        list_pos = list_numbers.get(row, 1)
-                        list_prefix = get_list_prefix_for_tag(stripped_source_tag, list_pos)
-                        if list_prefix:
-                            source_for_display = list_prefix + source_for_display
                 # Apply invisible character replacements for display only
                 source_display_text = self.apply_invisible_replacements(source_for_display)
                 source_editor = ReadOnlyGridTextEditor(source_display_text, self.table, row)
@@ -29984,26 +29954,19 @@ class SupervertalerQt(QMainWindow):
                 # Strip outer wrapping tags if enabled (will be auto-restored when saving)
                 target_for_display = segment.target
                 stripped_target_tag = None
-                target_list_prefix = ""
                 if self.hide_outer_wrapping_tags:
                     stripped, stripped_target_tag = strip_outer_wrapping_tags(segment.target)
                     target_for_display = stripped
                     # Store stripped tag on segment for restore during save
                     # Use source tag as reference (target should match source structure)
                     segment._stripped_outer_tag = stripped_source_tag or stripped_target_tag
-                    # Add WYSIWYG list prefix for display (same as source)
-                    target_list_prefix = list_prefix  # Reuse the prefix calculated for source
 
                 # Apply invisible character replacements for display (will be reversed when saving)
                 target_display_text = self.apply_invisible_replacements(target_for_display)
-                # Add list prefix for display (stored separately so we can strip it on save)
-                if target_list_prefix:
-                    target_display_text = target_list_prefix + target_display_text
                 target_editor = EditableGridTextEditor(target_display_text, self.table, row, self.table)
                 target_editor.setFont(font)
-                # Store stripped tag and list prefix on editor for auto-restore
+                # Store stripped tag on editor for auto-restore
                 target_editor._stripped_outer_tag = stripped_source_tag or stripped_target_tag
-                target_editor._list_prefix = target_list_prefix
                 
                 # Connect text changes to update segment
                 # Use a factory function to create a proper closure that captures the segment ID
@@ -30014,11 +29977,6 @@ class SupervertalerQt(QMainWindow):
                     def on_target_text_changed():
                         nonlocal debounce_timer
                         new_text = editor_widget.toPlainText()
-
-                        # Strip WYSIWYG list prefix if present (display-only, not saved)
-                        list_prefix = getattr(editor_widget, '_list_prefix', '')
-                        if list_prefix and new_text.startswith(list_prefix):
-                            new_text = new_text[len(list_prefix):]
 
                         # Reverse invisible character replacements before saving
                         new_text = self.reverse_invisible_replacements(new_text)
@@ -31116,14 +31074,15 @@ class SupervertalerQt(QMainWindow):
         import re
         list_numbers = {}  # {segment_id: list_number}
         list_counter = 0
-        
+        prev_was_ordered_list = False
+
         for seg in self.current_project.segments:
             source_text = seg.source.strip() if seg.source else ""
-            
+
             # Check for list tags (new <li-o>, <li-b> and legacy <li>)
             has_li_ordered = '<li-o>' in source_text or ('<li>' in source_text and '<li-b>' not in source_text)
             has_li_bullet = '<li-b>' in source_text
-            
+
             if has_li_ordered:
                 # Check for explicit number in text
                 num_match = re.match(r'^<li(?:-o)?>\s*(\d+)[.)\s]', source_text)
@@ -31131,8 +31090,15 @@ class SupervertalerQt(QMainWindow):
                     list_numbers[seg.id] = int(num_match.group(1))
                     list_counter = int(num_match.group(1))
                 else:
+                    # Reset counter if starting a new list (gap since last ordered item)
+                    if not prev_was_ordered_list:
+                        list_counter = 0
                     list_counter += 1
                     list_numbers[seg.id] = list_counter
+                prev_was_ordered_list = True
+            else:
+                # Not an ordered list item - mark gap for potential new list
+                prev_was_ordered_list = False
 
         # Render all segments
         current_segment_id = self._get_current_segment_id()
@@ -31147,12 +31113,20 @@ class SupervertalerQt(QMainWindow):
             # Type field values: "para", "heading", "list_item", "table_cell", "Sub", "¶", etc.
             seg_type_lower = seg_type.lower() if seg_type else 'para'
             
-            # Check if this is a heading/subtitle
-            is_heading = ('Heading' in style or 'Title' in style or 'Subtitle' in style 
-                          or seg_type_lower in ('heading', 'sub', 'subtitle', 'title'))
-            
-            # Check if this is a list item
+            # Check if this is a list item (need source_text first)
             source_text = seg.source.strip() if seg.source else ""
+
+            # Check if this is a heading/subtitle
+            # Also detect bold-wrapped short text as section headings (e.g., <b>TECHNICAL FIELD</b>)
+            is_heading = ('Heading' in style or 'Title' in style or 'Subtitle' in style
+                          or seg_type_lower in ('heading', 'sub', 'subtitle', 'title'))
+
+            # Detect bold section headings: <b>TEXT</b> where text is short and likely a heading
+            if not is_heading and source_text.startswith('<b>') and source_text.endswith('</b>'):
+                inner_text = source_text[3:-4].strip()  # Remove <b> and </b>
+                # Short text (under 80 chars) that's bold is likely a section heading
+                if len(inner_text) < 80 and '<' not in inner_text:
+                    is_heading = True
             is_list_item = ('<li-o>' in source_text or '<li-b>' in source_text or 
                            '<li>' in source_text or seg_type_lower == 'list_item')
             
@@ -31171,9 +31145,15 @@ class SupervertalerQt(QMainWindow):
                 prev_type = getattr(prev_seg, 'type', 'para') or 'para'
                 prev_type_lower = prev_type.lower() if prev_type else 'para'
                 
-                prev_is_heading = ('Heading' in prev_style or 'Title' in prev_style or 
-                                   'Subtitle' in prev_style or 
+                prev_is_heading = ('Heading' in prev_style or 'Title' in prev_style or
+                                   'Subtitle' in prev_style or
                                    prev_type_lower in ('heading', 'sub', 'subtitle', 'title'))
+                # Also detect bold section headings in previous segment
+                prev_source = prev_seg.source.strip() if prev_seg.source else ""
+                if not prev_is_heading and prev_source.startswith('<b>') and prev_source.endswith('</b>'):
+                    prev_inner = prev_source[3:-4].strip()
+                    if len(prev_inner) < 80 and '<' not in prev_inner:
+                        prev_is_heading = True
                 prev_is_paragraph = prev_type == '¶' or prev_type_lower == 'para'
                 prev_is_list = prev_type_lower == 'list_item' or '<li' in (prev_seg.source or '')
                 
@@ -31195,9 +31175,15 @@ class SupervertalerQt(QMainWindow):
                     else:
                         # Same paragraph, running text
                         need_space = True
-                # 4. List items: single break (each on own line)
+                # 4. List items: ordered list items (like claims) get paragraph spacing
                 elif is_list_item or prev_is_list:
-                    need_single_break = True
+                    # Ordered list items (<li-o>) get double breaks for visual separation
+                    is_ordered_list = '<li-o>' in source_text or ('<li>' in source_text and '<li-b>' not in source_text)
+                    prev_is_ordered = '<li-o>' in (prev_seg.source or '') or ('<li>' in (prev_seg.source or '') and '<li-b>' not in (prev_seg.source or ''))
+                    if is_ordered_list or prev_is_ordered:
+                        need_double_break = True  # Paragraph-like spacing for numbered items
+                    else:
+                        need_single_break = True  # Bullet lists stay compact
                 # 5. Default: space (running text)
                 else:
                     need_space = True
@@ -31232,6 +31218,11 @@ class SupervertalerQt(QMainWindow):
                 char_format.setFontPointSize(13)
                 char_format.setFontWeight(QFont.Weight.Bold)
                 char_format.setForeground(QColor('#1f4068'))
+            elif is_heading:
+                # Bold section headings detected from <b>TEXT</b> pattern
+                char_format.setFontPointSize(12)
+                char_format.setFontWeight(QFont.Weight.Bold)
+                char_format.setForeground(QColor('#1a365d'))
             else:
                 char_format.setFontPointSize(11)
                 char_format.setForeground(QColor('#2d2d2d'))
@@ -31952,8 +31943,6 @@ class SupervertalerQt(QMainWindow):
 
         # Load hide outer wrapping tags setting
         self.hide_outer_wrapping_tags = settings.get('hide_outer_wrapping_tags', False)
-        # Debug: Log during settings load - this won't show in UI log but helps with debugging
-        print(f"[DEBUG] Loaded hide_outer_wrapping_tags = {self.hide_outer_wrapping_tags}")
 
         # Load termbase highlight style settings
         self.termbase_highlight_style = settings.get('termbase_highlight_style', 'semibold')
@@ -34892,12 +34881,20 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         self.log("💡 Tip: Go to Resources tab to activate TMs and glossaries for this project")
 
     def search_and_display_tm_matches(self, source_text: str):
-        """Search TM and Termbases and display matches with visual diff for fuzzy matches"""
+        """Search TM and Termbases and display matches with visual diff for fuzzy matches.
+
+        If hide_outer_wrapping_tags is enabled, strips structural tags (like <li-o>, <p>)
+        from the query before searching for better TM matching.
+        """
         self.log(f"🚨 search_and_display_tm_matches called with source_text: '{source_text[:50]}...'")
         if not source_text or not source_text.strip():
             if hasattr(self, 'tm_display'):
                 self.tm_display.clear()
             return
+
+        # Strip outer structural tags if setting is enabled (for cleaner TM matching)
+        if self.hide_outer_wrapping_tags:
+            source_text, _ = strip_outer_wrapping_tags(source_text)
         
         # Initialize TM if not already done
         if not self.tm_database and self.current_project:
@@ -34974,14 +34971,18 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                                 # Update grid (using cell widget)
                                 target_widget = self.table.cellWidget(current_row, 3)
                                 if target_widget and isinstance(target_widget, EditableGridTextEditor):
-                                    target_widget.setPlainText(segment.target)
-                                
+                                    # Strip outer wrapping tags if setting is enabled
+                                    display_text = segment.target
+                                    if self.hide_outer_wrapping_tags:
+                                        display_text, _ = strip_outer_wrapping_tags(display_text)
+                                    target_widget.setPlainText(display_text)
+
                                 # Update status column
                                 status_item = self.table.item(current_row, 1)
                                 if status_item:
                                     status_item.setText("Translated")
                                     status_item.setBackground(QColor("#d1fae5"))  # Light green for translated
-                                
+
                                 # Update project modified status (progress is handled by status bar)
                                 self.log(f"✨ Auto-propagated 100% TM match for segment #{current_row + 1}")
             
@@ -36039,7 +36040,11 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                 target_widget = self.table.cellWidget(row, 3)
                 if target_widget and hasattr(target_widget, 'setPlainText'):
                     target_widget.blockSignals(True)
-                    target_widget.setPlainText(segment.target)
+                    # Strip outer wrapping tags if setting is enabled
+                    display_text = segment.target
+                    if self.hide_outer_wrapping_tags:
+                        display_text, _ = strip_outer_wrapping_tags(display_text)
+                    target_widget.setPlainText(display_text)
                     target_widget.blockSignals(False)
             self.table.viewport().update()
         
@@ -36488,7 +36493,11 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                     cell_widget = self.table.cellWidget(row, col)
                     if cell_widget and hasattr(cell_widget, 'setPlainText'):
                         cell_widget.blockSignals(True)
-                        cell_widget.setPlainText(new_text)
+                        # Strip outer wrapping tags if setting is enabled
+                        display_text = new_text
+                        if self.hide_outer_wrapping_tags:
+                            display_text, _ = strip_outer_wrapping_tags(display_text)
+                        cell_widget.setPlainText(display_text)
                         cell_widget.blockSignals(False)
             
             self.project_modified = True
@@ -39578,13 +39587,19 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             if target_widget and isinstance(target_widget, QTextEdit):
                 from PyQt6.QtGui import QTextCursor
 
+                # Strip outer wrapping tags for display if setting is enabled
+                display_text = new_text
+                if self.hide_outer_wrapping_tags:
+                    display_text, _ = strip_outer_wrapping_tags(display_text)
+
                 cursor = target_widget.textCursor()
                 cursor.beginEditBlock()
                 cursor.select(QTextCursor.SelectionType.Document)
-                cursor.insertText(new_text)
+                cursor.insertText(display_text)
                 cursor.endEditBlock()
 
-                segment.target = target_widget.toPlainText()
+                # Store full text (with tags) in segment, but use displayed text if tags are hidden
+                segment.target = new_text  # Keep full text with tags
                 target_widget.setFocus()
                 target_widget.moveCursor(QTextCursor.MoveOperation.End)
 
@@ -39596,7 +39611,11 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             # Fallback: no editor widget, update data and (if possible) update cell
             segment.target = new_text
             if target_widget and hasattr(target_widget, 'setPlainText'):
-                target_widget.setPlainText(new_text)
+                # Strip outer wrapping tags if setting is enabled
+                display_text = new_text
+                if self.hide_outer_wrapping_tags:
+                    display_text, _ = strip_outer_wrapping_tags(display_text)
+                target_widget.setPlainText(display_text)
             label = f" ({source_label})" if source_label else ""
             self.log(f"✓ Replaced target text in segment {segment_id}{label}")
             self._play_sound_effect('match_inserted')
@@ -40559,24 +40578,37 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         """Refresh all visible cells to reflect current tag view mode"""
         if not hasattr(self, 'table') or not self.current_project:
             return
-        
+
         # Get current visible rows
         for row in range(self.table.rowCount()):
             # Get segment for this row
             if row >= len(self.current_project.segments):
                 continue
-            
+
             segment = self.current_project.segments[row]
-            
+
+            # Apply tag stripping if enabled
+            source_for_display = segment.source
+            target_for_display = segment.target
+
+            if self.hide_outer_wrapping_tags:
+                # Strip outer wrapping tags from source
+                stripped_source, _ = strip_outer_wrapping_tags(segment.source)
+                source_for_display = stripped_source
+
+                # Strip outer wrapping tags from target
+                stripped_target, _ = strip_outer_wrapping_tags(segment.target)
+                target_for_display = stripped_target
+
             # Update source cell (column 2)
             source_widget = self.table.cellWidget(row, 2)
             if source_widget and hasattr(source_widget, 'update_display_mode'):
-                source_widget.update_display_mode(segment.source, self.show_tags)
-            
+                source_widget.update_display_mode(source_for_display, self.show_tags)
+
             # Update target cell (column 3)
             target_widget = self.table.cellWidget(row, 3)
             if target_widget and hasattr(target_widget, 'update_display_mode'):
-                target_widget.update_display_mode(segment.target, self.show_tags)
+                target_widget.update_display_mode(target_for_display, self.show_tags)
 
     def update_tab_segment_editor(self, segment_id: int, source_text: str, target_text: str, 
                                    status: str = "untranslated", notes: str = ""):
@@ -42098,15 +42130,20 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                         tm_ids = self.tm_metadata_mgr.get_active_tm_ids(project_id)
                 
                 try:
+                    # Strip outer structural tags if setting is enabled (for cleaner TM matching)
+                    search_source = segment.source
+                    if self.hide_outer_wrapping_tags:
+                        search_source, _ = strip_outer_wrapping_tags(search_source)
+
                     if check_tm_exact_only:
                         # Use exact match only (faster - O(1) hash lookup)
-                        exact_match = self.tm_database.get_exact_match(segment.source, tm_ids=tm_ids)
+                        exact_match = self.tm_database.get_exact_match(search_source, tm_ids=tm_ids)
                         if exact_match:
                             tm_match = exact_match.get('target_text', '')
                             self.log(f"✓ Found 100% TM match (exact) for segment #{segment.id}")
                     else:
                         # Use fuzzy search (includes 100% matches)
-                        matches = self.tm_database.search_all(segment.source, tm_ids=tm_ids, enabled_only=False, max_matches=1)
+                        matches = self.tm_database.search_all(search_source, tm_ids=tm_ids, enabled_only=False, max_matches=1)
                         if matches and matches[0].get('match_pct', 0) == 100:
                             tm_match = matches[0].get('target', '')
                             self.log(f"✓ Found 100% TM match for segment #{segment.id}")
@@ -43206,10 +43243,15 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                 
                 try:
                     match = None
-                    
+
+                    # Strip outer structural tags if setting is enabled (for cleaner TM matching)
+                    search_source = segment.source
+                    if self.hide_outer_wrapping_tags:
+                        search_source, _ = strip_outer_wrapping_tags(search_source)
+
                     if tm_exact_only:
                         # Exact match only - use hash lookup (fast)
-                        match = self.tm_database.get_exact_match(segment.source, tm_ids=tm_ids)
+                        match = self.tm_database.get_exact_match(search_source, tm_ids=tm_ids)
                         print(f"DEBUG get_exact_match returned: type={type(match)}, value={match}")
                         if match and isinstance(match, dict):
                             segment.target = match.get('target_text', '')
@@ -43221,7 +43263,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                     else:
                         # Fuzzy matching enabled - get best match ≥75%
                         matches = self.tm_database.search_all(
-                            segment.source,
+                            search_source,
                             tm_ids=tm_ids,
                             enabled_only=False,
                             max_matches=1
@@ -43243,7 +43285,11 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                     if segment.target:
                         target_widget = self.table.cellWidget(row_index, 3)
                         if target_widget and isinstance(target_widget, EditableGridTextEditor):
-                            target_widget.setPlainText(segment.target)
+                            # Strip outer wrapping tags if setting is enabled
+                            display_text = segment.target
+                            if self.hide_outer_wrapping_tags:
+                                display_text, _ = strip_outer_wrapping_tags(display_text)
+                            target_widget.setPlainText(display_text)
                         self.update_status_icon(row_index, segment.status)
                         QApplication.processEvents()
                         
@@ -43312,11 +43358,15 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             if success and current <= len(segments_needing_translation):
                 row_index, segment = segments_needing_translation[current - 1]
                 if row_index < self.table.rowCount():
+                    # Strip outer wrapping tags if setting is enabled
+                    display_text = segment.target
+                    if self.hide_outer_wrapping_tags:
+                        display_text, _ = strip_outer_wrapping_tags(display_text)
                     target_widget = self.table.cellWidget(row_index, 3)
                     if target_widget and isinstance(target_widget, EditableGridTextEditor):
-                        target_widget.setPlainText(segment.target)
+                        target_widget.setPlainText(display_text)
                     else:
-                        self.table.setItem(row_index, 3, QTableWidgetItem(segment.target))
+                        self.table.setItem(row_index, 3, QTableWidgetItem(display_text))
                     self.update_status_icon(row_index, segment.status)
         
         def handle_translation_complete(final_success_count, final_error_count):
@@ -43484,9 +43534,14 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                     # Check each segment against TM
                     for row_index, segment in segments_to_translate:
                         try:
+                            # Strip outer structural tags if setting is enabled (for cleaner TM matching)
+                            search_source = segment.source
+                            if self.hide_outer_wrapping_tags:
+                                search_source, _ = strip_outer_wrapping_tags(search_source)
+
                             if check_tm_exact_only:
                                 # Use exact match only (faster - O(1) hash lookup)
-                                exact_match = self.tm_database.get_exact_match(segment.source, tm_ids=tm_ids)
+                                exact_match = self.tm_database.get_exact_match(search_source, tm_ids=tm_ids)
                                 if exact_match:
                                     # Found 100% exact match - auto-insert it
                                     tm_match = exact_match.get('target_text', '')
@@ -43510,7 +43565,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                                     segments_needing_translation.append((row_index, segment))
                             else:
                                 # Use fuzzy search (includes 100% matches)
-                                matches = self.tm_database.search_all(segment.source, tm_ids=tm_ids, enabled_only=False, max_matches=1)
+                                matches = self.tm_database.search_all(search_source, tm_ids=tm_ids, enabled_only=False, max_matches=1)
                                 if matches and matches[0].get('match_pct', 0) == 100:
                                     # Found 100% match - auto-insert it
                                     tm_match = matches[0].get('target', '')
@@ -43589,8 +43644,13 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                 # Translate each segment from TM
                 for row_index, segment in segments_needing_translation:
                     try:
+                        # Strip outer structural tags if setting is enabled (for cleaner TM matching)
+                        search_source = segment.source
+                        if self.hide_outer_wrapping_tags:
+                            search_source, _ = strip_outer_wrapping_tags(search_source)
+
                         # Search TM for best match
-                        matches = self.tm_database.search_all(segment.source, tm_ids=tm_ids, enabled_only=False, max_matches=1)
+                        matches = self.tm_database.search_all(search_source, tm_ids=tm_ids, enabled_only=False, max_matches=1)
                         
                         if matches and len(matches) > 0:
                             match = matches[0]
@@ -45396,8 +45456,12 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                     if tm_ids is not None and isinstance(tm_ids, list) and len(tm_ids) == 0:
                         all_tm_matches = []
                     else:
+                        # Strip outer structural tags if setting is enabled (for cleaner TM matching)
+                        search_source = segment.source
+                        if self.hide_outer_wrapping_tags:
+                            search_source, _ = strip_outer_wrapping_tags(search_source)
                         # Search using TMDatabase (includes bidirectional + base language matching)
-                        all_tm_matches = self.tm_database.search_all(segment.source, tm_ids=tm_ids, enabled_only=False, max_matches=10)
+                        all_tm_matches = self.tm_database.search_all(search_source, tm_ids=tm_ids, enabled_only=False, max_matches=10)
                     
                     # Single consolidated log message for TM search results
                     if all_tm_matches:

@@ -2,9 +2,27 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.198 (February 2, 2026)
+**Current Version:** v1.9.202 (February 2, 2026)
 
 
+
+## v1.9.202 - February 2, 2026
+
+### ✨ New Features
+
+- **Clean TM Storage**: When "Hide outer wrapping tags" is enabled, structural tags like `<li-o>`, `<p>`, etc. are now stripped when saving to TM and when searching TM. This ensures better matching leverage - a segment `<li-o>Hello world</li-o>` will match a TM entry `Hello world` at 100%.
+
+### 🐛 Bug Fixes
+
+- **Find-and-Replace Tag Display**: Fixed an issue where outer wrapping tags would reappear in the grid after find-and-replace operations. All cell update operations now respect the "Hide outer wrapping tags" setting.
+
+- **Preview Panel List Numbering**: Fixed claims/numbered lists starting at wrong number (e.g., claim #1 showing as "2." instead of "1."). The list counter now properly resets when starting a new list.
+
+- **Preview Panel Line Breaks**: Ordered list items (like patent claims) now have proper paragraph-like spacing instead of running together.
+
+- **Preview Section Headings**: Bold-wrapped section headings (like "CLAIMS", "TECHNICAL FIELD", "PRIOR ART") are now properly detected as headings with double line breaks before/after and bold formatting.
+
+---
 
 ## v1.9.198 - February 2, 2026
 
