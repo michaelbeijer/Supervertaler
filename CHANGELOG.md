@@ -10,7 +10,7 @@ All notable changes to Supervertaler are documented in this file.
 
 ### 🐛 Bug Fixes
 
-- **AI Assistant "Analyze Project" Fixed**: Fixed a bug where clicking "Analyze Project & Generate Prompts" in the AI Assistant would fail with "AI responded but no actions were found". The issue was that the LLM wasn't receiving a system prompt explaining the ACTION format. Now all providers (OpenAI, Claude, Gemini, Ollama) receive proper instructions on how to format their responses.
+- **AI Assistant "Analyze Project" Fixed** ([#132](https://github.com/michaelbeijer/Supervertaler/issues/132)): Fixed a bug where clicking "Analyze Project & Generate Prompts" in the AI Assistant would fail with "AI responded but no actions were found". The issue was that the LLM wasn't receiving a system prompt explaining the ACTION format. Now all providers (OpenAI, Claude, Gemini, Ollama) receive proper instructions on how to format their responses.
 
 ### 🎨 UI Improvements
 
