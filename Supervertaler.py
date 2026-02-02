@@ -17808,10 +17808,10 @@ class SupervertalerQt(QMainWindow):
         hide_wrapping_tags_check = CheckmarkCheckBox("Hide outer wrapping tags in grid (e.g. <li-o>...</li-o>)")
         hide_wrapping_tags_check.setChecked(font_settings.get('hide_outer_wrapping_tags', False))
         hide_wrapping_tags_check.setToolTip(
-            "When enabled, structural tags that wrap the entire segment (like <li-o>, <p>, <td>) are hidden in the grid.\n"
-            "The segment type is already shown in the Type column, so this reduces visual clutter.\n"
-            "Inner formatting tags like <b>bold</b> are still shown.\n"
-            "This affects the Source column display only - the Target column keeps tags for editing."
+            "When enabled, structural tags that wrap the entire segment (like <li-o>, <p>, <td>) are hidden.\n"
+            "Tags are automatically restored when saving. List items show visual prefixes (1. 2. or •).\n"
+            "The segment type is shown in the Type column, so outer tags are redundant.\n"
+            "Inner formatting tags like <b>bold</b> are still shown."
         )
         hide_wrapping_tags_layout.addWidget(hide_wrapping_tags_check)
         hide_wrapping_tags_layout.addStretch()
@@ -20432,8 +20432,10 @@ class SupervertalerQt(QMainWindow):
 
         # Add hide outer wrapping tags setting if provided
         if hide_wrapping_tags_check is not None:
-            general_settings['hide_outer_wrapping_tags'] = hide_wrapping_tags_check.isChecked()
-            self.hide_outer_wrapping_tags = hide_wrapping_tags_check.isChecked()
+            hide_tags_value = hide_wrapping_tags_check.isChecked()
+            general_settings['hide_outer_wrapping_tags'] = hide_tags_value
+            self.hide_outer_wrapping_tags = hide_tags_value
+            self.log(f"🏷️ Saving hide_outer_wrapping_tags = {hide_tags_value}")
 
         # Add focus border settings if provided
         if border_color_btn is not None:
@@ -29947,6 +29949,9 @@ class SupervertalerQt(QMainWindow):
                 source_for_display = segment.source
                 stripped_source_tag = None
                 list_prefix = ""
+                # Debug: Log the setting value on first row only
+                if row == 0:
+                    self.log(f"🏷️ hide_outer_wrapping_tags = {self.hide_outer_wrapping_tags}")
                 if self.hide_outer_wrapping_tags:
                     stripped, stripped_source_tag = strip_outer_wrapping_tags(segment.source)
                     source_for_display = stripped
@@ -31947,6 +31952,8 @@ class SupervertalerQt(QMainWindow):
 
         # Load hide outer wrapping tags setting
         self.hide_outer_wrapping_tags = settings.get('hide_outer_wrapping_tags', False)
+        # Debug: Log during settings load - this won't show in UI log but helps with debugging
+        print(f"[DEBUG] Loaded hide_outer_wrapping_tags = {self.hide_outer_wrapping_tags}")
 
         # Load termbase highlight style settings
         self.termbase_highlight_style = settings.get('termbase_highlight_style', 'semibold')
