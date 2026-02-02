@@ -2,9 +2,17 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.194 (February 1, 2026)
+**Current Version:** v1.9.195 (February 2, 2026)
 
 
+
+## v1.9.195 - February 2, 2026
+
+### 🏗️ Code Architecture
+
+- **Module Rename**: Renamed `mt_quick_popup.py` → `quicktrans.py` to align with the QuickTrans branding. This prepares the module for future standalone distribution as a separate Windows executable.
+
+---
 
 ## v1.9.194 - February 1, 2026
 

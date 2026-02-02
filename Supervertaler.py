@@ -32,9 +32,9 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.194"
+__version__ = "1.9.195"
 __phase__ = "0.9"
-__release_date__ = "2026-02-01"
+__release_date__ = "2026-02-02"
 __edition__ = "Qt"
 
 import sys
@@ -7447,7 +7447,7 @@ class SupervertalerQt(QMainWindow):
                 return
 
             # Import and create the popup
-            from modules.mt_quick_popup import MTQuickPopup
+            from modules.quicktrans import MTQuickPopup
 
             # Create popup
             popup = MTQuickPopup(
@@ -49563,7 +49563,7 @@ class SuperlookupTab(QWidget):
             target_lang = getattr(main_window, 'target_language', 'Dutch')
 
             # Import and show MT Quick Lookup popup
-            from modules.mt_quick_popup import MTQuickPopup
+            from modules.quicktrans import MTQuickPopup
 
             # Create popup without Qt parent so it can appear independently over any app
             # Pass main_window as parent_app for API access
