@@ -32,7 +32,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.196"
+__version__ = "1.9.197"
 __phase__ = "0.9"
 __release_date__ = "2026-02-02"
 __edition__ = "Qt"
@@ -391,16 +391,87 @@ def runs_to_tagged_text(paragraphs) -> str:
 def strip_formatting_tags(text: str) -> str:
     """
     Remove HTML formatting tags from text, leaving plain text.
-    
+
     Args:
         text: Text with HTML tags like <b>, </b>, <i>, </i>, <u>, </u>
-        
+
     Returns:
         Plain text without tags
     """
     import re
     # Remove <b>, </b>, <i>, </i>, <u>, </u> tags
     return re.sub(r'</?[biu]>', '', text)
+
+
+def strip_outer_wrapping_tags(text: str) -> tuple:
+    """
+    Strip outer wrapping tags from text if the entire segment is wrapped in a single tag pair.
+
+    This handles structural tags like <li-o>...</li-o>, <p>...</p>, <td>...</td>, etc.
+    Inner formatting tags like <b>...</b> are preserved.
+
+    Args:
+        text: Text that may be wrapped in outer structural tags
+
+    Returns:
+        Tuple of (stripped_text, tag_name) where tag_name is the outer tag that was stripped,
+        or (original_text, None) if no outer wrapping tag was found
+
+    Examples:
+        "<li-o>Hello <b>world</b></li-o>" -> ("Hello <b>world</b>", "li-o")
+        "<p>Simple text</p>" -> ("Simple text", "p")
+        "No tags here" -> ("No tags here", None)
+        "<b>Bold text</b>" -> ("<b>Bold text</b>", None)  # <b> is formatting, not structural
+    """
+    import re
+
+    if not text or not text.strip():
+        return (text, None)
+
+    text = text.strip()
+
+    # Structural tags that wrap entire segments (not inline formatting)
+    structural_tags = {
+        'li-o', 'li-b', 'li', 'p', 'td', 'th', 'tr', 'div', 'span',
+        'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'title', 'caption',
+        'blockquote', 'pre', 'code', 'dt', 'dd', 'header', 'footer',
+        'article', 'section', 'aside', 'nav', 'main', 'figure', 'figcaption'
+    }
+
+    # Pattern to match opening tag at start: <tag> or <tag attr="...">
+    opening_pattern = r'^<([a-zA-Z][a-zA-Z0-9-]*)(?:\s+[^>]*)?>(.*)$'
+    opening_match = re.match(opening_pattern, text, re.DOTALL)
+
+    if not opening_match:
+        return (text, None)
+
+    tag_name = opening_match.group(1).lower()
+    rest = opening_match.group(2)
+
+    # Only strip structural tags, not inline formatting like <b>, <i>, <u>, <em>, <strong>
+    if tag_name not in structural_tags:
+        return (text, None)
+
+    # Check if text ends with matching closing tag
+    closing_pattern = rf'^(.*)</{re.escape(tag_name)}>$'
+    closing_match = re.match(closing_pattern, rest, re.DOTALL | re.IGNORECASE)
+
+    if not closing_match:
+        return (text, None)
+
+    inner_content = closing_match.group(1)
+
+    # Verify this is truly a wrapping pair (no other occurrences of this tag inside)
+    # Count opening and closing tags of this type in the inner content
+    inner_opening_count = len(re.findall(rf'<{re.escape(tag_name)}(?:\s+[^>]*)?>',
+                                          inner_content, re.IGNORECASE))
+    inner_closing_count = len(re.findall(rf'</{re.escape(tag_name)}>', inner_content, re.IGNORECASE))
+
+    # If there are nested tags of the same type, don't strip
+    if inner_opening_count > 0 or inner_closing_count > 0:
+        return (text, None)
+
+    return (inner_content, tag_name)
 
 
 def has_formatting_tags(text: str) -> bool:
@@ -6222,7 +6293,10 @@ class SupervertalerQt(QMainWindow):
         self.enable_alternating_row_colors = True  # Enable alternating row colors by default
         self.even_row_color = '#FFFFFF'  # White for even rows
         self.odd_row_color = '#F0F0F0'  # Light gray for odd rows
-        
+
+        # Hide outer wrapping tags in grid display (e.g. <li-o>...</li-o>)
+        self.hide_outer_wrapping_tags = False  # Disabled by default
+
         # Termbase highlight style settings
         self.termbase_highlight_style = 'semibold'  # 'background', 'dotted', or 'semibold'
         self.termbase_dotted_color = '#808080'  # Medium gray for dotted underline (more visible)
@@ -17690,14 +17764,41 @@ class SupervertalerQt(QMainWindow):
         
         grid_group.setLayout(grid_layout)
         layout.addWidget(grid_group)
-        
-        # Translation Results Pane & Tag Coloring section
-        results_group = QGroupBox("📋 Translation Results Pane && Tag Colors")
+
+        # Grid Display Options section
+        grid_display_group = QGroupBox("📊 Grid Display Options")
+        grid_display_layout = QVBoxLayout()
+
+        grid_display_info = QLabel(
+            "Configure how content is displayed in the translation grid."
+        )
+        grid_display_info.setStyleSheet("font-size: 8pt; padding: 8px; border-radius: 2px;")
+        grid_display_info.setWordWrap(True)
+        grid_display_layout.addWidget(grid_display_info)
+
+        # Hide wrapping tags checkbox
+        hide_wrapping_tags_layout = QHBoxLayout()
+        hide_wrapping_tags_check = CheckmarkCheckBox("Hide outer wrapping tags in grid (e.g. <li-o>...</li-o>)")
+        hide_wrapping_tags_check.setChecked(font_settings.get('hide_outer_wrapping_tags', False))
+        hide_wrapping_tags_check.setToolTip(
+            "When enabled, structural tags that wrap the entire segment (like <li-o>, <p>, <td>) are hidden in the grid.\n"
+            "The segment type is already shown in the Type column, so this reduces visual clutter.\n"
+            "Inner formatting tags like <b>bold</b> are still shown.\n"
+            "This affects the Source column display only - the Target column keeps tags for editing."
+        )
+        hide_wrapping_tags_layout.addWidget(hide_wrapping_tags_check)
+        hide_wrapping_tags_layout.addStretch()
+        grid_display_layout.addLayout(hide_wrapping_tags_layout)
+
+        grid_display_group.setLayout(grid_display_layout)
+        layout.addWidget(grid_display_group)
+
+        # Match Panel & Tag Colors section
+        results_group = QGroupBox("📋 Match Panel && Tag Colors")
         results_layout = QVBoxLayout()
         
         results_size_info = QLabel(
-            "Set the default font sizes for the translation results pane.\n"
-            "You can also adjust these using View menu → Translation Results Pane."
+            "Set font sizes for the Match Panel (TM/termbase matches) and tag colors."
         )
         results_size_info.setStyleSheet("font-size: 8pt; padding: 8px; border-radius: 2px;")
         results_size_info.setWordWrap(True)
@@ -17737,7 +17838,7 @@ class SupervertalerQt(QMainWindow):
         show_tags_layout.addWidget(show_tags_check)
         show_tags_layout.addStretch()
         results_layout.addLayout(show_tags_layout)
-        
+
         # Tag highlight color picker
         tag_color_layout = QHBoxLayout()
         tag_color_layout.addWidget(QLabel("Tag Highlight Color:"))
@@ -18295,7 +18396,8 @@ class SupervertalerQt(QMainWindow):
                 grid_font_spin, match_font_spin, compare_font_spin, show_tags_check, tag_color_btn,
                 alt_colors_check, even_color_btn, odd_color_btn, invisible_char_color_btn, grid_font_family_combo,
                 termview_font_family_combo, termview_font_spin, termview_bold_check,
-                border_color_btn, border_thickness_spin, badge_text_color_btn, tabs_above_check
+                border_color_btn, border_thickness_spin, badge_text_color_btn, tabs_above_check,
+                hide_wrapping_tags_check
             )
         
         save_btn.clicked.connect(save_view_settings_with_scale)
@@ -20226,7 +20328,8 @@ class SupervertalerQt(QMainWindow):
     def _save_view_settings_from_ui(self, grid_spin, match_spin, compare_spin, show_tags_check=None, tag_color_btn=None,
                                      alt_colors_check=None, even_color_btn=None, odd_color_btn=None, invisible_char_color_btn=None,
                                      grid_font_family_combo=None, termview_font_family_combo=None, termview_font_spin=None, termview_bold_check=None,
-                                     border_color_btn=None, border_thickness_spin=None, badge_text_color_btn=None, tabs_above_check=None):
+                                     border_color_btn=None, border_thickness_spin=None, badge_text_color_btn=None, tabs_above_check=None,
+                                     hide_wrapping_tags_check=None):
         """Save view settings from UI"""
         # CRITICAL: Suppress TM saves during view settings update
         # Grid operations (setStyleSheet, rehighlight, etc.) can trigger textChanged events
@@ -20239,7 +20342,8 @@ class SupervertalerQt(QMainWindow):
                 grid_spin, match_spin, compare_spin, show_tags_check, tag_color_btn,
                 alt_colors_check, even_color_btn, odd_color_btn, invisible_char_color_btn,
                 grid_font_family_combo, termview_font_family_combo, termview_font_spin, termview_bold_check,
-                border_color_btn, border_thickness_spin, badge_text_color_btn, tabs_above_check
+                border_color_btn, border_thickness_spin, badge_text_color_btn, tabs_above_check,
+                hide_wrapping_tags_check
             )
         finally:
             self._suppress_target_change_handlers = previous_suppression
@@ -20247,16 +20351,18 @@ class SupervertalerQt(QMainWindow):
     def _save_view_settings_from_ui_impl(self, grid_spin, match_spin, compare_spin, show_tags_check=None, tag_color_btn=None,
                                      alt_colors_check=None, even_color_btn=None, odd_color_btn=None, invisible_char_color_btn=None,
                                      grid_font_family_combo=None, termview_font_family_combo=None, termview_font_spin=None, termview_bold_check=None,
-                                     border_color_btn=None, border_thickness_spin=None, badge_text_color_btn=None, tabs_above_check=None):
+                                     border_color_btn=None, border_thickness_spin=None, badge_text_color_btn=None, tabs_above_check=None,
+                                     hide_wrapping_tags_check=None):
         """Implementation of save view settings (called with TM saves suppressed)"""
-        general_settings = {
-            'restore_last_project': self.load_general_settings().get('restore_last_project', False),
-            'auto_propagate_exact_matches': self.auto_propagate_exact_matches,  # Keep existing value
+        # Load existing settings first to preserve all values, then update with new ones
+        general_settings = self.load_general_settings()
+        general_settings.update({
+            'auto_propagate_exact_matches': self.auto_propagate_exact_matches,
             'grid_font_size': grid_spin.value(),
             'results_match_font_size': match_spin.value(),
             'results_compare_font_size': compare_spin.value(),
-            'enable_tm_termbase_matching': self.enable_tm_matching  # Save TM/termbase matching state
-        }
+            'enable_tm_termbase_matching': self.enable_tm_matching
+        })
         
         # Add tabs above grid setting if provided
         if tabs_above_check is not None:
@@ -20296,7 +20402,12 @@ class SupervertalerQt(QMainWindow):
             if invisible_char_color:
                 general_settings['invisible_char_color'] = invisible_char_color
                 self.invisible_char_color = invisible_char_color
-        
+
+        # Add hide outer wrapping tags setting if provided
+        if hide_wrapping_tags_check is not None:
+            general_settings['hide_outer_wrapping_tags'] = hide_wrapping_tags_check.isChecked()
+            self.hide_outer_wrapping_tags = hide_wrapping_tags_check.isChecked()
+
         # Add focus border settings if provided
         if border_color_btn is not None:
             border_color = border_color_btn.property('selected_color')
@@ -20460,7 +20571,11 @@ class SupervertalerQt(QMainWindow):
             self.refresh_grid_tag_colors()
             # Also refresh row colors
             self.apply_alternating_row_colors()
-        
+
+        # Refresh source column if hide_outer_wrapping_tags setting changed
+        if hide_wrapping_tags_check is not None and hasattr(self, 'table') and self.table is not None:
+            self._refresh_source_column_display()
+
         self.log("✓ View settings saved and applied")
         # Use explicit QMessageBox instance to ensure proper dialog closing
         msg = QMessageBox(self)
@@ -29801,8 +29916,13 @@ class SupervertalerQt(QMainWindow):
                 self.table.setItem(row, 1, type_item)
                 
                 # Source - Use read-only QTextEdit widget for easy text selection
+                # Strip outer wrapping tags if setting is enabled (display only, data unchanged)
+                source_for_display = segment.source
+                if self.hide_outer_wrapping_tags:
+                    stripped, _ = strip_outer_wrapping_tags(segment.source)
+                    source_for_display = stripped
                 # Apply invisible character replacements for display only
-                source_display_text = self.apply_invisible_replacements(segment.source)
+                source_display_text = self.apply_invisible_replacements(source_for_display)
                 source_editor = ReadOnlyGridTextEditor(source_display_text, self.table, row)
                 
                 # Initialize empty termbase matches (will be populated lazily on segment selection or by background worker)
@@ -29821,6 +29941,7 @@ class SupervertalerQt(QMainWindow):
                 self.table.setItem(row, 2, source_item)
                 
                 # Target - Use editable QTextEdit widget for easy text selection and editing
+                # Note: We don't strip wrapping tags from target cells since users edit them directly
                 # Apply invisible character replacements for display (will be reversed when saving)
                 target_display_text = self.apply_invisible_replacements(segment.target)
                 target_editor = EditableGridTextEditor(target_display_text, self.table, row, self.table)
@@ -31758,7 +31879,10 @@ class SupervertalerQt(QMainWindow):
         self.enable_alternating_row_colors = settings.get('enable_alternating_row_colors', True)
         self.even_row_color = settings.get('even_row_color', '#FFFFFF')
         self.odd_row_color = settings.get('odd_row_color', '#F0F0F0')
-        
+
+        # Load hide outer wrapping tags setting
+        self.hide_outer_wrapping_tags = settings.get('hide_outer_wrapping_tags', False)
+
         # Load termbase highlight style settings
         self.termbase_highlight_style = settings.get('termbase_highlight_style', 'semibold')
         self.termbase_dotted_color = settings.get('termbase_dotted_color', '#808080')
@@ -37404,6 +37528,34 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         # Simply reload the grid - the apply_invisible_replacements will be called
         # during load_segments_to_grid when creating cell widgets
         self.load_segments_to_grid()
+
+    def _refresh_source_column_display(self):
+        """Refresh source column to reflect hide_outer_wrapping_tags setting"""
+        if not hasattr(self, 'table') or not self.table:
+            return
+        if not hasattr(self, 'current_project') or not self.current_project:
+            return
+
+        # Update each source cell with potentially stripped tags
+        for row in range(self.table.rowCount()):
+            if row >= len(self.current_project.segments):
+                continue
+
+            segment = self.current_project.segments[row]
+            source_widget = self.table.cellWidget(row, 2)
+
+            if source_widget and hasattr(source_widget, 'setPlainText'):
+                # Calculate display text with or without outer wrapping tags
+                source_for_display = segment.source
+                if self.hide_outer_wrapping_tags:
+                    stripped, _ = strip_outer_wrapping_tags(segment.source)
+                    source_for_display = stripped
+                source_display_text = self.apply_invisible_replacements(source_for_display)
+                source_widget.setPlainText(source_display_text)
+
+                # Re-apply highlighting
+                if hasattr(source_widget, 'highlighter'):
+                    source_widget.highlighter.rehighlight()
 
     def apply_invisible_replacements(self, text):
         """Apply invisible character replacements to text based on settings"""

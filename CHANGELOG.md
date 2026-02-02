@@ -2,9 +2,25 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.196 (February 2, 2026)
+**Current Version:** v1.9.197 (February 2, 2026)
 
 
+
+## v1.9.197 - February 2, 2026
+
+### ✨ New Features
+
+- **Hide Outer Wrapping Tags in Grid**: Added new option in View Settings → Grid Display Options to hide structural tags that wrap entire segments (like `<li-o>`, `<p>`, `<td>`). Since the segment type is shown in the Type column, these outer tags are redundant and can now be hidden for a cleaner grid display. Inner formatting tags like `<b>bold</b>` are preserved. Affects Source column only - Target keeps tags for editing.
+
+### 🐛 Bug Fixes
+
+- **View Settings Now Preserves All Settings**: Fixed a bug where saving View Settings would overwrite unrelated settings in `general_settings.json`. Settings are now properly merged instead of replaced.
+
+### 🏗️ UI Improvements
+
+- **Match Panel Section Rename**: Renamed "Translation Results Pane & Tag Colors" to "Match Panel & Tag Colors" in View Settings to reflect the current UI terminology.
+
+---
 
 ## v1.9.196 - February 2, 2026
 
