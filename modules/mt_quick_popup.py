@@ -222,7 +222,7 @@ class MTQuickPopup(QDialog):
 
     def setup_ui(self):
         """Setup the popup UI"""
-        self.setWindowTitle("⚡ QuickTrans")
+        self.setWindowTitle("⚡ Supervertaler QuickTrans")
         # Use standard dialog with title bar for resize/move support
         self.setWindowFlags(
             Qt.WindowType.Dialog |
@@ -269,7 +269,7 @@ class MTQuickPopup(QDialog):
         header_layout = QHBoxLayout()
         header_layout.setContentsMargins(0, 0, 0, 4)
 
-        title_label = QLabel("⚡ QuickTrans")
+        title_label = QLabel("⚡ Supervertaler QuickTrans")
         title_label.setStyleSheet("font-size: 11px; font-weight: bold; color: #333;")
         header_layout.addWidget(title_label)
 
