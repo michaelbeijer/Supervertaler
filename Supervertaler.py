@@ -32,7 +32,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.197"
+__version__ = "1.9.198"
 __phase__ = "0.9"
 __release_date__ = "2026-02-02"
 __edition__ = "Qt"
@@ -472,6 +472,33 @@ def strip_outer_wrapping_tags(text: str) -> tuple:
         return (text, None)
 
     return (inner_content, tag_name)
+
+
+def get_list_prefix_for_tag(tag_name: str, list_position: int = 1) -> str:
+    """
+    Get visual prefix for list items in WYSIWYG mode.
+
+    Args:
+        tag_name: The outer wrapping tag name (e.g., 'li-o', 'li-b', 'li')
+        list_position: Position within the list (1-indexed) for ordered lists
+
+    Returns:
+        Visual prefix string: "1. ", "2. ", "• ", etc., or "" if not a list tag
+    """
+    if not tag_name:
+        return ""
+
+    tag_lower = tag_name.lower()
+
+    # Ordered list items
+    if tag_lower == 'li-o':
+        return f"{list_position}. "
+
+    # Unordered/bullet list items
+    if tag_lower in ('li-b', 'li'):
+        return "• "
+
+    return ""
 
 
 def has_formatting_tags(text: str) -> bool:
@@ -29918,34 +29945,60 @@ class SupervertalerQt(QMainWindow):
                 # Source - Use read-only QTextEdit widget for easy text selection
                 # Strip outer wrapping tags if setting is enabled (display only, data unchanged)
                 source_for_display = segment.source
+                stripped_source_tag = None
+                list_prefix = ""
                 if self.hide_outer_wrapping_tags:
-                    stripped, _ = strip_outer_wrapping_tags(segment.source)
+                    stripped, stripped_source_tag = strip_outer_wrapping_tags(segment.source)
                     source_for_display = stripped
+                    # Add WYSIWYG list prefix (e.g., "1. " or "• ") for list items
+                    if stripped_source_tag:
+                        list_pos = list_numbers.get(row, 1)
+                        list_prefix = get_list_prefix_for_tag(stripped_source_tag, list_pos)
+                        if list_prefix:
+                            source_for_display = list_prefix + source_for_display
                 # Apply invisible character replacements for display only
                 source_display_text = self.apply_invisible_replacements(source_for_display)
                 source_editor = ReadOnlyGridTextEditor(source_display_text, self.table, row)
-                
+
                 # Initialize empty termbase matches (will be populated lazily on segment selection or by background worker)
                 source_editor.termbase_matches = {}
-                
+
                 # Set font to match grid
                 font = QFont(self.default_font_family, self.default_font_size)
                 source_editor.setFont(font)
-                
+
                 # Set as cell widget (allows easy text selection)
                 self.table.setCellWidget(row, 2, source_editor)
-                
+
                 # Also set a placeholder item for row height calculation
                 source_item = QTableWidgetItem()
                 source_item.setFlags(Qt.ItemFlag.NoItemFlags)  # No interaction
                 self.table.setItem(row, 2, source_item)
-                
+
                 # Target - Use editable QTextEdit widget for easy text selection and editing
-                # Note: We don't strip wrapping tags from target cells since users edit them directly
+                # Strip outer wrapping tags if enabled (will be auto-restored when saving)
+                target_for_display = segment.target
+                stripped_target_tag = None
+                target_list_prefix = ""
+                if self.hide_outer_wrapping_tags:
+                    stripped, stripped_target_tag = strip_outer_wrapping_tags(segment.target)
+                    target_for_display = stripped
+                    # Store stripped tag on segment for restore during save
+                    # Use source tag as reference (target should match source structure)
+                    segment._stripped_outer_tag = stripped_source_tag or stripped_target_tag
+                    # Add WYSIWYG list prefix for display (same as source)
+                    target_list_prefix = list_prefix  # Reuse the prefix calculated for source
+
                 # Apply invisible character replacements for display (will be reversed when saving)
-                target_display_text = self.apply_invisible_replacements(segment.target)
+                target_display_text = self.apply_invisible_replacements(target_for_display)
+                # Add list prefix for display (stored separately so we can strip it on save)
+                if target_list_prefix:
+                    target_display_text = target_list_prefix + target_display_text
                 target_editor = EditableGridTextEditor(target_display_text, self.table, row, self.table)
                 target_editor.setFont(font)
+                # Store stripped tag and list prefix on editor for auto-restore
+                target_editor._stripped_outer_tag = stripped_source_tag or stripped_target_tag
+                target_editor._list_prefix = target_list_prefix
                 
                 # Connect text changes to update segment
                 # Use a factory function to create a proper closure that captures the segment ID
@@ -29957,8 +30010,20 @@ class SupervertalerQt(QMainWindow):
                         nonlocal debounce_timer
                         new_text = editor_widget.toPlainText()
 
+                        # Strip WYSIWYG list prefix if present (display-only, not saved)
+                        list_prefix = getattr(editor_widget, '_list_prefix', '')
+                        if list_prefix and new_text.startswith(list_prefix):
+                            new_text = new_text[len(list_prefix):]
+
                         # Reverse invisible character replacements before saving
                         new_text = self.reverse_invisible_replacements(new_text)
+
+                        # Auto-restore stripped outer wrapping tags if they were hidden
+                        stripped_tag = getattr(editor_widget, '_stripped_outer_tag', None)
+                        if stripped_tag and self.hide_outer_wrapping_tags:
+                            # Only re-add if the text doesn't already have the tag
+                            if not new_text.strip().startswith(f'<{stripped_tag}'):
+                                new_text = f'<{stripped_tag}>{new_text}</{stripped_tag}>'
 
                         # DEBUG: Log EVERY call to catch the culprit (only in debug mode)
                         if self.debug_mode_enabled:
@@ -37530,32 +37595,20 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         self.load_segments_to_grid()
 
     def _refresh_source_column_display(self):
-        """Refresh source column to reflect hide_outer_wrapping_tags setting"""
+        """Refresh grid to reflect hide_outer_wrapping_tags setting.
+
+        Reloads the entire grid to properly handle:
+        - Tag stripping on both Source and Target columns
+        - WYSIWYG list numbering/bullet prefixes
+        - Proper list position calculation
+        """
         if not hasattr(self, 'table') or not self.table:
             return
         if not hasattr(self, 'current_project') or not self.current_project:
             return
 
-        # Update each source cell with potentially stripped tags
-        for row in range(self.table.rowCount()):
-            if row >= len(self.current_project.segments):
-                continue
-
-            segment = self.current_project.segments[row]
-            source_widget = self.table.cellWidget(row, 2)
-
-            if source_widget and hasattr(source_widget, 'setPlainText'):
-                # Calculate display text with or without outer wrapping tags
-                source_for_display = segment.source
-                if self.hide_outer_wrapping_tags:
-                    stripped, _ = strip_outer_wrapping_tags(segment.source)
-                    source_for_display = stripped
-                source_display_text = self.apply_invisible_replacements(source_for_display)
-                source_widget.setPlainText(source_display_text)
-
-                # Re-apply highlighting
-                if hasattr(source_widget, 'highlighter'):
-                    source_widget.highlighter.rehighlight()
+        # Reload grid to apply changes with proper list numbering calculation
+        self.load_segments_to_grid()
 
     def apply_invisible_replacements(self, text):
         """Apply invisible character replacements to text based on settings"""

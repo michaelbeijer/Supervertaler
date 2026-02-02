@@ -2,15 +2,28 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.197 (February 2, 2026)
+**Current Version:** v1.9.198 (February 2, 2026)
 
 
+
+## v1.9.198 - February 2, 2026
+
+### ✨ New Features
+
+- **Hide Outer Wrapping Tags - Complete Implementation**: The "Hide outer wrapping tags" feature now works on **both Source and Target columns**. Tags are automatically restored when saving, making the process completely transparent to the translator.
+
+- **WYSIWYG List Numbering & Bullets**: When "Hide outer wrapping tags" is enabled, list items now display with visual prefixes:
+  - Ordered lists (`<li-o>`) show: "1. ", "2. ", "3. ", etc.
+  - Unordered lists (`<li-b>`, `<li>`) show: "• "
+  - These prefixes are display-only and don't affect the saved data
+
+---
 
 ## v1.9.197 - February 2, 2026
 
 ### ✨ New Features
 
-- **Hide Outer Wrapping Tags in Grid**: Added new option in View Settings → Grid Display Options to hide structural tags that wrap entire segments (like `<li-o>`, `<p>`, `<td>`). Since the segment type is shown in the Type column, these outer tags are redundant and can now be hidden for a cleaner grid display. Inner formatting tags like `<b>bold</b>` are preserved. Affects Source column only - Target keeps tags for editing.
+- **Hide Outer Wrapping Tags in Grid**: Added new option in View Settings → Grid Display Options to hide structural tags that wrap entire segments (like `<li-o>`, `<p>`, `<td>`). Since the segment type is shown in the Type column, these outer tags are redundant and can now be hidden for a cleaner grid display. Inner formatting tags like `<b>bold</b>` are preserved.
 
 ### 🐛 Bug Fixes
 
