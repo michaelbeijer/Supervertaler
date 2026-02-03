@@ -21364,24 +21364,16 @@ class SupervertalerQt(QMainWindow):
         
         # Add left side to main horizontal splitter
         main_horizontal_splitter.addWidget(left_container)
-        
-        # Right side: Translation Results panel with Preview tab
-        from modules.translation_results_panel import TranslationResultsPanel
-        
+
         # Create tabbed container for right panel
         right_tabs = QTabWidget()
         right_tabs.tabBar().setFocusPolicy(Qt.FocusPolicy.NoFocus)
         right_tabs.tabBar().setDrawBase(False)
         right_tabs.setStyleSheet("QTabBar::tab { outline: 0; } QTabBar::tab:focus { outline: none; } QTabBar::tab:selected { border-bottom: 1px solid #2196F3; background-color: rgba(33, 150, 243, 0.08); }")
-        
-        # Tab 1: Translation Results
-        # NOTE: Translation Results panel is deprecated - MT/LLM is now only via QuickTrans (Ctrl+M)
-        # Create but immediately hide to prevent any visual artifacts
-        self.translation_results_panel = TranslationResultsPanel(right_tabs, parent_app=self)
-        self.translation_results_panel.hide()
-        self.translation_results_panel.setParent(None)  # Detach from right_tabs to prevent display
 
-        # Don't connect signals or add to results_panels - panel is deprecated
+        # NOTE: Translation Results panel is deprecated - MT/LLM is now only via QuickTrans (Ctrl+M)
+        # Panel is no longer created to save resources. Set to None for compatibility checks.
+        self.translation_results_panel = None
         if not hasattr(self, 'results_panels'):
             self.results_panels = []
 
@@ -38728,7 +38720,12 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                     break
     
     def _on_results_panel_notes_changed(self):
-        """Handle notes change in Translation Results panel - saves to current segment"""
+        """Handle notes change in Translation Results panel - saves to current segment.
+        NOTE: This function is deprecated - Translation Results panel has been removed.
+        """
+        # Translation Results panel is deprecated - this should never be called
+        if not self.translation_results_panel:
+            return
         if not self.current_project:
             return
         
