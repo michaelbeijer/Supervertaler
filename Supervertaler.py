@@ -8267,30 +8267,7 @@ class SupervertalerQt(QMainWindow):
             grid_font_family_menu.addAction(font_action)
         
         view_menu.addSeparator()
-        
-        # Translation Results Pane section
-        results_zoom_menu = view_menu.addMenu("📋 Translation &Results Pane")
-        
-        results_zoom_in_action = QAction("Results Zoom &In", self)
-        results_zoom_in_action.setShortcut("Ctrl+Shift+=")
-        results_zoom_in_action.triggered.connect(self.results_pane_zoom_in)
-        results_zoom_menu.addAction(results_zoom_in_action)
-        
-        results_zoom_out_action = QAction("Results Zoom &Out", self)
-        results_zoom_out_action.setShortcut("Ctrl+Shift+-")
-        results_zoom_out_action.triggered.connect(self.results_pane_zoom_out)
-        results_zoom_menu.addAction(results_zoom_out_action)
-        
-        results_zoom_reset_action = QAction("Results Zoom &Reset", self)
-        results_zoom_reset_action.triggered.connect(self.results_pane_zoom_reset)
-        results_zoom_menu.addAction(results_zoom_reset_action)
-        
-        results_zoom_menu.addSeparator()
-        
-        results_note = QAction("(Includes match list + compare boxes)", self)
-        results_note.setEnabled(False)
-        results_zoom_menu.addAction(results_note)
-        
+
         # Match Panel zoom section
         match_panel_zoom_menu = view_menu.addMenu("🔍 &Match Panel")
         
@@ -21405,52 +21382,39 @@ class SupervertalerQt(QMainWindow):
         self.translation_results_panel.match_inserted.connect(self.on_match_inserted)
         
         # Connect notes editing to save segment notes
-        if hasattr(self.translation_results_panel, 'notes_edit') and self.translation_results_panel.notes_edit:
-            self.translation_results_panel.notes_edit.textChanged.connect(self._on_results_panel_notes_changed)
-        
-        # Register this panel so it receives updates when segments are selected
+        # NOTE: Translation Results panel is deprecated - MT/LLM is now only via QuickTrans (Ctrl+M)
+        # The panel object still exists for backwards compatibility but is not added to tabs or results_panels
         if not hasattr(self, 'results_panels'):
             self.results_panels = []
-        self.results_panels.append(self.translation_results_panel)
-        
+        # Don't append translation_results_panel - it's deprecated
+
         # Track tab indices for visibility-aware default selection
         tab_index = 0
-        results_tab_index = -1
-        compare_tab_index = -1
         preview_tab_index = -1
-        
-        # Tab 1: Translation Results (conditionally added)
-        if self.show_translation_results_pane:
-            right_tabs.addTab(self.translation_results_panel, "🔍 Translation Results")
-            results_tab_index = tab_index
-            tab_index += 1
-        else:
-            # Hide the panel if not added as tab (it still exists as child widget)
-            self.translation_results_panel.hide()
-        
-        # Tab 2: Match Panel (Termview + TM Source/Target) - shown first by default
+
+        # Tab 1: Match Panel (Termview + TM Source/Target) - primary TM display
         match_panel_widget = self._create_match_panel()
         self.match_panel_widget = match_panel_widget  # Store reference for mode detection
         right_tabs.addTab(match_panel_widget, "🎯 Match Panel")
         match_panel_tab_index = tab_index
         tab_index += 1
         
-        # Tab 4: Document Preview (always added)
+        # Tab 2: Document Preview
         preview_widget = self._create_preview_tab()
         right_tabs.addTab(preview_widget, "📄 Preview")
         preview_tab_index = tab_index
         self._preview_tab_index = preview_tab_index  # Store for visibility checks
         tab_index += 1
-        
-        # Tab 5: Segment Note (moved from bottom panel)
+
+        # Tab 3: Segment Note
         right_tabs.addTab(self._notes_widget_for_right_panel, "📝 Segment note")
         tab_index += 1
-        
-        # Tab 6: Session Log (moved from bottom panel)
+
+        # Tab 4: Session Log
         right_tabs.addTab(self._session_log_widget_for_right_panel, "📋 Session Log")
         tab_index += 1
-        
-        # Tab 7: Scratchpad (private translator notes for the whole project)
+
+        # Tab 5: Scratchpad (private translator notes for the whole project)
         right_tabs.addTab(self._scratchpad_widget_for_right_panel, "📝 Scratchpad")
         tab_index += 1
         
@@ -45705,16 +45669,16 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             self.log(f"⚠ Error auto-inserting TM match: {e}")
     
     def _add_mt_and_llm_matches_progressive(self, segment, source_lang, target_lang, source_lang_code, target_lang_code):
-        """Add MT and LLM matches progressively - show each as it completes.
+        """DEPRECATED: Translation Results panel has been removed.
 
-        IMPORTANT: MT/LLM providers are only called if the Translation Results pane
-        is visible. If hidden, use QuickTrans (Ctrl+M) to get MT/LLM translations.
-        This prevents wasteful API calls during normal navigation.
+        MT/LLM translations are now only available via QuickTrans (Ctrl+M).
+        This function is kept as a stub for backwards compatibility.
         """
-        # Skip MT/LLM calls if Translation Results pane is hidden - results wouldn't be displayed anyway
-        # Users can still use QuickTrans (Ctrl+M) to get MT/LLM translations on demand
-        if not getattr(self, 'show_translation_results_pane', False):
-            return
+        pass  # Translation Results panel removed - use QuickTrans (Ctrl+M) for MT/LLM
+
+    def _REMOVED_add_mt_and_llm_matches_progressive(self, segment, source_lang, target_lang, source_lang_code, target_lang_code):
+        """REMOVED - kept for reference only, will be deleted in future cleanup."""
+        return  # Dead code below - keeping temporarily for reference
 
         from modules.translation_results_panel import TranslationMatch
 
