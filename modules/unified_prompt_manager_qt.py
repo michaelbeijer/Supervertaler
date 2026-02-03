@@ -3326,8 +3326,26 @@ If the text refers to figures (e.g., 'Figure 1A'), relevant images may be provid
         
         # Build context
         context = self._build_project_context()
-        
-        # Create analysis prompt
+
+        # Get actual project values for pre-filling the template
+        source_lang = "Source Language"
+        target_lang = "Target Language"
+        segment_count = 0
+
+        if hasattr(self.parent_app, 'current_project') and self.parent_app.current_project:
+            project = self.parent_app.current_project
+            if hasattr(project, 'source_lang') and project.source_lang:
+                source_lang = project.source_lang
+            elif hasattr(project, 'source_language') and project.source_language:
+                source_lang = project.source_language
+            if hasattr(project, 'target_lang') and project.target_lang:
+                target_lang = project.target_lang
+            elif hasattr(project, 'target_language') and project.target_language:
+                target_lang = project.target_language
+            if hasattr(project, 'segments') and project.segments:
+                segment_count = len(project.segments)
+
+        # Create analysis prompt with pre-filled values
         analysis_prompt = f"""Create a comprehensive translation prompt for this project and save it using the ACTION system.
 
 PROJECT CONTEXT:
@@ -3337,6 +3355,8 @@ PROJECT CONTEXT:
 1. You MUST output exactly ONE ACTION block in the following format
 2. The JSON MUST be valid and complete
 3. Both "name" and "content" are REQUIRED fields
+4. Use the ACTUAL language pair: {source_lang} → {target_lang} (DO NOT use placeholders like [Source Language])
+5. Fill in ALL terminology with actual translations for {target_lang} (DO NOT leave [Translation] placeholders)
 
 **EXACT FORMAT TO USE:**
 
@@ -3348,19 +3368,19 @@ ACTION:create_prompt PARAMS:{{"name": "Legal Translation EN-NL", "content": "You
 Prompt must include:
 
 # ROLE & EXPERTISE
-You are an expert [domain] translator ([source] → [target]) with 10+ years experience.
+You are an expert [domain] translator ({source_lang} → {target_lang}) with 10+ years experience.
 
 # DOCUMENT CONTEXT
-**Type:** [type]
-**Domain:** [domain]
-**Language pair:** [source] → [target]
-**Content:** [brief description]
-**Number of segments:** [count]
+**Type:** [analyze and determine type]
+**Domain:** [analyze and determine domain]
+**Language pair:** {source_lang} → {target_lang}
+**Content:** [brief description based on analysis]
+**Number of segments:** {segment_count}
 
 # KEY TERMINOLOGY
-| [Source] | [Target] | Notes |
+| {source_lang} | {target_lang} | Notes |
 |----------|----------|-------|
-[Extract 20+ key terms from termbases/document]
+[Extract 20+ key terms from termbases/document - FILL IN ACTUAL TRANSLATIONS, not placeholders]
 
 # TRANSLATION CONSTRAINTS
 **MUST:**
@@ -3374,7 +3394,7 @@ You are an expert [domain] translator ([source] → [target]) with 10+ years exp
 - Modify formatting, tags, numbering, brackets, or spacing
 - Merge or split segments
 
-**CRITICAL:** Based on the language pair, include appropriate format localization rules:
+**CRITICAL:** Based on the language pair ({source_lang} → {target_lang}), include appropriate format localization rules:
 
 ### NUMBERS, DATES & LOCALISATION
 - If translating FROM Dutch/French/German/Spanish/Italian TO English: Include number format conversion (comma decimal → period decimal, e.g., 718.592,01 → 718,592.01)
@@ -3389,6 +3409,8 @@ You are an expert [domain] translator ([source] → [target]) with 10+ years exp
 
 # OUTPUT FORMAT
 Provide ONLY the translation, one segment per line, aligned 1:1 with the source lines.
+
+IMPORTANT: Do NOT use placeholders like [Source Language], [Target Language], or [Translation] in your output. Use the actual values: {source_lang} and {target_lang}.
 
 Output complete ACTION."""
         

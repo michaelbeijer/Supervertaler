@@ -2,9 +2,17 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.205 (February 3, 2026)
+**Current Version:** v1.9.206 (February 3, 2026)
 
 
+
+## v1.9.206 - February 3, 2026
+
+### 🐛 Bug Fixes
+
+- **AI Assistant Prompt Generation**: Fixed "Analyze Project & Generate Prompts" outputting placeholder text like `[Source Language]` and `[Translation]` instead of actual values. The template now pre-fills the actual language pair and segment count from project settings, with explicit instructions to not use placeholders.
+
+---
 
 ## v1.9.205 - February 3, 2026
 
