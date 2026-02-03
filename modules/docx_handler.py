@@ -55,7 +55,42 @@ class DOCXHandler:
         self.paragraphs_info: List[ParagraphInfo] = []
         self.tag_manager = TagManager() if TagManager else None
         self._list_type_cache = {}  # Cache for numId -> list_type mapping
-    
+
+    def _get_full_paragraph_text(self, paragraph) -> str:
+        """
+        Get full text from a paragraph INCLUDING text inside hyperlinks.
+
+        The standard paragraph.text property in python-docx only returns text from
+        direct child runs, not from hyperlink elements. This method extracts ALL text.
+
+        Args:
+            paragraph: python-docx paragraph object
+
+        Returns:
+            Full text of the paragraph including hyperlink text
+        """
+        from docx.oxml.ns import qn
+
+        text_parts = []
+
+        for child in paragraph._element:
+            tag = child.tag
+
+            # Direct run (w:r) - extract text
+            if tag == qn('w:r'):
+                t_elem = child.find(qn('w:t'))
+                if t_elem is not None and t_elem.text:
+                    text_parts.append(t_elem.text)
+
+            # Hyperlink (w:hyperlink) - extract text from runs inside
+            elif tag == qn('w:hyperlink'):
+                for run_elem in child.findall(qn('w:r')):
+                    t_elem = run_elem.find(qn('w:t'))
+                    if t_elem is not None and t_elem.text:
+                        text_parts.append(t_elem.text)
+
+        return ''.join(text_parts)
+
     def _get_list_type(self, para) -> tuple:
         """
         Determine if a paragraph is a bullet or numbered list item.
@@ -188,8 +223,9 @@ class DOCXHandler:
                 # Find corresponding paragraph object
                 for para in self.original_document.paragraphs:
                     if para._element == elem:
-                        text = para.text.strip()
-                        
+                        # Use _get_full_paragraph_text to include hyperlink text
+                        text = self._get_full_paragraph_text(para).strip()
+
                         # Check if this paragraph is inside a table
                         if id(para) in para_to_table_info:
                             # This paragraph is in a table, skip it here
@@ -256,8 +292,9 @@ class DOCXHandler:
                             for cell_idx, cell in enumerate(row.cells):
                                 # Each cell may contain multiple paragraphs
                                 for para in cell.paragraphs:
-                                    text = para.text.strip()
-                                    
+                                    # Use _get_full_paragraph_text to include hyperlink text
+                                    text = self._get_full_paragraph_text(para).strip()
+
                                     if text:  # Only include non-empty cells
                                         # Check list type
                                         list_type, list_number = self._get_list_type(para)

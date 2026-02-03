@@ -67,16 +67,16 @@ class TagManager:
     def extract_runs(self, paragraph) -> List[FormattingRun]:
         """
         Extract formatting runs from a python-docx paragraph
-        
+
         Args:
             paragraph: python-docx paragraph object
-            
+
         Returns:
             List of FormattingRun objects with position information
         """
         runs = []
         current_pos = 0
-        
+
         # Check if paragraph style has bold/italic formatting
         # This handles cases like "Subtitle" or "Title" styles that are bold
         style_bold = False
@@ -89,30 +89,61 @@ class TagManager:
                     style_italic = True
         except Exception:
             pass  # If we can't read style, just use run-level formatting
-        
-        for run in paragraph.runs:
-            text = run.text
-            if not text:
-                continue
-            
-            # Combine run-level formatting with style-level formatting
-            # run.bold can be True, False, or None (None means inherit from style)
-            is_bold = run.bold if run.bold is not None else style_bold
-            is_italic = run.italic if run.italic is not None else style_italic
-            
-            run_info = FormattingRun(
-                text=text,
-                bold=is_bold or False,
-                italic=is_italic or False,
-                underline=run.underline or False,
-                subscript=run.font.subscript or False if run.font else False,
-                superscript=run.font.superscript or False if run.font else False,
-                start_pos=current_pos,
-                end_pos=current_pos + len(text)
-            )
-            runs.append(run_info)
-            current_pos += len(text)
-        
+
+        # Helper function to process a single run element
+        def process_run_element(run_elem, style_bold, style_italic):
+            """Process a run element (w:r) and return FormattingRun or None"""
+            from docx.text.run import Run
+            try:
+                run = Run(run_elem, paragraph)
+                text = run.text
+                if not text:
+                    return None
+
+                # Combine run-level formatting with style-level formatting
+                is_bold = run.bold if run.bold is not None else style_bold
+                is_italic = run.italic if run.italic is not None else style_italic
+
+                return FormattingRun(
+                    text=text,
+                    bold=is_bold or False,
+                    italic=is_italic or False,
+                    underline=run.underline or False,
+                    subscript=run.font.subscript or False if run.font else False,
+                    superscript=run.font.superscript or False if run.font else False,
+                    start_pos=0,  # Will be set later
+                    end_pos=0     # Will be set later
+                )
+            except Exception:
+                return None
+
+        # Iterate through all child elements of the paragraph
+        # This includes both direct runs (w:r) AND hyperlinks (w:hyperlink)
+        from docx.oxml.ns import qn
+
+        for child in paragraph._element:
+            tag = child.tag
+
+            # Direct run (w:r)
+            if tag == qn('w:r'):
+                run_info = process_run_element(child, style_bold, style_italic)
+                if run_info:
+                    run_info.start_pos = current_pos
+                    run_info.end_pos = current_pos + len(run_info.text)
+                    runs.append(run_info)
+                    current_pos += len(run_info.text)
+
+            # Hyperlink (w:hyperlink) - contains runs inside it
+            elif tag == qn('w:hyperlink'):
+                # Process all runs inside the hyperlink
+                for run_elem in child.findall(qn('w:r')):
+                    run_info = process_run_element(run_elem, style_bold, style_italic)
+                    if run_info:
+                        run_info.start_pos = current_pos
+                        run_info.end_pos = current_pos + len(run_info.text)
+                        runs.append(run_info)
+                        current_pos += len(run_info.text)
+
         return runs
     
     def runs_to_tagged_text(self, runs: List[FormattingRun]) -> str:

@@ -2,9 +2,17 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.207 (February 3, 2026)
+**Current Version:** v1.9.208 (February 3, 2026)
 
 
+
+## v1.9.208 - February 3, 2026
+
+### 🐛 Bug Fixes
+
+- **DOCX Import: Hyperlink Text Missing**: Fixed an issue where text inside hyperlinks was being stripped during DOCX import. The `paragraph.text` property in python-docx doesn't include text from `w:hyperlink` elements. Now both `TagManager.extract_runs()` and `DOCXHandler.import_docx()` properly extract text from hyperlink elements, ensuring URLs and linked text are preserved.
+
+---
 
 ## v1.9.207 - February 3, 2026
 
