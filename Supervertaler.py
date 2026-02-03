@@ -32,7 +32,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.211"
+__version__ = "1.9.212"
 __phase__ = "0.9"
 __release_date__ = "2026-02-03"
 __edition__ = "Qt"
@@ -7523,12 +7523,20 @@ class SupervertalerQt(QMainWindow):
             # Import and create the popup
             from modules.quicktrans import MTQuickPopup
 
+            # Get project languages - prefer project settings over app defaults
+            if self.current_project:
+                source_lang = self.current_project.source_lang or 'en'
+                target_lang = self.current_project.target_lang or 'nl'
+            else:
+                source_lang = getattr(self, 'source_language', 'en')
+                target_lang = getattr(self, 'target_language', 'nl')
+
             # Create popup
             popup = MTQuickPopup(
                 parent_app=self,
                 source_text=text_to_translate,
-                source_lang=getattr(self, 'source_language', 'en'),
-                target_lang=getattr(self, 'target_language', 'nl'),
+                source_lang=source_lang,
+                target_lang=target_lang,
                 parent=self
             )
 
@@ -50053,9 +50061,13 @@ class SuperlookupTab(QWidget):
                 print("[QuickTrans] ERROR: Could not find main window")
                 return
 
-            # Get language settings
-            source_lang = getattr(main_window, 'source_language', 'English')
-            target_lang = getattr(main_window, 'target_language', 'Dutch')
+            # Get project languages - prefer project settings over app defaults
+            if hasattr(main_window, 'current_project') and main_window.current_project:
+                source_lang = main_window.current_project.source_lang or 'en'
+                target_lang = main_window.current_project.target_lang or 'nl'
+            else:
+                source_lang = getattr(main_window, 'source_language', 'English')
+                target_lang = getattr(main_window, 'target_language', 'Dutch')
 
             # Import and show MT Quick Lookup popup
             from modules.quicktrans import MTQuickPopup

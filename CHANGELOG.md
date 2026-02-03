@@ -2,9 +2,17 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.211 (February 3, 2026)
+**Current Version:** v1.9.212 (February 3, 2026)
 
 
+
+## v1.9.212 - February 3, 2026
+
+### 🐛 Bug Fixes
+
+- **QuickTrans Project Languages**: Fixed QuickTrans not using the current project's source/target languages for MT and LLM providers. Now directly reads from `current_project.source_lang` and `current_project.target_lang` when a project is open, ensuring the correct language pair is sent to all translation providers.
+
+---
 
 ## v1.9.211 - February 3, 2026
 
