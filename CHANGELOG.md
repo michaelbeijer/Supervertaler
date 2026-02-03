@@ -2,9 +2,17 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.210 (February 3, 2026)
+**Current Version:** v1.9.211 (February 3, 2026)
 
 
+
+## v1.9.211 - February 3, 2026
+
+### 🐛 Bug Fixes
+
+- **Batch Translate: Exact Matches Only**: Fixed the "Exact matches only" option in Batch Translate not finding any TM matches. The issue was that exact matching used hash comparison, but the hash didn't account for HTML/XML tags that may differ between stored TM entries and the search text. Now the exact match function tries multiple hash variants (with/without tags, normalized) to reliably find matches.
+
+---
 
 ## v1.9.210 - February 3, 2026
 

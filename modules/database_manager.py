@@ -752,23 +752,33 @@ class DatabaseManager:
         Returns: Dictionary with match data or None
         """
         from modules.tmx_generator import get_base_lang_code
+        import re
 
-        # Try both normalized and non-normalized hashes for backward compatibility
-        # This handles invisible differences like Unicode normalization, whitespace variations
+        # Try multiple hash variants for robust matching:
+        # 1. Original source hash
+        # 2. Normalized source hash (handles whitespace, Unicode)
+        # 3. Tag-stripped hash (handles TM entries stored with/without tags)
+        # 4. Tag-stripped + normalized hash
         source_hash = hashlib.md5(source.encode('utf-8')).hexdigest()
         normalized_source = _normalize_for_matching(source)
         normalized_hash = hashlib.md5(normalized_source.encode('utf-8')).hexdigest()
+
+        # Also try with HTML/XML tags stripped (handles structural tags like <p>, <li-o>)
+        source_no_tags = re.sub(r'<[^>]+>', '', source)
+        source_no_tags_hash = hashlib.md5(source_no_tags.encode('utf-8')).hexdigest()
+        normalized_no_tags = _normalize_for_matching(source_no_tags)
+        normalized_no_tags_hash = hashlib.md5(normalized_no_tags.encode('utf-8')).hexdigest()
 
         # Get base language codes for comparison
         src_base = get_base_lang_code(source_lang) if source_lang else None
         tgt_base = get_base_lang_code(target_lang) if target_lang else None
 
-        # Search using both original hash and normalized hash
+        # Search using all hash variants
         query = """
             SELECT * FROM translation_units
-            WHERE (source_hash = ? OR source_hash = ?)
+            WHERE (source_hash = ? OR source_hash = ? OR source_hash = ? OR source_hash = ?)
         """
-        params = [source_hash, normalized_hash]
+        params = [source_hash, normalized_hash, source_no_tags_hash, normalized_no_tags_hash]
         
         if tm_ids:
             placeholders = ','.join('?' * len(tm_ids))
