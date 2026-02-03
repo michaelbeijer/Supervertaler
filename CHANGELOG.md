@@ -2,9 +2,27 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.202 (February 2, 2026)
+**Current Version:** v1.9.203 (February 3, 2026)
 
 
+
+## v1.9.203 - February 3, 2026
+
+### 🐛 Bug Fixes
+
+- **Grid Row Height Stability**: Fixed an issue where row heights would become inconsistent ("messed up") after various actions like Ctrl+Enter confirmation, Clear Filters, or page navigation. Row heights are now properly recalculated:
+  - After status cell updates (Ctrl+Enter confirmation)
+  - After pagination/filter changes (sync + deferred resize)
+  - After initial grid load (deferred resize for proper column widths)
+  - After column resize (debounced handler for text reflow)
+
+### ⚡ Performance Improvements
+
+- **Faster Ctrl+Enter Navigation**: Removed wasteful MT/LLM API calls that were happening on every segment navigation. Machine translation providers (Google Translate, DeepL, Amazon, etc.) and LLM providers were being called even when the Translation Results panel was hidden. Now MT/LLM is only available via QuickTrans (Ctrl+M).
+
+- **Removed Translation Results Panel**: The deprecated Translation Results panel has been removed from the UI. This panel was hidden by default with no way to enable it, but was still consuming resources. TM matching continues to work via the Match Panel, and MT/LLM translations are available via QuickTrans (Ctrl+M).
+
+---
 
 ## v1.9.202 - February 2, 2026
 
