@@ -21375,18 +21375,15 @@ class SupervertalerQt(QMainWindow):
         right_tabs.setStyleSheet("QTabBar::tab { outline: 0; } QTabBar::tab:focus { outline: none; } QTabBar::tab:selected { border-bottom: 1px solid #2196F3; background-color: rgba(33, 150, 243, 0.08); }")
         
         # Tab 1: Translation Results
-        self.translation_results_panel = TranslationResultsPanel(right_tabs, parent_app=self)
-        
-        # Connect signals for match selection/insertion
-        self.translation_results_panel.match_selected.connect(self.on_match_selected)
-        self.translation_results_panel.match_inserted.connect(self.on_match_inserted)
-        
-        # Connect notes editing to save segment notes
         # NOTE: Translation Results panel is deprecated - MT/LLM is now only via QuickTrans (Ctrl+M)
-        # The panel object still exists for backwards compatibility but is not added to tabs or results_panels
+        # Create but immediately hide to prevent any visual artifacts
+        self.translation_results_panel = TranslationResultsPanel(right_tabs, parent_app=self)
+        self.translation_results_panel.hide()
+        self.translation_results_panel.setParent(None)  # Detach from right_tabs to prevent display
+
+        # Don't connect signals or add to results_panels - panel is deprecated
         if not hasattr(self, 'results_panels'):
             self.results_panels = []
-        # Don't append translation_results_panel - it's deprecated
 
         # Track tab indices for visibility-aware default selection
         tab_index = 0
