@@ -32,7 +32,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.203"
+__version__ = "1.9.204"
 __phase__ = "0.9"
 __release_date__ = "2026-02-03"
 __edition__ = "Qt"
@@ -7945,19 +7945,36 @@ class SupervertalerQt(QMainWindow):
         import_menu.addAction(import_review_table_action)
         
         export_menu = file_menu.addMenu("&Export")
-        
+
+        # --- Monolingual (target-only) exports at top ---
+        export_target_docx_action = QAction("&Target Only (DOCX)...", self)
+        export_target_docx_action.triggered.connect(self.export_target_only_docx)
+        export_menu.addAction(export_target_docx_action)
+
+        export_txt_action = QAction("Simple &Text File - Translated (TXT)...", self)
+        export_txt_action.triggered.connect(self.export_simple_txt)
+        export_menu.addAction(export_txt_action)
+
+        export_ai_action = QAction("📄 &AI-Readable Markdown (.md)...", self)
+        export_ai_action.triggered.connect(self.export_bilingual_table_markdown)
+        export_ai_action.setToolTip("Export segments in [SEGMENT] format for AI translation/review")
+        export_menu.addAction(export_ai_action)
+
+        export_menu.addSeparator()
+
+        # --- Bilingual CAT tool exports ---
         export_memoq_action = QAction("memoQ &Bilingual Table - Translated (DOCX)...", self)
         export_memoq_action.triggered.connect(self.export_memoq_bilingual)
         export_menu.addAction(export_memoq_action)
-        
+
         export_memoq_xliff_action = QAction("memoQ &XLIFF - Translated (.mqxliff)...", self)
         export_memoq_xliff_action.triggered.connect(self.export_memoq_xliff)
         export_menu.addAction(export_memoq_xliff_action)
-        
+
         export_cafetran_action = QAction("&CafeTran Bilingual Table - Translated (DOCX)...", self)
         export_cafetran_action.triggered.connect(self.export_cafetran_bilingual)
         export_menu.addAction(export_cafetran_action)
-        
+
         # Trados submenu - group all Trados exports together
         trados_export_submenu = export_menu.addMenu("&Trados Studio")
 
@@ -7978,20 +7995,7 @@ class SupervertalerQt(QMainWindow):
         export_dejavu_action = QAction("&Déjà Vu X3 Bilingual - Translated (RTF)...", self)
         export_dejavu_action.triggered.connect(self.export_dejavu_bilingual)
         export_menu.addAction(export_dejavu_action)
-        
-        export_target_docx_action = QAction("&Target Only (DOCX)...", self)
-        export_target_docx_action.triggered.connect(self.export_target_only_docx)
-        export_menu.addAction(export_target_docx_action)
-        
-        export_txt_action = QAction("Simple &Text File - Translated (TXT)...", self)
-        export_txt_action.triggered.connect(self.export_simple_txt)
-        export_menu.addAction(export_txt_action)
-        
-        export_ai_action = QAction("📄 &AI-Readable Markdown (.md)...", self)
-        export_ai_action.triggered.connect(self.export_bilingual_table_markdown)
-        export_ai_action.setToolTip("Export segments in [SEGMENT] format for AI translation/review")
-        export_menu.addAction(export_ai_action)
-        
+
         export_menu.addSeparator()
         
         # Multi-file folder export
@@ -11257,8 +11261,10 @@ class SupervertalerQt(QMainWindow):
                     text = re.sub(r'</?li>', '', text)       # <li>, </li>
                     text = re.sub(r'</?[biu]>', '', text)    # <b>, </b>, <i>, </i>, <u>, </u>
                     text = re.sub(r'</?bi>', '', text)       # <bi>, </bi>
+                    text = re.sub(r'</?sub>', '', text)      # <sub>, </sub>
+                    text = re.sub(r'</?sup>', '', text)      # <sup>, </sup>
                     return text.strip()
-                
+
                 def clean_special_chars(text):
                     """Remove problematic Unicode characters like object replacement char"""
                     # Remove Unicode Object Replacement Character (U+FFFC) and similar
@@ -11272,34 +11278,48 @@ class SupervertalerQt(QMainWindow):
                     """
                     Replace paragraph text with tagged text, applying bold/italic/underline formatting.
                     Parses tags like <b>, <i>, <u>, <bi> and creates appropriate runs.
+                    Preserves original font name and size from the first run.
                     """
                     # Clean special characters first
                     text = clean_special_chars(tagged_text)
-                    
+
                     # Strip list tags - they don't affect formatting
                     text = re.sub(r'</?li-[bo]>', '', text)
                     text = re.sub(r'</?li>', '', text)
-                    
+
+                    # Capture original font properties BEFORE clearing runs
+                    original_font_name = None
+                    original_font_size = None
+                    original_all_caps = None
+                    if para.runs:
+                        first_run = para.runs[0]
+                        if first_run.font:
+                            original_font_name = first_run.font.name
+                            original_font_size = first_run.font.size
+                            original_all_caps = first_run.font.all_caps
+
                     # Clear existing runs
                     for run in para.runs:
                         run.clear()
                     # Remove the cleared runs
                     for run in list(para.runs):
                         run._element.getparent().remove(run._element)
-                    
+
                     # Parse tags and create runs with formatting
                     # Pattern matches tags or text between tags
-                    tag_pattern = re.compile(r'(</?(?:b|i|u|bi)>)')
+                    tag_pattern = re.compile(r'(</?(?:b|i|u|bi|sub|sup)>)')
                     parts = tag_pattern.split(text)
-                    
+
                     is_bold = False
                     is_italic = False
                     is_underline = False
-                    
+                    is_subscript = False
+                    is_superscript = False
+
                     for part in parts:
                         if not part:
                             continue
-                        
+
                         # Check if this is a tag
                         if part == '<b>':
                             is_bold = True
@@ -11319,6 +11339,14 @@ class SupervertalerQt(QMainWindow):
                         elif part == '</bi>':
                             is_bold = False
                             is_italic = False
+                        elif part == '<sub>':
+                            is_subscript = True
+                        elif part == '</sub>':
+                            is_subscript = False
+                        elif part == '<sup>':
+                            is_superscript = True
+                        elif part == '</sup>':
+                            is_superscript = False
                         else:
                             # This is text content - create a run with current formatting
                             if part.strip() or part:  # Include whitespace
@@ -11326,6 +11354,17 @@ class SupervertalerQt(QMainWindow):
                                 run.bold = is_bold
                                 run.italic = is_italic
                                 run.underline = is_underline
+                                if is_subscript:
+                                    run.font.subscript = True
+                                if is_superscript:
+                                    run.font.superscript = True
+                                # Restore original font properties
+                                if original_font_name:
+                                    run.font.name = original_font_name
+                                if original_font_size:
+                                    run.font.size = original_font_size
+                                if original_all_caps:
+                                    run.font.all_caps = original_all_caps
                 
                 # Build a mapping of source text (without tags) to raw target text (with tags)
                 text_map = {}
@@ -11338,16 +11377,14 @@ class SupervertalerQt(QMainWindow):
                     if source_clean and target_raw:
                         text_map[source_clean] = target_raw
                 
-                def replace_segments_in_text(original_text, text_map):
-                    """Replace all matching segments in text, handling partial matches."""
+                def replace_segments_in_text_with_tags(original_text, text_map):
+                    """Replace all matching segments in text, preserving formatting tags."""
                     result = original_text
                     # Sort by length (longest first) to avoid partial replacement issues
                     for source_clean, target_raw in sorted(text_map.items(), key=lambda x: len(x[0]), reverse=True):
                         if source_clean in result:
-                            # Get clean target (no tags) for text replacement
-                            target_clean = strip_all_tags(target_raw)
-                            target_clean = clean_special_chars(target_clean)
-                            result = result.replace(source_clean, target_clean)
+                            # Keep target WITH tags for formatting preservation
+                            result = result.replace(source_clean, target_raw)
                     return result
                 
                 replaced_count = 0
@@ -11363,17 +11400,13 @@ class SupervertalerQt(QMainWindow):
                         replaced_count += 1
                     else:
                         # Try partial replacement (paragraph contains multiple segments)
-                        new_text = replace_segments_in_text(para_text, text_map)
+                        new_text = replace_segments_in_text_with_tags(para_text, text_map)
                         if new_text != para_text:
-                            # Text was changed - update paragraph
-                            # For partial replacements, we lose formatting tags but at least translate
-                            for run in para.runs:
-                                run.clear()
-                            for run in list(para.runs):
-                                run._element.getparent().remove(run._element)
-                            para.add_run(new_text)
+                            # Text was changed - use apply_formatted_text_to_paragraph
+                            # to preserve inline formatting tags (bold, italic, sub, sup, etc.)
+                            apply_formatted_text_to_paragraph(para, new_text)
                             replaced_count += 1
-                
+
                 # Replace text in tables
                 for table in doc.tables:
                     for row in table.rows:
@@ -11388,15 +11421,12 @@ class SupervertalerQt(QMainWindow):
                                     replaced_count += 1
                                 else:
                                     # Try partial replacement
-                                    new_text = replace_segments_in_text(para_text, text_map)
+                                    new_text = replace_segments_in_text_with_tags(para_text, text_map)
                                     if new_text != para_text:
-                                        for run in para.runs:
-                                            run.clear()
-                                        for run in list(para.runs):
-                                            run._element.getparent().remove(run._element)
-                                        para.add_run(new_text)
+                                        # Use apply_formatted_text_to_paragraph to preserve formatting
+                                        apply_formatted_text_to_paragraph(para, new_text)
                                         replaced_count += 1
-                
+
                 doc.save(file_path)
                 self.log(f"✓ Replaced {replaced_count} text segments in original document structure")
                 
@@ -11412,8 +11442,10 @@ class SupervertalerQt(QMainWindow):
                     text = re.sub(r'</?li>', '', text)       # <li>, </li>
                     text = re.sub(r'</?[biu]>', '', text)    # <b>, </b>, <i>, </i>, <u>, </u>
                     text = re.sub(r'</?bi>', '', text)       # <bi>, </bi>
+                    text = re.sub(r'</?sub>', '', text)      # <sub>, </sub>
+                    text = re.sub(r'</?sup>', '', text)      # <sup>, </sup>
                     return text.strip()
-                
+
                 def clean_special_chars(text):
                     """Remove problematic Unicode characters"""
                     text = text.replace('\ufffc', '')  # Object Replacement Character
@@ -11432,13 +11464,15 @@ class SupervertalerQt(QMainWindow):
                     text = re.sub(r'</?li>', '', text)
                     
                     # Parse and apply formatting
-                    tag_pattern = re.compile(r'(</?(?:b|i|u|bi)>)')
+                    tag_pattern = re.compile(r'(</?(?:b|i|u|bi|sub|sup)>)')
                     parts = tag_pattern.split(text)
-                    
+
                     is_bold = False
                     is_italic = False
                     is_underline = False
-                    
+                    is_subscript = False
+                    is_superscript = False
+
                     for part in parts:
                         if not part:
                             continue
@@ -11460,13 +11494,25 @@ class SupervertalerQt(QMainWindow):
                         elif part == '</bi>':
                             is_bold = False
                             is_italic = False
+                        elif part == '<sub>':
+                            is_subscript = True
+                        elif part == '</sub>':
+                            is_subscript = False
+                        elif part == '<sup>':
+                            is_superscript = True
+                        elif part == '</sup>':
+                            is_superscript = False
                         else:
                             if part:
                                 run = para.add_run(part)
                                 run.bold = is_bold
                                 run.italic = is_italic
                                 run.underline = is_underline
-                
+                                if is_subscript:
+                                    run.font.subscript = True
+                                if is_superscript:
+                                    run.font.superscript = True
+
                 doc = Document()
                 
                 for seg in segments:

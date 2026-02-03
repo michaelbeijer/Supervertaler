@@ -2,9 +2,27 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.203 (February 3, 2026)
+**Current Version:** v1.9.204 (February 3, 2026)
 
 
+
+## v1.9.204 - February 3, 2026
+
+### 🐛 Bug Fixes
+
+- **DOCX Export: Font Preservation**: Fixed an issue where exported DOCX files would lose the original font name (e.g., Verdana) and font size (e.g., 10pt). The export now correctly preserves font properties from the original document.
+
+- **DOCX Export: All Caps Preservation**: Fixed an issue where text with the "All Caps" font effect (like patent titles) would export in normal case instead of uppercase. The `all_caps` font property is now preserved.
+
+- **DOCX Export: Subscript/Superscript Support**: Fixed an issue where `<sub>` and `<sup>` formatting tags were not being processed during export. Text like "CO₂" now correctly exports with subscript formatting.
+
+- **DOCX Export: Partial Replacement Formatting**: Fixed an issue where paragraphs containing multiple segments would lose all inline formatting (bold, italic, subscript, superscript) during export. Partial replacements now properly apply formatting tags.
+
+### ✨ Improvements
+
+- **Export Menu Reorganization**: Moved monolingual export formats (Target Only DOCX, Simple Text, AI-Readable Markdown) to the top of the Export menu with a separator, making them easier to find.
+
+---
 
 ## v1.9.203 - February 3, 2026
 
