@@ -2,9 +2,17 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.209 (February 3, 2026)
+**Current Version:** v1.9.210 (February 3, 2026)
 
 
+
+## v1.9.210 - February 3, 2026
+
+### 🐛 Bug Fixes
+
+- **Alt+0 TM Insert Shortcut**: Fixed the Alt+0 shortcut not inserting the TM target from the Match Panel. The shortcut previously only worked when the Match Panel tab was selected. Now it works regardless of which right panel tab is active, as long as there's a valid TM match displayed.
+
+---
 
 ## v1.9.209 - February 3, 2026
 

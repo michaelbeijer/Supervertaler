@@ -32,7 +32,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.209"
+__version__ = "1.9.210"
 __phase__ = "0.9"
 __release_date__ = "2026-02-03"
 __edition__ = "Qt"
@@ -39633,26 +39633,20 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                 self.on_match_inserted(text)
 
     def _handle_compare_panel_alt0_shortcut(self):
-        """Handle Alt+0 insertion from Match Panel or Compare Panel.
+        """Handle Alt+0 insertion from Match Panel.
 
-        Match Panel (mode='match'):
-        - Single tap Alt+0: insert TM Target from Match Panel
-
-        Compare Panel (mode='compare' - not currently used):
-        - Single tap (Alt+0): insert MT
-        - Double tap (Alt+0,0 within 300ms): undo first insert, then insert TM Target
+        Alt+0 inserts TM Target from Match Panel (works regardless of which right panel tab is selected).
         """
+        # Always try to insert TM Target from Match Panel if available
+        # (No longer requires Match Panel tab to be selected)
+        if hasattr(self, 'match_panel_tm_target'):
+            text = self.match_panel_tm_target.toPlainText().strip()
+            if text and not text.startswith('('):
+                self._replace_current_target_segment_text(text, source_label='TM Target (Match Panel)')
+                return
+
+        # Legacy Compare Panel support (not currently used)
         mode = self._get_active_match_shortcut_mode()
-
-        # Handle Match Panel: Alt+0 inserts TM Target directly
-        if mode == 'match':
-            if hasattr(self, 'match_panel_tm_target'):
-                text = self.match_panel_tm_target.toPlainText().strip()
-                if text and not text.startswith('('):
-                    self._replace_current_target_segment_text(text, source_label='TM Target (Match Panel)')
-            return
-
-        # Handle Compare Panel (legacy - currently not reached since mode never equals 'compare')
         if mode != 'compare':
             return
 
