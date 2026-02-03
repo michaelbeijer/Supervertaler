@@ -1190,6 +1190,9 @@ class TranslationResultsPanel(QWidget):
             QPushButton:hover {
                 background-color: #0b7dda;
             }
+            QPushButton:focus {
+                outline: none;
+            }
         """)
         self.termbase_refresh_btn.setFixedHeight(20)
         self.termbase_refresh_btn.setToolTip("Refresh entry from database")
@@ -1209,6 +1212,9 @@ class TranslationResultsPanel(QWidget):
             }
             QPushButton:hover {
                 background-color: #45a049;
+            }
+            QPushButton:focus {
+                outline: none;
             }
         """)
         self.termbase_edit_btn.setFixedHeight(20)

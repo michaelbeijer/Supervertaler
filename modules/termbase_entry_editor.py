@@ -447,6 +447,9 @@ class TermbaseEntryEditor(QDialog):
                 QPushButton:hover {
                     background-color: #d32f2f;
                 }
+                QPushButton:focus {
+                    outline: none;
+                }
             """)
             self.delete_btn.clicked.connect(self.delete_term)
             buttons_layout.addWidget(self.delete_btn)
@@ -465,6 +468,9 @@ class TermbaseEntryEditor(QDialog):
             QPushButton:hover {
                 background-color: #e0e0e0;
             }
+            QPushButton:focus {
+                outline: none;
+            }
         """)
         self.cancel_btn.clicked.connect(self.reject)
         buttons_layout.addWidget(self.cancel_btn)
@@ -482,6 +488,9 @@ class TermbaseEntryEditor(QDialog):
             }
             QPushButton:hover {
                 background-color: #45a049;
+            }
+            QPushButton:focus {
+                outline: none;
             }
         """)
         self.save_btn.clicked.connect(self.save_term)

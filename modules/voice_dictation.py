@@ -240,6 +240,9 @@ class VoiceDictationWidget(QWidget):
             QPushButton:disabled {
                 background-color: #BDBDBD;
             }
+            QPushButton:focus {
+                outline: none;
+            }
         """)
         self.record_btn.clicked.connect(self.toggle_recording)
         controls_layout.addWidget(self.record_btn)
@@ -345,6 +348,9 @@ class VoiceDictationWidget(QWidget):
             QPushButton:hover {
                 background-color: #C62828;
             }
+            QPushButton:focus {
+                outline: none;
+            }
         """)
 
         # Disable controls
@@ -379,6 +385,9 @@ class VoiceDictationWidget(QWidget):
             }
             QPushButton:hover {
                 background-color: #1976D2;
+            }
+            QPushButton:focus {
+                outline: none;
             }
         """)
 

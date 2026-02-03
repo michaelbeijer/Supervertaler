@@ -595,6 +595,10 @@ class UnifiedPromptManagerQt:
             log_callback=self.log_message
         )
 
+        # Context inclusion toggles for AI Assistant
+        self.include_tm_data = False
+        self.include_termbase_data = False
+
         self._init_llm_client()
         self._load_conversation_history()
         self._load_persisted_attachments()
@@ -824,6 +828,9 @@ class UnifiedPromptManagerQt:
             QPushButton:pressed {
                 background-color: #0D47A1;
             }
+            QPushButton:focus {
+                outline: none;
+            }
         """)
         action_btn.clicked.connect(self._analyze_and_generate)
         layout.addWidget(action_btn, 0)
@@ -1046,14 +1053,16 @@ class UnifiedPromptManagerQt:
             "Click to include TM data"
         )
         self.context_tms.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.context_tms.mousePressEvent = lambda e: self._toggle_tm_inclusion()
         content_layout.addWidget(self.context_tms)
-        
+
         # Termbases
         self.context_termbases = self._create_context_section(
             "📚 Termbases",
             "Click to include termbase data"
         )
         self.context_termbases.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.context_termbases.mousePressEvent = lambda e: self._toggle_termbase_inclusion()
         content_layout.addWidget(self.context_termbases)
         
         content_layout.addStretch()
@@ -1094,6 +1103,95 @@ class UnifiedPromptManagerQt:
 
         return frame
 
+    def _toggle_tm_inclusion(self):
+        """Toggle inclusion of TM data in AI context"""
+        self.include_tm_data = not self.include_tm_data
+        self._update_tm_section_display()
+
+        # Show feedback
+        status = "enabled" if self.include_tm_data else "disabled"
+        self._add_chat_message("system", f"💾 Translation Memory inclusion **{status}**")
+
+    def _toggle_termbase_inclusion(self):
+        """Toggle inclusion of termbase data in AI context"""
+        self.include_termbase_data = not self.include_termbase_data
+        self._update_termbase_section_display()
+
+        # Show feedback
+        status = "enabled" if self.include_termbase_data else "disabled"
+        self._add_chat_message("system", f"📚 Termbase inclusion **{status}**")
+
+    def _update_tm_section_display(self):
+        """Update TM section visual state"""
+        if self.include_tm_data:
+            self.context_tms.setStyleSheet("""
+                QFrame {
+                    background-color: #E3F2FD;
+                    border: 2px solid #1976D2;
+                    border-radius: 5px;
+                    padding: 8px;
+                }
+            """)
+            # Update description label
+            for child in self.context_tms.findChildren(QLabel):
+                if "Click to" in child.text() or "✓" in child.text():
+                    child.setText("✓ TM data will be included")
+                    child.setStyleSheet("color: #1976D2; font-size: 8pt; font-weight: bold;")
+                    break
+        else:
+            self.context_tms.setStyleSheet("""
+                QFrame {
+                    background-color: #F5F5F5;
+                    border: 1px solid #E0E0E0;
+                    border-radius: 5px;
+                    padding: 8px;
+                }
+                QFrame:hover {
+                    background-color: #EEEEEE;
+                    border: 1px solid #BDBDBD;
+                }
+            """)
+            for child in self.context_tms.findChildren(QLabel):
+                if "✓" in child.text() or "Click to" in child.text():
+                    child.setText("Click to include TM data")
+                    child.setStyleSheet("color: #666; font-size: 8pt;")
+                    break
+
+    def _update_termbase_section_display(self):
+        """Update termbase section visual state"""
+        if self.include_termbase_data:
+            self.context_termbases.setStyleSheet("""
+                QFrame {
+                    background-color: #E8F5E9;
+                    border: 2px solid #4CAF50;
+                    border-radius: 5px;
+                    padding: 8px;
+                }
+            """)
+            for child in self.context_termbases.findChildren(QLabel):
+                if "Click to" in child.text() or "✓" in child.text():
+                    child.setText("✓ Termbase data will be included")
+                    child.setStyleSheet("color: #4CAF50; font-size: 8pt; font-weight: bold;")
+                    break
+        else:
+            self.context_termbases.setStyleSheet("""
+                QFrame {
+                    background-color: #F5F5F5;
+                    border: 1px solid #E0E0E0;
+                    border-radius: 5px;
+                    padding: 8px;
+                }
+                QFrame:hover {
+                    background-color: #EEEEEE;
+                    border: 1px solid #BDBDBD;
+                }
+            """)
+            for child in self.context_termbases.findChildren(QLabel):
+                if "✓" in child.text() or "Click to" in child.text():
+                    child.setText("Click to include termbase data")
+                    child.setStyleSheet("color: #666; font-size: 8pt;")
+                    break
+
     def _create_attached_files_section(self) -> QFrame:
         """Create expandable attached files section with view/remove buttons"""
         frame = QFrame()
@@ -1125,6 +1223,9 @@ class UnifiedPromptManagerQt:
             QPushButton:hover {
                 background-color: #E0E0E0;
             }
+            QPushButton:focus {
+                outline: none;
+            }
         """)
         self.attached_files_expand_btn.clicked.connect(self._toggle_attached_files)
         header_layout.addWidget(self.attached_files_expand_btn)
@@ -1148,6 +1249,9 @@ class UnifiedPromptManagerQt:
             }
             QPushButton:hover {
                 background-color: #1565C0;
+            }
+            QPushButton:focus {
+                outline: none;
             }
         """)
         attach_btn.clicked.connect(self._attach_file)
@@ -1253,6 +1357,9 @@ class UnifiedPromptManagerQt:
             QPushButton:hover {
                 background-color: #1565C0;
             }
+            QPushButton:focus {
+                outline: none;
+            }
         """)
         view_btn.clicked.connect(lambda: self._view_file(file_data))
         btn_layout.addWidget(view_btn)
@@ -1269,6 +1376,9 @@ class UnifiedPromptManagerQt:
             }
             QPushButton:hover {
                 background-color: #b71c1c;
+            }
+            QPushButton:focus {
+                outline: none;
             }
         """)
         remove_btn.clicked.connect(lambda: self._remove_file(file_data))
@@ -1405,6 +1515,9 @@ class UnifiedPromptManagerQt:
             QPushButton:pressed {
                 background-color: #424242;
             }
+            QPushButton:focus {
+                outline: none;
+            }
         """)
         clear_btn.clicked.connect(self._clear_chat)
         toolbar_layout.addWidget(clear_btn)
@@ -1455,6 +1568,9 @@ class UnifiedPromptManagerQt:
             }
             QPushButton:pressed {
                 background-color: #0D47A1;
+            }
+            QPushButton:focus {
+                outline: none;
             }
         """)
         send_btn.clicked.connect(self._send_chat_message)
@@ -3217,9 +3333,17 @@ If the text refers to figures (e.g., 'Figure 1A'), relevant images may be provid
 PROJECT CONTEXT:
 {context}
 
-Create a translation prompt. Output ONE complete ACTION block:
+**CRITICAL INSTRUCTIONS:**
+1. You MUST output exactly ONE ACTION block in the following format
+2. The JSON MUST be valid and complete
+3. Both "name" and "content" are REQUIRED fields
 
-ACTION:create_prompt PARAMS:{{"name": "[Name]", "content": "[Prompt]", "folder": "Project Prompts", "description": "Auto-generated", "activate": true}}
+**EXACT FORMAT TO USE:**
+
+ACTION:create_prompt PARAMS:{{"name": "Your Prompt Name Here", "content": "Your full prompt content here", "folder": "Project Prompts", "description": "Auto-generated prompt", "activate": true}}
+
+**EXAMPLE:**
+ACTION:create_prompt PARAMS:{{"name": "Legal Translation EN-NL", "content": "You are an expert legal translator...\\n\\n# TERMINOLOGY\\n| Source | Target |\\n...", "folder": "Project Prompts", "description": "Auto-generated", "activate": true}}
 
 Prompt must include:
 
@@ -3317,6 +3441,18 @@ Output complete ACTION."""
                     preview = file['content'][:200].replace('\n', ' ')
                     context_parts.append(f"  Preview: {preview}...")
 
+        # Translation Memory data (if enabled)
+        if self.include_tm_data:
+            tm_data = self._get_tm_context_data()
+            if tm_data:
+                context_parts.append(f"\n**Translation Memory Matches:**\n{tm_data}")
+
+        # Termbase data (if enabled)
+        if self.include_termbase_data:
+            tb_data = self._get_termbase_context_data()
+            if tb_data:
+                context_parts.append(f"\n**Termbase Entries:**\n{tb_data}")
+
         return "\n".join(context_parts) if context_parts else "No context available"
     
     def _list_available_prompts(self) -> str:
@@ -3334,7 +3470,73 @@ Output complete ACTION."""
             lines.append(f"... and {len(self.library.prompts) - 20} more")
         
         return "\n".join(lines)
-    
+
+    def _get_tm_context_data(self) -> str:
+        """Get Translation Memory data for AI context"""
+        try:
+            if not hasattr(self.parent_app, 'tm_databases') or not self.parent_app.tm_databases:
+                return "No translation memories loaded"
+
+            lines = []
+            total_entries = 0
+
+            for tm_name, tm_db in self.parent_app.tm_databases.items():
+                if hasattr(tm_db, 'entries'):
+                    count = len(tm_db.entries)
+                    total_entries += count
+                    lines.append(f"- **{tm_name}**: {count} entries")
+
+                    # Show sample entries (first 10)
+                    for i, entry in enumerate(list(tm_db.entries.values())[:10]):
+                        if hasattr(entry, 'source') and hasattr(entry, 'target'):
+                            lines.append(f"  {i+1}. {entry.source[:50]}... → {entry.target[:50]}...")
+
+            if not lines:
+                return "Translation memories are empty"
+
+            return f"Total: {total_entries} TM entries\n" + "\n".join(lines)
+
+        except Exception as e:
+            return f"Error loading TM data: {e}"
+
+    def _get_termbase_context_data(self) -> str:
+        """Get Termbase data for AI context"""
+        try:
+            if not hasattr(self.parent_app, 'termbases') or not self.parent_app.termbases:
+                # Try to get termbase entries from the termbase manager
+                if hasattr(self.parent_app, 'termbase_manager'):
+                    terms = self.parent_app.termbase_manager.get_all_terms()
+                    if terms:
+                        lines = [f"Total: {len(terms)} termbase entries\n"]
+                        for i, term in enumerate(terms[:50]):  # First 50 terms
+                            source = term.get('source_term', term.get('source', ''))
+                            target = term.get('target_term', term.get('target', ''))
+                            if source and target:
+                                lines.append(f"| {source} | {target} |")
+                        return "\n".join(lines)
+                return "No termbases loaded"
+
+            lines = []
+            total_terms = 0
+
+            for tb_name, tb in self.parent_app.termbases.items():
+                if hasattr(tb, 'terms'):
+                    count = len(tb.terms)
+                    total_terms += count
+                    lines.append(f"- **{tb_name}**: {count} terms")
+
+                    # Show sample terms (first 20)
+                    for i, (source, target) in enumerate(list(tb.terms.items())[:20]):
+                        lines.append(f"  | {source} | {target} |")
+
+            if not lines:
+                return "Termbases are empty"
+
+            return f"Total: {total_terms} terms\n" + "\n".join(lines)
+
+        except Exception as e:
+            return f"Error loading termbase data: {e}"
+
     def _attach_file(self):
         """Attach a file to the conversation"""
         file_path, _ = QFileDialog.getOpenFileName(

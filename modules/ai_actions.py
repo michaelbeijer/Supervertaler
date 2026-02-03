@@ -168,9 +168,10 @@ class AIActionSystem:
 
             except json.JSONDecodeError as e:
                 self.log(f"✗ Failed to parse action parameters: {e}")
+                self.log(f"[DEBUG] Raw params_str: {params_str[:500]}...")  # Log what we tried to parse
                 action_results.append({
                     'action': action_name,
-                    'params': params_str,
+                    'params': params_str[:200],  # Truncate for display
                     'success': False,
                     'error': f"Invalid JSON parameters: {e}"
                 })
@@ -325,7 +326,15 @@ class AIActionSystem:
         content = params.get('content')
 
         if not name or not content:
-            raise ValueError("Missing required parameters: name and content")
+            # Log what we actually received for debugging
+            self.log(f"[DEBUG] create_prompt received params: {params}")
+            self.log(f"[DEBUG] name={repr(name)}, content={repr(content)[:100] if content else None}")
+            missing = []
+            if not name:
+                missing.append("name")
+            if not content:
+                missing.append("content")
+            raise ValueError(f"Missing required parameters: {', '.join(missing)}. Received keys: {list(params.keys())}")
 
         # Build relative path
         folder = params.get('folder', '')
@@ -960,5 +969,8 @@ PARAMS: {
                         output += "\n"
             else:
                 output += f"\n✗ **{action_name}**: {result['error']}\n"
+                # Show hint for common errors
+                if 'Missing required parameters' in result['error']:
+                    output += "  _Hint: The AI may not have generated the correct format. Try clicking the button again._\n"
 
         return output

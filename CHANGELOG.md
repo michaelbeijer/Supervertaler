@@ -2,9 +2,27 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.204 (February 3, 2026)
+**Current Version:** v1.9.205 (February 3, 2026)
 
 
+
+## v1.9.205 - February 3, 2026
+
+### 🐛 Bug Fixes
+
+- **CRITICAL: Project Segments Corruption Fixed**: Fixed a critical bug where importing a new document would save the OLD project's segments instead of the newly imported ones. This affected all import functions (DOCX, text, memoQ, Trados, SDL package, Phrase, CafeTran, Déjà Vu). The issue was that `_original_segment_order` wasn't being updated after imports, causing the save function to overwrite new segments with old ones.
+
+- **QuickTrans Language Mapping**: Fixed QuickTrans not respecting project source/target language settings. Machine translation providers (MyMemory, DeepL, Microsoft, ModernMT) now correctly map language names like "English" and "Dutch" to ISO codes.
+
+- **Focus Rectangles Removed**: Fixed dotted focus rectangles appearing on buttons throughout the application. Added global stylesheet rules in theme manager and individual button fixes where custom stylesheets were used.
+
+### ✨ Improvements
+
+- **AI Assistant TM/Termbase Integration**: The "Click to include TM data" and "Click to include termbase data" buttons in the AI Assistant are now functional. Clicking toggles inclusion of TM matches and termbase entries in AI context.
+
+- **AI Actions Error Messages**: Enhanced error messages for AI action debugging, showing received parameters when prompt creation fails.
+
+---
 
 ## v1.9.204 - February 3, 2026
 

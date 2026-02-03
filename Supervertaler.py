@@ -9544,6 +9544,9 @@ class SupervertalerQt(QMainWindow):
             QPushButton:hover {
                 background-color: #2980b9;
             }
+            QPushButton:focus {
+                outline: none;
+            }
         """)
         extract_btn.clicked.connect(self._on_extract_images)
         header_layout.addWidget(extract_btn)
@@ -21190,6 +21193,9 @@ class SupervertalerQt(QMainWindow):
             QPushButton:hover:!checked {
                 background-color: #858585;
             }
+            QPushButton:focus {
+                outline: none;
+            }
         """)
         wysiwyg_btn.clicked.connect(lambda: self.toggle_tag_view(False, None))
         view_mode_group.addButton(wysiwyg_btn, 0)
@@ -21215,6 +21221,9 @@ class SupervertalerQt(QMainWindow):
             }
             QPushButton:hover:!checked {
                 background-color: #858585;
+            }
+            QPushButton:focus {
+                outline: none;
             }
         """)
         tags_btn.clicked.connect(lambda: self.toggle_tag_view(True, None))
@@ -21272,6 +21281,9 @@ class SupervertalerQt(QMainWindow):
             }
             QPushButton:checked {
                 background-color: #2E7D32;
+            }
+            QPushButton:focus {
+                outline: none;
             }
         """)
         alwayson_btn.setToolTip("Toggle always-on voice listening\n\nWhen ON: Listens continuously for voice commands\nNo need to press F9")
@@ -22032,6 +22044,9 @@ class SupervertalerQt(QMainWindow):
             QPushButton:pressed {
                 background-color: #1565C0;
             }
+            QPushButton:focus {
+                outline: none;
+            }
         """)
         self.scroll_up_btn.setToolTip("Scroll up one row (Precision scroll)")
         self.scroll_up_btn.clicked.connect(lambda: self.precision_scroll(-1))
@@ -22057,6 +22072,9 @@ class SupervertalerQt(QMainWindow):
             }
             QPushButton:pressed {
                 background-color: #1565C0;
+            }
+            QPushButton:focus {
+                outline: none;
             }
         """)
         self.scroll_down_btn.setToolTip("Scroll down one row (Precision scroll)")
@@ -24678,6 +24696,11 @@ class SupervertalerQt(QMainWindow):
             # Set as current project and load into grid
             self.current_project = project
             self.current_document_path = file_path  # Store document path
+
+            # CRITICAL: Update _original_segment_order for new import
+            # This prevents old segments from being saved instead of new ones
+            self._original_segment_order = self.current_project.segments.copy()
+
             self.load_segments_to_grid()
 
             # Initialize TM for this project
@@ -24912,14 +24935,18 @@ class SupervertalerQt(QMainWindow):
             # Set as current project and load into grid
             self.current_project = project
             self.current_document_path = file_path
+
+            # CRITICAL: Update _original_segment_order for new import
+            self._original_segment_order = self.current_project.segments.copy()
+
             self.load_segments_to_grid()
-            
+
             # Initialize TM for this project
             self.initialize_tm_database()
-            
+
             # Initialize spellcheck for target language
             self._initialize_spellcheck_for_target_language(target_lang)
-            
+
             # Update status
             empty_count = sum(1 for seg in segments if not seg.source.strip())
             file_type = "Markdown file" if is_markdown else "text file"
@@ -24979,6 +25006,8 @@ class SupervertalerQt(QMainWindow):
                         project.original_txt_path = file_path
                         self.current_project = project
                         self.current_document_path = file_path
+                        # CRITICAL: Update _original_segment_order for new import
+                        self._original_segment_order = self.current_project.segments.copy()
                         self.load_segments_to_grid()
                         self.initialize_tm_database()
                         self.log(f"✓ Loaded {len(segments)} lines from text file")
@@ -26307,10 +26336,13 @@ class SupervertalerQt(QMainWindow):
         # Set as current project
         self.current_project = project
         self.current_document_path = folder_path
-        
+
+        # CRITICAL: Update _original_segment_order for new import
+        self._original_segment_order = self.current_project.segments.copy()
+
         # Load into grid
         self.load_segments_to_grid()
-        
+
         # Initialize TM
         self.initialize_tm_database()
         
@@ -27183,10 +27215,14 @@ class SupervertalerQt(QMainWindow):
             # Update UI
             self.project_file_path = None
             self.project_modified = True
+
+            # CRITICAL: Update _original_segment_order for new import
+            self._original_segment_order = self.current_project.segments.copy()
+
             self.update_window_title()
             self.load_segments_to_grid()
             self.initialize_tm_database()
-            
+
             # Deactivate all resources for new project, then auto-activate language-matching ones
             self._deactivate_all_resources_for_new_project()
 
@@ -27199,7 +27235,7 @@ class SupervertalerQt(QMainWindow):
             # If smart formatting was used, auto-enable Tags view so user sees the tags
             if self.memoq_smart_formatting:
                 self._enable_tag_view_after_import()
-            
+
             self.log(f"✓ Imported memoQ bilingual DOCX: {len(source_segments)} segments from {Path(file_path).name}")
 
             # Store current document path for AI Assistant
@@ -27692,10 +27728,14 @@ class SupervertalerQt(QMainWindow):
             # Update UI
             self.project_file_path = None
             self.project_modified = True
+
+            # CRITICAL: Update _original_segment_order for new import
+            self._original_segment_order = self.current_project.segments.copy()
+
             self.update_window_title()
             self.load_segments_to_grid()
             self.initialize_tm_database()
-            
+
             # Deactivate all resources for new project, then auto-activate language-matching ones
             self._deactivate_all_resources_for_new_project()
 
@@ -27971,10 +28011,14 @@ class SupervertalerQt(QMainWindow):
             # Update UI
             self.project_file_path = None
             self.project_modified = True
+
+            # CRITICAL: Update _original_segment_order for new import
+            self._original_segment_order = self.current_project.segments.copy()
+
             self.update_window_title()
             self.load_segments_to_grid()
             self.initialize_tm_database()
-            
+
             # Deactivate all resources for new project, then auto-activate language-matching ones
             self._deactivate_all_resources_for_new_project()
 
@@ -28191,6 +28235,9 @@ class SupervertalerQt(QMainWindow):
             
             # Store Trados source path in project for persistence across saves
             self.current_project.trados_source_path = file_path
+
+            # CRITICAL: Update _original_segment_order for new import
+            self._original_segment_order = self.current_project.segments.copy()
 
             # Sync global language settings with imported project languages
             self.source_language = source_lang
@@ -28556,6 +28603,9 @@ class SupervertalerQt(QMainWindow):
             self.sdlppx_source_file = file_path
             self.current_project.sdlppx_source_path = file_path
 
+            # CRITICAL: Update _original_segment_order for new import
+            self._original_segment_order = self.current_project.segments.copy()
+
             # Sync global language settings with imported project languages
             self.source_language = source_lang
             self.target_language = target_lang
@@ -28892,6 +28942,9 @@ class SupervertalerQt(QMainWindow):
             # Store Phrase source path in project for persistence across saves
             self.current_project.phrase_source_path = file_path
 
+            # CRITICAL: Update _original_segment_order for new import
+            self._original_segment_order = self.current_project.segments.copy()
+
             # Sync global language settings with imported project languages
             self.source_language = source_lang
             self.target_language = target_lang
@@ -29194,20 +29247,23 @@ class SupervertalerQt(QMainWindow):
                     dejavu_row_index=seg_data.row_index,
                 )
                 self.current_project.segments.append(segment)
-            
+
+            # CRITICAL: Update _original_segment_order for new import
+            self._original_segment_order = self.current_project.segments.copy()
+
             # Update UI
             self.project_file_path = None
             self.project_modified = True
             self.update_window_title()
             self.load_segments_to_grid()
             self.initialize_tm_database()
-            
+
             # Auto-resize rows for better initial display
             self.auto_resize_rows()
-            
+
             # Initialize spellcheck for target language
             self._initialize_spellcheck_for_target_language(target_lang)
-            
+
             self.log(f"✓ Imported Déjà Vu X3 bilingual RTF: {len(segments_data)} segments from {Path(file_path).name}")
 
             # Store current document path for AI Assistant
@@ -44605,12 +44661,25 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
 
             translator = deepl.Translator(api_key)
 
-            # Convert source language code (DeepL uses uppercase, no variant needed for source)
-            src_code = source_lang.split('-')[0].split('_')[0].upper()
+            # Map full language names to ISO codes
+            lang_name_to_code = {
+                'english': 'en', 'dutch': 'nl', 'german': 'de', 'french': 'fr',
+                'spanish': 'es', 'italian': 'it', 'portuguese': 'pt', 'russian': 'ru',
+                'chinese': 'zh', 'japanese': 'ja', 'korean': 'ko', 'arabic': 'ar',
+                'polish': 'pl', 'swedish': 'sv', 'norwegian': 'no', 'danish': 'da',
+                'finnish': 'fi', 'greek': 'el', 'turkish': 'tr', 'czech': 'cs',
+                'hungarian': 'hu', 'romanian': 'ro', 'bulgarian': 'bg', 'ukrainian': 'uk',
+            }
 
-            # Convert target language code - DeepL requires variants for some languages
-            # Handle full codes like "en-US", "en-GB", "pt-BR", "pt-PT"
-            tgt_upper = target_lang.upper().replace('_', '-')
+            # Convert source language - try name mapping first, then code extraction
+            src_lower = source_lang.lower().strip()
+            src_base = lang_name_to_code.get(src_lower, src_lower.split('-')[0].split('_')[0])
+            src_code = src_base.upper()
+
+            # Convert target language - try name mapping first, then handle DeepL variants
+            tgt_lower = target_lang.lower().strip()
+            tgt_base = lang_name_to_code.get(tgt_lower, tgt_lower)
+            tgt_upper = tgt_base.upper().replace('_', '-')
 
             # DeepL target language mapping - some require specific variants
             deepl_target_map = {
@@ -44656,19 +44725,33 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         """Call Microsoft Azure Translator API"""
         try:
             import requests
-            
+
             api_keys = self.load_api_keys()
             if not api_key:
                 api_key = api_keys.get("microsoft_translate") or api_keys.get("azure_translate")
             if not region:
                 region = api_keys.get("microsoft_translate_region") or api_keys.get("azure_region") or "global"
-            
+
             if not api_key:
                 return "[Microsoft Translator requires API key]"
-            
-            # Convert language codes (Azure uses standard codes)
-            src_code = source_lang.split('-')[0].split('_')[0].lower()
-            tgt_code = target_lang.split('-')[0].split('_')[0].lower()
+
+            # Map full language names to ISO codes
+            lang_name_to_code = {
+                'english': 'en', 'dutch': 'nl', 'german': 'de', 'french': 'fr',
+                'spanish': 'es', 'italian': 'it', 'portuguese': 'pt', 'russian': 'ru',
+                'chinese': 'zh', 'japanese': 'ja', 'korean': 'ko', 'arabic': 'ar',
+                'polish': 'pl', 'swedish': 'sv', 'norwegian': 'no', 'danish': 'da',
+                'finnish': 'fi', 'greek': 'el', 'turkish': 'tr', 'czech': 'cs',
+                'hungarian': 'hu', 'romanian': 'ro', 'bulgarian': 'bg', 'ukrainian': 'uk',
+                'hebrew': 'he', 'thai': 'th', 'vietnamese': 'vi', 'indonesian': 'id',
+            }
+
+            # Convert language - try name mapping first, then code extraction
+            src_lower = source_lang.lower().strip()
+            tgt_lower = target_lang.lower().strip()
+
+            src_code = lang_name_to_code.get(src_lower, src_lower.split('-')[0].split('_')[0])
+            tgt_code = lang_name_to_code.get(tgt_lower, tgt_lower.split('-')[0].split('_')[0])
             
             # Microsoft Translator API v3.0
             endpoint = f"https://api.cognitive.microsofttranslator.com/translate"
@@ -44756,17 +44839,30 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         """Call ModernMT API"""
         try:
             import requests
-            
+
             api_keys = self.load_api_keys()
             if not api_key:
                 api_key = api_keys.get("modernmt")
-            
+
             if not api_key:
                 return "[ModernMT requires API key]"
-            
-            # Convert language codes
-            src_code = source_lang.split('-')[0].split('_')[0]
-            tgt_code = target_lang.split('-')[0].split('_')[0]
+
+            # Map full language names to ISO codes
+            lang_name_to_code = {
+                'english': 'en', 'dutch': 'nl', 'german': 'de', 'french': 'fr',
+                'spanish': 'es', 'italian': 'it', 'portuguese': 'pt', 'russian': 'ru',
+                'chinese': 'zh', 'japanese': 'ja', 'korean': 'ko', 'arabic': 'ar',
+                'polish': 'pl', 'swedish': 'sv', 'norwegian': 'no', 'danish': 'da',
+                'finnish': 'fi', 'greek': 'el', 'turkish': 'tr', 'czech': 'cs',
+                'hungarian': 'hu', 'romanian': 'ro', 'bulgarian': 'bg', 'ukrainian': 'uk',
+            }
+
+            # Convert language - try name mapping first, then code extraction
+            src_lower = source_lang.lower().strip()
+            tgt_lower = target_lang.lower().strip()
+
+            src_code = lang_name_to_code.get(src_lower, src_lower.split('-')[0].split('_')[0])
+            tgt_code = lang_name_to_code.get(tgt_lower, tgt_lower.split('-')[0].split('_')[0])
             
             # ModernMT API endpoint
             url = "https://api.modernmt.com/translate"
@@ -44795,14 +44891,29 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         """Call MyMemory Translation API (free tier available, simple REST API)"""
         try:
             import requests
-            
+
             # MyMemory is free, but API key provides higher limits
             api_keys = self.load_api_keys()
             api_key = api_key or api_keys.get("mymemory")  # Optional, works without key
-            
-            # Convert language codes (MyMemory uses 2-letter codes)
-            src_code = source_lang.split('-')[0].split('_')[0].lower()
-            tgt_code = target_lang.split('-')[0].split('_')[0].lower()
+
+            # Map full language names to ISO codes
+            lang_name_to_code = {
+                'english': 'en', 'dutch': 'nl', 'german': 'de', 'french': 'fr',
+                'spanish': 'es', 'italian': 'it', 'portuguese': 'pt', 'russian': 'ru',
+                'chinese': 'zh', 'japanese': 'ja', 'korean': 'ko', 'arabic': 'ar',
+                'polish': 'pl', 'swedish': 'sv', 'norwegian': 'no', 'danish': 'da',
+                'finnish': 'fi', 'greek': 'el', 'turkish': 'tr', 'czech': 'cs',
+                'hungarian': 'hu', 'romanian': 'ro', 'bulgarian': 'bg', 'ukrainian': 'uk',
+                'hebrew': 'he', 'thai': 'th', 'vietnamese': 'vi', 'indonesian': 'id',
+                'malay': 'ms', 'hindi': 'hi', 'bengali': 'bn', 'tamil': 'ta',
+            }
+
+            # Convert language - try name mapping first, then code extraction
+            src_lower = source_lang.lower().strip()
+            tgt_lower = target_lang.lower().strip()
+
+            src_code = lang_name_to_code.get(src_lower, src_lower.split('-')[0].split('_')[0])
+            tgt_code = lang_name_to_code.get(tgt_lower, tgt_lower.split('-')[0].split('_')[0])
             
             # MyMemory API endpoint
             url = "https://api.mymemory.translated.net/get"

@@ -370,7 +370,16 @@ class ThemeManager:
             QPushButton:disabled {{
                 color: {theme.text_disabled};
             }}
-            
+
+            /* Remove focus rectangles from buttons */
+            QPushButton:focus {{
+                outline: none;
+            }}
+
+            QToolButton:focus {{
+                outline: none;
+            }}
+
             /* Combo boxes */
             QComboBox {{
                 background-color: {theme.base};

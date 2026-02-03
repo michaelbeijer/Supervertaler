@@ -289,6 +289,9 @@ class MTQuickPopup(QDialog):
                 background-color: #e0e0e0;
                 border-radius: 4px;
             }
+            QPushButton:focus {
+                outline: none;
+            }
         """)
         settings_btn.clicked.connect(self._open_settings)
         header_layout.addWidget(settings_btn)
