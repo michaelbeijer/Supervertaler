@@ -2,9 +2,17 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.212 (February 3, 2026)
+**Current Version:** v1.9.213 (February 3, 2026)
 
 
+
+## v1.9.213 - February 3, 2026
+
+### 🐛 Bug Fixes
+
+- **Wrapping Tags in TM and TMX Export**: Fixed structural wrapping tags (e.g., `<li-b>`, `<li-o>`, `<p>`, `<td>`) being saved to Translation Memory and exported TMX files even when "Hide outer wrapping tags" was enabled in settings. All TM save and TMX export functions now properly strip these tags when the setting is active, improving TM leverage and ensuring cleaner exports.
+
+---
 
 ## v1.9.212 - February 3, 2026
 

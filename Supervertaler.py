@@ -32,7 +32,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.212"
+__version__ = "1.9.213"
 __phase__ = "0.9"
 __release_date__ = "2026-02-03"
 __edition__ = "Qt"
@@ -12071,7 +12071,12 @@ class SupervertalerQt(QMainWindow):
             for segment in self.current_project.segments:
                 source_text = segment.source
                 target_text = segment.target if segment.target else ""
-                
+
+                # Strip outer wrapping tags if setting is enabled (for cleaner TM matching)
+                if self.hide_outer_wrapping_tags:
+                    source_text, _ = strip_outer_wrapping_tags(source_text)
+                    target_text, _ = strip_outer_wrapping_tags(target_text) if target_text else (target_text, None)
+
                 if source_text:
                     source_segments.append(source_text)
                     target_segments.append(target_text)
@@ -12158,7 +12163,12 @@ class SupervertalerQt(QMainWindow):
                     segment = self.current_project.segments[row]
                     source_text = segment.source
                     target_text = segment.target if segment.target else ""
-                    
+
+                    # Strip outer wrapping tags if setting is enabled (for cleaner TM matching)
+                    if self.hide_outer_wrapping_tags:
+                        source_text, _ = strip_outer_wrapping_tags(source_text)
+                        target_text, _ = strip_outer_wrapping_tags(target_text) if target_text else (target_text, None)
+
                     if source_text:
                         source_segments.append(source_text)
                         target_segments.append(target_text)
@@ -12237,8 +12247,14 @@ class SupervertalerQt(QMainWindow):
             # Extract segments from TM entries
             self.log(f"Exporting {len(tm_entries)} entries from TM database...")
             for entry in tm_entries:
-                source_segments.append(entry.get('source_text', entry.get('source', '')))
-                target_segments.append(entry.get('target_text', entry.get('target', '')))
+                source_text = entry.get('source_text', entry.get('source', ''))
+                target_text = entry.get('target_text', entry.get('target', ''))
+                # Strip outer wrapping tags if setting is enabled
+                if self.hide_outer_wrapping_tags:
+                    source_text, _ = strip_outer_wrapping_tags(source_text)
+                    target_text, _ = strip_outer_wrapping_tags(target_text)
+                source_segments.append(source_text)
+                target_segments.append(target_text)
             
             # Generate and save TMX
             from modules.tmx_generator import TMXGenerator
@@ -34421,11 +34437,18 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                 if not should_send:
                     skipped_count += 1
                     continue
-                
-                # Strip formatting tags for TM (store clean text)
-                source_clean = strip_formatting_tags(seg.source) if has_formatting_tags(seg.source) else seg.source
-                target_clean = strip_formatting_tags(seg.target) if has_formatting_tags(seg.target) else seg.target
-                
+
+                # Strip outer wrapping tags first (like <li-b>, <li-o>, <p>) if setting is enabled
+                source_clean = seg.source
+                target_clean = seg.target
+                if self.hide_outer_wrapping_tags:
+                    source_clean, _ = strip_outer_wrapping_tags(source_clean)
+                    target_clean, _ = strip_outer_wrapping_tags(target_clean)
+
+                # Then strip formatting tags (like <b>, <i>, <u>)
+                source_clean = strip_formatting_tags(source_clean) if has_formatting_tags(source_clean) else source_clean
+                target_clean = strip_formatting_tags(target_clean) if has_formatting_tags(target_clean) else target_clean
+
                 # Add to TM using the correct method
                 try:
                     self.tm_database.add_entry(
