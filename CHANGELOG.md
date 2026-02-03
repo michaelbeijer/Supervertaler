@@ -2,9 +2,17 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.206 (February 3, 2026)
+**Current Version:** v1.9.207 (February 3, 2026)
 
 
+
+## v1.9.207 - February 3, 2026
+
+### 🔧 Maintenance
+
+- **Version Sync**: Synchronized version number across pyproject.toml, Supervertaler.py, and PyPI package.
+
+---
 
 ## v1.9.206 - February 3, 2026
 
