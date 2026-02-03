@@ -32,7 +32,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.213"
+__version__ = "1.9.214"
 __phase__ = "0.9"
 __release_date__ = "2026-02-03"
 __edition__ = "Qt"
@@ -472,6 +472,252 @@ def strip_outer_wrapping_tags(text: str) -> tuple:
         return (text, None)
 
     return (inner_content, tag_name)
+
+
+def get_docx_language_code(lang_name_or_code: str) -> str:
+    """
+    Convert language name or code to DOCX locale format (e.g., 'nl-NL', 'en-US').
+
+    DOCX files use BCP 47 / RFC 5646 language tags with region codes.
+
+    Args:
+        lang_name_or_code: Language name (e.g., 'Dutch', 'English') or code (e.g., 'nl', 'en')
+
+    Returns:
+        DOCX-compatible language code with region (e.g., 'nl-NL', 'en-US')
+    """
+    if not lang_name_or_code:
+        return "en-US"  # Default fallback
+
+    lang_input = lang_name_or_code.strip()
+    lang_lower = lang_input.lower()
+
+    # Map language names to full locale codes (with region)
+    # Priority: Netherlands for Dutch, US for English, etc.
+    lang_map = {
+        # Major languages with regional defaults
+        "dutch": "nl-NL",
+        "english": "en-US",
+        "german": "de-DE",
+        "french": "fr-FR",
+        "spanish": "es-ES",
+        "italian": "it-IT",
+        "portuguese": "pt-PT",
+        "russian": "ru-RU",
+        "chinese": "zh-CN",
+        "japanese": "ja-JP",
+        "korean": "ko-KR",
+        "arabic": "ar-SA",
+
+        # Dutch variants
+        "dutch (netherlands)": "nl-NL",
+        "dutch (belgium)": "nl-BE",
+        "flemish": "nl-BE",
+
+        # English variants
+        "english (us)": "en-US",
+        "english (uk)": "en-GB",
+        "english (australia)": "en-AU",
+        "english (canada)": "en-CA",
+        "american english": "en-US",
+        "british english": "en-GB",
+
+        # French variants
+        "french (france)": "fr-FR",
+        "french (canada)": "fr-CA",
+        "french (belgium)": "fr-BE",
+        "french (switzerland)": "fr-CH",
+
+        # German variants
+        "german (germany)": "de-DE",
+        "german (austria)": "de-AT",
+        "german (switzerland)": "de-CH",
+
+        # Spanish variants
+        "spanish (spain)": "es-ES",
+        "spanish (mexico)": "es-MX",
+        "spanish (latin america)": "es-419",
+
+        # Portuguese variants
+        "portuguese (portugal)": "pt-PT",
+        "portuguese (brazil)": "pt-BR",
+        "brazilian portuguese": "pt-BR",
+
+        # Chinese variants
+        "chinese (simplified)": "zh-CN",
+        "chinese (traditional)": "zh-TW",
+        "simplified chinese": "zh-CN",
+        "traditional chinese": "zh-TW",
+
+        # Other European languages
+        "afrikaans": "af-ZA",
+        "albanian": "sq-AL",
+        "armenian": "hy-AM",
+        "basque": "eu-ES",
+        "bengali": "bn-BD",
+        "bulgarian": "bg-BG",
+        "catalan": "ca-ES",
+        "croatian": "hr-HR",
+        "czech": "cs-CZ",
+        "danish": "da-DK",
+        "estonian": "et-EE",
+        "finnish": "fi-FI",
+        "galician": "gl-ES",
+        "georgian": "ka-GE",
+        "greek": "el-GR",
+        "hebrew": "he-IL",
+        "hindi": "hi-IN",
+        "hungarian": "hu-HU",
+        "icelandic": "is-IS",
+        "indonesian": "id-ID",
+        "irish": "ga-IE",
+        "latvian": "lv-LV",
+        "lithuanian": "lt-LT",
+        "macedonian": "mk-MK",
+        "malay": "ms-MY",
+        "norwegian": "nb-NO",
+        "persian": "fa-IR",
+        "polish": "pl-PL",
+        "romanian": "ro-RO",
+        "serbian": "sr-RS",
+        "slovak": "sk-SK",
+        "slovenian": "sl-SI",
+        "swahili": "sw-KE",
+        "swedish": "sv-SE",
+        "thai": "th-TH",
+        "turkish": "tr-TR",
+        "ukrainian": "uk-UA",
+        "urdu": "ur-PK",
+        "vietnamese": "vi-VN",
+        "welsh": "cy-GB",
+    }
+
+    # Check if it's a full language name
+    if lang_lower in lang_map:
+        return lang_map[lang_lower]
+
+    # Check if already in locale format (e.g., "nl-NL", "en-US")
+    if '-' in lang_input or '_' in lang_input:
+        parts = lang_input.replace('_', '-').split('-')
+        if len(parts) >= 2 and len(parts[0]) == 2:
+            return f"{parts[0].lower()}-{parts[1].upper()}"
+
+    # If it's a 2-letter code, try to add a default region
+    code_to_region = {
+        "nl": "NL", "en": "US", "de": "DE", "fr": "FR", "es": "ES",
+        "it": "IT", "pt": "PT", "ru": "RU", "zh": "CN", "ja": "JP",
+        "ko": "KR", "ar": "SA", "pl": "PL", "cs": "CZ", "da": "DK",
+        "fi": "FI", "el": "GR", "hu": "HU", "no": "NO", "nb": "NO",
+        "sv": "SE", "tr": "TR", "uk": "UA", "he": "IL", "th": "TH",
+        "vi": "VN", "id": "ID", "ms": "MY", "ro": "RO", "bg": "BG",
+        "hr": "HR", "sk": "SK", "sl": "SI", "et": "EE", "lv": "LV",
+        "lt": "LT", "sr": "RS", "mk": "MK", "sq": "AL", "is": "IS",
+        "ga": "IE", "cy": "GB", "eu": "ES", "ca": "ES", "gl": "ES",
+        "af": "ZA", "sw": "KE", "hi": "IN", "bn": "BD", "ur": "PK",
+        "fa": "IR", "hy": "AM", "ka": "GE",
+    }
+
+    if len(lang_input) == 2 and lang_lower in code_to_region:
+        return f"{lang_lower}-{code_to_region[lang_lower]}"
+
+    # Fallback: return as-is or with generic region
+    if len(lang_input) == 2:
+        return f"{lang_lower}-{lang_input.upper()}"
+
+    return "en-US"  # Ultimate fallback
+
+
+def set_docx_language(doc, lang_code: str):
+    """
+    Set the language for all content in a DOCX document.
+
+    This modifies the document's default paragraph style and existing
+    paragraphs to use the specified language for spellcheck and proofing.
+
+    Args:
+        doc: A python-docx Document object
+        lang_code: Language code in BCP 47 format (e.g., 'nl-NL', 'en-US')
+    """
+    from docx.oxml.ns import qn
+    from docx.oxml import OxmlElement
+
+    # Set language on document's default paragraph properties (styles.xml)
+    try:
+        # Access the styles part
+        styles = doc.styles
+
+        # Get or create Normal style's rPr (run properties)
+        normal_style = styles['Normal']
+
+        # Set language on the style's font/run properties
+        if normal_style._element.rPr is None:
+            rPr = OxmlElement('w:rPr')
+            normal_style._element.append(rPr)
+        else:
+            rPr = normal_style._element.rPr
+
+        # Remove existing lang element if present
+        existing_lang = rPr.find(qn('w:lang'))
+        if existing_lang is not None:
+            rPr.remove(existing_lang)
+
+        # Create and add new lang element
+        lang_elem = OxmlElement('w:lang')
+        lang_elem.set(qn('w:val'), lang_code)
+        lang_elem.set(qn('w:eastAsia'), lang_code)
+        lang_elem.set(qn('w:bidi'), lang_code)
+        rPr.append(lang_elem)
+
+    except Exception:
+        pass  # Style manipulation failed, continue with paragraph-level setting
+
+    # Also set language on all existing paragraphs' runs for immediate effect
+    for para in doc.paragraphs:
+        for run in para.runs:
+            try:
+                # Access run's XML element
+                run_elem = run._element
+
+                # Get or create rPr
+                rPr = run_elem.rPr
+                if rPr is None:
+                    rPr = OxmlElement('w:rPr')
+                    run_elem.insert(0, rPr)
+
+                # Remove existing lang element if present
+                existing_lang = rPr.find(qn('w:lang'))
+                if existing_lang is not None:
+                    rPr.remove(existing_lang)
+
+                # Create and add new lang element
+                lang_elem = OxmlElement('w:lang')
+                lang_elem.set(qn('w:val'), lang_code)
+                rPr.append(lang_elem)
+            except Exception:
+                continue  # Skip runs that can't be modified
+
+    # Also handle table cells
+    for table in doc.tables:
+        for row in table.rows:
+            for cell in row.cells:
+                for para in cell.paragraphs:
+                    for run in para.runs:
+                        try:
+                            run_elem = run._element
+                            rPr = run_elem.rPr
+                            if rPr is None:
+                                rPr = OxmlElement('w:rPr')
+                                run_elem.insert(0, rPr)
+
+                            existing_lang = rPr.find(qn('w:lang'))
+                            if existing_lang is not None:
+                                rPr.remove(existing_lang)
+
+                            lang_elem = OxmlElement('w:lang')
+                            lang_elem.set(qn('w:val'), lang_code)
+                            rPr.append(lang_elem)
+                        except Exception:
+                            continue
 
 
 def has_formatting_tags(text: str) -> bool:
@@ -11443,6 +11689,12 @@ class SupervertalerQt(QMainWindow):
                                         apply_formatted_text_to_paragraph(para, new_text)
                                         replaced_count += 1
 
+                # Set document language to target language
+                if hasattr(self.current_project, 'target_lang') and self.current_project.target_lang:
+                    target_lang_code = get_docx_language_code(self.current_project.target_lang)
+                    set_docx_language(doc, target_lang_code)
+                    self.log(f"✓ Set document language to: {target_lang_code}")
+
                 doc.save(file_path)
                 self.log(f"✓ Replaced {replaced_count} text segments in original document structure")
                 
@@ -11550,9 +11802,15 @@ class SupervertalerQt(QMainWindow):
                     # Add text with formatting
                     if raw_text:
                         add_formatted_text_to_paragraph(para, raw_text)
-                
+
+                # Set document language to target language
+                if hasattr(self.current_project, 'target_lang') and self.current_project.target_lang:
+                    target_lang_code = get_docx_language_code(self.current_project.target_lang)
+                    set_docx_language(doc, target_lang_code)
+                    self.log(f"✓ Set document language to: {target_lang_code}")
+
                 doc.save(file_path)
-            
+
             self.log(f"✓ Exported {len(segments)} segments to: {os.path.basename(file_path)}")
             
             QMessageBox.information(
@@ -26909,7 +27167,8 @@ class SupervertalerQt(QMainWindow):
                     })
                 
                 # Use the handler's export which preserves all formatting
-                handler.export_docx(export_segments, output_path, preserve_formatting=True)
+                target_lang = self.current_project.target_lang if hasattr(self.current_project, 'target_lang') else None
+                handler.export_docx(export_segments, output_path, preserve_formatting=True, target_lang=target_lang)
                 return
                 
             except Exception as e:
@@ -26926,9 +27185,15 @@ class SupervertalerQt(QMainWindow):
             para = doc.add_paragraph(text)
             for run in para.runs:
                 run.font.size = Pt(11)
-        
+
+        # Set document language to target language
+        if hasattr(self.current_project, 'target_lang') and self.current_project.target_lang:
+            target_lang_code = get_docx_language_code(self.current_project.target_lang)
+            set_docx_language(doc, target_lang_code)
+            self.log(f"✓ Set document language to: {target_lang_code}")
+
         doc.save(output_path)
-    
+
     def _export_file_as_bilingual(self, segments: list, output_path: str):
         """Export segments to a bilingual DOCX table (Source | Target columns)."""
         from docx import Document

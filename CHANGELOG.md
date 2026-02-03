@@ -2,9 +2,17 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.213 (February 3, 2026)
+**Current Version:** v1.9.214 (February 3, 2026)
 
 
+
+## v1.9.214 - February 3, 2026
+
+### ✨ Enhancements
+
+- **DOCX Export Language Setting**: Exported target DOCX documents now have the correct language setting based on the project's target language. Previously, exported documents defaulted to American English regardless of the translation language pair. Now, when exporting EN→NL translations, the document language is correctly set to Dutch (Netherlands), enabling proper spellcheck and proofing in Word and other applications.
+
+---
 
 ## v1.9.213 - February 3, 2026
 

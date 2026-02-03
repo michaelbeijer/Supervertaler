@@ -27,6 +27,127 @@ except ImportError:
         TagManager = None
 
 
+def get_docx_language_code(lang_name_or_code: str) -> str:
+    """
+    Convert language name or code to DOCX locale format (e.g., 'nl-NL', 'en-US').
+    """
+    if not lang_name_or_code:
+        return "en-US"
+
+    lang_input = lang_name_or_code.strip()
+    lang_lower = lang_input.lower()
+
+    # Map language names to full locale codes
+    lang_map = {
+        "dutch": "nl-NL", "english": "en-US", "german": "de-DE",
+        "french": "fr-FR", "spanish": "es-ES", "italian": "it-IT",
+        "portuguese": "pt-PT", "russian": "ru-RU", "chinese": "zh-CN",
+        "japanese": "ja-JP", "korean": "ko-KR", "arabic": "ar-SA",
+        "dutch (netherlands)": "nl-NL", "dutch (belgium)": "nl-BE",
+        "polish": "pl-PL", "czech": "cs-CZ", "danish": "da-DK",
+        "finnish": "fi-FI", "greek": "el-GR", "hungarian": "hu-HU",
+        "norwegian": "nb-NO", "swedish": "sv-SE", "turkish": "tr-TR",
+        "ukrainian": "uk-UA", "romanian": "ro-RO", "bulgarian": "bg-BG",
+    }
+
+    if lang_lower in lang_map:
+        return lang_map[lang_lower]
+
+    # If already in locale format
+    if '-' in lang_input or '_' in lang_input:
+        parts = lang_input.replace('_', '-').split('-')
+        if len(parts) >= 2 and len(parts[0]) == 2:
+            return f"{parts[0].lower()}-{parts[1].upper()}"
+
+    # 2-letter code with default region
+    code_to_region = {
+        "nl": "NL", "en": "US", "de": "DE", "fr": "FR", "es": "ES",
+        "it": "IT", "pt": "PT", "ru": "RU", "zh": "CN", "ja": "JP",
+        "ko": "KR", "ar": "SA", "pl": "PL", "cs": "CZ", "da": "DK",
+        "fi": "FI", "el": "GR", "hu": "HU", "no": "NO", "nb": "NO",
+        "sv": "SE", "tr": "TR", "uk": "UA", "ro": "RO", "bg": "BG",
+    }
+
+    if len(lang_input) == 2 and lang_lower in code_to_region:
+        return f"{lang_lower}-{code_to_region[lang_lower]}"
+
+    return "en-US"
+
+
+def set_docx_language(doc, lang_code: str):
+    """
+    Set the language for all content in a DOCX document.
+    """
+    from docx.oxml.ns import qn
+    from docx.oxml import OxmlElement
+
+    # Set language on Normal style
+    try:
+        styles = doc.styles
+        normal_style = styles['Normal']
+
+        if normal_style._element.rPr is None:
+            rPr = OxmlElement('w:rPr')
+            normal_style._element.append(rPr)
+        else:
+            rPr = normal_style._element.rPr
+
+        existing_lang = rPr.find(qn('w:lang'))
+        if existing_lang is not None:
+            rPr.remove(existing_lang)
+
+        lang_elem = OxmlElement('w:lang')
+        lang_elem.set(qn('w:val'), lang_code)
+        lang_elem.set(qn('w:eastAsia'), lang_code)
+        lang_elem.set(qn('w:bidi'), lang_code)
+        rPr.append(lang_elem)
+    except Exception:
+        pass
+
+    # Set language on all runs
+    for para in doc.paragraphs:
+        for run in para.runs:
+            try:
+                run_elem = run._element
+                rPr = run_elem.rPr
+                if rPr is None:
+                    rPr = OxmlElement('w:rPr')
+                    run_elem.insert(0, rPr)
+
+                existing_lang = rPr.find(qn('w:lang'))
+                if existing_lang is not None:
+                    rPr.remove(existing_lang)
+
+                lang_elem = OxmlElement('w:lang')
+                lang_elem.set(qn('w:val'), lang_code)
+                rPr.append(lang_elem)
+            except Exception:
+                continue
+
+    # Handle table cells
+    for table in doc.tables:
+        for row in table.rows:
+            for cell in row.cells:
+                for para in cell.paragraphs:
+                    for run in para.runs:
+                        try:
+                            run_elem = run._element
+                            rPr = run_elem.rPr
+                            if rPr is None:
+                                rPr = OxmlElement('w:rPr')
+                                run_elem.insert(0, rPr)
+
+                            existing_lang = rPr.find(qn('w:lang'))
+                            if existing_lang is not None:
+                                rPr.remove(existing_lang)
+
+                            lang_elem = OxmlElement('w:lang')
+                            lang_elem.set(qn('w:val'), lang_code)
+                            rPr.append(lang_elem)
+                        except Exception:
+                            continue
+
+
 @dataclass
 class ParagraphInfo:
     """Information about a paragraph for reconstruction"""
@@ -347,15 +468,16 @@ class DOCXHandler:
         print(f"  - Table cells: {table_cell_count} (from {len(self.original_document.tables)} tables)")
         return paragraphs
     
-    def export_docx(self, segments: List[Dict[str, Any]], output_path: str, 
-                    preserve_formatting: bool = True):
+    def export_docx(self, segments: List[Dict[str, Any]], output_path: str,
+                    preserve_formatting: bool = True, target_lang: str = None):
         """
         Export translated segments back to DOCX
-        
+
         Args:
             segments: List of segment dictionaries with 'paragraph_id', 'source', 'target'
             output_path: Path to save the translated document
             preserve_formatting: Whether to preserve original formatting (default True)
+            target_lang: Target language name or code for document language setting
         """
         print(f"[DOCX Handler] Exporting to: {output_path}")
         
@@ -471,7 +593,13 @@ class DOCXHandler:
                                 print(f"[DOCX Export] Table[{table_idx}][{row_idx}][{cell_idx}] Para {para_info.paragraph_index}: No translations")
                             else:
                                 print(f"[DOCX Export] Table[{table_idx}][{row_idx}][{cell_idx}]: No para_info found")
-        
+
+        # Set document language to target language if provided
+        if target_lang:
+            lang_code = get_docx_language_code(target_lang)
+            set_docx_language(doc, lang_code)
+            print(f"[DOCX Handler] Set document language to: {lang_code}")
+
         # Save the document
         doc.save(output_path)
         print(f"[DOCX Handler] Export complete: {output_path}")
