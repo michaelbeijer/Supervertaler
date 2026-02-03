@@ -2,9 +2,17 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.208 (February 3, 2026)
+**Current Version:** v1.9.209 (February 3, 2026)
 
 
+
+## v1.9.209 - February 3, 2026
+
+### 🐛 Bug Fixes
+
+- **TM/Glossary Auto-Selection on Startup**: Fixed an issue where Translation Memories and Glossaries were being auto-selected (both Read and Write checkboxes) when starting the application without a project open. Now when no project is loaded, all TMs and glossaries remain unselected as expected.
+
+---
 
 ## v1.9.208 - February 3, 2026
 

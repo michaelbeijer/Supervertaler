@@ -32,7 +32,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.208"
+__version__ = "1.9.209"
 __phase__ = "0.9"
 __release_date__ = "2026-02-03"
 __edition__ = "Qt"
@@ -10707,12 +10707,17 @@ class SupervertalerQt(QMainWindow):
             tm_table.setRowCount(len(tms))
             
             for row, tm in enumerate(tms):
-                # Check if active (Read mode) for current project or global (0)
-                # Note: is_tm_active now supports project_id=0 for global activations
-                is_readable = tm_metadata_mgr.is_tm_active(tm['id'], refresh_project_id)
-                # Default: read-only (Write unchecked) - read_only=True means not writable
-                # If read_only is not set in database, treat as read-only by default
-                is_writable = not tm.get('read_only', True)  # Default to True (read-only) if not set
+                # When no project is loaded, nothing should be selected (user requirement)
+                if current_proj is None:
+                    is_readable = False
+                    is_writable = False
+                else:
+                    # Check if active (Read mode) for current project or global (0)
+                    # Note: is_tm_active now supports project_id=0 for global activations
+                    is_readable = tm_metadata_mgr.is_tm_active(tm['id'], refresh_project_id)
+                    # Default: read-only (Write unchecked) - read_only=True means not writable
+                    # If read_only is not set in database, treat as read-only by default
+                    is_writable = not tm.get('read_only', True)  # Default to True (read-only) if not set
                 
                 # TM Name (bold if readable)
                 name_item = QTableWidgetItem(tm['name'])
@@ -13969,14 +13974,23 @@ class SupervertalerQt(QMainWindow):
             termbase_table.setRowCount(len(termbases))
             
             # Count active readable termbases (for priority range)
-            num_active = sum(1 for tb in termbases 
-                           if termbase_mgr.is_termbase_active(tb['id'], refresh_project_id))
-            
+            # When no project is loaded, nothing is active (user requirement)
+            if current_proj is None:
+                num_active = 0
+            else:
+                num_active = sum(1 for tb in termbases
+                               if termbase_mgr.is_termbase_active(tb['id'], refresh_project_id))
+
             for row, tb in enumerate(termbases):
-                # Check if readable (activated) for current project or global (0)
-                is_readable = termbase_mgr.is_termbase_active(tb['id'], refresh_project_id)
-                # Check if writable (not read-only)
-                is_writable = not tb.get('read_only', True)  # Default to True (read-only) if not set
+                # When no project is loaded, nothing should be selected (user requirement)
+                if current_proj is None:
+                    is_readable = False
+                    is_writable = False
+                else:
+                    # Check if readable (activated) for current project or global (0)
+                    is_readable = termbase_mgr.is_termbase_active(tb['id'], refresh_project_id)
+                    # Check if writable (not read-only)
+                    is_writable = not tb.get('read_only', True)  # Default to True (read-only) if not set
                 
                 # Get manual priority from termbase_activation table
                 priority = termbase_mgr.get_termbase_priority(tb['id'], refresh_project_id) if is_readable else None
