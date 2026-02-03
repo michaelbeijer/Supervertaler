@@ -21597,7 +21597,13 @@ class SupervertalerQt(QMainWindow):
                     self.table.setRowHidden(row, not in_page)
             finally:
                 self.table.setUpdatesEnabled(True)
-        
+
+        # Recalculate heights for visible rows to prevent layout corruption.
+        # Call synchronously first, then schedule a deferred resize to catch any
+        # layout issues that Qt processes asynchronously.
+        self._resize_visible_rows()
+        QTimer.singleShot(50, self._resize_visible_rows)
+
         # Update pagination UI
         self._update_pagination_ui()
     
@@ -21889,7 +21895,10 @@ class SupervertalerQt(QMainWindow):
         header.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)  # Target - stretch to fill space
         header.setSectionResizeMode(4, QHeaderView.ResizeMode.Interactive)  # Status - allow resizing
         header.setStretchLastSection(False)  # Don't auto-stretch last section (we use Stretch mode for Source/Target)
-        
+
+        # Recalculate row heights when columns are resized (text reflows to new width)
+        header.sectionResized.connect(self._on_column_resized)
+
         # Set initial column widths - give Source and Target equal space
         # ID column width will be auto-adjusted by _update_segment_column_width() after segments load
         self.table.setColumnWidth(0, 35)   # ID - temporary, auto-adjusts to fit content
@@ -30118,9 +30127,14 @@ class SupervertalerQt(QMainWindow):
             
             # Update progress stats in status bar
             self.update_progress_stats()
-            
+
             # Refresh document preview
             self.refresh_preview()
+
+            # Deferred row resize: columns use Stretch mode, so their final widths
+            # are only known after Qt processes the layout. Schedule a resize for
+            # after all pending events are processed.
+            QTimer.singleShot(0, self._resize_visible_rows)
 
     # =========================================================================
     # COMPARE PANEL TAB
@@ -31481,9 +31495,11 @@ class SupervertalerQt(QMainWindow):
     def _refresh_segment_status(self, segment: Segment):
         if not self.current_project:
             return
+        updated_row = None
         for row, seg in enumerate(self.current_project.segments):
             if seg.id == segment.id:
                 self._update_status_cell(row, seg)
+                updated_row = row
                 break
 
         # Update list view entry in place (if visible)
@@ -31505,7 +31521,10 @@ class SupervertalerQt(QMainWindow):
                     status_tooltip += f"\nComment: {segment.notes.strip()}"
                 item.setToolTip(2, status_tooltip)
                 item.setBackground(2, QColor(status_def.color))
-        self._enforce_status_row_heights()
+
+        # Recalculate row height after status cell update to prevent layout corruption
+        if updated_row is not None:
+            self._auto_resize_single_row(updated_row)
 
     def _refresh_segment_status_by_id(self, segment_id: int):
         """Refresh the status display for a segment by its ID."""
@@ -31568,40 +31587,79 @@ class SupervertalerQt(QMainWindow):
             return
         if row < 0 or row >= self.table.rowCount():
             return
-        
+
+        # Minimum column width threshold - if columns are narrower than this,
+        # layout isn't ready yet and we should skip resizing
+        MIN_COL_WIDTH = 100
+
         max_height = 1
-        
+
         # Check source cell (column 2)
         source_widget = self.table.cellWidget(row, 2)
         if source_widget and isinstance(source_widget, ReadOnlyGridTextEditor):
             doc = source_widget.document()
             if doc:
                 col_width = self.table.columnWidth(2) - width_reduction
-                if col_width > 0:
+                if col_width >= MIN_COL_WIDTH:
                     doc.setTextWidth(col_width)
-                    size = doc.size()
-                    if size.isValid():
-                        height = int(size.height())
-                        max_height = max(max_height, height)
-        
+                    # Use documentLayout().documentSize() to force fresh calculation
+                    layout = doc.documentLayout()
+                    if layout:
+                        size = layout.documentSize()
+                        if size.isValid():
+                            height = int(size.height())
+                            max_height = max(max_height, height)
+
         # Check target cell (column 3)
         target_widget = self.table.cellWidget(row, 3)
         if target_widget and isinstance(target_widget, EditableGridTextEditor):
             doc = target_widget.document()
             if doc:
                 col_width = self.table.columnWidth(3) - width_reduction
-                if col_width > 0:
+                if col_width >= MIN_COL_WIDTH:
                     doc.setTextWidth(col_width)
-                    size = doc.size()
-                    if size.isValid():
-                        height = int(size.height())
-                        max_height = max(max_height, height)
+                    # Use documentLayout().documentSize() to force fresh calculation
+                    layout = doc.documentLayout()
+                    if layout:
+                        size = layout.documentSize()
+                        if size.isValid():
+                            height = int(size.height())
+                            max_height = max(max_height, height)
         
         # Set row height with minimal padding
         # Minimum 32px to accommodate status icons (16px) + match text + padding without any cutoff
         compact_height = max(max_height + 2, 32)
         self.table.setRowHeight(row, compact_height)
-    
+
+    def _resize_visible_rows(self):
+        """Resize only visible (non-hidden) rows for efficiency after pagination/filter changes."""
+        if not hasattr(self, 'table') or not self.table:
+            return
+        row_count = self.table.rowCount()
+        for row in range(row_count):
+            if not self.table.isRowHidden(row):
+                self._auto_resize_single_row(row)
+
+    def _on_column_resized(self, logical_index: int, old_size: int, new_size: int):
+        """Handle column resize - recalculate row heights for text reflow.
+
+        Only reacts to Source (2) or Target (3) column changes since those
+        contain wrapped text. Uses debouncing to avoid excessive recalculations
+        during continuous dragging.
+        """
+        # Only care about Source or Target columns (they contain wrapped text)
+        if logical_index not in (2, 3):
+            return
+
+        # Debounce: cancel previous timer and start a new one
+        if hasattr(self, '_column_resize_timer') and self._column_resize_timer is not None:
+            self._column_resize_timer.stop()
+
+        self._column_resize_timer = QTimer()
+        self._column_resize_timer.setSingleShot(True)
+        self._column_resize_timer.timeout.connect(self._resize_visible_rows)
+        self._column_resize_timer.start(150)  # 150ms debounce
+
     def apply_font_to_grid(self):
         """Apply selected font to all grid cells"""
         font = QFont(self.default_font_family, self.default_font_size)
@@ -37438,10 +37496,10 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             # Clear filtering flag to re-enable auto-center
             self.filtering_active = False
             
-            # Re-apply pagination after clearing filters
+            # Re-apply pagination after clearing filters (also resizes visible rows)
             if hasattr(self, '_apply_pagination_to_grid'):
                 self._apply_pagination_to_grid()
-            
+
             # Restore selection to the previously selected segment
             if selected_segment_id is not None:
                 for row, segment in enumerate(self.current_project.segments):
@@ -45647,9 +45705,19 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             self.log(f"⚠ Error auto-inserting TM match: {e}")
     
     def _add_mt_and_llm_matches_progressive(self, segment, source_lang, target_lang, source_lang_code, target_lang_code):
-        """Add MT and LLM matches progressively - show each as it completes"""
+        """Add MT and LLM matches progressively - show each as it completes.
+
+        IMPORTANT: MT/LLM providers are only called if the Translation Results pane
+        is visible. If hidden, use QuickTrans (Ctrl+M) to get MT/LLM translations.
+        This prevents wasteful API calls during normal navigation.
+        """
+        # Skip MT/LLM calls if Translation Results pane is hidden - results wouldn't be displayed anyway
+        # Users can still use QuickTrans (Ctrl+M) to get MT/LLM translations on demand
+        if not getattr(self, 'show_translation_results_pane', False):
+            return
+
         from modules.translation_results_panel import TranslationMatch
-        
+
         # MT matches (usually fast ~0.5s each)
         if self.enable_mt_matching:
             api_keys = self.load_api_keys()
