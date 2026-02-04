@@ -32,7 +32,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.216"
+__version__ = "1.9.217"
 __phase__ = "0.9"
 __release_date__ = "2026-02-04"
 __edition__ = "Qt"
@@ -31811,7 +31811,9 @@ class SupervertalerQt(QMainWindow):
         status_label.setTextFormat(Qt.TextFormat.RichText)  # Enable HTML rendering
         status_label.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
         status_label.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)  # Expand vertically to match row height
-        status_label.setToolTip(status_def.label)
+        # Store tooltip text as property - we'll show it manually to avoid black tooltip bug
+        status_label.setProperty("status_tooltip", status_def.label)
+        status_label.installEventFilter(self)
 
         # Add orange background if segment has notes (using stylesheet for background only)
         if has_notes:
@@ -31828,21 +31830,35 @@ class SupervertalerQt(QMainWindow):
             match_label.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Preferred)
             if segment.match_percent >= 101:
                 match_label.setStyleSheet("color: #1b5e20; font-weight: bold; padding-left: 4px; padding-right: 4px;")
-                match_label.setToolTip("Context match from memoQ (101% or better)")
+                match_label.setProperty("status_tooltip", "Context match from memoQ (101% or better)")
             elif segment.match_percent >= 100:
                 match_label.setStyleSheet("color: #2e7d32; font-weight: bold; padding-left: 4px; padding-right: 4px;")
-                match_label.setToolTip("Exact match from memoQ (100%)")
+                match_label.setProperty("status_tooltip", "Exact match from memoQ (100%)")
             elif segment.match_percent >= 90:
                 match_label.setStyleSheet("color: #1565C0; font-weight: bold; padding-left: 4px; padding-right: 4px;")
-                match_label.setToolTip(f"High fuzzy match {segment.match_percent}%")
+                match_label.setProperty("status_tooltip", f"High fuzzy match {segment.match_percent}%")
             else:
                 match_label.setStyleSheet("color: #0d47a1; padding-left: 4px; padding-right: 4px;")
-                match_label.setToolTip(f"Fuzzy match {segment.match_percent}%")
+                match_label.setProperty("status_tooltip", f"Fuzzy match {segment.match_percent}%")
+            match_label.installEventFilter(self)
             layout.addWidget(match_label)
 
         layout.addStretch(1)
 
         return widget
+
+    def eventFilter(self, obj, event):
+        """Handle tooltip events for status labels to avoid black tooltip bug."""
+        from PyQt6.QtCore import QEvent
+        from PyQt6.QtWidgets import QToolTip
+
+        if event.type() == QEvent.Type.ToolTip:
+            tooltip_text = obj.property("status_tooltip")
+            if tooltip_text:
+                # Show tooltip manually with explicit styling
+                QToolTip.showText(event.globalPos(), tooltip_text, obj)
+                return True  # Event handled
+        return super().eventFilter(obj, event)
 
     def _update_status_cell(self, row: int, segment: Segment):
         status_widget = self._create_status_cell_widget(segment)
@@ -51790,6 +51806,7 @@ def main():
     app.setOrganizationName("Supervertaler")
     
     # Global stylesheet to remove ugly focus rectangles from buttons
+    # Note: QToolTip styling is handled by theme_manager.apply_theme()
     app.setStyleSheet("""
         QPushButton:focus {
             outline: none;
