@@ -2,9 +2,19 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.215 (February 4, 2026)
+**Current Version:** v1.9.216 (February 4, 2026)
 
 
+
+## v1.9.216 - February 4, 2026
+
+### ✨ Enhancements
+
+- **Status Icon Tooltips**: Hovering over status icons in the grid now displays tooltips showing the status name (e.g., "Not started", "Translated", "Confirmed"). Match percentage badges also show tooltips with details like "Context match from memoQ (101% or better)" or "Exact match from memoQ (100%)".
+
+- **Standardized "Not started" Terminology**: The Quick Filter menu now uses "Not started" instead of "Not translated" to match the terminology used elsewhere in the application (Grid, Advanced Filters, menus). This aligns with memoQ's terminology and provides consistency throughout the UI.
+
+---
 
 ## v1.9.215 - February 4, 2026
 

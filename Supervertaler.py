@@ -32,7 +32,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.215"
+__version__ = "1.9.216"
 __phase__ = "0.9"
 __release_date__ = "2026-02-04"
 __edition__ = "Qt"
@@ -21165,7 +21165,7 @@ class SupervertalerQt(QMainWindow):
         quick_filter_btn.setStyleSheet("background-color: #D84315; color: white; font-weight: bold; padding: 3px 5px;")
         quick_filter_menu = QMenu(self)
         quick_filter_menu.addAction("🔍 Empty segments", lambda: self.apply_quick_filter("empty"))
-        quick_filter_menu.addAction("❌ Not translated", lambda: self.apply_quick_filter("not_translated"))
+        quick_filter_menu.addAction("❌ Not started", lambda: self.apply_quick_filter("not_started"))
         quick_filter_menu.addAction("✓ Confirmed", lambda: self.apply_quick_filter("confirmed"))
         quick_filter_menu.addAction("🔒 Locked", lambda: self.apply_quick_filter("locked"))
         quick_filter_menu.addAction("🔓 Not locked", lambda: self.apply_quick_filter("not_locked"))
@@ -31788,7 +31788,7 @@ class SupervertalerQt(QMainWindow):
         layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)  # Center content vertically
         # Remove fixed minimum height - let it adapt to row height
         widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        widget.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        # Note: Do NOT set WA_TransparentForMouseEvents - we want tooltips to work
 
         # Check if segment has notes
         has_notes = segment.notes and segment.notes.strip()
@@ -38706,7 +38706,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
 
             if filter_type == "empty":
                 show_row = not segment.target or not segment.target.strip()
-            elif filter_type == "not_translated":
+            elif filter_type == "not_started":
                 show_row = segment.status in ["not_started", "draft"]
             elif filter_type == "confirmed":
                 show_row = segment.status == "confirmed"
@@ -38731,7 +38731,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
 
         filter_names = {
             "empty": "Empty segments",
-            "not_translated": "Not translated",
+            "not_started": "Not started",
             "confirmed": "Confirmed",
             "locked": "Locked",
             "not_locked": "Not locked",
