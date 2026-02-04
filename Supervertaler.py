@@ -32,9 +32,9 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.214"
+__version__ = "1.9.215"
 __phase__ = "0.9"
-__release_date__ = "2026-02-03"
+__release_date__ = "2026-02-04"
 __edition__ = "Qt"
 
 import sys
@@ -21809,18 +21809,22 @@ class SupervertalerQt(QMainWindow):
             if hasattr(self, 'page_number_input') and self._widget_is_alive(self.page_number_input):
                 self.page_number_input.setText("1")
             return
-        
+
         total_segments = len(self.current_project.segments)
         total_pages = self._get_total_pages()
-        
+
         if not hasattr(self, 'grid_current_page'):
             self.grid_current_page = 0
         if not hasattr(self, 'grid_page_size'):
             self.grid_page_size = 50
-        
+
         # Clamp current page to valid range
         self.grid_current_page = max(0, min(self.grid_current_page, total_pages - 1))
-        
+
+        # Check if a filter is active (text filter or quick filter)
+        filter_allowlist = getattr(self, '_active_text_filter_rows', None)
+        is_filtered = filter_allowlist is not None
+
         # Calculate segment range for current page
         if self.grid_page_size >= 999999:
             # "All" mode - show all segments
@@ -21829,10 +21833,14 @@ class SupervertalerQt(QMainWindow):
         else:
             start_seg = self.grid_current_page * self.grid_page_size + 1
             end_seg = min((self.grid_current_page + 1) * self.grid_page_size, total_segments)
-        
-        # Update labels
+
+        # Update pagination label - show filtered count when filter is active
         if hasattr(self, 'pagination_label') and self._widget_is_alive(self.pagination_label):
-            self.pagination_label.setText(f"Segments {start_seg}-{end_seg} of {total_segments}")
+            if is_filtered:
+                filtered_count = len(filter_allowlist)
+                self.pagination_label.setText(f"Showing {filtered_count} of {total_segments} segments")
+            else:
+                self.pagination_label.setText(f"Segments {start_seg}-{end_seg} of {total_segments}")
         
         if hasattr(self, 'total_pages_label') and self._widget_is_alive(self.total_pages_label):
             self.total_pages_label.setText(f"of {total_pages}")
@@ -38669,13 +38677,13 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             self._clear_filter_highlights_in_widget(row, 3)
 
     def apply_quick_filter(self, filter_type: str):
-        """Apply quick filter based on type - OPTIMIZED for speed"""
+        """Apply quick filter based on type - integrates with pagination system"""
         if not self.current_project:
             return
-        
+
         if not hasattr(self, 'table') or self.table is None:
             return
-        
+
         # Clear filter boxes first
         source_widget = getattr(self, 'source_filter', None)
         target_widget = getattr(self, 'target_filter', None)
@@ -38687,43 +38695,40 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             target_widget.blockSignals(True)
             target_widget.clear()
             target_widget.blockSignals(False)
-        
-        # OPTIMIZED: Batch UI updates and don't reload grid
-        self.table.setUpdatesEnabled(False)
-        try:
-            # Clear any yellow text filter highlights (but preserve termbase/tag formatting)
-            self._clear_all_filter_highlights()
-            
-            # Apply filter based on type
-            visible_count = 0
-            for row, segment in enumerate(self.current_project.segments):
-                if row >= self.table.rowCount():
-                    break
-                
-                show_row = False
-                
-                if filter_type == "empty":
-                    show_row = not segment.target or not segment.target.strip()
-                elif filter_type == "not_translated":
-                    show_row = segment.status in ["not_started", "draft"]
-                elif filter_type == "confirmed":
-                    show_row = segment.status == "confirmed"
-                elif filter_type == "locked":
-                    # TODO: Implement locked status
-                    show_row = getattr(segment, 'locked', False)
-                elif filter_type == "not_locked":
-                    # TODO: Implement locked status
-                    show_row = not getattr(segment, 'locked', False)
-                elif filter_type == "commented":
-                    show_row = bool(segment.notes and segment.notes.strip())
-                
-                self.table.setRowHidden(row, not show_row)
-                
-                if show_row:
-                    visible_count += 1
-        finally:
-            self.table.setUpdatesEnabled(True)
-        
+
+        # Clear any yellow text filter highlights (but preserve termbase/tag formatting)
+        self._clear_all_filter_highlights()
+
+        # Calculate matching rows - collect into a set for pagination integration
+        matching_rows = set()
+        for row, segment in enumerate(self.current_project.segments):
+            show_row = False
+
+            if filter_type == "empty":
+                show_row = not segment.target or not segment.target.strip()
+            elif filter_type == "not_translated":
+                show_row = segment.status in ["not_started", "draft"]
+            elif filter_type == "confirmed":
+                show_row = segment.status == "confirmed"
+            elif filter_type == "locked":
+                show_row = getattr(segment, 'locked', False)
+            elif filter_type == "not_locked":
+                show_row = not getattr(segment, 'locked', False)
+            elif filter_type == "commented":
+                show_row = bool(segment.notes and segment.notes.strip())
+
+            if show_row:
+                matching_rows.add(row)
+
+        # Integrate with pagination system - this ensures the filter persists
+        # when other UI events trigger pagination updates
+        self._active_text_filter_rows = matching_rows
+        self.filtering_active = True
+
+        # Apply the filter through the pagination system
+        if hasattr(self, '_apply_pagination_to_grid'):
+            self._apply_pagination_to_grid()
+
         filter_names = {
             "empty": "Empty segments",
             "not_translated": "Not translated",
@@ -38732,7 +38737,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             "not_locked": "Not locked",
             "commented": "Commented"
         }
-        self.log(f"🔍 {filter_names.get(filter_type, 'Quick')} filter: showing {visible_count} of {len(self.current_project.segments)} segments")
+        self.log(f"🔍 {filter_names.get(filter_type, 'Quick')} filter: showing {len(matching_rows)} of {len(self.current_project.segments)} segments")
     
     def show_advanced_filters_dialog(self):
         """Show advanced filters dialog with detailed filtering options"""

@@ -2,9 +2,17 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.214 (February 3, 2026)
+**Current Version:** v1.9.215 (February 4, 2026)
 
 
+
+## v1.9.215 - February 4, 2026
+
+### 🐛 Bug Fixes
+
+- **Quick Filters Not Working on macOS**: Fixed Quick Filters (Empty segments, Not translated, Confirmed, Locked, Not locked, Commented) not working properly on macOS. The issue was that quick filters weren't integrating with the pagination system, causing any UI refresh event to override the filter. Now quick filters use the same mechanism as text filters, ensuring they persist correctly across all platforms. Additionally, the segment count label now shows the filtered count (e.g., "Showing 42 of 430 segments") when a filter is active.
+
+---
 
 ## v1.9.214 - February 3, 2026
 
