@@ -32,7 +32,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.217"
+__version__ = "1.9.218"
 __phase__ = "0.9"
 __release_date__ = "2026-02-04"
 __edition__ = "Qt"
@@ -31847,17 +31847,47 @@ class SupervertalerQt(QMainWindow):
 
         return widget
 
-    def eventFilter(self, obj, event):
-        """Handle tooltip events for status labels to avoid black tooltip bug."""
-        from PyQt6.QtCore import QEvent
-        from PyQt6.QtWidgets import QToolTip
+    def _get_custom_tooltip(self):
+        """Get or create the custom tooltip label widget."""
+        if not hasattr(self, '_custom_tooltip') or self._custom_tooltip is None:
+            self._custom_tooltip = QLabel()
+            self._custom_tooltip.setWindowFlags(
+                Qt.WindowType.ToolTip | Qt.WindowType.FramelessWindowHint
+            )
+            self._custom_tooltip.setStyleSheet("""
+                QLabel {
+                    background-color: #f5f5f5;
+                    color: #333333;
+                    border: 1px solid #d0d0d0;
+                    padding: 4px 8px;
+                    font-size: 12px;
+                }
+            """)
+            self._custom_tooltip.hide()
+        return self._custom_tooltip
 
-        if event.type() == QEvent.Type.ToolTip:
-            tooltip_text = obj.property("status_tooltip")
-            if tooltip_text:
-                # Show tooltip manually with explicit styling
-                QToolTip.showText(event.globalPos(), tooltip_text, obj)
-                return True  # Event handled
+    def eventFilter(self, obj, event):
+        """Handle tooltip events for status labels using custom tooltip widget."""
+        from PyQt6.QtCore import QEvent
+
+        tooltip_text = obj.property("status_tooltip") if hasattr(obj, 'property') else None
+
+        if tooltip_text:
+            if event.type() == QEvent.Type.ToolTip:
+                # Show our custom tooltip instead of Qt's
+                tooltip = self._get_custom_tooltip()
+                tooltip.setText(tooltip_text)
+                tooltip.adjustSize()
+                # Position near the cursor
+                pos = event.globalPos()
+                tooltip.move(pos.x() + 10, pos.y() + 10)
+                tooltip.show()
+                return True  # Consume the event to prevent Qt's tooltip
+            elif event.type() == QEvent.Type.Leave:
+                # Hide custom tooltip when mouse leaves
+                if hasattr(self, '_custom_tooltip') and self._custom_tooltip:
+                    self._custom_tooltip.hide()
+
         return super().eventFilter(obj, event)
 
     def _update_status_cell(self, row: int, segment: Segment):

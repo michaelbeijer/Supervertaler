@@ -2,15 +2,23 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.217 (February 4, 2026)
+**Current Version:** v1.9.218 (February 4, 2026)
 
 
+
+## v1.9.218 - February 4, 2026
+
+### 🐛 Bug Fixes
+
+- **Status Tooltip Rendering**: Fixed status icon tooltips appearing as black rectangles. Qt's built-in tooltip system was being affected by transparent widget backgrounds and theme stylesheets. The fix uses a custom QLabel popup widget with explicit styling, completely bypassing Qt's QToolTip system.
+
+---
 
 ## v1.9.217 - February 4, 2026
 
 ### 🐛 Bug Fixes
 
-- **Status Tooltip Rendering**: Fixed status icon tooltips appearing as black rectangles on some systems. The tooltips now use a manual display approach via `QToolTip.showText()` which bypasses Qt's automatic tooltip styling that can break with transparent background widgets.
+- **Status Tooltip Rendering (partial)**: Attempted fix for black tooltip issue using `QToolTip.showText()`. This approach was insufficient; see v1.9.218 for the complete fix.
 
 ---
 

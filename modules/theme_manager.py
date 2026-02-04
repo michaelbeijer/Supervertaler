@@ -529,9 +529,9 @@ class ThemeManager:
 
             /* Tooltips - ensure readable in all themes */
             QToolTip {{
-                background-color: #ffffd0;
-                color: black;
-                border: 1px solid #808080;
+                background-color: #f5f5f5;
+                color: #333333;
+                border: 1px solid #d0d0d0;
                 padding: 4px;
             }}
             
@@ -551,8 +551,8 @@ class ThemeManager:
 
         # Set tooltip colors via palette (some Qt versions ignore stylesheet for tooltips)
         palette = app.palette()
-        palette.setColor(QPalette.ColorRole.ToolTipBase, QColor("#ffffd0"))
-        palette.setColor(QPalette.ColorRole.ToolTipText, QColor("black"))
+        palette.setColor(QPalette.ColorRole.ToolTipBase, QColor("#f5f5f5"))
+        palette.setColor(QPalette.ColorRole.ToolTipText, QColor("#333333"))
         app.setPalette(palette)
 
         # Save current theme
