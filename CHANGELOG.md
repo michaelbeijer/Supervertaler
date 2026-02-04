@@ -2,9 +2,17 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.218 (February 4, 2026)
+**Current Version:** v1.9.219 (February 4, 2026)
 
 
+
+## v1.9.219 - February 4, 2026
+
+### 🐛 Bug Fixes
+
+- **TM Not Readable After Re-import** ([#140](https://github.com/michaelbeijer/Supervertaler/issues/140)): Fixed Translation Memory matches not appearing after importing a document. When importing a new document, the system was attempting to deactivate TMs for the new project, but since no activation records existed, no records were created. Now all TMs are automatically activated when importing a document or loading a project without saved TM settings, ensuring TM matching works immediately.
+
+---
 
 ## v1.9.218 - February 4, 2026
 

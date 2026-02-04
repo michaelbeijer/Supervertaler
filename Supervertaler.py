@@ -32,7 +32,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.218"
+__version__ = "1.9.219"
 __phase__ = "0.9"
 __release_date__ = "2026-02-04"
 __edition__ = "Qt"
@@ -23141,6 +23141,15 @@ class SupervertalerQt(QMainWindow):
                                         self.log(f"✓ Restored activated TM: {tm['name']}")
                                 else:
                                     self.log(f"⚠️ Could not find TM with tm_id: {tm_id}")
+                    else:
+                        # NEW PROJECT (no saved tm_settings): Auto-activate all TMs for reading
+                        # This ensures TM matching works immediately for newly imported documents
+                        # Fix for GitHub issue #140: TMs not readable on re-imported documents
+                        if all_tms:
+                            self.log(f"📋 New project - auto-activating {len(all_tms)} TM(s) for reading")
+                            for tm in all_tms:
+                                self.tm_metadata_mgr.activate_tm(tm['id'], project_id)
+                                self.log(f"✓ Auto-activated TM: {tm['name']}")
 
                     # Refresh TM UI to show (de)activations
                     if hasattr(self, 'tm_tab_refresh_callback'):
@@ -35328,34 +35337,42 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             self.log(f"⚠ Could not initialize spellcheck: {e}")
     
     def _deactivate_all_resources_for_new_project(self):
-        """Deactivate all TMs, termbases, and NT lists for a freshly imported project.
-        This ensures new projects start with clean slate - user explicitly activates what they need."""
+        """Auto-activate all TMs and termbases for a freshly imported project.
+
+        Fix for GitHub issue #140: Previously this function tried to DEACTIVATE resources,
+        but since no activation records existed for the new project_id, the UPDATE did nothing.
+        Users expected TMs to work immediately after importing a document.
+
+        Now auto-activates all TMs so users can start working immediately.
+        """
         if not self.current_project or not hasattr(self.current_project, 'id'):
             return
-        
+
         project_id = self.current_project.id
         if not project_id:
             return
-        
-        # Deactivate all TMs for this project
+
+        # Auto-ACTIVATE all TMs for this project (creates activation records)
+        # Fix for #140: Users expect TMs to work immediately with new projects
         if hasattr(self, 'tm_metadata_mgr') and self.tm_metadata_mgr:
             all_tms = self.tm_metadata_mgr.get_all_tms()
-            for tm in all_tms:
-                self.tm_metadata_mgr.deactivate_tm(tm['id'], project_id)
-        
-        # Deactivate all termbases for this project
+            if all_tms:
+                for tm in all_tms:
+                    self.tm_metadata_mgr.activate_tm(tm['id'], project_id)
+                self.log(f"📋 New project: Auto-activated {len(all_tms)} TM(s) for reading")
+
+        # Auto-ACTIVATE all termbases for this project
         if hasattr(self, 'termbase_mgr') and self.termbase_mgr:
             all_termbases = self.termbase_mgr.get_all_termbases()
-            for tb in all_termbases:
-                self.termbase_mgr.deactivate_termbase(tb['id'], project_id)
-        
-        # Deactivate all NT lists
+            if all_termbases:
+                for tb in all_termbases:
+                    self.termbase_mgr.activate_termbase(tb['id'], project_id)
+                self.log(f"📋 New project: Auto-activated {len(all_termbases)} glossary(ies)")
+
+        # NT lists remain deactivated (they're global, not per-project)
         if hasattr(self, 'nt_manager') and self.nt_manager:
             for list_name in list(self.nt_manager.lists.keys()):
                 self.nt_manager.set_list_active(list_name, False)
-        
-        self.log("📋 New project: All TMs, glossaries, and NT lists deactivated (start clean)")
-        self.log("💡 Tip: Go to Resources tab to activate TMs and glossaries for this project")
 
     def search_and_display_tm_matches(self, source_text: str):
         """Search TM and Termbases and display matches with visual diff for fuzzy matches.
