@@ -32,9 +32,9 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.219"
+__version__ = "1.9.223"
 __phase__ = "0.9"
-__release_date__ = "2026-02-04"
+__release_date__ = "2026-02-06"
 __edition__ = "Qt"
 
 import sys
@@ -8162,7 +8162,11 @@ class SupervertalerQt(QMainWindow):
         import_memoq_action = QAction("memoQ &Bilingual Table (DOCX)...", self)
         import_memoq_action.triggered.connect(self.import_memoq_bilingual)
         import_menu.addAction(import_memoq_action)
-        
+
+        import_memoq_rtf_action = QAction("memoQ Bilingual Table (&RTF)...", self)
+        import_memoq_rtf_action.triggered.connect(self.import_memoq_rtf)
+        import_menu.addAction(import_memoq_rtf_action)
+
         import_memoq_xliff_action = QAction("memoQ &XLIFF (.mqxliff)...", self)
         import_memoq_xliff_action.triggered.connect(self.import_memoq_xliff)
         import_menu.addAction(import_memoq_xliff_action)
@@ -8220,6 +8224,10 @@ class SupervertalerQt(QMainWindow):
         export_memoq_action = QAction("memoQ &Bilingual Table - Translated (DOCX)...", self)
         export_memoq_action.triggered.connect(self.export_memoq_bilingual)
         export_menu.addAction(export_memoq_action)
+
+        export_memoq_rtf_action = QAction("memoQ Bilingual Table - Translated (&RTF)...", self)
+        export_memoq_rtf_action.triggered.connect(self.export_memoq_rtf)
+        export_menu.addAction(export_memoq_rtf_action)
 
         export_memoq_xliff_action = QAction("memoQ &XLIFF - Translated (.mqxliff)...", self)
         export_memoq_xliff_action.triggered.connect(self.export_memoq_xliff)
@@ -23142,14 +23150,9 @@ class SupervertalerQt(QMainWindow):
                                 else:
                                     self.log(f"⚠️ Could not find TM with tm_id: {tm_id}")
                     else:
-                        # NEW PROJECT (no saved tm_settings): Auto-activate all TMs for reading
-                        # This ensures TM matching works immediately for newly imported documents
-                        # Fix for GitHub issue #140: TMs not readable on re-imported documents
-                        if all_tms:
-                            self.log(f"📋 New project - auto-activating {len(all_tms)} TM(s) for reading")
-                            for tm in all_tms:
-                                self.tm_metadata_mgr.activate_tm(tm['id'], project_id)
-                                self.log(f"✓ Auto-activated TM: {tm['name']}")
+                        # NEW PROJECT (no saved tm_settings): Start with clean slate
+                        # User should explicitly select which TMs to use for this project
+                        pass
 
                     # Refresh TM UI to show (de)activations
                     if hasattr(self, 'tm_tab_refresh_callback'):
@@ -24893,6 +24896,42 @@ class SupervertalerQt(QMainWindow):
     def import_docx_from_path(self, file_path):
         """Import a monolingual DOCX document from a given path"""
         try:
+            # Check if this is a re-import of the current project's source file
+            reimport_mode = False
+            preserved_project_id = None
+            preserved_tm_settings = None
+            preserved_termbase_settings = None
+
+            if self.current_project:
+                current_source = getattr(self, 'current_document_path', None) or \
+                                 getattr(self.current_project, 'original_docx_path', None)
+
+                # Normalize paths for comparison
+                if current_source and os.path.normpath(file_path) == os.path.normpath(current_source):
+                    # Same file - ask user what they want to do
+                    dialog = QMessageBox(self)
+                    dialog.setWindowTitle("Re-import Document")
+                    dialog.setText(f"This file is already loaded in the current project:\n\n{os.path.basename(file_path)}")
+                    dialog.setInformativeText("Do you want to re-import it into the current project (keeping TM and glossary settings), or create a new project?")
+
+                    reimport_btn = dialog.addButton("Re-import into Current Project", QMessageBox.ButtonRole.AcceptRole)
+                    new_proj_btn = dialog.addButton("Create New Project", QMessageBox.ButtonRole.ActionRole)
+                    cancel_btn = dialog.addButton(QMessageBox.StandardButton.Cancel)
+
+                    dialog.exec()
+
+                    clicked = dialog.clickedButton()
+                    if clicked == cancel_btn:
+                        return
+                    elif clicked == reimport_btn:
+                        reimport_mode = True
+                        # Preserve project ID and settings
+                        preserved_project_id = self.current_project.id
+                        preserved_tm_settings = getattr(self.current_project, 'tm_settings', None)
+                        preserved_termbase_settings = getattr(self.current_project, 'termbase_settings', None)
+                        self.log(f"📋 Re-importing into current project (preserving TM settings)")
+                    # else: new_proj_btn clicked - continue with new project
+
             self.log(f"Importing: {os.path.basename(file_path)}")
             
             # Import DOCX using the existing docx_handler
@@ -25001,11 +25040,20 @@ class SupervertalerQt(QMainWindow):
                 target_lang=target_lang,
                 segments=segments
             )
-            
+
+            # If re-importing, restore the preserved project ID and settings
+            if reimport_mode and preserved_project_id is not None:
+                project.id = preserved_project_id
+                if preserved_tm_settings:
+                    project.tm_settings = preserved_tm_settings
+                if preserved_termbase_settings:
+                    project.termbase_settings = preserved_termbase_settings
+                self.log(f"✓ Preserved project ID: {preserved_project_id}")
+
             # Reset project-type specific highlighting flags
             TagHighlighter._is_cafetran_project = False
             TagHighlighter._is_markdown_project = False
-            
+
             # Set as current project and load into grid
             self.current_project = project
             self.current_document_path = file_path  # Store document path
@@ -25018,9 +25066,17 @@ class SupervertalerQt(QMainWindow):
 
             # Initialize TM for this project
             self.initialize_tm_database()
-            
-            # Deactivate all resources for new project, then auto-activate language-matching ones
-            self._deactivate_all_resources_for_new_project()
+
+            # Clear translation caches to ensure fresh TM lookups
+            # (important for re-imports where segments have changed)
+            with self.translation_matches_cache_lock:
+                self.translation_matches_cache.clear()
+            self.termbase_cache.clear()
+
+            # Only deactivate resources for truly NEW projects (not re-imports)
+            if not reimport_mode:
+                # Ensure new project starts with clean slate (no TMs/glossaries selected)
+                self._deactivate_all_resources_for_new_project()
 
             # Auto-resize rows for better initial display
             self.auto_resize_rows()
@@ -25188,12 +25244,19 @@ class SupervertalerQt(QMainWindow):
         # Show dialog
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
-        
+
+        # Check if this is a re-import of the same file
+        reimport_mode, preserved_id, preserved_tm, preserved_tb = self._check_reimport_same_file(
+            file_path, ['current_project.original_txt_path', 'current_document_path']
+        )
+        if reimport_mode is None:  # User cancelled
+            return
+
         # Store selected options
         source_lang = source_combo.currentData()
         target_lang = target_combo.currentData()
         skip_empty = empty_checkbox.isChecked()
-        
+
         try:
             self.log(f"📄 Importing simple text file: {os.path.basename(file_path)}")
             
@@ -25237,14 +25300,17 @@ class SupervertalerQt(QMainWindow):
                 target_lang=target_lang,
                 segments=segments
             )
-            
+
+            # Apply preserved settings if re-importing
+            self._apply_reimport_settings(project, reimport_mode, preserved_id, preserved_tm, preserved_tb)
+
             # Store original file path for export
             project.original_txt_path = file_path
-            
+
             # Reset project-type specific highlighting flags
             TagHighlighter._is_cafetran_project = False
             TagHighlighter._is_markdown_project = is_markdown
-            
+
             # Set as current project and load into grid
             self.current_project = project
             self.current_document_path = file_path
@@ -25256,6 +25322,13 @@ class SupervertalerQt(QMainWindow):
 
             # Initialize TM for this project
             self.initialize_tm_database()
+
+            # Clear caches to ensure fresh TM lookups
+            self._clear_caches_after_import()
+
+            # Only deactivate resources for truly NEW projects (not re-imports)
+            if not reimport_mode:
+                self._deactivate_all_resources_for_new_project()
 
             # Initialize spellcheck for target language
             self._initialize_spellcheck_for_target_language(target_lang)
@@ -27360,6 +27433,13 @@ class SupervertalerQt(QMainWindow):
         self.memoq_smart_formatting = smart_checkbox.isChecked()
         self.log(f"📄 memoQ import: {'Smart formatting transfer' if self.memoq_smart_formatting else 'Ignore formatting'}")
 
+        # Check if this is a re-import of the same file
+        reimport_mode, preserved_id, preserved_tm, preserved_tb = self._check_reimport_same_file(
+            file_path, ['current_project.memoq_source_path']
+        )
+        if reimport_mode is None:  # User cancelled
+            return
+
         try:
             from docx import Document
             
@@ -27508,7 +27588,10 @@ class SupervertalerQt(QMainWindow):
                 target_lang=target_lang,
                 segments=[]
             )
-            
+
+            # Apply preserved settings if re-importing
+            self._apply_reimport_settings(self.current_project, reimport_mode, preserved_id, preserved_tm, preserved_tb)
+
             # Store memoQ source path in project for persistence across saves
             self.current_project.memoq_source_path = file_path
 
@@ -27543,8 +27626,12 @@ class SupervertalerQt(QMainWindow):
             self.load_segments_to_grid()
             self.initialize_tm_database()
 
-            # Deactivate all resources for new project, then auto-activate language-matching ones
-            self._deactivate_all_resources_for_new_project()
+            # Clear caches to ensure fresh TM lookups
+            self._clear_caches_after_import()
+
+            # Only deactivate resources for truly NEW projects (not re-imports)
+            if not reimport_mode:
+                self._deactivate_all_resources_for_new_project()
 
             # Auto-resize rows for better initial display
             self.auto_resize_rows()
@@ -27588,7 +27675,173 @@ class SupervertalerQt(QMainWindow):
             self.log(f"✗ memoQ import failed: {str(e)}")
             import traceback
             traceback.print_exc()
-    
+
+    def import_memoq_rtf(self):
+        """Import memoQ bilingual RTF file (table format)"""
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select memoQ Bilingual RTF File",
+            "",
+            "RTF Files (*.rtf);;All Files (*.*)"
+        )
+
+        if not file_path:
+            return
+
+        # Check for re-import scenario
+        reimport_mode, preserved_id, preserved_tm, preserved_tb = self._check_reimport_same_file(
+            file_path, ['current_project.memoq_rtf_source_path']
+        )
+        if reimport_mode is None:  # User cancelled
+            return
+
+        try:
+            from modules.memoqrtf_handler import MemoQRTFHandler
+
+            # Load the bilingual RTF
+            handler = MemoQRTFHandler()
+            if not handler.load(file_path):
+                QMessageBox.critical(
+                    self, "Error",
+                    "Failed to load memoQ bilingual RTF file.\n\n"
+                    "Please ensure the file is a valid memoQ bilingual export."
+                )
+                return
+
+            if not handler.segments:
+                QMessageBox.warning(self, "Warning", "No segments found in the bilingual RTF file.")
+                return
+
+            # Extract segments
+            source_segments = [seg.source_text for seg in handler.segments]
+            target_segments = [seg.target_text for seg in handler.segments]
+            metadata = [{
+                'comment': seg.comment,
+                'status': seg.status,
+                'guid': seg.guid,
+                'target': seg.target_text
+            } for seg in handler.segments]
+
+            # SAFETY STEP: Save source segments to TXT file for user verification
+            txt_file_path = Path(file_path).with_suffix('.txt')
+            try:
+                with open(txt_file_path, 'w', encoding='utf-8') as f:
+                    f.write('\n'.join(source_segments))
+                self.log(f"✓ Extracted {len(source_segments)} segments to: {txt_file_path.name}")
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Failed to save TXT file:\n\n{e}")
+                return
+
+            # Show verification dialog
+            reply = QMessageBox.question(
+                self,
+                "Verify Extracted Segments",
+                f"Extracted {len(source_segments)} source segments from memoQ RTF file.\n\n"
+                f"A text file has been saved for verification:\n{txt_file_path.name}\n\n"
+                f"Please check this file to ensure all segments were extracted correctly.\n\n"
+                f"Languages detected: {handler.source_lang.upper()} → {handler.target_lang.upper()}\n\n"
+                f"Continue with import?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.Yes
+            )
+
+            if reply != QMessageBox.StandardButton.Yes:
+                self.log("✗ User cancelled memoQ RTF import after extraction")
+                return
+
+            # Store the bilingual RTF metadata for later export
+            self.memoq_rtf_source_file = file_path
+            self.memoq_rtf_handler = handler
+            self.memoq_rtf_metadata = metadata
+
+            # Create project
+            project_name = Path(file_path).stem
+            self.current_project = Project(
+                name=project_name,
+                source_lang=handler.source_lang,
+                target_lang=handler.target_lang,
+                segments=[]
+            )
+
+            # Apply preserved settings if re-importing
+            self._apply_reimport_settings(self.current_project, reimport_mode, preserved_id, preserved_tm, preserved_tb)
+
+            # Store memoQ RTF source path in project for persistence across saves
+            self.current_project.memoq_rtf_source_path = file_path
+
+            # Sync global language settings
+            self.source_language = handler.source_lang
+            self.target_language = handler.target_lang
+
+            # Create segments
+            for idx, source_text in enumerate(source_segments):
+                existing_target = target_segments[idx] if idx < len(target_segments) else ""
+                status = "translated" if existing_target.strip() else "not_started"
+
+                segment = Segment(
+                    id=idx + 1,
+                    source=source_text,
+                    target=existing_target,
+                    status=status,
+                    type="para",
+                    notes=metadata[idx].get('comment', '') if idx < len(metadata) else "",
+                    memoQ_status=metadata[idx].get('status', '') if idx < len(metadata) else ""
+                )
+                self.current_project.segments.append(segment)
+
+            # Update UI
+            self.project_file_path = None
+            self.project_modified = True
+            self._original_segment_order = self.current_project.segments.copy()
+            self.update_window_title()
+            self.load_segments_to_grid()
+            self.initialize_tm_database()
+
+            # Clear caches
+            self._clear_caches_after_import()
+
+            # Only deactivate resources for truly NEW projects
+            if not reimport_mode:
+                self._deactivate_all_resources_for_new_project()
+
+            # Auto-resize rows
+            self.auto_resize_rows()
+
+            # Initialize spellcheck
+            self._initialize_spellcheck_for_target_language(handler.target_lang)
+
+            self.log(f"✓ Imported memoQ bilingual RTF: {len(source_segments)} segments from {Path(file_path).name}")
+
+            # Store current document path for AI Assistant
+            self.current_document_path = file_path
+
+            # Generate markdown for AI Assistant if enabled
+            if hasattr(self, 'auto_generate_markdown') and self.auto_generate_markdown:
+                if hasattr(self, 'prompt_manager_qt'):
+                    self.prompt_manager_qt.generate_markdown_for_current_document()
+
+            # Refresh AI Assistant context
+            if hasattr(self, 'prompt_manager_qt'):
+                self.prompt_manager_qt.refresh_context()
+
+            QMessageBox.information(
+                self, "Import Successful",
+                f"Imported {len(source_segments)} segment(s) from memoQ bilingual RTF.\n\n"
+                f"File: {Path(file_path).name}\n"
+                f"Languages: {handler.source_lang} → {handler.target_lang}"
+            )
+
+        except ImportError as e:
+            QMessageBox.critical(
+                self, "Import Error",
+                f"Failed to import memoQ RTF handler module:\n\n{str(e)}"
+            )
+        except Exception as e:
+            QMessageBox.critical(self, "Import Error", f"Failed to import memoQ bilingual RTF:\n\n{str(e)}")
+            self.log(f"✗ memoQ RTF import failed: {str(e)}")
+            import traceback
+            traceback.print_exc()
+
     def export_memoq_bilingual(self):
         """Export to memoQ bilingual DOCX format with translations"""
         # Check if we have segments
@@ -27978,10 +28231,17 @@ class SupervertalerQt(QMainWindow):
         
         if not file_path:
             return
-        
+
+        # Check if this is a re-import of the same file
+        reimport_mode, preserved_id, preserved_tm, preserved_tb = self._check_reimport_same_file(
+            file_path, ['current_project.mqxliff_source_path']
+        )
+        if reimport_mode is None:  # User cancelled
+            return
+
         try:
             from modules.mqxliff_handler import MQXLIFFHandler
-            
+
             # Load the file
             handler = MQXLIFFHandler()
             if not handler.load(file_path):
@@ -28037,7 +28297,10 @@ class SupervertalerQt(QMainWindow):
                 source_lang=source_lang,
                 target_lang=target_lang
             )
-            
+
+            # Apply preserved settings if re-importing
+            self._apply_reimport_settings(self.current_project, reimport_mode, preserved_id, preserved_tm, preserved_tb)
+
             # Store memoQ XLIFF source path in project for persistence across saves
             self.current_project.mqxliff_source_path = file_path
 
@@ -28056,8 +28319,12 @@ class SupervertalerQt(QMainWindow):
             self.load_segments_to_grid()
             self.initialize_tm_database()
 
-            # Deactivate all resources for new project, then auto-activate language-matching ones
-            self._deactivate_all_resources_for_new_project()
+            # Clear caches to ensure fresh TM lookups
+            self._clear_caches_after_import()
+
+            # Only deactivate resources for truly NEW projects (not re-imports)
+            if not reimport_mode:
+                self._deactivate_all_resources_for_new_project()
 
             # Auto-resize rows for better initial display
             self.auto_resize_rows()
@@ -28136,7 +28403,124 @@ class SupervertalerQt(QMainWindow):
         
         # Return original if no match found
         return lang_code
-    
+
+    def export_memoq_rtf(self):
+        """Export to memoQ bilingual RTF format with translations"""
+        # Check if we have segments
+        if not self.current_project or not self.current_project.segments:
+            QMessageBox.warning(self, "No Data", "No segments to export")
+            return
+
+        # Check if a memoQ RTF source file was imported
+        memoq_rtf_source = None
+        if hasattr(self, 'memoq_rtf_source_file') and self.memoq_rtf_source_file:
+            memoq_rtf_source = self.memoq_rtf_source_file
+        elif hasattr(self.current_project, 'memoq_rtf_source_path') and self.current_project.memoq_rtf_source_path:
+            memoq_rtf_source = self.current_project.memoq_rtf_source_path
+            if Path(memoq_rtf_source).exists():
+                self.memoq_rtf_source_file = memoq_rtf_source
+                self.log(f"✓ Restored memoQ RTF source from project: {Path(memoq_rtf_source).name}")
+            else:
+                memoq_rtf_source = None
+
+        if not memoq_rtf_source:
+            # Prompt user to select the original memoQ bilingual RTF file
+            reply = QMessageBox.question(
+                self, "Select memoQ Source File",
+                "To export to memoQ RTF format, please select the original memoQ bilingual RTF file.\n\n"
+                "This is the file you originally imported from memoQ.\n\n"
+                "Would you like to select it now?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            )
+
+            if reply == QMessageBox.StandardButton.Yes:
+                file_path, _ = QFileDialog.getOpenFileName(
+                    self,
+                    "Select Original memoQ Bilingual RTF",
+                    "",
+                    "RTF Files (*.rtf);;All Files (*.*)"
+                )
+
+                if file_path:
+                    self.memoq_rtf_source_file = file_path
+                    self.log(f"✓ memoQ RTF source file set: {Path(file_path).name}")
+                else:
+                    self.log("Export cancelled - no source file selected")
+                    return
+            else:
+                self.log("Export cancelled")
+                return
+
+        try:
+            from modules.memoqrtf_handler import MemoQRTFHandler
+
+            segments = list(self.current_project.segments)
+            translations = [seg.target for seg in segments]
+
+            if not translations or all(not t.strip() for t in translations):
+                QMessageBox.warning(self, "Warning", "No translations found to export.")
+                return
+
+            # Load or reuse the RTF handler
+            if hasattr(self, 'memoq_rtf_handler') and self.memoq_rtf_handler:
+                handler = self.memoq_rtf_handler
+            else:
+                handler = MemoQRTFHandler()
+                if not handler.load(self.memoq_rtf_source_file):
+                    QMessageBox.critical(
+                        self, "Error",
+                        "Failed to load the original memoQ bilingual RTF file."
+                    )
+                    return
+                self.memoq_rtf_handler = handler
+
+            # Update translations in handler
+            segments_updated = 0
+            for i, translation in enumerate(translations):
+                if i < len(handler.segments):
+                    handler.segments[i].target_text = translation
+                    if translation.strip():
+                        segments_updated += 1
+
+            # Prompt for output file
+            default_name = Path(self.memoq_rtf_source_file).stem + "_translated.rtf"
+            default_dir = str(Path(self.memoq_rtf_source_file).parent)
+
+            output_path, _ = QFileDialog.getSaveFileName(
+                self,
+                "Save Translated memoQ Bilingual RTF",
+                str(Path(default_dir) / default_name),
+                "RTF Files (*.rtf);;All Files (*.*)"
+            )
+
+            if not output_path:
+                self.log("Export cancelled by user")
+                return
+
+            # Save the modified RTF
+            if handler.save(output_path):
+                self.log(f"✓ Exported memoQ RTF: {segments_updated} translations to {Path(output_path).name}")
+
+                QMessageBox.information(
+                    self, "Export Successful",
+                    f"Exported {segments_updated} translation(s) to memoQ bilingual RTF.\n\n"
+                    f"File: {Path(output_path).name}\n\n"
+                    f"You can now import this file back into memoQ."
+                )
+            else:
+                QMessageBox.critical(self, "Export Error", "Failed to save the translated RTF file.")
+
+        except ImportError as e:
+            QMessageBox.critical(
+                self, "Export Error",
+                f"Failed to import memoQ RTF handler module:\n\n{str(e)}"
+            )
+        except Exception as e:
+            QMessageBox.critical(self, "Export Error", f"Failed to export memoQ bilingual RTF:\n\n{str(e)}")
+            self.log(f"✗ memoQ RTF export failed: {str(e)}")
+            import traceback
+            traceback.print_exc()
+
     def export_memoq_xliff(self):
         """Export to memoQ XLIFF format with translations"""
         # Check if we have segments
@@ -28261,10 +28645,17 @@ class SupervertalerQt(QMainWindow):
         
         if not file_path:
             return
-        
+
+        # Check if this is a re-import of the same file
+        reimport_mode, preserved_id, preserved_tm, preserved_tb = self._check_reimport_same_file(
+            file_path, ['current_project.cafetran_source_path']
+        )
+        if reimport_mode is None:  # User cancelled
+            return
+
         try:
             from modules.cafetran_docx_handler import CafeTranDOCXHandler
-            
+
             # Check if this is a valid CafeTran bilingual DOCX
             if not CafeTranDOCXHandler.is_cafetran_bilingual_docx(file_path):
                 QMessageBox.warning(
@@ -28320,7 +28711,10 @@ class SupervertalerQt(QMainWindow):
                 source_lang=self.source_lang_combo.currentText() if hasattr(self, 'source_lang_combo') else "en",
                 target_lang=self.target_lang_combo.currentText() if hasattr(self, 'target_lang_combo') else "nl"
             )
-            
+
+            # Apply preserved settings if re-importing
+            self._apply_reimport_settings(self.current_project, reimport_mode, preserved_id, preserved_tm, preserved_tb)
+
             # Store CafeTran source path in project for persistence across saves
             self.current_project.cafetran_source_path = file_path
 
@@ -28339,8 +28733,12 @@ class SupervertalerQt(QMainWindow):
             self.load_segments_to_grid()
             self.initialize_tm_database()
 
-            # Deactivate all resources for new project, then auto-activate language-matching ones
-            self._deactivate_all_resources_for_new_project()
+            # Clear caches to ensure fresh TM lookups
+            self._clear_caches_after_import()
+
+            # Only deactivate resources for truly NEW projects (not re-imports)
+            if not reimport_mode:
+                self._deactivate_all_resources_for_new_project()
 
             # Auto-resize rows for better initial display
             self.auto_resize_rows()
@@ -28418,7 +28816,14 @@ class SupervertalerQt(QMainWindow):
         if workflow_dialog.exec() != QMessageBox.StandardButton.Ok:
             self.log("✗ User cancelled Trados import")
             return
-        
+
+        # Check if this is a re-import of the same file
+        reimport_mode, preserved_id, preserved_tm, preserved_tb = self._check_reimport_same_file(
+            file_path, ['current_project.trados_source_path']
+        )
+        if reimport_mode is None:  # User cancelled
+            return
+
         try:
             from modules.trados_docx_handler import TradosDOCXHandler, detect_bilingual_docx_type
             
@@ -28552,7 +28957,10 @@ class SupervertalerQt(QMainWindow):
                 source_lang=source_lang,
                 target_lang=target_lang
             )
-            
+
+            # Apply preserved settings if re-importing
+            self._apply_reimport_settings(self.current_project, reimport_mode, preserved_id, preserved_tm, preserved_tb)
+
             # Store Trados source path in project for persistence across saves
             self.current_project.trados_source_path = file_path
 
@@ -28569,9 +28977,13 @@ class SupervertalerQt(QMainWindow):
             self.update_window_title()
             self.load_segments_to_grid()
             self.initialize_tm_database()
-            
-            # Deactivate all resources for new project, then auto-activate language-matching ones
-            self._deactivate_all_resources_for_new_project()
+
+            # Clear caches to ensure fresh TM lookups
+            self._clear_caches_after_import()
+
+            # Only deactivate resources for truly NEW projects (not re-imports)
+            if not reimport_mode:
+                self._deactivate_all_resources_for_new_project()
 
             # Auto-resize rows for better initial display
             self.auto_resize_rows()
@@ -35336,14 +35748,96 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         except Exception as e:
             self.log(f"⚠ Could not initialize spellcheck: {e}")
     
+    def _check_reimport_same_file(self, file_path: str, source_path_attrs: list) -> tuple:
+        """Check if importing a file that's already loaded in the current project.
+
+        Args:
+            file_path: Path to the file being imported
+            source_path_attrs: List of attribute names to check (e.g., ['memoq_source_path', 'current_document_path'])
+
+        Returns:
+            Tuple of (reimport_mode, preserved_project_id, preserved_tm_settings, preserved_termbase_settings)
+            If user cancels, returns (None, None, None, None) to signal cancellation.
+        """
+        if not self.current_project:
+            return (False, None, None, None)
+
+        # Check all possible source path attributes
+        current_source = None
+        for attr in source_path_attrs:
+            if attr.startswith('current_project.'):
+                # Check attribute on project object
+                proj_attr = attr.replace('current_project.', '')
+                current_source = getattr(self.current_project, proj_attr, None)
+            else:
+                # Check attribute on self
+                current_source = getattr(self, attr, None)
+            if current_source:
+                break
+
+        if not current_source:
+            return (False, None, None, None)
+
+        # Normalize paths for comparison
+        if os.path.normpath(file_path) != os.path.normpath(current_source):
+            return (False, None, None, None)
+
+        # Same file - ask user what they want to do
+        dialog = QMessageBox(self)
+        dialog.setWindowTitle("Re-import Document")
+        dialog.setText(f"This file is already loaded in the current project:\n\n{os.path.basename(file_path)}")
+        dialog.setInformativeText("Do you want to re-import it into the current project (keeping TM and glossary settings), or create a new project?")
+
+        reimport_btn = dialog.addButton("Re-import into Current Project", QMessageBox.ButtonRole.AcceptRole)
+        new_proj_btn = dialog.addButton("Create New Project", QMessageBox.ButtonRole.ActionRole)
+        cancel_btn = dialog.addButton(QMessageBox.StandardButton.Cancel)
+
+        dialog.exec()
+
+        clicked = dialog.clickedButton()
+        if clicked == cancel_btn:
+            return (None, None, None, None)  # Signal cancellation
+        elif clicked == reimport_btn:
+            # Preserve project ID and settings
+            preserved_id = self.current_project.id
+            preserved_tm = getattr(self.current_project, 'tm_settings', None)
+            preserved_tb = getattr(self.current_project, 'termbase_settings', None)
+            self.log(f"📋 Re-importing into current project (preserving TM settings)")
+            return (True, preserved_id, preserved_tm, preserved_tb)
+        else:
+            # Create new project
+            return (False, None, None, None)
+
+    def _apply_reimport_settings(self, project, reimport_mode: bool, preserved_id, preserved_tm, preserved_tb):
+        """Apply preserved settings to project if in reimport mode.
+
+        Args:
+            project: The Project object to modify
+            reimport_mode: Whether this is a re-import
+            preserved_id: The project ID to preserve
+            preserved_tm: The tm_settings to preserve
+            preserved_tb: The termbase_settings to preserve
+        """
+        if reimport_mode and preserved_id is not None:
+            project.id = preserved_id
+            if preserved_tm:
+                project.tm_settings = preserved_tm
+            if preserved_tb:
+                project.termbase_settings = preserved_tb
+            self.log(f"✓ Preserved project ID: {preserved_id}")
+
+    def _clear_caches_after_import(self):
+        """Clear translation and termbase caches after import."""
+        with self.translation_matches_cache_lock:
+            self.translation_matches_cache.clear()
+        self.termbase_cache.clear()
+
     def _deactivate_all_resources_for_new_project(self):
-        """Auto-activate all TMs and termbases for a freshly imported project.
+        """Ensure new projects start with a clean slate - no TMs or termbases selected.
 
-        Fix for GitHub issue #140: Previously this function tried to DEACTIVATE resources,
-        but since no activation records existed for the new project_id, the UPDATE did nothing.
-        Users expected TMs to work immediately after importing a document.
-
-        Now auto-activates all TMs so users can start working immediately.
+        This is called when importing a new document to create a fresh project.
+        By design, users should explicitly choose which TMs and glossaries to use
+        for each project, rather than inheriting selections from previous work.
         """
         if not self.current_project or not hasattr(self.current_project, 'id'):
             return
@@ -35352,24 +35846,21 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         if not project_id:
             return
 
-        # Auto-ACTIVATE all TMs for this project (creates activation records)
-        # Fix for #140: Users expect TMs to work immediately with new projects
+        # Deactivate all TMs for this project (clean slate)
         if hasattr(self, 'tm_metadata_mgr') and self.tm_metadata_mgr:
             all_tms = self.tm_metadata_mgr.get_all_tms()
             if all_tms:
                 for tm in all_tms:
-                    self.tm_metadata_mgr.activate_tm(tm['id'], project_id)
-                self.log(f"📋 New project: Auto-activated {len(all_tms)} TM(s) for reading")
+                    self.tm_metadata_mgr.deactivate_tm(tm['id'], project_id)
 
-        # Auto-ACTIVATE all termbases for this project
+        # Deactivate all termbases for this project (clean slate)
         if hasattr(self, 'termbase_mgr') and self.termbase_mgr:
             all_termbases = self.termbase_mgr.get_all_termbases()
             if all_termbases:
                 for tb in all_termbases:
-                    self.termbase_mgr.activate_termbase(tb['id'], project_id)
-                self.log(f"📋 New project: Auto-activated {len(all_termbases)} glossary(ies)")
+                    self.termbase_mgr.deactivate_termbase(tb['id'], project_id)
 
-        # NT lists remain deactivated (they're global, not per-project)
+        # Deactivate NT lists (global)
         if hasattr(self, 'nt_manager') and self.nt_manager:
             for list_name in list(self.nt_manager.lists.keys()):
                 self.nt_manager.set_list_active(list_name, False)

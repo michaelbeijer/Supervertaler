@@ -2,23 +2,57 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.219 (February 4, 2026)
+**Current Version:** v1.9.223 (February 6, 2026)
 
 
 
-## v1.9.219 - February 4, 2026
+## v1.9.223 - February 6, 2026
 
-### 🐛 Bug Fixes
+### ✨ New Features
 
-- **TM Not Readable After Re-import** ([#140](https://github.com/michaelbeijer/Supervertaler/issues/140)): Fixed Translation Memory matches not appearing after importing a document. When importing a new document, the system was attempting to deactivate TMs for the new project, but since no activation records existed, no records were created. Now all TMs are automatically activated when importing a document or loading a project without saved TM settings, ensuring TM matching works immediately.
+- **memoQ Bilingual RTF Support** ([#145](https://github.com/michaelbeijer/Supervertaler/issues/145)): Added full import/export support for memoQ bilingual RTF files. This enables users with older memoQ versions (or those who prefer RTF) to use the same bilingual table workflow as DOCX. The RTF format uses the identical 5-column structure (ID, Source, Target, Comment, Status) as DOCX.
+  - New menu options: File → Import → memoQ Bilingual Table (RTF)
+  - New menu options: File → Export → memoQ Bilingual Table - Translated (RTF)
+  - Preserves formatting (bold, italic, underline) from source segments
+  - Handles Unicode text and special characters correctly
 
 ---
 
-## v1.9.218 - February 4, 2026
+## v1.9.222 - February 5, 2026
 
 ### 🐛 Bug Fixes
 
-- **Status Tooltip Rendering**: Fixed status icon tooltips appearing as black rectangles. Qt's built-in tooltip system was being affected by transparent widget backgrounds and theme stylesheets. The fix uses a custom QLabel popup widget with explicit styling, completely bypassing Qt's QToolTip system.
+- **"Exact matches only" Not Finding 100% Matches** ([#140](https://github.com/michaelbeijer/Supervertaler/issues/140)): Fixed batch TM pre-translation with "Exact matches only" option not finding 100% matches even when they exist. The bug was caused by `TMDatabase.get_exact_match()` returning only the target text (string) while the batch translation code expected a dictionary. Now returns the full match dictionary, allowing exact match mode to work correctly.
+
+---
+
+## v1.9.221 - February 5, 2026
+
+### 🐛 Bug Fixes
+
+- **TM Not Working After Re-import** ([#140](https://github.com/michaelbeijer/Supervertaler/issues/140)): Fixed Translation Memory not working after re-importing the same document. The root cause was that re-importing created a new project with a new ID, orphaning the TM activation records from the previous project ID. Now when re-importing the same file, users are prompted with a dialog offering two options:
+  - **"Re-import into Current Project"**: Preserves the project ID and TM/glossary settings, ensuring TM continues to work
+  - **"Create New Project"**: Creates a fresh project with clean slate (no TMs/glossaries pre-selected)
+
+### ✨ Enhancements
+
+- **Re-import Confirmation Dialog**: Added user-friendly confirmation dialog when importing a file that's already loaded in the current project. Applies to all import handlers: DOCX, memoQ bilingual, memoQ XLIFF, CafeTran, Trados, and TXT/Markdown.
+
+---
+
+## v1.9.220 - February 5, 2026
+
+### 🐛 Bug Fixes
+
+- **Reverted Auto-Activation of TMs**: Reverted incorrect fix from v1.9.219 that auto-activated all TMs when importing documents. The intended design is that new projects start with a **clean slate** - no TMs or glossaries pre-selected. Users should explicitly choose which resources to use for each project.
+
+---
+
+## v1.9.219 - February 5, 2026
+
+### 🐛 Bug Fixes
+
+- **Status Tooltip Rendering**: Fixed status icon tooltips appearing as black rectangles. Qt's built-in tooltip system was being affected by transparent widget backgrounds and theme stylesheets. The fix uses a custom QLabel popup widget with explicit styling (#f5f5f5 background, #333333 text), completely bypassing Qt's QToolTip system.
 
 ---
 

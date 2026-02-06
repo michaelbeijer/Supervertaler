@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** February 1, 2026 | **Version:** v1.9.191
+> **Last Updated:** February 6, 2026 | **Version:** v1.9.223
 
 ---
 
@@ -10,11 +10,11 @@
 **IMPORTANT: If you're continuing from a previous session or ran out of context:**
 
 1. **Skip to the end of this file** - The most recent development context is in the **"🔄 Recent Development History"** section (search for the latest date)
-2. **Current version: v1.9.191** - UI improvements (status icons, button padding, font sizes)
+2. **Current version: v1.9.223** - memoQ RTF bilingual support, TM fixes
 3. **Read only what you need** - The Project Overview and Architecture sections are reference material; the dated history entries contain the actual working context
 
 **Quick Navigation:**
-- **Latest context:** See CHANGELOG.md for v1.9.191 UI improvements (near end of file)
+- **Latest context:** See CHANGELOG.md for v1.9.223 (memoQ RTF support)
 - **Module list:** Search for `## 🔌 Complete Module List`
 - **Architecture:** Search for `## 🏗️ Architecture Patterns`
 - **Common pitfalls:** Search for `## ⚠️ Common Pitfalls`
@@ -28,7 +28,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.191 (February 2026) |
+| **Version** | v1.9.223 (February 2026) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -40,7 +40,7 @@
 ### Key Capabilities
 
 - **Multi-LLM AI Translation**: OpenAI GPT-4, Anthropic Claude, Google Gemini, Local Ollama
-- **CAT Tool Integration**: Trados SDLPPX/SDLRPX, memoQ XLIFF, Phrase/Memsource DOCX, CafeTran DOCX, Déjà Vu X3 RTF
+- **CAT Tool Integration**: Trados SDLPPX/SDLRPX, memoQ XLIFF/DOCX/RTF, Phrase/Memsource DOCX, CafeTran DOCX, Déjà Vu X3 RTF
 - **Translation Memory**: Fuzzy matching TM with TMX import/export + Supermemory (ChromaDB vector search)
 - **Terminology Management**: SQLite-based termbases with priority highlighting and automatic extraction
 - **Document Handling**: DOCX, bilingual DOCX, PDF (via OCR), simple TXT, **Markdown (MD)**, **Multi-file folder import**
@@ -782,6 +782,152 @@ deepl=...
 
 ## 🔄 Recent Development History
 
+
+### February 6, 2026 - memoQ Bilingual RTF Support (v1.9.223)
+
+**✨ Feature Summary**
+
+Added full import/export support for memoQ bilingual RTF files, addressing GitHub issue #145. This enables users with older memoQ versions (or those who prefer RTF format) to use the same bilingual table workflow as DOCX.
+
+**Status:** Implementation complete, version 1.9.223 released
+
+**Issue Addressed:**
+- GitHub #145 - Feature request for memoQ RTF bilingual file support
+
+**Implementation Details:**
+
+The memoQ RTF bilingual format uses the identical 5-column table structure as memoQ DOCX:
+- Column 1: Segment ID (number + GUID)
+- Column 2: Source text (with formatting)
+- Column 3: Target text
+- Column 4: Comments
+- Column 5: Status ("Not started", "Edited", "Confirmed", etc.)
+
+**New Module - `modules/memoqrtf_handler.py`:**
+
+```python
+class MemoQRTFHandler:
+    """Handler for memoQ bilingual RTF files."""
+
+    def load(self, file_path: str) -> bool:
+        """Load and parse memoQ bilingual RTF."""
+
+    def save(self, output_path: str) -> bool:
+        """Save RTF with updated translations."""
+
+    def get_source_texts(self) -> List[str]:
+        """Get source segments for translation."""
+```
+
+**Key Features:**
+- Parses RTF table structure using `\cell` and `\row` markers
+- Handles RTF formatting codes (`\b` bold, `\i` italic, `\ul` underline)
+- Decodes Unicode escapes (`\uNNNN?`) and hex character codes (`\'XX`)
+- Preserves RTF structure for clean round-trip export
+- Auto-detects source/target languages from header row
+
+**Menu Integration:**
+- Import: File → Import → memoQ Bilingual Table (RTF)...
+- Export: File → Export → memoQ Bilingual Table - Translated (RTF)...
+
+**Files Modified:**
+
+1. **`modules/memoqrtf_handler.py`** (NEW):
+   - `MemoQRTFHandler` class for parsing/saving memoQ RTF
+   - `MemoQSegment` dataclass for segment representation
+   - RTF escape/decode utilities
+   - Language detection from header row
+
+2. **`Supervertaler.py`**:
+   - Added menu actions for memoQ RTF import/export (lines ~8165, ~8226)
+   - Added `import_memoq_rtf()` method (lines ~27679-27805)
+   - Added `export_memoq_rtf()` method (lines ~28407-28515)
+   - Stores `memoq_rtf_source_path` in project for persistence
+
+**Technical Notes:**
+- RTF parsing uses regex to find cell content between `\cell` markers
+- Unicode handling: `\uc0\uNNNN` and `\uNNNN?` patterns
+- Negative Unicode values converted per RTF spec: `code + 65536`
+- Target cell replacement done in reverse order to preserve positions
+
+---
+
+### February 5, 2026 - Custom Tooltips & Clean Slate Project Imports (v1.9.222)
+
+**✨ Feature Summary**
+
+Fixed black tooltip rendering issue on certain systems by implementing custom tooltip widgets. Also clarified and restored the "clean slate" behavior for new project imports.
+
+**Status:** Implementation complete, version 1.9.219 released
+
+**Issues Addressed:**
+- Black tooltip rectangles when hovering over status icons (PyQt6/Qt tooltip rendering issue)
+- GitHub #140 investigation ongoing (TM not readable after re-import on macOS)
+
+**Custom Tooltip Implementation:**
+
+Qt's built-in `QToolTip` rendered as black rectangles on some systems due to platform-specific styling issues. Solution: bypass Qt's tooltip system entirely with custom `QLabel` popup widgets.
+
+**Key Code - Custom Tooltip Widget** (`Supervertaler.py`):
+```python
+def _get_custom_tooltip(self):
+    """Get or create the custom tooltip label widget."""
+    if not hasattr(self, '_custom_tooltip') or self._custom_tooltip is None:
+        self._custom_tooltip = QLabel()
+        self._custom_tooltip.setWindowFlags(
+            Qt.WindowType.ToolTip | Qt.WindowType.FramelessWindowHint
+        )
+        self._custom_tooltip.setStyleSheet("""
+            QLabel {
+                background-color: #f5f5f5;
+                color: #333333;
+                border: 1px solid #d0d0d0;
+                padding: 4px 8px;
+                font-size: 12px;
+            }
+        """)
+        self._custom_tooltip.hide()
+    return self._custom_tooltip
+```
+
+**Event Filter for Status Icons:**
+- Intercepts `QEvent.Type.ToolTip` events on status icon labels
+- Shows custom tooltip popup instead of Qt's default
+- Hides popup on `QEvent.Type.Leave`
+
+**Clean Slate Project Imports (Design Clarification):**
+
+The `_deactivate_all_resources_for_new_project()` function ensures new projects start with a clean slate:
+- **Design Intent:** When importing a new document, NO TMs or glossaries should be pre-selected
+- **User Workflow:** Import document → Select only needed TMs/glossaries → Work with relevant resources
+- This prevents resource "pollution" from previous projects carrying over
+
+**Files Modified:**
+
+1. **`Supervertaler.py`**:
+   - Added `_get_custom_tooltip()` method for creating styled tooltip widgets
+   - Added `_show_status_tooltip()` and `_hide_status_tooltip()` methods
+   - Event filter on status icon labels to intercept tooltip events
+   - Confirmed `_deactivate_all_resources_for_new_project()` deactivates resources (clean slate)
+
+2. **`modules/theme_manager.py`**:
+   - Added QToolTip styling in stylesheet (#f5f5f5 background, #333333 text)
+   - Added QPalette tooltip colors as fallback for Qt versions that ignore stylesheet
+
+**Tooltip Color Choice:**
+- Background: `#f5f5f5` (light gray) - professional, readable in all themes
+- Text: `#333333` (dark gray) - high contrast
+- Border: `#d0d0d0` - subtle definition
+
+**GitHub #140 Investigation Notes:**
+
+Bug report indicates TM not readable after re-importing document on macOS:
+- Checkbox appeared checked but TM wasn't being searched
+- Workaround: Uncheck, restart, recheck
+- **Hypothesis:** When re-importing creates a new project_id, the TM activation records from the old project_id don't apply
+- **Awaiting clarification** from bug reporter on exact workflow
+
+---
 
 ### February 1, 2026 - Dark Mode Refinements & UI Improvements
 

@@ -169,28 +169,28 @@ class TMDatabase:
         """Add entry to Project TM (convenience method)"""
         self.add_entry(source, target, tm_id='project')
     
-    def get_exact_match(self, source: str, tm_ids: List[str] = None) -> Optional[str]:
+    def get_exact_match(self, source: str, tm_ids: List[str] = None) -> Optional[Dict]:
         """
         Get exact match from TM(s)
-        
+
         Args:
             source: Source text to match
             tm_ids: List of TM IDs to search (None = all enabled)
-        
-        Returns: Target text or None
+
+        Returns: Dictionary with match data (including 'target_text') or None
         """
         if tm_ids is None:
             # Search all enabled TMs
             tm_ids = [tm_id for tm_id, meta in self.tm_metadata.items() if meta.get('enabled', True)]
-        
+
         match = self.db.get_exact_match(
             source=source,
             tm_ids=tm_ids,
             source_lang=self.source_lang,
             target_lang=self.target_lang
         )
-        
-        return match['target_text'] if match else None
+
+        return match  # Return full dict (or None) - caller can access match['target_text']
     
     def search_all(self, source: str, tm_ids: List[str] = None, enabled_only: bool = True, max_matches: int = 5) -> List[Dict]:
         """
@@ -674,8 +674,8 @@ class TMAgent:
         """Add to Project TM"""
         self.tm_database.add_to_project_tm(source, target)
     
-    def get_exact_match(self, source: str) -> Optional[str]:
-        """Search all enabled TMs for exact match"""
+    def get_exact_match(self, source: str) -> Optional[Dict]:
+        """Search all enabled TMs for exact match - returns dict with 'target_text' or None"""
         return self.tm_database.get_exact_match(source)
     
     def get_fuzzy_matches(self, source: str, max_matches: int = 5) -> List[Tuple[str, str, float]]:
