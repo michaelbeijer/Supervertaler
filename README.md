@@ -64,7 +64,7 @@ python Supervertaler.py
 - [Request features](https://github.com/michaelbeijer/Supervertaler/discussions)
 - [Contributing guide](CONTRIBUTING.md)
 - [Stargazers](https://github.com/michaelbeijer/Supervertaler/stargazers) - See who's starred the project
-- [Gitstalk](https://gitstalk.netlify.app/michaelbeijer)
+- [Gitstalk](https://gitstalk.netlify.app/michaelbeijer) - See what I am up to on GitHub
 
 ---
 
