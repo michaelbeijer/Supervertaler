@@ -25196,30 +25196,49 @@ class SupervertalerQt(QMainWindow):
         source_combo = QComboBox()
         for name, code in languages:
             source_combo.addItem(name, code)
-        # Default to English as source
-        source_combo.setCurrentIndex(0)
-        
+
+        # Load last used languages from settings, or use current project, or default to English
+        general_settings = self.load_general_settings()
+        last_source = general_settings.get('last_import_source_lang',
+                                          self.current_project.source_lang if self.current_project else 'en')
+        last_target = general_settings.get('last_import_target_lang',
+                                          self.current_project.target_lang if self.current_project else 'nl')
+
+        # Set source combo to last used language
+        source_index = 0  # Default to English
+        for i in range(source_combo.count()):
+            if source_combo.itemData(i) == last_source:
+                source_index = i
+                break
+        source_combo.setCurrentIndex(source_index)
+
         arrow_label = QLabel(" → ")
         arrow_label.setStyleSheet("font-weight: bold; font-size: 14px;")
-        
+
         target_label = QLabel("Target:")
         target_combo = QComboBox()
         for name, code in languages:
             target_combo.addItem(name, code)
-        # Default to Dutch as target
-        target_combo.setCurrentIndex(1)
-        
+
+        # Set target combo to last used language
+        target_index = 1  # Default to Dutch
+        for i in range(target_combo.count()):
+            if target_combo.itemData(i) == last_target:
+                target_index = i
+                break
+        target_combo.setCurrentIndex(target_index)
+
         lang_layout.addWidget(source_label)
         lang_layout.addWidget(source_combo)
         lang_layout.addWidget(arrow_label)
         lang_layout.addWidget(target_label)
         lang_layout.addWidget(target_combo)
         lang_layout.addStretch()
-        
+
         layout.addWidget(lang_group)
-        
+
         layout.addSpacing(10)
-        
+
         # Empty line handling option
         empty_checkbox = CheckmarkCheckBox("Skip empty lines (remove blank segments)")
         empty_checkbox.setChecked(False)  # Default: preserve empty lines
@@ -25259,6 +25278,12 @@ class SupervertalerQt(QMainWindow):
         source_lang = source_combo.currentData()
         target_lang = target_combo.currentData()
         skip_empty = empty_checkbox.isChecked()
+
+        # Save selected languages to settings for next time
+        general_settings = self.load_general_settings()
+        general_settings['last_import_source_lang'] = source_lang
+        general_settings['last_import_target_lang'] = target_lang
+        self.save_general_settings(general_settings)
 
         try:
             self.log(f"📄 Importing simple text file: {os.path.basename(file_path)}")
@@ -26499,24 +26524,45 @@ class SupervertalerQt(QMainWindow):
         source_combo = QComboBox()
         for name, code in languages:
             source_combo.addItem(name, code)
-        source_combo.setCurrentIndex(0)  # English default
-        
+
+        # Load last used languages from settings, or use current project, or default to English
+        general_settings = self.load_general_settings()
+        last_source = general_settings.get('last_import_source_lang',
+                                          self.current_project.source_lang if self.current_project else 'en')
+        last_target = general_settings.get('last_import_target_lang',
+                                          self.current_project.target_lang if self.current_project else 'nl')
+
+        # Set source combo to last used language
+        source_index = 0  # Default to English
+        for i in range(source_combo.count()):
+            if source_combo.itemData(i) == last_source:
+                source_index = i
+                break
+        source_combo.setCurrentIndex(source_index)
+
         arrow_label = QLabel(" → ")
         arrow_label.setStyleSheet("font-weight: bold; font-size: 14px;")
-        
+
         target_label = QLabel("Target:")
         target_combo = QComboBox()
         for name, code in languages:
             target_combo.addItem(name, code)
-        target_combo.setCurrentIndex(1)  # Dutch default
-        
+
+        # Set target combo to last used language
+        target_index = 1  # Default to Dutch
+        for i in range(target_combo.count()):
+            if target_combo.itemData(i) == last_target:
+                target_index = i
+                break
+        target_combo.setCurrentIndex(target_index)
+
         lang_layout.addWidget(source_label)
         lang_layout.addWidget(source_combo)
         lang_layout.addWidget(arrow_label)
         lang_layout.addWidget(target_label)
         lang_layout.addWidget(target_combo)
         lang_layout.addStretch()
-        
+
         layout.addWidget(lang_group)
         
         # Import format options
@@ -26563,7 +26609,13 @@ class SupervertalerQt(QMainWindow):
         source_lang = source_combo.currentData()
         target_lang = target_combo.currentData()
         detect_memoq = memoq_checkbox.isChecked()
-        
+
+        # Save selected languages to settings for next time
+        general_settings = self.load_general_settings()
+        general_settings['last_import_source_lang'] = source_lang
+        general_settings['last_import_target_lang'] = target_lang
+        self.save_general_settings(general_settings)
+
         # Import files
         self._import_multifile_project(folder_path, selected_files, source_lang, target_lang, detect_memoq)
     

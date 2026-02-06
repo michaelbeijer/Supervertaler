@@ -2,9 +2,17 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.225 (February 6, 2026)
+**Current Version:** v1.9.226 (February 6, 2026)
 
 
+
+## v1.9.226 - February 6, 2026
+
+### 🐛 Bug Fixes
+
+- **Import Dialogs Ignore Saved Language Pair** ([#143](https://github.com/michaelbeijer/Supervertaler/issues/143)): Fixed the Text/Markdown import dialog and Folder/multi-file import dialog always defaulting to English → Dutch, ignoring any previously saved language pair. Both dialogs now read and save the last used language pair from `general_settings.json`, matching the existing DOCX import behavior. All three import dialogs now share the same language memory.
+
+---
 
 ## v1.9.225 - February 6, 2026
 
