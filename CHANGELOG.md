@@ -2,9 +2,17 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.224 (February 6, 2026)
+**Current Version:** v1.9.225 (February 6, 2026)
 
 
+
+## v1.9.225 - February 6, 2026
+
+### 🐛 Bug Fixes
+
+- **WYSIWYG/Tags Toggle Corrupts Target Text** ([#142](https://github.com/michaelbeijer/Supervertaler/issues/142)): Fixed the WYSIWYG/Tags view mode toggle permanently destroying whitespace and indentation in target text. The root cause was that `get_formatted_html_display()` generated HTML without whitespace preservation, so Qt's HTML renderer collapsed spaces and indentation. Switching back to Tags mode then showed the corrupted text. Fix: added `white-space: pre-wrap` CSS to the HTML output, and added `_suppress_target_change_handlers` guard during display mode refresh to prevent any edge-case data corruption.
+
+---
 
 ## v1.9.224 - February 6, 2026
 

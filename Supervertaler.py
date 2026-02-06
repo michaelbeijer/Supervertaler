@@ -32,7 +32,7 @@ License: MIT
 """
 
 # Version Information.
-__version__ = "1.9.224"
+__version__ = "1.9.225"
 __phase__ = "0.9"
 __release_date__ = "2026-02-06"
 __edition__ = "Qt"
@@ -753,16 +753,16 @@ def apply_formatting_tags(text: str, tag: str) -> str:
 def get_formatted_html_display(text: str) -> str:
     """
     Convert our simple tags to HTML for rich text display.
-    
+
     Args:
         text: Text with <b>, <i>, <u> tags
-        
+
     Returns:
         HTML string suitable for QTextEdit.setHtml()
     """
     # Escape HTML entities first (except our tags)
     import html
-    
+
     # Temporarily replace our tags with placeholders
     text = text.replace('<b>', '\x00B_OPEN\x00')
     text = text.replace('</b>', '\x00B_CLOSE\x00')
@@ -770,10 +770,10 @@ def get_formatted_html_display(text: str) -> str:
     text = text.replace('</i>', '\x00I_CLOSE\x00')
     text = text.replace('<u>', '\x00U_OPEN\x00')
     text = text.replace('</u>', '\x00U_CLOSE\x00')
-    
+
     # Escape other HTML
     text = html.escape(text)
-    
+
     # Restore our tags as real HTML
     text = text.replace('\x00B_OPEN\x00', '<b>')
     text = text.replace('\x00B_CLOSE\x00', '</b>')
@@ -781,7 +781,10 @@ def get_formatted_html_display(text: str) -> str:
     text = text.replace('\x00I_CLOSE\x00', '</i>')
     text = text.replace('\x00U_OPEN\x00', '<u>')
     text = text.replace('\x00U_CLOSE\x00', '</u>')
-    
+
+    # Preserve whitespace in HTML rendering (prevents collapsing spaces/indentation)
+    text = f'<span style="white-space: pre-wrap;">{text}</span>'
+
     return text
 
 
@@ -41560,6 +41563,10 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         if not hasattr(self, 'table') or not self.current_project:
             return
 
+        # Suppress target change handlers during refresh to prevent data corruption
+        # (switching display modes changes widget content which could trigger textChanged)
+        self._suppress_target_change_handlers = True
+
         # Get current visible rows
         for row in range(self.table.rowCount()):
             # Get segment for this row
@@ -41591,7 +41598,10 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             if target_widget and hasattr(target_widget, 'update_display_mode'):
                 target_widget.update_display_mode(target_for_display, self.show_tags)
 
-    def update_tab_segment_editor(self, segment_id: int, source_text: str, target_text: str, 
+        # Re-enable target change handlers
+        self._suppress_target_change_handlers = False
+
+    def update_tab_segment_editor(self, segment_id: int, source_text: str, target_text: str,
                                    status: str = "untranslated", notes: str = ""):
         """Update the tab segment editor with current segment data"""
         # CRITICAL FIX: Update segment ID BEFORE setting text to prevent cross-contamination
