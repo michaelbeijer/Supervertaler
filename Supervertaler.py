@@ -31,8 +31,26 @@ Author: Michael Beijer
 License: MIT
 """
 
-# Version Information.
-__version__ = "1.9.226"
+# Version Information — read from pyproject.toml (single source of truth)
+def _read_version():
+    """Read version from pyproject.toml so there's only one place to update."""
+    import os as _os
+    try:
+        import tomllib
+    except ImportError:
+        try:
+            import tomli as tomllib  # Python < 3.11
+        except ImportError:
+            return "1.9.226"  # Fallback
+    try:
+        _toml_path = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "pyproject.toml")
+        with open(_toml_path, "rb") as f:
+            _data = tomllib.load(f)
+        return _data["project"]["version"]
+    except Exception:
+        return "1.9.226"  # Fallback if running from dist without pyproject.toml
+
+__version__ = _read_version()
 __phase__ = "0.9"
 __release_date__ = "2026-02-06"
 __edition__ = "Qt"
