@@ -390,7 +390,15 @@ class ThemeManager:
             QComboBox:hover {{
                 border: 1px solid {theme.highlight};
             }}
-            
+
+            QComboBox QAbstractItemView {{
+                background-color: {theme.base};
+                color: {theme.text};
+                border: 1px solid {theme.border};
+                selection-background-color: {theme.highlight};
+                selection-color: {theme.base};
+            }}
+
             /* Tables */
             QTableWidget {{
                 background-color: {theme.base};

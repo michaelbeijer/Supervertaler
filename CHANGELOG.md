@@ -2,9 +2,17 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.223 (February 6, 2026)
+**Current Version:** v1.9.224 (February 6, 2026)
 
 
+
+## v1.9.224 - February 6, 2026
+
+### 🐛 Bug Fixes
+
+- **Per Page Dropdown Empty on macOS** ([#136](https://github.com/michaelbeijer/Supervertaler/issues/136)): Fixed the "Per page" dropdown in the grid toolbar appearing empty on macOS. The dropdown popup (`QComboBox QAbstractItemView`) had no explicit styling, causing macOS to render text as invisible against the platform-default background. Added explicit background, text color, and selection styling for dropdown popups.
+
+---
 
 ## v1.9.223 - February 6, 2026
 
