@@ -500,6 +500,7 @@ class MTQuickPopup(QDialog):
             ("Claude", "CL", "claude", "mtql_claude"),
             ("OpenAI", "GPT", "openai", "mtql_openai"),
             ("Gemini", "GEM", "gemini", "mtql_gemini"),
+            ("Custom", "CUS", "custom_openai", "mtql_custom_openai"),
         ]
 
         for name, code, api_key_name, settings_key in llm_defs:
@@ -507,8 +508,8 @@ class MTQuickPopup(QDialog):
             if not mt_quick_settings.get(settings_key, False):
                 continue
 
-            # Check if API key is available
-            if not api_keys.get(api_key_name):
+            # Check if API key is available (custom_openai may not need one)
+            if api_key_name != 'custom_openai' and not api_keys.get(api_key_name):
                 continue
 
             # Get model from settings or use default
@@ -531,13 +532,21 @@ class MTQuickPopup(QDialog):
             api_keys = load_api_keys()
             api_key = api_keys.get(provider)
 
-            if not api_key:
+            if not api_key and provider != 'custom_openai':
                 return f"[Error: No API key for {provider}]"
+
+            base_url = None
+            if provider == 'custom_openai':
+                api_key = api_key or 'not-needed'
+                if hasattr(self, 'parent_app') and self.parent_app:
+                    settings = self.parent_app.load_llm_settings()
+                    base_url = settings.get('custom_openai_endpoint', '') or None
 
             client = LLMClient(
                 api_key=api_key,
                 provider=provider,
-                model=model
+                model=model,
+                base_url=base_url
             )
 
             # Use the translate method

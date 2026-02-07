@@ -2,9 +2,17 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.235 (February 7, 2026)
+**Current Version:** v1.9.236 (February 7, 2026)
 
 
+
+## v1.9.236 - February 7, 2026
+
+### ✨ New Features
+
+- **Custom OpenAI-Compatible API provider** ([#155](https://github.com/michaelbeijer/Supervertaler/issues/155)): Added support for any OpenAI-compatible API endpoint — Volcengine (Doubao), Alibaba Tongyi (Qwen), DeepSeek, Mistral, Groq, and more. Configure endpoint URL, model name, and API key in Settings > AI Settings. Works for single-segment translation, batch translation, and QuickTrans.
+
+---
 
 ## v1.9.235 - February 7, 2026
 

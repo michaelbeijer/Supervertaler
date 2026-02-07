@@ -31,29 +31,24 @@ Author: Michael Beijer
 License: MIT
 """
 
-# Version Information — read from pyproject.toml (dev) or package metadata (pip install)
+# Version Information — read from pyproject.toml (single source of truth)
 def _read_version():
-    """Read version from pyproject.toml (dev) or installed package metadata (pip)."""
+    """Read version from pyproject.toml so there's only one place to update."""
     import os as _os
-    # 1) Try pyproject.toml (works in dev / source checkout)
     try:
+        import tomllib
+    except ImportError:
         try:
-            import tomllib
-        except ImportError:
             import tomli as tomllib  # Python < 3.11
+        except ImportError:
+            return "1.9.227"  # Fallback
+    try:
         _toml_path = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "pyproject.toml")
         with open(_toml_path, "rb") as f:
             _data = tomllib.load(f)
         return _data["project"]["version"]
     except Exception:
-        pass
-    # 2) Try installed package metadata (works after pip install)
-    try:
-        from importlib.metadata import version as _pkg_version
-        return _pkg_version("supervertaler")
-    except Exception:
-        pass
-    return "0.0.0"  # Should never reach here
+        return "1.9.227"  # Fallback if running from dist without pyproject.toml
 
 __version__ = _read_version()
 __phase__ = "0.9"
@@ -5935,13 +5930,14 @@ class PreTranslationWorker(QThread):
     translation_error = pyqtSignal(str)  # error_message
     retry_needed = pyqtSignal(list)  # empty_segments list of (row_index, segment)
     
-    def __init__(self, parent_app, segments, provider_type, provider_name, model, tm_exact_only=False, prompt_manager=None, retry_enabled=False, retry_pass=0, tm_ids=None, glossary_terms=None):
+    def __init__(self, parent_app, segments, provider_type, provider_name, model, tm_exact_only=False, prompt_manager=None, retry_enabled=False, retry_pass=0, tm_ids=None, glossary_terms=None, base_url=None):
         super().__init__()
         self.parent_app = parent_app
         self.segments = segments
         self.provider_type = provider_type
         self.provider_name = provider_name
         self.model = model
+        self.base_url = base_url
         self.tm_exact_only = tm_exact_only
         self.prompt_manager = prompt_manager
         self.retry_enabled = retry_enabled
@@ -6188,7 +6184,9 @@ class PreTranslationWorker(QThread):
             # Load API keys
             api_keys = self.parent_app.load_api_keys()
             api_key = api_keys.get(self.provider_name) or (api_keys.get('google') if self.provider_name == 'gemini' else None)
-            
+            if self.provider_name == 'custom_openai' and not api_key:
+                api_key = api_keys.get('custom_openai', '') or 'not-needed'
+
             # Build custom prompt from prompt library
             custom_prompt = None
             if self.prompt_manager:
@@ -6211,12 +6209,13 @@ class PreTranslationWorker(QThread):
                 except Exception as e:
                     print(f"Warning: Could not build custom prompt: {e}")
                     custom_prompt = None
-            
+
             # Create client
             client = LLMClient(
                 api_key=api_key,
                 provider=self.provider_name,
-                model=self.model
+                model=self.model,
+                base_url=self.base_url
             )
             
             # Translate with custom prompt
@@ -6249,7 +6248,9 @@ class PreTranslationWorker(QThread):
             # Load API keys
             api_keys = self.parent_app.load_api_keys()
             api_key = api_keys.get(self.provider_name) or (api_keys.get('google') if self.provider_name == 'gemini' else None)
-            
+            if self.provider_name == 'custom_openai' and not api_key:
+                api_key = api_keys.get('custom_openai', '') or 'not-needed'
+
             # Build batch prompt
             batch_prompt_parts = []
             
@@ -6304,9 +6305,10 @@ class PreTranslationWorker(QThread):
             client = LLMClient(
                 api_key=api_key,
                 provider=self.provider_name,
-                model=self.model
+                model=self.model,
+                base_url=self.base_url
             )
-            
+
             # Call LLM with batch prompt (no custom_prompt parameter - it's all in the text)
             result = client.translate(
                 text=batch_prompt,
@@ -7975,6 +7977,9 @@ class SupervertalerQt(QMainWindow):
             elif provider == 'gemini':
                 icon = "💎"
                 display = f"{icon} {model}"
+            elif provider == 'custom_openai':
+                icon = "🔌"
+                display = f"{icon} Custom: {model}"
             else:
                 display = f"{provider}: {model}"
             
@@ -10399,16 +10404,22 @@ class SupervertalerQt(QMainWindow):
             provider_to_key = {
                 "openai": "openai",
                 "claude": "claude",
-                "gemini": "google"  # Gemini uses Google API key
+                "gemini": "google",  # Gemini uses Google API key
+                "custom_openai": "custom_openai"
             }
 
             key_name = provider_to_key.get(provider, provider)
             api_key = api_keys.get(key_name, "")
 
-            if not api_key:
+            if not api_key and provider not in ('ollama', 'custom_openai'):
                 raise ValueError(f"No API key configured for {provider}. Please add it in Settings.")
 
-            return LLMClient(api_key=api_key, provider=provider, model=model_id)
+            base_url = None
+            if provider == 'custom_openai':
+                settings = self.load_llm_settings()
+                base_url = settings.get('custom_openai_endpoint', '') or None
+                api_key = api_key or 'not-needed'
+            return LLMClient(api_key=api_key, provider=provider, model=model_id, base_url=base_url)
 
         # Create and return the leaderboard UI widget
         leaderboard_widget = LLMLeaderboardUI(
@@ -16474,7 +16485,13 @@ class SupervertalerQt(QMainWindow):
         ollama_radio.setChecked(settings.get('provider', 'openai') == 'ollama')
         provider_button_group.addButton(ollama_radio)
         provider_layout.addWidget(ollama_radio)
-        
+
+        # Custom OpenAI-compatible endpoint
+        custom_radio = CustomRadioButton("🔌 Custom (OpenAI-Compatible API)")
+        custom_radio.setChecked(settings.get('provider', 'openai') == 'custom_openai')
+        provider_button_group.addButton(custom_radio)
+        provider_layout.addWidget(custom_radio)
+
         provider_group.setLayout(provider_layout)
         layout.addWidget(provider_group)
         
@@ -16590,6 +16607,40 @@ class SupervertalerQt(QMainWindow):
             ollama_status_widget = None
             tab.ollama_status_widget = None
         
+        # Custom OpenAI-compatible endpoint settings
+        model_layout.addSpacing(10)
+        custom_model_label = QLabel("<b>🔌 Custom (OpenAI-Compatible) Settings:</b>")
+        model_layout.addWidget(custom_model_label)
+
+        custom_endpoint_label = QLabel("API Endpoint URL:")
+        custom_endpoint_label.setStyleSheet("font-size: 9pt; margin-top: 2px;")
+        model_layout.addWidget(custom_endpoint_label)
+
+        custom_endpoint_input = QLineEdit()
+        custom_endpoint_input.setPlaceholderText("https://api.example.com/v1")
+        custom_endpoint_input.setText(settings.get('custom_openai_endpoint', ''))
+        custom_endpoint_input.setEnabled(custom_radio.isChecked())
+        model_layout.addWidget(custom_endpoint_input)
+
+        custom_model_name_label = QLabel("Model Name or Endpoint ID:")
+        custom_model_name_label.setStyleSheet("font-size: 9pt; margin-top: 2px;")
+        model_layout.addWidget(custom_model_name_label)
+
+        custom_model_input = QLineEdit()
+        custom_model_input.setPlaceholderText("e.g. qwen-plus, ep-xxxxx, deepseek-chat")
+        custom_model_input.setText(settings.get('custom_openai_model', ''))
+        custom_model_input.setEnabled(custom_radio.isChecked())
+        model_layout.addWidget(custom_model_input)
+
+        custom_info = QLabel(
+            "💡 Works with any OpenAI-compatible API: Volcengine (Doubao), "
+            "Alibaba Tongyi (Qwen), DeepSeek, Mistral, Groq, etc.\n"
+            "Add your API key as <code>custom_openai = YOUR_KEY</code> in api_keys.txt"
+        )
+        custom_info.setWordWrap(True)
+        custom_info.setStyleSheet("color: #666; font-size: 9pt; padding: 5px;")
+        model_layout.addWidget(custom_info)
+
         # Connect radio buttons to enable/disable combos
         def update_combo_states():
             openai_combo.setEnabled(openai_radio.isChecked())
@@ -16597,6 +16648,8 @@ class SupervertalerQt(QMainWindow):
             gemini_combo.setEnabled(gemini_radio.isChecked())
             if ollama_status_widget:
                 ollama_status_widget.setEnabled(ollama_radio.isChecked())
+            custom_endpoint_input.setEnabled(custom_radio.isChecked())
+            custom_model_input.setEnabled(custom_radio.isChecked())
         
         # Handler to show setup dialog when Ollama is selected but not running
         def on_ollama_selected(checked):
@@ -16633,6 +16686,7 @@ class SupervertalerQt(QMainWindow):
         gemini_radio.toggled.connect(update_combo_states)
         ollama_radio.toggled.connect(update_combo_states)
         ollama_radio.toggled.connect(on_ollama_selected)
+        custom_radio.toggled.connect(update_combo_states)
         
         model_group.setLayout(model_layout)
         layout.addWidget(model_group)
@@ -16713,7 +16767,11 @@ class SupervertalerQt(QMainWindow):
         ollama_enable_cb = CheckmarkCheckBox("Enable Local LLM (Ollama)")
         ollama_enable_cb.setChecked(enabled_providers.get('llm_ollama', True))
         provider_enable_layout.addWidget(ollama_enable_cb)
-        
+
+        custom_enable_cb = CheckmarkCheckBox("Enable Custom (OpenAI-Compatible)")
+        custom_enable_cb.setChecked(enabled_providers.get('llm_custom_openai', True))
+        provider_enable_layout.addWidget(custom_enable_cb)
+
         provider_enable_group.setLayout(provider_enable_layout)
         layout.addWidget(provider_enable_group)
         
@@ -16990,7 +17048,9 @@ class SupervertalerQt(QMainWindow):
             tm_no_check_rb, tm_fuzzy_rb, tm_exact_rb, auto_propagate_cb, delay_spin,
             ollama_keepwarm_cb,
             llm_matching_cb, auto_markdown_cb, llm_spin,
-            quickmenu_context_slider
+            quickmenu_context_slider,
+            custom_radio=custom_radio, custom_endpoint_input=custom_endpoint_input,
+            custom_model_input=custom_model_input, custom_enable_cb=custom_enable_cb
         ))
         layout.addWidget(save_btn)
         
@@ -17225,6 +17285,25 @@ class SupervertalerQt(QMainWindow):
             llm_row.addStretch()
             llm_layout.addLayout(llm_row)
 
+        # Custom OpenAI-compatible provider (separate - uses text input for model)
+        custom_row = QHBoxLayout()
+        custom_cb = CheckmarkCheckBox("Custom (OpenAI-Compatible)")
+        custom_cb.setChecked(mt_quick_settings.get("mtql_custom_openai", False))
+        custom_cb.setToolTip("Use your custom OpenAI-compatible endpoint (configured in AI Settings)")
+        self._mtql_checkboxes["mtql_custom_openai"] = custom_cb
+        custom_row.addWidget(custom_cb)
+
+        custom_model_edit = QLineEdit()
+        custom_model_edit.setMinimumWidth(200)
+        custom_model_edit.setPlaceholderText("Model name from AI Settings")
+        llm_settings = self.load_llm_settings()
+        saved_custom_model = mt_quick_settings.get("mtql_custom_openai_model", llm_settings.get('custom_openai_model', ''))
+        custom_model_edit.setText(saved_custom_model)
+        self._mtql_llm_combos["mtql_custom_openai_model"] = custom_model_edit
+        custom_row.addWidget(custom_model_edit)
+        custom_row.addStretch()
+        llm_layout.addLayout(custom_row)
+
         llm_group.setLayout(llm_layout)
         layout.addWidget(llm_group)
 
@@ -17249,8 +17328,11 @@ class SupervertalerQt(QMainWindow):
             mt_quick_settings[key] = checkbox.isChecked()
 
         # Save LLM model selections
-        for key, combo in self._mtql_llm_combos.items():
-            mt_quick_settings[key] = combo.currentData()
+        for key, widget in self._mtql_llm_combos.items():
+            if isinstance(widget, QLineEdit):
+                mt_quick_settings[key] = widget.text().strip()
+            else:
+                mt_quick_settings[key] = widget.currentData()
 
         general_settings['mt_quick_lookup'] = mt_quick_settings
         self.save_general_settings(general_settings)
@@ -20429,7 +20511,9 @@ class SupervertalerQt(QMainWindow):
                                    tm_no_check_rb, tm_fuzzy_rb, tm_exact_rb, auto_propagate_cb, delay_spin,
                                    ollama_keepwarm_cb,
                                    llm_matching_cb, auto_markdown_cb, llm_spin,
-                                   quickmenu_context_slider):
+                                   quickmenu_context_slider,
+                                   custom_radio=None, custom_endpoint_input=None,
+                                   custom_model_input=None, custom_enable_cb=None):
         """Save all AI settings from the unified AI Settings tab"""
         # Determine selected provider
         if openai_radio.isChecked():
@@ -20440,22 +20524,26 @@ class SupervertalerQt(QMainWindow):
             provider = 'gemini'
         elif ollama_radio.isChecked():
             provider = 'ollama'
+        elif custom_radio and custom_radio.isChecked():
+            provider = 'custom_openai'
         else:
             provider = 'openai'  # Default fallback
-        
+
         # Get Ollama model from widget if available
         ollama_model = 'qwen2.5:7b'  # Default
         if ollama_status_widget and hasattr(ollama_status_widget, 'get_selected_model'):
             selected = ollama_status_widget.get_selected_model()
             if selected:
                 ollama_model = selected
-        
+
         new_settings = {
             'provider': provider,
             'openai_model': openai_combo.currentText().split()[0],
             'claude_model': claude_combo.currentText().split()[0],
             'gemini_model': gemini_combo.currentText().split()[0],
-            'ollama_model': ollama_model
+            'ollama_model': ollama_model,
+            'custom_openai_model': custom_model_input.text().strip() if custom_model_input else '',
+            'custom_openai_endpoint': custom_endpoint_input.text().strip() if custom_endpoint_input else ''
         }
         self.save_llm_settings(new_settings)
 
@@ -20469,7 +20557,8 @@ class SupervertalerQt(QMainWindow):
             'llm_openai': openai_enable_cb.isChecked(),
             'llm_claude': claude_enable_cb.isChecked(),
             'llm_gemini': gemini_enable_cb.isChecked(),
-            'llm_ollama': ollama_enable_cb.isChecked()
+            'llm_ollama': ollama_enable_cb.isChecked(),
+            'llm_custom_openai': custom_enable_cb.isChecked() if custom_enable_cb else True
         }
         # Merge with existing MT settings
         existing = self.load_provider_enabled_states()
@@ -34922,12 +35011,15 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                 api_key = api_keys.get('claude', '')
             elif provider == 'gemini':
                 api_key = api_keys.get('gemini', '')
-            elif provider == 'ollama':
-                api_key = ''  # Ollama doesn't need an API key
+            elif provider in ('ollama', 'custom_openai'):
+                api_key = api_keys.get(provider, '') or 'not-needed'
             else:
                 api_key = ''
-            
-            llm_client = LLMClient(api_key=api_key, provider=provider, model=model)
+
+            base_url = None
+            if provider == 'custom_openai':
+                base_url = settings.get('custom_openai_endpoint', '') or None
+            llm_client = LLMClient(api_key=api_key, provider=provider, model=model, base_url=base_url)
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to initialize LLM client:\n{str(e)}")
             return
@@ -42445,34 +42537,29 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
     def load_llm_settings(self) -> Dict[str, str]:
         """Load LLM settings from user preferences"""
         prefs_file = self.user_data_path / "ui_preferences.json"
-        
+        defaults = {
+            'provider': 'openai',
+            'openai_model': 'gpt-4o',
+            'claude_model': 'claude-sonnet-4-5-20250929',
+            'gemini_model': 'gemini-2.5-flash',
+            'ollama_model': 'qwen2.5:7b',
+            'custom_openai_model': '',
+            'custom_openai_endpoint': ''
+        }
+
         if not prefs_file.exists():
-            return {
-                'provider': 'openai',
-                'openai_model': 'gpt-4o',
-                'claude_model': 'claude-sonnet-4-5-20250929',
-                'gemini_model': 'gemini-2.5-flash',
-                'ollama_model': 'qwen2.5:7b'
-            }
-        
+            return defaults
+
         try:
             with open(prefs_file, 'r') as f:
                 prefs = json.load(f)
-                return prefs.get('llm_settings', {
-                    'provider': 'openai',
-                    'openai_model': 'gpt-4o',
-                    'claude_model': 'claude-sonnet-4-5-20250929',
-                    'gemini_model': 'gemini-2.5-flash',
-                    'ollama_model': 'qwen2.5:7b'
-                })
+                saved = prefs.get('llm_settings', defaults)
+                # Ensure new keys exist for older configs
+                for k, v in defaults.items():
+                    saved.setdefault(k, v)
+                return saved
         except:
-            return {
-                'provider': 'openai',
-                'openai_model': 'gpt-4o',
-                'claude_model': 'claude-sonnet-4-5-20250929',
-                'gemini_model': 'gemini-2.5-flash',
-                'ollama_model': 'qwen2.5:7b'
-            }
+            return defaults
     
     def save_llm_settings(self, settings: Dict[str, str]):
         """Save LLM settings to user preferences"""
@@ -42496,56 +42583,51 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                 json.dump(prefs, f, indent=2)
         except Exception as e:
             self.log(f"⚠ Could not save LLM settings: {str(e)}")
-    
+
+    def create_llm_client(self, provider, model, api_keys, settings=None):
+        """Create an LLMClient with proper base_url handling for custom_openai."""
+        from modules.llm_clients import LLMClient
+        api_key = api_keys.get(provider) or (api_keys.get('google') if provider == 'gemini' else None)
+        base_url = None
+        if provider == 'custom_openai':
+            if settings is None:
+                settings = self.load_llm_settings()
+            base_url = settings.get('custom_openai_endpoint', '') or None
+            if not api_key:
+                api_key = api_keys.get('custom_openai', '') or 'not-needed'
+        return LLMClient(api_key=api_key, provider=provider, model=model, base_url=base_url)
+
     def load_provider_enabled_states(self) -> Dict[str, bool]:
         """Load provider enable/disable states from user preferences"""
         prefs_file = self.user_data_path / "ui_preferences.json"
-        
+        defaults = {
+            'llm_openai': True,
+            'llm_claude': True,
+            'llm_gemini': True,
+            'llm_ollama': True,
+            'llm_custom_openai': True,
+            'mt_google_translate': True,
+            'mt_deepl': True,
+            'mt_microsoft': True,
+            'mt_amazon': True,
+            'mt_modernmt': True,
+            'mt_mymemory': True
+        }
+
         if not prefs_file.exists():
-            # Default: all providers enabled
-            return {
-                'llm_openai': True,
-                'llm_claude': True,
-                'llm_gemini': True,
-                'llm_ollama': True,
-                'mt_google_translate': True,
-                'mt_deepl': True,
-                'mt_microsoft': True,
-                'mt_amazon': True,
-                'mt_modernmt': True,
-                'mt_mymemory': True
-            }
-        
+            return defaults
+
         try:
             with open(prefs_file, 'r') as f:
                 prefs = json.load(f)
-                return prefs.get('provider_enabled_states', {
-                    'llm_openai': True,
-                    'llm_claude': True,
-                    'llm_gemini': True,
-                    'llm_ollama': True,
-                    'mt_google_translate': True,
-                    'mt_deepl': True,
-                    'mt_microsoft': True,
-                    'mt_amazon': True,
-                    'mt_modernmt': True,
-                    'mt_mymemory': True
-                })
+                saved = prefs.get('provider_enabled_states', defaults)
+                # Ensure new keys exist for older configs
+                for k, v in defaults.items():
+                    saved.setdefault(k, v)
+                return saved
         except:
-            # Default: all providers enabled
-            return {
-                'llm_openai': True,
-                'llm_claude': True,
-                'llm_gemini': True,
-                'llm_ollama': True,
-                'mt_google_translate': True,
-                'mt_deepl': True,
-                'mt_microsoft': True,
-                'mt_amazon': True,
-                'mt_modernmt': True,
-                'mt_mymemory': True
-            }
-    
+            return defaults
+
     def save_provider_enabled_states(self, states: Dict[str, bool]):
         """Save provider enable/disable states to user preferences"""
         prefs_file = self.user_data_path / "ui_preferences.json"
@@ -43569,9 +43651,11 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         model_key = f'{provider}_model'
         model = settings.get(model_key, 'gpt-4o')
         
-        # Ollama doesn't need API keys - it's local
+        # Ollama and custom_openai don't strictly need API keys
         if provider == 'ollama':
             api_keys = {'ollama': 'not-needed'}  # Placeholder - Ollama doesn't use API keys
+        elif provider == 'custom_openai':
+            api_keys = self.load_api_keys()  # Key is optional for custom endpoints
         else:
             # Load API keys for cloud providers
             api_keys = self.load_api_keys()
@@ -43585,7 +43669,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                 if reply == QMessageBox.StandardButton.Yes:
                     self._go_to_settings_tab("AI Settings")
                 return
-            
+
             # Check if API key exists for selected provider
             # Note: 'gemini' and 'google' are aliases for the same API key
             has_api_key = provider in api_keys or (provider == 'gemini' and 'google' in api_keys)
@@ -43666,16 +43750,8 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                 QApplication.processEvents()
             
             # Use modular LLM client with user's settings
-            from modules.llm_clients import LLMClient
-            
-            # Get API key (handle gemini/google alias)
-            api_key = api_keys.get(provider) or (api_keys.get('google') if provider == 'gemini' else None)
-            client = LLMClient(
-                api_key=api_key,
-                provider=provider,
-                model=model
-            )
-            
+            client = self.create_llm_client(provider, model, api_keys, settings=settings)
+
             # Check TM before API call if enabled
             general_prefs = self.load_general_settings()
             check_tm_before_api = general_prefs.get('check_tm_before_api', True)
@@ -44156,8 +44232,9 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         model = settings.get(model_key)
 
         # Load API keys (unless Ollama)
-        if provider == 'ollama':
-            api_key = ""
+        if provider in ('ollama', 'custom_openai'):
+            api_keys = self.load_api_keys()
+            api_key = api_keys.get(provider, '') or 'not-needed'
         else:
             api_keys = self.load_api_keys()
             if not api_keys:
@@ -44179,7 +44256,10 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                 target_lang=target_lang
             )
 
-            client = LLMClient(api_key=api_key, provider=provider, model=model)
+            base_url = None
+            if provider == 'custom_openai':
+                base_url = settings.get('custom_openai_endpoint', '') or None
+            client = LLMClient(api_key=api_key, provider=provider, model=model, base_url=base_url)
             
             # Use translate() with empty text and custom_prompt for generic AI completion
             # This allows QuickMenu prompts to do anything (explain, define, search, etc.)
@@ -44611,7 +44691,8 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             model_key = f'{llm_provider}_model'
             llm_model = settings.get(model_key, 'gpt-4o')
 
-            llm_info = QLabel(f"📊 Current LLM: {llm_provider.title()} ({llm_model})")
+            provider_display = "Custom (OpenAI-Compatible)" if llm_provider == 'custom_openai' else llm_provider.title()
+            llm_info = QLabel(f"📊 Current LLM: {provider_display} ({llm_model})")
             llm_info.setStyleSheet("color: #666; font-size: 9pt; padding: 5px 0;")
             dialog_layout.addWidget(llm_info)
 
@@ -44890,6 +44971,11 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         # Pre-fetch glossary terms on main thread (SQLite is not thread-safe)
         glossary_terms = self.get_ai_inject_glossary_terms()
 
+        # Get base_url for custom_openai provider
+        custom_base_url = None
+        if translation_provider_name == 'custom_openai':
+            custom_base_url = settings.get('custom_openai_endpoint', '') or None
+
         worker = PreTranslationWorker(
             self,
             segments_needing_translation,  # Use filtered segments after TM pre-check
@@ -44901,7 +44987,8 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             retry_enabled=retry_enabled,
             retry_pass=retry_pass,
             tm_ids=None,  # TM pre-translation now on main thread
-            glossary_terms=glossary_terms
+            glossary_terms=glossary_terms,
+            base_url=custom_base_url
         )
         dialog = LiveProgressDialog(self, len(segments_needing_translation), provider_info)
         
@@ -45278,14 +45365,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             mt_provider_code = None
 
             if translation_provider_type == 'LLM':
-                from modules.llm_clients import LLMClient
-                # Handle gemini/google alias
-                api_key = api_keys.get(translation_provider_name) or (api_keys.get('google') if translation_provider_name == 'gemini' else None)
-                client = LLMClient(
-                    api_key=api_key,
-                    provider=translation_provider_name,
-                    model=model
-                )
+                client = self.create_llm_client(translation_provider_name, model, api_keys, settings=settings)
             elif translation_provider_type == 'MT':
                 # MT provider - get API key
                 provider_map = {
@@ -45796,33 +45876,20 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         
         # Check if provider is enabled
         enabled_providers = self.load_provider_enabled_states()
-        provider_enabled_map = {
-            "openai": "llm_openai",
-            "claude": "llm_claude",
-            "gemini": "llm_gemini"
-        }
-        enabled_key = provider_enabled_map.get(provider)
+        enabled_key = f"llm_{provider}"
         if not enabled_providers.get(enabled_key, True):
             return  # Provider is disabled, skip LLM
-        
-        provider_key_map = {
-            "openai": "openai",
-            "claude": "claude",
-            "gemini": "gemini"
-        }
-        api_key_name = provider_key_map.get(provider)
-        # Handle gemini/google alias
-        api_key_value = api_keys.get(api_key_name) or (api_keys.get('google') if provider == 'gemini' else None)
-        if not api_key_value:
+
+        # Get API key for provider
+        api_key_value = api_keys.get(provider) or (api_keys.get('google') if provider == 'gemini' else None)
+        if not api_key_value and provider not in ('ollama', 'custom_openai'):
             return  # No API key for selected provider
-        
+        if provider == 'custom_openai':
+            api_key_value = api_key_value or 'not-needed'
+
         # Get model based on provider
-        model_map = {
-            "openai": settings.get('openai_model', 'gpt-4o'),
-            "claude": settings.get('claude_model', 'claude-sonnet-4-5-20250929'),
-            "gemini": settings.get('gemini_model', 'gemini-2.5-flash')
-        }
-        model = model_map.get(provider, 'gpt-4o')
+        model_key = f'{provider}_model'
+        model = settings.get(model_key, 'gpt-4o')
         
         # Get languages
         source_lang = getattr(self.current_project, 'source_lang', 'en')
@@ -45834,12 +45901,14 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                 from modules.llm_clients import LLMClient
                 from modules.translation_results_panel import TranslationMatch
                 
+                base_url = settings.get('custom_openai_endpoint', '') or None if provider == 'custom_openai' else None
                 client = LLMClient(
                     api_key=api_key_value,
                     provider=provider,
-                    model=model
+                    model=model,
+                    base_url=base_url
                 )
-                
+
                 # Build full prompt using prompt manager
                 custom_prompt = None
                 try:

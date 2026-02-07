@@ -73,6 +73,7 @@ def load_api_keys() -> Dict[str, str]:
         "google_translate": "", # For Google Cloud Translation API
         "claude": "",
         "openai": "",
+        "custom_openai": "",    # For custom OpenAI-compatible endpoints
         "deepl": "",
         "mymemory": "",
         "ollama_endpoint": "http://localhost:11434"  # Local LLM endpoint (no key needed)
@@ -127,7 +128,8 @@ class LLMClient:
         "openai": "gpt-4o",
         "claude": "claude-sonnet-4-5-20250929",  # Claude Sonnet 4.5 (Sept 2025)
         "gemini": "gemini-2.5-flash",  # Gemini 2.5 Flash (2025)
-        "ollama": "qwen2.5:7b"  # Local LLM via Ollama - excellent multilingual quality
+        "ollama": "qwen2.5:7b",  # Local LLM via Ollama - excellent multilingual quality
+        "custom_openai": "custom-model"  # Custom OpenAI-compatible endpoint
     }
     
     # Available Ollama models with descriptions (for UI display)
@@ -368,28 +370,30 @@ class LLMClient:
         vision_models = cls.VISION_MODELS.get(provider, [])
         return model_name in vision_models
 
-    def __init__(self, api_key: str = None, provider: str = "openai", model: Optional[str] = None, max_tokens: int = 16384):
+    def __init__(self, api_key: str = None, provider: str = "openai", model: Optional[str] = None, max_tokens: int = 16384, base_url: Optional[str] = None):
         """
         Initialize LLM client
-        
+
         Args:
             api_key: API key for the provider (not required for 'ollama')
-            provider: "openai", "claude", "gemini", or "ollama"
+            provider: "openai", "claude", "gemini", "ollama", or "custom_openai"
             model: Model name (uses default if None)
             max_tokens: Maximum tokens for responses (default: 16384)
+            base_url: Custom API base URL (for custom_openai provider)
         """
         self.provider = provider.lower()
         self.api_key = api_key
         self.model = model or self.DEFAULT_MODELS.get(self.provider)
         self.max_tokens = max_tokens
-        
+        self.base_url = base_url
+
         if not self.model:
             raise ValueError(f"Unknown provider: {provider}")
-        
+
         # Validate API key for cloud providers (not needed for Ollama)
-        if self.provider != "ollama" and not self.api_key:
+        if self.provider not in ("ollama", "custom_openai") and not self.api_key:
             raise ValueError(f"API key required for provider: {provider}")
-        
+
         # Auto-detect temperature based on model
         self.temperature = self._get_temperature()
     
@@ -627,7 +631,7 @@ class LLMClient:
             images = None  # Don't pass to API
 
         # Call appropriate provider
-        if self.provider == "openai":
+        if self.provider in ("openai", "custom_openai"):
             return self._call_openai(prompt, max_tokens=max_tokens, images=images, system_prompt=system_prompt)
         elif self.provider == "claude":
             return self._call_claude(prompt, max_tokens=max_tokens, images=images, system_prompt=system_prompt)
@@ -655,7 +659,10 @@ class LLMClient:
 
         # Reasoning models need MUCH longer timeout (they can take 5-10 minutes for large prompts)
         timeout_seconds = 600.0 if is_reasoning_model else 120.0  # 10 min vs 2 min
-        client = OpenAI(api_key=self.api_key, timeout=timeout_seconds)
+        client_kwargs = {"api_key": self.api_key, "timeout": timeout_seconds}
+        if self.base_url:
+            client_kwargs["base_url"] = self.base_url
+        client = OpenAI(**client_kwargs)
         print(f"🔵 OpenAI client created successfully (timeout: {timeout_seconds}s)")
 
         # Use provided max_tokens or default
