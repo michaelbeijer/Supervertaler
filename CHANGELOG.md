@@ -2,9 +2,17 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.232 (February 7, 2026)
+**Current Version:** v1.9.233 (February 7, 2026)
 
 
+
+## v1.9.233 - February 7, 2026
+
+### 🐛 Bug Fixes
+
+- **Batch pre-translation: termbase glossary injection crashed with SQLite thread error**: Fixed "SQLite objects created in a thread can only be used in that same thread" error during batch translation. The worker thread was calling back to the main thread's SQLite connection to fetch AI-inject glossary terms. Terms are now pre-fetched on the main thread and passed to the worker.
+
+---
 
 ## v1.9.232 - February 7, 2026
 

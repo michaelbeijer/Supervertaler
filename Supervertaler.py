@@ -5930,7 +5930,7 @@ class PreTranslationWorker(QThread):
     translation_error = pyqtSignal(str)  # error_message
     retry_needed = pyqtSignal(list)  # empty_segments list of (row_index, segment)
     
-    def __init__(self, parent_app, segments, provider_type, provider_name, model, tm_exact_only=False, prompt_manager=None, retry_enabled=False, retry_pass=0, tm_ids=None):
+    def __init__(self, parent_app, segments, provider_type, provider_name, model, tm_exact_only=False, prompt_manager=None, retry_enabled=False, retry_pass=0, tm_ids=None, glossary_terms=None):
         super().__init__()
         self.parent_app = parent_app
         self.segments = segments
@@ -5944,6 +5944,7 @@ class PreTranslationWorker(QThread):
         self.max_retries = 5
         self._cancelled = False
         self.tm_ids = tm_ids  # Activated TM IDs for TM pre-translation
+        self.glossary_terms = glossary_terms or []  # Pre-fetched from main thread (SQLite is not thread-safe)
         self.success_count = 0
         self.error_count = 0
     
@@ -6187,14 +6188,13 @@ class PreTranslationWorker(QThread):
             custom_prompt = None
             if self.prompt_manager:
                 try:
-                    # Get glossary terms for AI injection
-                    glossary_terms = self.parent_app.get_ai_inject_glossary_terms() if hasattr(self.parent_app, 'get_ai_inject_glossary_terms') else []
+                    # Use pre-fetched glossary terms (SQLite is not thread-safe)
                     full_prompt = self.prompt_manager.build_final_prompt(
                         source_text=segment.source,
                         source_lang=source_lang,
                         target_lang=target_lang,
                         mode="single",
-                        glossary_terms=glossary_terms
+                        glossary_terms=self.glossary_terms
                     )
                     # Extract just the instruction part (without the source text section)
                     if "**SOURCE TEXT:**" in full_prompt:
@@ -6253,14 +6253,13 @@ class PreTranslationWorker(QThread):
             if self.prompt_manager and batch_segments:
                 try:
                     first_segment = batch_segments[0][1]
-                    # Get glossary terms for AI injection
-                    glossary_terms = self.parent_app.get_ai_inject_glossary_terms() if hasattr(self.parent_app, 'get_ai_inject_glossary_terms') else []
+                    # Use pre-fetched glossary terms (SQLite is not thread-safe)
                     full_prompt = self.prompt_manager.build_final_prompt(
                         source_text=first_segment.source,
                         source_lang=source_lang,
                         target_lang=target_lang,
                         mode="single",
-                        glossary_terms=glossary_terms
+                        glossary_terms=self.glossary_terms
                     )
                     # Extract just the instruction part
                     if "**SOURCE TEXT:**" in full_prompt:
@@ -44867,17 +44866,21 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         # Create worker and dialog
         # Note: TM pre-translation is now handled on main thread above,
         # so we don't pass tm_ids to the worker anymore
+        # Pre-fetch glossary terms on main thread (SQLite is not thread-safe)
+        glossary_terms = self.get_ai_inject_glossary_terms()
+
         worker = PreTranslationWorker(
-            self, 
+            self,
             segments_needing_translation,  # Use filtered segments after TM pre-check
-            translation_provider_type, 
-            translation_provider_name, 
+            translation_provider_type,
+            translation_provider_name,
             model if translation_provider_type == 'LLM' else None,
             tm_exact_only=tm_exact_only,
             prompt_manager=self.prompt_manager_qt if hasattr(self, 'prompt_manager_qt') else None,
             retry_enabled=retry_enabled,
             retry_pass=retry_pass,
-            tm_ids=None  # TM pre-translation now on main thread
+            tm_ids=None,  # TM pre-translation now on main thread
+            glossary_terms=glossary_terms
         )
         dialog = LiveProgressDialog(self, len(segments_needing_translation), provider_info)
         
