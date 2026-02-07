@@ -31,24 +31,29 @@ Author: Michael Beijer
 License: MIT
 """
 
-# Version Information — read from pyproject.toml (single source of truth)
+# Version Information — read from pyproject.toml (dev) or package metadata (pip install)
 def _read_version():
-    """Read version from pyproject.toml so there's only one place to update."""
+    """Read version from pyproject.toml (dev) or installed package metadata (pip)."""
     import os as _os
+    # 1) Try pyproject.toml (works in dev / source checkout)
     try:
-        import tomllib
-    except ImportError:
         try:
-            import tomli as tomllib  # Python < 3.11
+            import tomllib
         except ImportError:
-            return "1.9.227"  # Fallback
-    try:
+            import tomli as tomllib  # Python < 3.11
         _toml_path = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "pyproject.toml")
         with open(_toml_path, "rb") as f:
             _data = tomllib.load(f)
         return _data["project"]["version"]
     except Exception:
-        return "1.9.227"  # Fallback if running from dist without pyproject.toml
+        pass
+    # 2) Try installed package metadata (works after pip install)
+    try:
+        from importlib.metadata import version as _pkg_version
+        return _pkg_version("supervertaler")
+    except Exception:
+        pass
+    return "0.0.0"  # Should never reach here
 
 __version__ = _read_version()
 __phase__ = "0.9"

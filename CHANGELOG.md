@@ -2,9 +2,17 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.234 (February 7, 2026)
+**Current Version:** v1.9.235 (February 7, 2026)
 
 
+
+## v1.9.235 - February 7, 2026
+
+### 🐛 Bug Fixes
+
+- **Version display stuck at 1.9.227 for pip-installed users**: Fixed `_read_version()` to use `importlib.metadata` as a fallback when `pyproject.toml` is not present (pip wheels don't include it). Previously, all pip-installed users saw version 1.9.227 regardless of the actual installed version.
+
+---
 
 ## v1.9.234 - February 7, 2026
 
