@@ -27771,6 +27771,82 @@ class SupervertalerQt(QMainWindow):
         if not file_path:
             return
 
+        # Show formatting options dialog (same as DOCX import)
+        from PyQt6.QtWidgets import QDialog, QVBoxLayout, QLabel, QDialogButtonBox, QGroupBox
+
+        dialog = QDialog(self)
+        dialog.setWindowTitle("memoQ Bilingual Import Options")
+        dialog.setMinimumWidth(450)
+        layout = QVBoxLayout(dialog)
+
+        # Info text
+        info_label = QLabel(
+            "This workflow imports memoQ bilingual RTF for round-tripping.\n"
+            "The project can be exported back to memoQ bilingual RTF format."
+        )
+        info_label.setWordWrap(True)
+        info_label.setStyleSheet("color: #666; margin-bottom: 10px;")
+        layout.addWidget(info_label)
+
+        # Formatting options group
+        format_group = QGroupBox("Formatting Handling")
+        format_layout = QVBoxLayout(format_group)
+
+        # Option 1: Ignore formatting
+        ignore_checkbox = CheckmarkCheckBox("Ignore inline formatting")
+        ignore_checkbox.setToolTip("Bold, italic, and underline formatting will not be transferred to translations.\nUse this if formatting causes issues or isn't needed.")
+        ignore_checkbox.setChecked(False)
+        format_layout.addWidget(ignore_checkbox)
+
+        ignore_desc = QLabel("    When checked, formatting (bold/italic/underline) will not be applied to translations.")
+        ignore_desc.setStyleSheet("color: #888; font-size: 10px; margin-left: 20px;")
+        format_layout.addWidget(ignore_desc)
+
+        # Option 2: Smart formatting
+        smart_checkbox = CheckmarkCheckBox("Smart formatting transfer")
+        smart_checkbox.setToolTip("Attempts to identify formatted text in source and apply matching formatting to corresponding words in the translation.")
+        smart_checkbox.setChecked(True)
+        format_layout.addWidget(smart_checkbox)
+
+        smart_desc = QLabel("    When checked, tries to match formatted source phrases to their translations.")
+        smart_desc.setStyleSheet("color: #888; font-size: 10px; margin-left: 20px;")
+        format_layout.addWidget(smart_desc)
+
+        # Make checkboxes mutually exclusive
+        def on_ignore_changed(checked):
+            if checked:
+                smart_checkbox.setChecked(False)
+
+        def on_smart_changed(checked):
+            if checked:
+                ignore_checkbox.setChecked(False)
+
+        ignore_checkbox.toggled.connect(on_ignore_changed)
+        smart_checkbox.toggled.connect(on_smart_changed)
+
+        layout.addWidget(format_group)
+
+        # Note about tags
+        note_label = QLabel(
+            "ℹ️ Note: Inline XML tags (like &lt;b&gt;text&lt;/b&gt;) are always preserved regardless of this setting."
+        )
+        note_label.setWordWrap(True)
+        note_label.setStyleSheet("color: #2196F3; font-size: 10px; margin-top: 10px;")
+        layout.addWidget(note_label)
+
+        # Buttons
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        layout.addWidget(buttons)
+
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+
+        # Store formatting preference
+        self.memoq_smart_formatting = smart_checkbox.isChecked()
+        self.log(f"📄 memoQ RTF import: {'Smart formatting transfer' if self.memoq_smart_formatting else 'Ignore formatting'}")
+
         # Check for re-import scenario
         reimport_mode, preserved_id, preserved_tm, preserved_tb = self._check_reimport_same_file(
             file_path, ['current_project.memoq_rtf_source_path']
@@ -27783,6 +27859,7 @@ class SupervertalerQt(QMainWindow):
 
             # Load the bilingual RTF
             handler = MemoQRTFHandler()
+            handler.preserve_formatting = self.memoq_smart_formatting
             if not handler.load(file_path):
                 QMessageBox.critical(
                     self, "Error",
@@ -27892,6 +27969,10 @@ class SupervertalerQt(QMainWindow):
 
             # Initialize spellcheck
             self._initialize_spellcheck_for_target_language(handler.target_lang)
+
+            # If smart formatting was used, auto-enable Tags view so user sees the tags
+            if self.memoq_smart_formatting:
+                self._enable_tag_view_after_import()
 
             self.log(f"✓ Imported memoQ bilingual RTF: {len(source_segments)} segments from {Path(file_path).name}")
 

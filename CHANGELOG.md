@@ -2,9 +2,18 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.228 (February 7, 2026)
+**Current Version:** v1.9.229 (February 7, 2026)
 
 
+
+## v1.9.229 - February 7, 2026
+
+### 🐛 Bug Fixes
+
+- **memoQ Bilingual RTF: Quotation marks and special characters lost during import**: Fixed a bug where RTF character control words (`\ldblquote`, `\rdblquote`, `\lquote`, `\rquote`, `\emdash`, `\endash`, `\bullet`) were stripped by the generic control word cleanup regex, causing quotation marks to disappear and adjacent text to concatenate (e.g. `"de" en "het" refereren` became `deen hetrefereren`). These control words are now converted to their actual characters before the generic strip.
+- **memoQ Bilingual RTF: Missing formatting options dialog**: The RTF import was skipping the "memoQ Bilingual Import Options" dialog (Ignore inline formatting / Smart formatting transfer) that the DOCX import shows. The dialog is now shown for RTF imports as well, and the tag view is auto-enabled when smart formatting is selected.
+
+---
 
 ## v1.9.228 - February 7, 2026
 

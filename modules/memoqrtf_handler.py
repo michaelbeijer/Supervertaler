@@ -118,6 +118,7 @@ class MemoQRTFHandler:
         self.target_lang: str = "en"
         self.file_header: str = ""  # First row metadata
         self.rtf_header: str = ""  # RTF header up to first row
+        self.preserve_formatting: bool = True  # Extract formatting tags from source
 
         # Store cell positions for precise insertion during export
         self._row_positions: List[Dict] = []
@@ -286,6 +287,19 @@ class MemoQRTFHandler:
             content = re.sub(r'\\i0?\s*', '', content)
             content = re.sub(r'\\ul0?\s*', '', content)
 
+        # Replace RTF character control words with actual characters
+        # Must happen BEFORE the generic control word strip below.
+        # Use \s? to consume only the single RTF delimiter space, not content spaces.
+        content = re.sub(r'\\ldblquote\s?', '\u201c', content)  # left double quote
+        content = re.sub(r'\\rdblquote\s?', '\u201d', content)  # right double quote
+        content = re.sub(r'\\lquote\s?', '\u2018', content)     # left single quote
+        content = re.sub(r'\\rquote\s?', '\u2019', content)     # right single quote
+        content = re.sub(r'\\emdash\s?', '\u2014', content)     # em dash
+        content = re.sub(r'\\endash\s?', '\u2013', content)     # en dash
+        content = re.sub(r'\\bullet\s?', '\u2022', content)     # bullet
+        content = re.sub(r'\\line\s?', '\n', content)           # line break
+        content = re.sub(r'\\tab\s?', '\t', content)            # tab
+
         # Remove remaining control words
         content = re.sub(r'\\[a-z]+\d*\s*', '', content)
 
@@ -367,7 +381,7 @@ class MemoQRTFHandler:
                         break
 
             # Extract text from cells
-            source_text = self._extract_cell_text(source_cell, preserve_formatting=True)
+            source_text = self._extract_cell_text(source_cell, preserve_formatting=self.preserve_formatting)
             target_text = self._extract_cell_text(target_cell)
             comment_text = self._extract_cell_text(comment_cell)
             status_text = self._extract_cell_text(status_cell)
