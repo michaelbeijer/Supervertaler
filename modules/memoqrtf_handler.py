@@ -261,21 +261,15 @@ class MemoQRTFHandler:
         content = re.sub(r'\\cf\d+\s*', '', content)
 
         if preserve_formatting:
-            # Convert RTF formatting to HTML-like tags
-            # Handle combined formatting like \b \ul TEXT\b0 \ul0
-            # First, mark the positions of formatting codes
-
-            # Bold: match \b followed by content (not immediately \b0) until \b0
-            content = re.sub(r'\\b(?:\s+)([^\\]+)\\b0', r'<b>\1</b>', content)
-            # Italic
-            content = re.sub(r'\\i(?:\s+)([^\\]+)\\i0', r'<i>\1</i>', content)
-            # Underline
-            content = re.sub(r'\\ul(?:\s+)([^\\]+)\\ul0', r'<u>\1</u>', content)
-
-            # Remove any remaining formatting codes that didn't have content
-            content = re.sub(r'\\b0?\s*', '', content)
-            content = re.sub(r'\\i0?\s*', '', content)
-            content = re.sub(r'\\ul0?\s*', '', content)
+            # Convert RTF formatting markers directly to HTML tags.
+            # Process end markers FIRST so \b doesn't match the start of \b0.
+            content = re.sub(r'\\b0\s?', '</b>', content)
+            content = re.sub(r'\\i0\s?', '</i>', content)
+            content = re.sub(r'\\ul0\s?', '</u>', content)
+            # Start markers: consume delimiter space, or match before next control word
+            content = re.sub(r'\\b(?:\s|(?=\\))', '<b>', content)
+            content = re.sub(r'\\i(?:\s|(?=\\))', '<i>', content)
+            content = re.sub(r'\\ul(?:\s|(?=\\))', '<u>', content)
 
             # Clean up empty tags
             content = re.sub(r'<b></b>', '', content)

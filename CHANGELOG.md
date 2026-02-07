@@ -2,15 +2,16 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.230 (February 7, 2026)
+**Current Version:** v1.9.231 (February 7, 2026)
 
 
 
-## v1.9.230 - February 7, 2026
+## v1.9.231 - February 7, 2026
 
 ### 🐛 Bug Fixes
 
 - **memoQ Bilingual RTF: Quotation marks, Unicode characters, and special characters lost during import**: Fixed a bug where Unicode escapes (`\uc0\u8220`, `\uc0\u8221`, etc.) and RTF character control words (`\ldblquote`, `\rdblquote`, etc.) were stripped by the generic control word cleanup regex, causing quotation marks to disappear and adjacent text to concatenate (e.g. `"de" en "het" refereren` became `deen hetrefereren`). All Unicode escapes, hex escapes, and named character control words are now decoded before the generic strip.
+- **memoQ Bilingual RTF: Combined formatting (bold+underline) not extracted for headings**: The pair-matching regex `[^\\]+` could not match text containing other formatting control words, so segments with combined `\b \ul TEXT\b0 \ul0` (e.g. headings) lost all formatting. Replaced with direct marker-to-tag conversion that handles any combination of bold, italic, and underline.
 - **memoQ Bilingual RTF: Missing formatting options dialog**: The RTF import was skipping the "memoQ Bilingual Import Options" dialog (Ignore inline formatting / Smart formatting transfer) that the DOCX import shows. The dialog is now shown for RTF imports as well, and the tag view is auto-enabled when smart formatting is selected.
 
 ---
