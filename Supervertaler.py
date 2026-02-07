@@ -1245,14 +1245,17 @@ class Project:
     # Multi-file project support
     files: List[Dict[str, Any]] = None  # List of files in project: [{id, name, path, type, segment_count, ...}]
     is_multifile: bool = False  # True if this is a multi-file project
+    views: List[Dict[str, Any]] = None  # Saved views: [{"name": "...", "file_ids": [1, 3]}]
     # Scratchpad for private translator notes (stored only in .svproj, never exported to CAT tools)
     scratchpad_notes: str = ""
-    
+
     def __post_init__(self):
         if self.segments is None:
             self.segments = []
         if self.files is None:
             self.files = []
+        if self.views is None:
+            self.views = []
         if not self.created:
             self.created = datetime.now().isoformat()
         if not self.modified:
@@ -1343,7 +1346,11 @@ class Project:
         # Add scratchpad notes (private translator notes, never exported to CAT tools)
         if self.scratchpad_notes:
             result['scratchpad_notes'] = self.scratchpad_notes
-        
+
+        # Add saved views for multi-file projects
+        if self.views:
+            result['views'] = self.views
+
         # Add segments LAST (so they appear at the end of the file)
         result['segments'] = [seg.to_dict() for seg in self.segments]
         
@@ -1419,6 +1426,9 @@ class Project:
         # Store scratchpad notes if they exist
         if 'scratchpad_notes' in data:
             project.scratchpad_notes = data['scratchpad_notes']
+        # Store saved views if they exist
+        if 'views' in data:
+            project.views = data['views']
         return project
 
 
@@ -2735,11 +2745,17 @@ class ReadOnlyGridTextEditor(QTextEdit):
         if main_window and hasattr(main_window, 'show_mt_quick_popup'):
             main_window.show_mt_quick_popup(text_override=selected_text)
 
+    def set_file_boundary(self, is_boundary: bool):
+        """Mark this row as a file boundary (shows a top separator line)."""
+        self._file_boundary = is_boundary
+
     def set_background_color(self, color: str):
         """Set the background color for this text editor (for alternating row colors)"""
+        border_top = "border-top: 2px solid #2196F3;" if getattr(self, '_file_boundary', False) else ""
         self.setStyleSheet(f"""
             QTextEdit {{
                 border: none;
+                {border_top}
                 background-color: {color};
                 padding: 0px;
             }}
@@ -4085,14 +4101,20 @@ class EditableGridTextEditor(QTextEdit):
         """Get the raw text with tags, regardless of display mode."""
         return getattr(self, '_raw_text', self.toPlainText())
 
+    def set_file_boundary(self, is_boundary: bool):
+        """Mark this row as a file boundary (shows a top separator line)."""
+        self._file_boundary = is_boundary
+
     def set_background_color(self, color: str):
         """Set the background color for this text editor (for alternating row colors)"""
         # Use class variables for border settings to respect user customization
         border_color = EditableGridTextEditor.focus_border_color
         border_thickness = EditableGridTextEditor.focus_border_thickness
+        border_top = "border-top: 2px solid #2196F3;" if getattr(self, '_file_boundary', False) else ""
         self.setStyleSheet(f"""
             QTextEdit {{
                 border: none;
+                {border_top}
                 background-color: {color};
                 padding: 0px 4px 0px 0px;
             }}
@@ -7908,7 +7930,7 @@ class SupervertalerQt(QMainWindow):
         self.progress_files_label.setStyleSheet("color: #2196F3; font-size: 11px;")
         self.progress_files_label.setToolTip("Files in multi-file project (click for details)")
         self.progress_files_label.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.progress_files_label.mousePressEvent = lambda e: self.show_file_progress_dialog()
+        self.progress_files_label.mousePressEvent = lambda e: self.show_project_info_dialog(initial_tab=1)
         self.progress_files_label.hide()  # Hidden by default, shown for multi-file projects
         progress_layout.addWidget(self.progress_files_label)
         
@@ -8590,13 +8612,7 @@ class SupervertalerQt(QMainWindow):
         view_menu.addAction(auto_resize_action)
 
         view_menu.addSeparator()
-        
-        # Multi-file project progress
-        file_progress_action = QAction("📁 &File Progress...", self)
-        file_progress_action.triggered.connect(self.show_file_progress_dialog)
-        file_progress_action.setToolTip("View translation progress per file (multi-file projects)")
-        view_menu.addAction(file_progress_action)
-        
+
         # Proofreading results
         proofread_results_action = QAction("✅ &Proofreading Results...", self)
         proofread_results_action.triggered.connect(self.show_proofreading_results_dialog)
@@ -26444,9 +26460,9 @@ class SupervertalerQt(QMainWindow):
             return
         
         # Scan folder for supported files
-        supported_extensions = ['.docx', '.txt']
+        supported_extensions = {'.docx': 'docx', '.txt': 'txt', '.md': 'md'}
         found_files = []
-        
+
         for filename in sorted(os.listdir(folder_path)):
             ext = os.path.splitext(filename)[1].lower()
             if ext in supported_extensions:
@@ -26454,16 +26470,16 @@ class SupervertalerQt(QMainWindow):
                 found_files.append({
                     'name': filename,
                     'path': full_path,
-                    'type': 'docx' if ext == '.docx' else 'txt',
+                    'type': supported_extensions[ext],
                     'size': os.path.getsize(full_path)
                 })
-        
+
         if not found_files:
             QMessageBox.warning(
                 self,
                 "No Files Found",
                 f"No supported files found in folder:\n{folder_path}\n\n"
-                f"Supported formats: DOCX, TXT"
+                f"Supported formats: DOCX, TXT, MD (Markdown)"
             )
             return
         
@@ -26481,7 +26497,7 @@ class SupervertalerQt(QMainWindow):
             f"Found <b>{len(found_files)}</b> files in: <i>{os.path.basename(folder_path)}</i><br><br>"
             f"All files will be combined into a single project.<br>"
             f"Project resources (TM, termbases, prompts) will apply to all files.<br>"
-            f"You can track progress per file in the File Progress panel."
+            f"You can track progress per file via File \u2192 Project Info."
         )
         info_label.setWordWrap(True)
         info_label.setTextFormat(Qt.TextFormat.RichText)
@@ -26723,8 +26739,8 @@ class SupervertalerQt(QMainWindow):
                         self.log(f"      ⚠️ Backup failed: {str(e)}")
                         backup_path = None
                 
-                if file_type == 'txt':
-                    # Simple text file: each line is a segment
+                if file_type in ('txt', 'md'):
+                    # Simple text / Markdown file: each line is a segment
                     with open(file_path, 'r', encoding='utf-8') as f:
                         lines = f.readlines()
                     
@@ -26839,7 +26855,7 @@ class SupervertalerQt(QMainWindow):
             f"Successfully imported {len(all_segments)} segments from {len(file_metadata)} files.\n\n"
             f"Language pair: {source_lang.upper()} → {target_lang.upper()}\n\n"
             f"Files:\n{file_summary}\n\n"
-            f"Use View → File Progress to track translation progress per file."
+            f"Use File \u2192 Project Info to track translation progress per file."
         )
 
     def relocate_source_folder(self):
@@ -27034,16 +27050,20 @@ class SupervertalerQt(QMainWindow):
         
         format_btn_group = QButtonGroup(dialog)
         
-        txt_radio = CheckmarkRadioButton("📄 Plain Text (.txt) - One line per segment")
+        txt_radio = CheckmarkRadioButton("Plain Text (.txt) - One line per segment")
         txt_radio.setChecked(True)
         format_btn_group.addButton(txt_radio, 1)
         format_layout.addWidget(txt_radio)
-        
-        docx_radio = CheckmarkRadioButton("📝 Word Document (.docx) - Target text only")
+
+        md_radio = CheckmarkRadioButton("Markdown (.md) - One line per segment (preserves syntax)")
+        format_btn_group.addButton(md_radio, 4)
+        format_layout.addWidget(md_radio)
+
+        docx_radio = CheckmarkRadioButton("Word Document (.docx) - Target text only")
         format_btn_group.addButton(docx_radio, 2)
         format_layout.addWidget(docx_radio)
-        
-        bilingual_radio = CheckmarkRadioButton("📊 Bilingual Table (.docx) - Source | Target columns")
+
+        bilingual_radio = CheckmarkRadioButton("Bilingual Table (.docx) - Source | Target columns")
         format_btn_group.addButton(bilingual_radio, 3)
         format_layout.addWidget(bilingual_radio)
         
@@ -27087,13 +27107,20 @@ class SupervertalerQt(QMainWindow):
         
         # Update output names when format changes
         def update_output_names():
-            ext = ".txt" if txt_radio.isChecked() else ".docx"
+            if txt_radio.isChecked():
+                ext = ".txt"
+            elif md_radio.isChecked():
+                ext = ".md"
+            else:
+                ext = ".docx"
             for row, file_info in enumerate(files):
                 base_name = os.path.splitext(file_info['name'])[0]
-                output_name = f"{base_name}_translated{ext}"
+                suffix = "_bilingual" if bilingual_radio.isChecked() else "_translated"
+                output_name = f"{base_name}{suffix}{ext}"
                 preview_table.setItem(row, 3, QTableWidgetItem(output_name))
-        
+
         txt_radio.toggled.connect(update_output_names)
+        md_radio.toggled.connect(update_output_names)
         docx_radio.toggled.connect(update_output_names)
         bilingual_radio.toggled.connect(update_output_names)
         
@@ -27118,6 +27145,8 @@ class SupervertalerQt(QMainWindow):
         # Get export format
         if txt_radio.isChecked():
             export_format = "txt"
+        elif md_radio.isChecked():
+            export_format = "md"
         elif docx_radio.isChecked():
             export_format = "docx"
         else:
@@ -27201,11 +27230,12 @@ class SupervertalerQt(QMainWindow):
                 continue
             
             try:
-                if export_format == "txt":
-                    # Export as plain text
-                    output_path = os.path.join(output_folder, f"{base_name}_translated.txt")
+                if export_format in ("txt", "md"):
+                    # Export as plain text / Markdown
+                    ext = ".md" if export_format == "md" else ".txt"
+                    output_path = os.path.join(output_folder, f"{base_name}_translated{ext}")
                     self._export_file_as_txt(file_segments, output_path)
-                    
+
                 elif export_format == "docx":
                     # Export as DOCX (preserving original formatting if possible)
                     output_path = os.path.join(output_folder, f"{base_name}_translated.docx")
@@ -31045,7 +31075,17 @@ class SupervertalerQt(QMainWindow):
                 
                 # Apply alternating row colors to source and target widgets
                 self._apply_row_color(row, source_editor, target_editor)
-            
+
+                # File boundary separator for multi-file projects
+                if getattr(self.current_project, 'is_multifile', False) and row > 0:
+                    prev_file_id = getattr(self.current_project.segments[row - 1], 'file_id', None)
+                    curr_file_id = getattr(segment, 'file_id', None)
+                    if curr_file_id is not None and prev_file_id is not None and curr_file_id != prev_file_id:
+                        source_editor.set_file_boundary(True)
+                        target_editor.set_file_boundary(True)
+                        # Re-apply row color so the border-top takes effect in the stylesheet
+                        self._apply_row_color(row, source_editor, target_editor)
+
             # Apply current font
             self.apply_font_to_grid()
             
@@ -37982,90 +38022,101 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                 except ValueError:
                     pass
     
-    def show_project_info_dialog(self):
-        """Show comprehensive project information dialog"""
+    def show_project_info_dialog(self, initial_tab=0):
+        """Show comprehensive project information dialog with tabs.
+
+        Args:
+            initial_tab: Tab index to show initially (0=Overview, 1=File Progress)
+        """
         if not self.current_project:
             QMessageBox.information(self, "No Project", "Please open or create a project first.")
             return
-        
-        from PyQt6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QGroupBox, QScrollArea, QFrame
+
+        from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, QGroupBox,
+                                      QScrollArea, QFrame, QTabWidget, QTableWidget,
+                                      QTableWidgetItem, QHeaderView, QProgressBar)
         from PyQt6.QtCore import Qt
+        from PyQt6.QtGui import QColor
         from datetime import datetime
-        
+
         proj = self.current_project
-        
+
         # Calculate statistics
         total_segments = len(proj.segments) if proj.segments else 0
         translated = sum(1 for s in proj.segments if s.target and s.target.strip()) if proj.segments else 0
         confirmed = sum(1 for s in proj.segments if s.status == "Confirmed") if proj.segments else 0
         draft = sum(1 for s in proj.segments if s.status == "Translated") if proj.segments else 0
         not_started = sum(1 for s in proj.segments if s.status in ("Not Started", "")) if proj.segments else 0
-        
+
         # Word counts
         source_words = sum(len(s.source.split()) for s in proj.segments if s.source) if proj.segments else 0
         target_words = sum(len(s.target.split()) for s in proj.segments if s.target) if proj.segments else 0
-        
+
         # Character counts
         source_chars = sum(len(s.source) for s in proj.segments if s.source) if proj.segments else 0
         target_chars = sum(len(s.target) for s in proj.segments if s.target) if proj.segments else 0
-        
+
         dialog = QDialog(self)
-        dialog.setWindowTitle("📋 Project Information")
-        dialog.resize(700, 750)  # Start with a good default size
+        dialog.setWindowTitle("Project Information")
+        dialog.resize(750, 700)
         dialog.setMinimumWidth(600)
-        dialog.setMinimumHeight(600)
-        
+        dialog.setMinimumHeight(500)
+
         main_layout = QVBoxLayout(dialog)
-        main_layout.setSpacing(15)
-        main_layout.setContentsMargins(20, 20, 20, 20)
-        
-        # Scrollable content
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.Shape.NoFrame)
-        
-        content = QWidget()
-        layout = QVBoxLayout(content)
+        main_layout.setSpacing(10)
+        main_layout.setContentsMargins(15, 15, 15, 15)
+
+        # ═══════════════ Tab Widget ═══════════════
+        tabs = QTabWidget()
+        tabs.tabBar().setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        tabs.tabBar().setDrawBase(False)
+        tabs.setStyleSheet("QTabBar::tab { outline: 0; } QTabBar::tab:focus { outline: none; } QTabBar::tab:selected { border-bottom: 1px solid #2196F3; background-color: rgba(33, 150, 243, 0.08); }")
+
+        # ═══════════════════════════════════════════════
+        # TAB 1: Overview
+        # ═══════════════════════════════════════════════
+        overview_scroll = QScrollArea()
+        overview_scroll.setWidgetResizable(True)
+        overview_scroll.setFrameShape(QFrame.Shape.NoFrame)
+
+        overview_content = QWidget()
+        layout = QVBoxLayout(overview_content)
         layout.setSpacing(12)
-        
-        # ═══════════════ Project Overview ═══════════════
-        overview_group = QGroupBox("📋 Project Overview")
+
+        # ─── Project Overview ───
+        overview_group = QGroupBox("Project Overview")
         overview_layout = QVBoxLayout(overview_group)
-        
-        # Project name and file
+
         overview_layout.addWidget(QLabel(f"<b>Name:</b> {proj.name}"))
         if hasattr(self, 'current_project_path') and self.current_project_path:
             overview_layout.addWidget(QLabel(f"<b>File:</b> <span style='color: #666;'>{self.current_project_path}</span>"))
-        
-        # Languages
+
         overview_layout.addWidget(QLabel(f"<b>Languages:</b> {proj.source_lang} → {proj.target_lang}"))
-        
-        # Dates
+
         try:
             created_dt = datetime.fromisoformat(proj.created) if proj.created else None
             created_str = created_dt.strftime("%Y-%m-%d %H:%M") if created_dt else "Unknown"
         except:
             created_str = proj.created or "Unknown"
-        
+
         try:
             modified_dt = datetime.fromisoformat(proj.modified) if proj.modified else None
             modified_str = modified_dt.strftime("%Y-%m-%d %H:%M") if modified_dt else "Unknown"
         except:
             modified_str = proj.modified or "Unknown"
-        
+
         overview_layout.addWidget(QLabel(f"<b>Created:</b> {created_str}"))
         overview_layout.addWidget(QLabel(f"<b>Modified:</b> {modified_str}"))
-        
+
         if proj.id:
             overview_layout.addWidget(QLabel(f"<b>Project ID:</b> <span style='color: #999;'>{proj.id}</span>"))
-        
+
         layout.addWidget(overview_group)
-        
-        # ═══════════════ Statistics ═══════════════
-        stats_group = QGroupBox("📊 Statistics")
+
+        # ─── Statistics ───
+        stats_group = QGroupBox("Statistics")
         stats_main_layout = QHBoxLayout(stats_group)
-        
-        # Left column: Segment counts
+
         left_col = QVBoxLayout()
         progress_pct = (translated / total_segments * 100) if total_segments > 0 else 0
         left_col.addWidget(QLabel(f"<b>Total Segments:</b> {total_segments:,}"))
@@ -38074,35 +38125,34 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         left_col.addWidget(QLabel(f"<b>Draft:</b> {draft:,}"))
         left_col.addWidget(QLabel(f"<b>Not Started:</b> {not_started:,}"))
         left_col.addStretch()
-        
-        # Right column: Word/Character counts
+
         right_col = QVBoxLayout()
         right_col.addWidget(QLabel(f"<b>Source Words:</b> {source_words:,}"))
         right_col.addWidget(QLabel(f"<b>Target Words:</b> {target_words:,}"))
         right_col.addWidget(QLabel(f"<b>Source Characters:</b> {source_chars:,}"))
         right_col.addWidget(QLabel(f"<b>Target Characters:</b> {target_chars:,}"))
         right_col.addStretch()
-        
+
         stats_main_layout.addLayout(left_col)
         stats_main_layout.addLayout(right_col)
-        
+
         layout.addWidget(stats_group)
-        
-        # ═══════════════ Source Files ═══════════════
+
+        # ─── Source Files ───
         has_sources = any([
             proj.original_docx_path, proj.memoq_source_path, proj.cafetran_source_path,
             proj.trados_source_path, proj.sdlppx_source_path, proj.original_txt_path,
             proj.is_multifile
         ])
-        
+
         if has_sources:
-            source_group = QGroupBox("📁 Source Files")
+            source_group = QGroupBox("Source Files")
             source_layout = QVBoxLayout(source_group)
-            
+
             if proj.is_multifile and proj.files:
                 source_layout.addWidget(QLabel(f"<b>Multi-file Project:</b> {len(proj.files)} files"))
-                for f in proj.files[:5]:  # Show first 5
-                    source_layout.addWidget(QLabel(f"  • {f.get('name', 'Unknown')}"))
+                for f in proj.files[:5]:
+                    source_layout.addWidget(QLabel(f"  \u2022 {f.get('name', 'Unknown')}"))
                 if len(proj.files) > 5:
                     source_layout.addWidget(QLabel(f"  <i>... and {len(proj.files) - 5} more</i>"))
             else:
@@ -38118,116 +38168,249 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                     source_layout.addWidget(QLabel(f"<b>Trados Package:</b> {proj.sdlppx_source_path}"))
                 if proj.original_txt_path:
                     source_layout.addWidget(QLabel(f"<b>Text File:</b> {proj.original_txt_path}"))
-            
+
             layout.addWidget(source_group)
-        
-        # ═══════════════ AI & Prompts ═══════════════
-        ai_group = QGroupBox("🤖 AI & Prompts")
+
+        # ─── AI & Prompts ───
+        ai_group = QGroupBox("AI & Prompts")
         ai_layout = QVBoxLayout(ai_group)
-        
-        # Primary Prompt - get from live prompt manager
+
         primary_prompt_text = "None"
         attached_count = 0
         if hasattr(self, 'prompt_manager_qt') and self.prompt_manager_qt:
             library = self.prompt_manager_qt.library
             if library.active_primary_prompt_path:
-                # Extract just the filename/name from path
                 prompt_path = library.active_primary_prompt_path
                 if prompt_path.startswith("[EXTERNAL]"):
                     import os
-                    primary_prompt_text = f"📁 {os.path.basename(prompt_path.replace('[EXTERNAL] ', ''))}"
+                    primary_prompt_text = f"{os.path.basename(prompt_path.replace('[EXTERNAL] ', ''))}"
                 else:
-                    primary_prompt_text = f"✅ {prompt_path}"
+                    primary_prompt_text = f"{prompt_path}"
             attached_count = len(library.attached_prompt_paths) if library.attached_prompt_paths else 0
-        
+
         ai_layout.addWidget(QLabel(f"<b>Custom Prompt:</b> {primary_prompt_text}"))
         if attached_count > 0:
             ai_layout.addWidget(QLabel(f"<b>Attached Prompts:</b> {attached_count}"))
-        
+
         layout.addWidget(ai_group)
-        
-        # ═══════════════ Translation Memories ═══════════════
-        tm_group = QGroupBox("📚 Translation Memories")
+
+        # ─── Translation Memories ───
+        tm_group = QGroupBox("Translation Memories")
         tm_layout = QVBoxLayout(tm_group)
-        
-        # Get active TMs using tm_metadata_mgr
+
         active_tm_info = []
         if hasattr(self, 'tm_metadata_mgr') and self.tm_metadata_mgr:
             try:
                 all_tms = self.tm_metadata_mgr.get_all_tms()
                 for tm in all_tms:
-                    # Check if TM is active for this project (or global if proj.id is 0)
                     if self.tm_metadata_mgr.is_tm_active(tm['id'], proj.id):
                         active_tm_info.append((tm['name'], tm.get('entry_count', 0)))
             except Exception as e:
                 self.log(f"Error getting TM info: {e}")
-        
+
         if active_tm_info:
             for tm_name, tu_count in active_tm_info:
-                tm_layout.addWidget(QLabel(f"✅ <b>{tm_name}</b> ({tu_count:,} TUs)"))
+                tm_layout.addWidget(QLabel(f"<b>{tm_name}</b> ({tu_count:,} TUs)"))
         else:
             tm_layout.addWidget(QLabel("<span style='color: #999;'>No TMs activated</span>"))
-        
+
         layout.addWidget(tm_group)
-        
-        # ═══════════════ Glossaries ═══════════════
-        gloss_group = QGroupBox("📖 Glossaries")
+
+        # ─── Glossaries ───
+        gloss_group = QGroupBox("Glossaries")
         gloss_layout = QVBoxLayout(gloss_group)
-        
-        # Get active glossaries using termbase_mgr
+
         active_tb_info = []
         if hasattr(self, 'termbase_mgr') and self.termbase_mgr:
             try:
                 all_termbases = self.termbase_mgr.get_all_termbases()
                 for tb in all_termbases:
-                    # Check if termbase is active for this project
                     if self.termbase_mgr.is_termbase_active(tb['id'], proj.id):
                         active_tb_info.append((tb['name'], tb.get('term_count', 0)))
             except Exception as e:
                 self.log(f"Error getting glossary info: {e}")
-        
+
         if active_tb_info:
             for tb_name, term_count in active_tb_info:
-                gloss_layout.addWidget(QLabel(f"✅ <b>{tb_name}</b> ({term_count:,} terms)"))
+                gloss_layout.addWidget(QLabel(f"<b>{tb_name}</b> ({term_count:,} terms)"))
         else:
             gloss_layout.addWidget(QLabel("<span style='color: #999;'>No glossaries activated</span>"))
-        
+
         layout.addWidget(gloss_group)
-        
-        # ═══════════════ Image Context ═══════════════
-        image_group = QGroupBox("🖼️ Image Context")
+
+        # ─── Image Context ───
+        image_group = QGroupBox("Image Context")
         image_layout = QVBoxLayout(image_group)
-        
-        # Get from live figure_context
+
         if hasattr(self, 'figure_context') and self.figure_context and self.figure_context.has_images():
             count = self.figure_context.get_image_count()
             folder = self.figure_context.get_folder_name() or "Unknown folder"
-            image_layout.addWidget(QLabel(f"✅ <b>{count} image{'s' if count != 1 else ''}</b> loaded from: {folder}"))
+            image_layout.addWidget(QLabel(f"<b>{count} image{'s' if count != 1 else ''}</b> loaded from: {folder}"))
         else:
             image_layout.addWidget(QLabel("<span style='color: #999;'>No images loaded</span>"))
-        
+
         layout.addWidget(image_group)
-        
-        # ═══════════════ Other Settings ═══════════════
-        settings_group = QGroupBox("⚙️ Other Settings")
+
+        # ─── Other Settings ───
+        settings_group = QGroupBox("Other Settings")
         settings_layout = QVBoxLayout(settings_group)
-        
-        # Spellcheck
+
         if hasattr(self, 'spellcheck_manager') and self.spellcheck_manager:
             sp_enabled = self.spellcheck_manager.enabled
             sp_lang = self.spellcheck_manager._current_language or "Not set"
-            sp_status = f"✅ Enabled ({sp_lang})" if sp_enabled else "❌ Disabled"
+            sp_status = f"Enabled ({sp_lang})" if sp_enabled else "Disabled"
             settings_layout.addWidget(QLabel(f"<b>Spellcheck:</b> {sp_status}"))
         else:
             settings_layout.addWidget(QLabel(f"<b>Spellcheck:</b> Not available"))
-        
+
         layout.addWidget(settings_group)
-        
+
         layout.addStretch()
-        
-        scroll.setWidget(content)
-        main_layout.addWidget(scroll)
-        
+
+        overview_scroll.setWidget(overview_content)
+        tabs.addTab(overview_scroll, "Overview")
+
+        # ═══════════════════════════════════════════════
+        # TAB 2: File Progress
+        # ═══════════════════════════════════════════════
+        progress_tab = QWidget()
+        progress_layout = QVBoxLayout(progress_tab)
+
+        is_multifile = getattr(proj, 'is_multifile', False)
+        files = getattr(proj, 'files', [])
+
+        if not is_multifile or not files:
+            # Single-file project
+            info_label = QLabel(
+                "<b>Single-File Project</b><br><br>"
+                "This is a single-file project. Multi-file progress tracking is available "
+                "when you import a folder using:<br>"
+                "<i>File \u2192 Import \u2192 Folder (Multiple Files)...</i>"
+            )
+            info_label.setWordWrap(True)
+            info_label.setTextFormat(Qt.TextFormat.RichText)
+            progress_layout.addWidget(info_label)
+            progress_layout.addSpacing(20)
+        else:
+            # Multi-file header
+            info_label = QLabel(
+                f"<b>Multi-File Project: {len(files)} files</b><br>"
+                f"Project: {proj.name}"
+            )
+            info_label.setTextFormat(Qt.TextFormat.RichText)
+            progress_layout.addWidget(info_label)
+            progress_layout.addSpacing(10)
+
+        # Overall progress section (shown for both single and multi-file)
+        self._add_overall_progress_section(progress_layout)
+
+        if is_multifile and files:
+            progress_layout.addSpacing(10)
+
+            # Per-file progress table
+            files_group = QGroupBox("Per-File Progress")
+            files_layout = QVBoxLayout(files_group)
+
+            table = QTableWidget()
+            table.setColumnCount(7)
+            table.setHorizontalHeaderLabels([
+                "File", "Segments", "Words", "Translated", "Confirmed", "Progress", "Status"
+            ])
+            table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+            table.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeMode.Fixed)
+            table.setColumnWidth(5, 120)
+            table.setRowCount(len(files))
+            table.setAlternatingRowColors(True)
+            table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+            table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+
+            segments = proj.segments
+            confirmed_statuses = {'confirmed', 'tr_confirmed', 'proofread', 'approved'}
+
+            for row, file_info in enumerate(files):
+                file_id = file_info['id']
+                file_name = file_info['name']
+
+                file_segments = [s for s in segments if getattr(s, 'file_id', None) == file_id]
+                total_segs = len(file_segments)
+
+                total_words = sum(len(s.source.split()) for s in file_segments if s.source)
+                translated_segs = sum(1 for s in file_segments if s.target and s.target.strip())
+                confirmed_segs = sum(1 for s in file_segments if s.status in confirmed_statuses)
+
+                trans_percent = (translated_segs / total_segs * 100) if total_segs > 0 else 0
+                conf_percent = (confirmed_segs / total_segs * 100) if total_segs > 0 else 0
+
+                if conf_percent == 100:
+                    status = "Complete"
+                    status_color = "#4CAF50"
+                elif trans_percent == 100:
+                    status = "Translated"
+                    status_color = "#2196F3"
+                elif trans_percent > 0:
+                    status = "In Progress"
+                    status_color = "#FF9800"
+                else:
+                    status = "Not Started"
+                    status_color = "#9E9E9E"
+
+                table.setItem(row, 0, QTableWidgetItem(file_name))
+                table.setItem(row, 1, QTableWidgetItem(str(total_segs)))
+                table.setItem(row, 2, QTableWidgetItem(str(total_words)))
+                table.setItem(row, 3, QTableWidgetItem(f"{translated_segs}/{total_segs} ({trans_percent:.0f}%)"))
+                table.setItem(row, 4, QTableWidgetItem(f"{confirmed_segs}/{total_segs} ({conf_percent:.0f}%)"))
+
+                progress_bar = QProgressBar()
+                progress_bar.setMinimum(0)
+                progress_bar.setMaximum(100)
+                progress_bar.setValue(int(conf_percent))
+                progress_bar.setTextVisible(True)
+                progress_bar.setFormat(f"{conf_percent:.0f}%")
+                table.setCellWidget(row, 5, progress_bar)
+
+                status_item = QTableWidgetItem(status)
+                status_item.setForeground(QColor(status_color))
+                table.setItem(row, 6, status_item)
+
+                trans_item = table.item(row, 3)
+                if trans_percent == 100:
+                    trans_item.setForeground(QColor("#4CAF50"))
+                elif trans_percent > 0:
+                    trans_item.setForeground(QColor("#FF9800"))
+
+            files_layout.addWidget(table)
+
+            # Double-click to navigate
+            def on_file_double_click(row, col):
+                file_info = files[row]
+                file_id = file_info['id']
+                file_name = file_info['name']
+
+                reply = QMessageBox.question(
+                    dialog,
+                    "Navigate to File",
+                    f"Go to the first segment of:\n{file_name}?",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+                )
+                if reply == QMessageBox.StandardButton.Yes:
+                    for seg in segments:
+                        if getattr(seg, 'file_id', None) == file_id:
+                            self.go_to_segment(seg.id)
+                            dialog.accept()
+                            return
+
+            table.cellDoubleClicked.connect(on_file_double_click)
+
+            progress_layout.addWidget(files_group)
+
+        tabs.addTab(progress_tab, "File Progress")
+
+        # Set initial tab
+        if initial_tab < tabs.count():
+            tabs.setCurrentIndex(initial_tab)
+
+        main_layout.addWidget(tabs)
+
         # ═══════════════ OK Button ═══════════════
         button_layout = QHBoxLayout()
         button_layout.addStretch()
@@ -38236,7 +38419,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         ok_btn.clicked.connect(dialog.accept)
         button_layout.addWidget(ok_btn)
         main_layout.addLayout(button_layout)
-        
+
         dialog.exec()
     
     def show_search_dialog(self):
@@ -38615,70 +38798,276 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         """Handle file filter dropdown change for multi-file projects."""
         if not self.current_project or not hasattr(self, 'file_filter_combo'):
             return
-        
-        file_id = self.file_filter_combo.currentData()
-        
-        if file_id is None:
+
+        data = self.file_filter_combo.currentData()
+
+        # "Manage Views..." action
+        if data == "manage_views":
+            # Reset to previous selection (All Files) before opening dialog
+            self.file_filter_combo.blockSignals(True)
+            self.file_filter_combo.setCurrentIndex(0)
+            self.file_filter_combo.blockSignals(False)
+            self.show_manage_views_dialog()
+            return
+
+        if data is None:
             # "All Files" selected - show all rows
             if hasattr(self, 'table') and self.table:
                 for row in range(self.table.rowCount()):
                     self.table.setRowHidden(row, False)
             self.log("File filter: showing all files")
             return
-        
-        # Filter to show only segments from the selected file
+
         if not hasattr(self, 'table') or not self.table:
             return
-        
+
+        # View selected (dict with view_file_ids)
+        if isinstance(data, dict) and 'view_file_ids' in data:
+            view_file_ids = set(data['view_file_ids'])
+            visible_count = 0
+            for row, segment in enumerate(self.current_project.segments):
+                if row >= self.table.rowCount():
+                    break
+                segment_file_id = getattr(segment, 'file_id', None)
+                show_row = segment_file_id in view_file_ids
+                self.table.setRowHidden(row, not show_row)
+                if show_row:
+                    visible_count += 1
+            self.log(f"View filter: showing {visible_count} segments from {len(view_file_ids)} files")
+            return
+
+        # Single file selected (int file_id)
+        file_id = data
         visible_count = 0
         for row, segment in enumerate(self.current_project.segments):
             if row >= self.table.rowCount():
                 break
-            
             segment_file_id = getattr(segment, 'file_id', None)
             show_row = segment_file_id == file_id
-            
             self.table.setRowHidden(row, not show_row)
             if show_row:
                 visible_count += 1
-        
-        # Get file name for logging
+
         file_name = "Unknown"
         files = getattr(self.current_project, 'files', [])
         for f in files:
             if f['id'] == file_id:
                 file_name = f['name']
                 break
-        
+
         self.log(f"File filter: showing {visible_count} segments from '{file_name}'")
     
     def _update_file_filter_combo(self):
-        """Update the file filter dropdown with files from the current project."""
+        """Update the file filter dropdown with files and views from the current project."""
         if not hasattr(self, 'file_filter_combo') or not self.file_filter_combo:
             return
-        
-        # Clear existing items
+
         self.file_filter_combo.blockSignals(True)
         self.file_filter_combo.clear()
-        self.file_filter_combo.addItem("📁 All Files", None)
-        
-        # Check if this is a multi-file project
+        self.file_filter_combo.addItem("All Files", None)
+
         is_multifile = getattr(self.current_project, 'is_multifile', False) if self.current_project else False
         files = getattr(self.current_project, 'files', []) if self.current_project else []
-        
+
         if is_multifile and files:
-            # Add each file to the dropdown
+            # Saved views section
+            views = getattr(self.current_project, 'views', []) or []
+            if views:
+                self.file_filter_combo.insertSeparator(self.file_filter_combo.count())
+                for view in views:
+                    view_name = view.get('name', 'Unnamed View')
+                    file_count = len(view.get('file_ids', []))
+                    self.file_filter_combo.addItem(
+                        f"\U0001F441 {view_name} ({file_count} files)",
+                        {"view_file_ids": view.get('file_ids', [])}
+                    )
+
+            # Individual files section
+            self.file_filter_combo.insertSeparator(self.file_filter_combo.count())
             for file_info in files:
                 file_id = file_info['id']
                 file_name = file_info['name']
                 seg_count = file_info.get('segment_count', 0)
-                self.file_filter_combo.addItem(f"📄 {file_name} ({seg_count} seg)", file_id)
-            
+                self.file_filter_combo.addItem(f"\U0001F4C4 {file_name} ({seg_count} seg)", file_id)
+
+            # Manage Views action
+            self.file_filter_combo.insertSeparator(self.file_filter_combo.count())
+            self.file_filter_combo.addItem("Manage Views...", "manage_views")
+
             self.file_filter_combo.show()
         else:
             self.file_filter_combo.hide()
-        
+
         self.file_filter_combo.blockSignals(False)
+
+    def show_manage_views_dialog(self):
+        """Show dialog to create, edit, and delete views for multi-file projects."""
+        from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel,
+                                      QTableWidget, QTableWidgetItem, QHeaderView,
+                                      QPushButton, QLineEdit, QCheckBox, QGroupBox,
+                                      QInputDialog)
+        from PyQt6.QtCore import Qt
+
+        if not self.current_project or not getattr(self.current_project, 'is_multifile', False):
+            QMessageBox.information(self, "Not Available",
+                                    "Views are only available for multi-file projects.")
+            return
+
+        proj = self.current_project
+        files = getattr(proj, 'files', []) or []
+        if not files:
+            return
+
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Manage Views")
+        dialog.setMinimumWidth(550)
+        dialog.setMinimumHeight(400)
+
+        layout = QVBoxLayout(dialog)
+
+        info_label = QLabel(
+            "Views let you work on a subset of files in a multi-file project.\n"
+            "Create a view by selecting files, then use the file filter dropdown to activate it."
+        )
+        info_label.setWordWrap(True)
+        layout.addWidget(info_label)
+
+        layout.addSpacing(10)
+
+        # ─── Existing Views Table ───
+        views = getattr(proj, 'views', []) or []
+
+        views_group = QGroupBox(f"Saved Views ({len(views)})")
+        views_layout = QVBoxLayout(views_group)
+
+        views_table = QTableWidget()
+        views_table.setColumnCount(3)
+        views_table.setHorizontalHeaderLabels(["View Name", "Files", "Segments"])
+        views_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        views_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        views_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        views_table.setAlternatingRowColors(True)
+
+        def refresh_views_table():
+            current_views = getattr(proj, 'views', []) or []
+            views_table.setRowCount(len(current_views))
+            views_group.setTitle(f"Saved Views ({len(current_views)})")
+            for row, view in enumerate(current_views):
+                views_table.setItem(row, 0, QTableWidgetItem(view.get('name', '')))
+                view_file_ids = set(view.get('file_ids', []))
+                file_names = [f.get('name', '?') for f in files if f['id'] in view_file_ids]
+                views_table.setItem(row, 1, QTableWidgetItem(", ".join(file_names)))
+                seg_count = sum(
+                    1 for s in proj.segments
+                    if getattr(s, 'file_id', None) in view_file_ids
+                )
+                views_table.setItem(row, 2, QTableWidgetItem(str(seg_count)))
+
+        refresh_views_table()
+        views_layout.addWidget(views_table)
+
+        # View action buttons
+        view_btn_layout = QHBoxLayout()
+
+        def delete_selected_view():
+            row = views_table.currentRow()
+            if row < 0:
+                return
+            current_views = getattr(proj, 'views', []) or []
+            if row >= len(current_views):
+                return
+            view_name = current_views[row].get('name', 'this view')
+            reply = QMessageBox.question(
+                dialog, "Delete View",
+                f"Delete view \"{view_name}\"?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            )
+            if reply == QMessageBox.StandardButton.Yes:
+                current_views.pop(row)
+                proj.views = current_views
+                refresh_views_table()
+                self._update_file_filter_combo()
+
+        delete_btn = QPushButton("Delete Selected")
+        delete_btn.clicked.connect(delete_selected_view)
+        view_btn_layout.addWidget(delete_btn)
+        view_btn_layout.addStretch()
+        views_layout.addLayout(view_btn_layout)
+
+        layout.addWidget(views_group)
+
+        # ─── Create New View ───
+        create_group = QGroupBox("Create New View")
+        create_layout = QVBoxLayout(create_group)
+
+        name_layout = QHBoxLayout()
+        name_layout.addWidget(QLabel("Name:"))
+        name_input = QLineEdit()
+        name_input.setPlaceholderText("e.g. Chapters 1-3")
+        name_layout.addWidget(name_input)
+        create_layout.addLayout(name_layout)
+
+        create_layout.addWidget(QLabel("Select files to include:"))
+
+        # File checkboxes
+        file_checkboxes = []
+        for file_info in files:
+            file_id = file_info['id']
+            file_name = file_info['name']
+            seg_count = file_info.get('segment_count', 0)
+            cb = CheckmarkCheckBox(f"{file_name} ({seg_count} segments)")
+            cb.setProperty("file_id", file_id)
+            file_checkboxes.append(cb)
+            create_layout.addWidget(cb)
+
+        # Select all / none
+        sel_layout = QHBoxLayout()
+        select_all_btn = QPushButton("Select All")
+        select_all_btn.clicked.connect(lambda: [cb.setChecked(True) for cb in file_checkboxes])
+        select_none_btn = QPushButton("Select None")
+        select_none_btn.clicked.connect(lambda: [cb.setChecked(False) for cb in file_checkboxes])
+        sel_layout.addWidget(select_all_btn)
+        sel_layout.addWidget(select_none_btn)
+        sel_layout.addStretch()
+        create_layout.addLayout(sel_layout)
+
+        def create_view():
+            name = name_input.text().strip()
+            if not name:
+                QMessageBox.warning(dialog, "Name Required", "Please enter a name for the view.")
+                return
+            selected_ids = [
+                cb.property("file_id") for cb in file_checkboxes if cb.isChecked()
+            ]
+            if not selected_ids:
+                QMessageBox.warning(dialog, "No Files Selected",
+                                    "Please select at least one file for the view.")
+                return
+            if proj.views is None:
+                proj.views = []
+            proj.views.append({"name": name, "file_ids": selected_ids})
+            name_input.clear()
+            for cb in file_checkboxes:
+                cb.setChecked(False)
+            refresh_views_table()
+            self._update_file_filter_combo()
+            self.log(f"Created view '{name}' with {len(selected_ids)} files")
+
+        create_btn = QPushButton("Create View")
+        create_btn.clicked.connect(create_view)
+        create_layout.addWidget(create_btn)
+
+        layout.addWidget(create_group)
+
+        # ─── Close button ───
+        button_layout = QHBoxLayout()
+        button_layout.addStretch()
+        close_btn = QPushButton("Close")
+        close_btn.clicked.connect(dialog.accept)
+        button_layout.addWidget(close_btn)
+        layout.addLayout(button_layout)
+
+        dialog.exec()
 
     def toggle_invisible_display(self, char_type):
         """Toggle display of specific invisible character type"""
@@ -46277,181 +46666,8 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                 self.termview_widget_match.apply_theme()
 
     def show_file_progress_dialog(self):
-        """Show File Progress dialog for multi-file projects.
-        
-        Displays translation progress for each file in a multi-file project,
-        including segment counts, word counts, and completion percentages.
-        """
-        from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, 
-                                      QTableWidget, QTableWidgetItem, QHeaderView,
-                                      QPushButton, QProgressBar, QGroupBox)
-        
-        if not self.current_project:
-            QMessageBox.information(self, "No Project", "Please open a project first.")
-            return
-        
-        # Check if this is a multi-file project
-        is_multifile = getattr(self.current_project, 'is_multifile', False)
-        files = getattr(self.current_project, 'files', [])
-        
-        dialog = QDialog(self)
-        dialog.setWindowTitle("📁 File Progress")
-        dialog.setMinimumWidth(800)
-        dialog.setMinimumHeight(500)
-        
-        layout = QVBoxLayout(dialog)
-        
-        if not is_multifile or not files:
-            # Single-file project - show basic info
-            info_label = QLabel(
-                "<b>Single-File Project</b><br><br>"
-                "This is a single-file project. Multi-file progress tracking is available "
-                "when you import a folder using:<br>"
-                "<i>File → Import → Folder (Multiple Files)...</i>"
-            )
-            info_label.setWordWrap(True)
-            info_label.setTextFormat(Qt.TextFormat.RichText)
-            layout.addWidget(info_label)
-            
-            layout.addSpacing(20)
-            
-            # Show overall progress for single file
-            self._add_overall_progress_section(layout)
-            
-        else:
-            # Multi-file project - show per-file progress
-            info_label = QLabel(
-                f"<b>Multi-File Project: {len(files)} files</b><br>"
-                f"Project: {self.current_project.name}"
-            )
-            info_label.setTextFormat(Qt.TextFormat.RichText)
-            layout.addWidget(info_label)
-            
-            layout.addSpacing(10)
-            
-            # Overall progress section
-            self._add_overall_progress_section(layout)
-            
-            layout.addSpacing(10)
-            
-            # Per-file progress table
-            files_group = QGroupBox("Per-File Progress")
-            files_layout = QVBoxLayout(files_group)
-            
-            table = QTableWidget()
-            table.setColumnCount(7)
-            table.setHorizontalHeaderLabels([
-                "File", "Segments", "Words", "Translated", "Confirmed", "Progress", "Status"
-            ])
-            table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-            table.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeMode.Fixed)
-            table.setColumnWidth(5, 120)
-            table.setRowCount(len(files))
-            table.setAlternatingRowColors(True)
-            table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-            table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
-            
-            # Calculate stats for each file
-            segments = self.current_project.segments
-            confirmed_statuses = {'confirmed', 'tr_confirmed', 'proofread', 'approved'}
-            
-            for row, file_info in enumerate(files):
-                file_id = file_info['id']
-                file_name = file_info['name']
-                
-                # Get segments for this file
-                file_segments = [s for s in segments if getattr(s, 'file_id', None) == file_id]
-                total_segs = len(file_segments)
-                
-                # Calculate stats
-                total_words = sum(len(s.source.split()) for s in file_segments if s.source)
-                translated_segs = sum(1 for s in file_segments if s.target and s.target.strip())
-                translated_words = sum(len(s.source.split()) for s in file_segments if s.target and s.target.strip())
-                confirmed_segs = sum(1 for s in file_segments if s.status in confirmed_statuses)
-                
-                trans_percent = (translated_segs / total_segs * 100) if total_segs > 0 else 0
-                conf_percent = (confirmed_segs / total_segs * 100) if total_segs > 0 else 0
-                
-                # Determine status
-                if conf_percent == 100:
-                    status = "✅ Complete"
-                    status_color = "#4CAF50"
-                elif trans_percent == 100:
-                    status = "📝 Translated"
-                    status_color = "#2196F3"
-                elif trans_percent > 0:
-                    status = "🔄 In Progress"
-                    status_color = "#FF9800"
-                else:
-                    status = "⬜ Not Started"
-                    status_color = "#9E9E9E"
-                
-                # Add items to table
-                table.setItem(row, 0, QTableWidgetItem(file_name))
-                table.setItem(row, 1, QTableWidgetItem(str(total_segs)))
-                table.setItem(row, 2, QTableWidgetItem(str(total_words)))
-                table.setItem(row, 3, QTableWidgetItem(f"{translated_segs}/{total_segs} ({trans_percent:.0f}%)"))
-                table.setItem(row, 4, QTableWidgetItem(f"{confirmed_segs}/{total_segs} ({conf_percent:.0f}%)"))
-                
-                # Progress bar
-                progress_bar = QProgressBar()
-                progress_bar.setMinimum(0)
-                progress_bar.setMaximum(100)
-                progress_bar.setValue(int(conf_percent))
-                progress_bar.setTextVisible(True)
-                progress_bar.setFormat(f"{conf_percent:.0f}%")
-                table.setCellWidget(row, 5, progress_bar)
-                
-                status_item = QTableWidgetItem(status)
-                status_item.setForeground(QColor(status_color))
-                table.setItem(row, 6, status_item)
-                
-                # Color coding for translated column
-                trans_item = table.item(row, 3)
-                if trans_percent == 100:
-                    trans_item.setForeground(QColor("#4CAF50"))
-                elif trans_percent > 0:
-                    trans_item.setForeground(QColor("#FF9800"))
-            
-            files_layout.addWidget(table)
-            
-            # Double-click to filter/navigate
-            def on_file_double_click(row, col):
-                file_info = files[row]
-                file_id = file_info['id']
-                file_name = file_info['name']
-                
-                # Filter to show only this file's segments
-                if hasattr(self, 'source_filter_input'):
-                    # Use file name as filter
-                    reply = QMessageBox.question(
-                        dialog,
-                        "Navigate to File",
-                        f"Go to the first segment of:\n{file_name}?",
-                        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-                    )
-                    if reply == QMessageBox.StandardButton.Yes:
-                        # Find first segment of this file
-                        for seg in segments:
-                            if getattr(seg, 'file_id', None) == file_id:
-                                # Navigate to this segment
-                                self.go_to_segment(seg.id)
-                                dialog.accept()
-                                return
-            
-            table.cellDoubleClicked.connect(on_file_double_click)
-            
-            layout.addWidget(files_group)
-        
-        # Close button
-        button_layout = QHBoxLayout()
-        button_layout.addStretch()
-        close_btn = QPushButton("Close")
-        close_btn.clicked.connect(dialog.accept)
-        button_layout.addWidget(close_btn)
-        layout.addLayout(button_layout)
-        
-        dialog.exec()
+        """Show file progress - redirects to Project Info dialog, File Progress tab."""
+        self.show_project_info_dialog(initial_tab=1)
     
     def _add_overall_progress_section(self, layout):
         """Add overall progress section to a layout (for File Progress dialog)."""

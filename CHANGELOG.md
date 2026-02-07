@@ -2,9 +2,23 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.231 (February 7, 2026)
+**Current Version:** v1.9.232 (February 7, 2026)
 
 
+
+## v1.9.232 - February 7, 2026
+
+### ✨ New Features
+
+- **Saved Views for multi-file projects**: Create named views that filter the translation grid to show only selected files. Views persist in the project file and are accessible from the file filter dropdown. Manage Views dialog allows creating and deleting views.
+- **File boundary separators**: Multi-file projects now display a blue separator line between segments from different files, making it easy to see where one file ends and the next begins.
+- **Markdown (.md) support in multi-file import/export**: Multi-file folder import now recognizes `.md` files alongside `.docx` and `.txt`. Multi-file export adds a Markdown format option that preserves syntax.
+
+### 🔧 Improvements
+
+- **Tabbed Project Info dialog**: The Project Info dialog now uses a tabbed layout with Overview and File Progress tabs. The standalone File Progress dialog has been merged in — click the file count in the status bar to jump directly to the File Progress tab.
+
+---
 
 ## v1.9.231 - February 7, 2026
 
