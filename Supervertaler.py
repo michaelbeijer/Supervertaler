@@ -41,14 +41,14 @@ def _read_version():
         try:
             import tomli as tomllib  # Python < 3.11
         except ImportError:
-            return "1.9.226"  # Fallback
+            return "1.9.227"  # Fallback
     try:
         _toml_path = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "pyproject.toml")
         with open(_toml_path, "rb") as f:
             _data = tomllib.load(f)
         return _data["project"]["version"]
     except Exception:
-        return "1.9.226"  # Fallback if running from dist without pyproject.toml
+        return "1.9.227"  # Fallback if running from dist without pyproject.toml
 
 __version__ = _read_version()
 __phase__ = "0.9"
@@ -16725,35 +16725,20 @@ class SupervertalerQt(QMainWindow):
         prefs_group = QGroupBox("⚙️ AI Translation Preferences")
         prefs_layout = QVBoxLayout()
         prefs_layout.setSpacing(10)
-        
+
         # Load current preferences
         batch_size = general_prefs.get('batch_size', 20)
         surrounding_segments = general_prefs.get('surrounding_segments', 5)
         use_full_context = general_prefs.get('use_full_context', True)
         check_tm_before_api = general_prefs.get('check_tm_before_api', True)
         auto_propagate_100 = general_prefs.get('auto_propagate_100', True)
-        
-        # Batch Size
-        batch_size_layout = QHBoxLayout()
-        batch_size_label = QLabel("Batch Size (segments per API call):")
-        batch_size_layout.addWidget(batch_size_label)
-        batch_size_spin = QSpinBox()
-        batch_size_spin.setMinimum(1)
-        batch_size_spin.setMaximum(500)
-        batch_size_spin.setValue(batch_size)
-        batch_size_spin.setToolTip("Larger batches = faster but higher API cost per call")
-        batch_size_layout.addWidget(batch_size_spin)
-        batch_size_layout.addStretch()
-        prefs_layout.addLayout(batch_size_layout)
-        batch_size_info = QLabel("  ⓘ Larger batches = faster but higher API cost. Default: 20")
-        batch_size_info.setStyleSheet("font-size: 9pt; color: #666; padding-left: 20px;")
-        prefs_layout.addWidget(batch_size_info)
-        
-        prefs_layout.addSpacing(5)
-        
-        # Surrounding segments
+
+        # --- Single-Segment Translation (Ctrl+T) ---
+        single_header = QLabel("<b>Single-Segment Translation (Ctrl+T):</b>")
+        prefs_layout.addWidget(single_header)
+
         surrounding_layout = QHBoxLayout()
-        surrounding_label = QLabel("Surrounding segments (single-segment translation):")
+        surrounding_label = QLabel("Context segments:")
         surrounding_layout.addWidget(surrounding_label)
         surrounding_spin = QSpinBox()
         surrounding_spin.setMinimum(0)
@@ -16764,17 +16749,38 @@ class SupervertalerQt(QMainWindow):
         surrounding_layout.addWidget(surrounding_segments_label)
         surrounding_layout.addStretch()
         prefs_layout.addLayout(surrounding_layout)
-        surrounding_info = QLabel("  ⓘ Context for single-segment translation. 0 = no context. Default: 5")
+        surrounding_info = QLabel("  ⓘ Surrounding segments sent to the AI for context. 0 = no context. Default: 5")
         surrounding_info.setStyleSheet("font-size: 9pt; color: #666; padding-left: 20px;")
         prefs_layout.addWidget(surrounding_info)
-        
+
+        prefs_layout.addSpacing(10)
+
+        # --- Batch Translation ---
+        batch_header = QLabel("<b>Batch Translation:</b>")
+        prefs_layout.addWidget(batch_header)
+
+        batch_size_layout = QHBoxLayout()
+        batch_size_label = QLabel("Batch size:")
+        batch_size_layout.addWidget(batch_size_label)
+        batch_size_spin = QSpinBox()
+        batch_size_spin.setMinimum(1)
+        batch_size_spin.setMaximum(500)
+        batch_size_spin.setValue(batch_size)
+        batch_size_spin.setToolTip("Larger batches = faster but higher API cost per call")
+        batch_size_layout.addWidget(batch_size_spin)
+        batch_size_layout.addWidget(QLabel("segments per API call"))
+        batch_size_layout.addStretch()
+        prefs_layout.addLayout(batch_size_layout)
+        batch_size_info = QLabel("  ⓘ Larger batches = faster but higher API cost. Default: 20")
+        batch_size_info.setStyleSheet("font-size: 9pt; color: #666; padding-left: 20px;")
+        prefs_layout.addWidget(batch_size_info)
+
         prefs_layout.addSpacing(5)
-        
-        # Include full document context
+
         full_context_cb = CheckmarkCheckBox("Include surrounding context in batch translation")
         full_context_cb.setChecked(use_full_context)
         prefs_layout.addWidget(full_context_cb)
-        
+
         # Context window size slider
         context_window_size = general_prefs.get('context_window_size', 50)
         context_layout = QHBoxLayout()
@@ -16793,7 +16799,7 @@ class SupervertalerQt(QMainWindow):
         context_layout.addWidget(context_value_label)
         context_layout.addStretch()
         prefs_layout.addLayout(context_layout)
-        
+
         # Update label when slider changes
         def update_context_label(value):
             if value == 0:
@@ -16803,64 +16809,29 @@ class SupervertalerQt(QMainWindow):
                 context_segs = min(value * 2 + batch_size_spin.value(), total_segs)
                 percentage = int((context_segs / total_segs) * 100) if total_segs > 0 else 0
                 context_value_label.setText(f"{value} seg (~{percentage}% of doc)")
-        
+
         context_slider.valueChanged.connect(update_context_label)
         full_context_cb.stateChanged.connect(lambda: context_slider.setEnabled(full_context_cb.isChecked()))
         update_context_label(context_window_size)
-        
+
         prefs_layout.addSpacing(10)
-        
-        # Document context for AI prompts
-        quickmenu_context_label = QLabel("<b>Document Context (for AI prompts):</b>")
-        prefs_layout.addWidget(quickmenu_context_label)
-        
-        quickmenu_context_percent = general_prefs.get('quickmenu_context_percent', 50)
-        quickmenu_context_layout = QHBoxLayout()
-        quickmenu_context_layout.addWidget(QLabel("  Document context size:"))
-        quickmenu_context_slider = QSlider(Qt.Orientation.Horizontal)
-        quickmenu_context_slider.setMinimum(0)
-        quickmenu_context_slider.setMaximum(100)
-        quickmenu_context_slider.setValue(quickmenu_context_percent)
-        quickmenu_context_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
-        quickmenu_context_slider.setTickInterval(10)
-        quickmenu_context_layout.addWidget(quickmenu_context_slider)
-        quickmenu_context_value_label = QLabel(f"{quickmenu_context_percent}%")
-        quickmenu_context_value_label.setMinimumWidth(60)
-        quickmenu_context_layout.addWidget(quickmenu_context_value_label)
-        quickmenu_context_layout.addStretch()
-        prefs_layout.addLayout(quickmenu_context_layout)
-        
-        quickmenu_context_info = QLabel(
-            "  ⓘ When using {{SOURCE+TARGET_CONTEXT}} or {{SOURCE_CONTEXT}} placeholders in QuickMenu prompts.\n"
-            "  0% = disabled, 50% = half the document (default), 100% = entire document.\n"
-            "  Limit: maximum 100 segments for performance."
-        )
-        quickmenu_context_info.setStyleSheet("font-size: 9pt; color: #666; padding-left: 20px;")
-        quickmenu_context_info.setWordWrap(True)
-        prefs_layout.addWidget(quickmenu_context_info)
-        
-        def update_quickmenu_context_label(value):
-            if value == 0:
-                quickmenu_context_value_label.setText("0% (disabled)")
-            else:
-                quickmenu_context_value_label.setText(f"{value}%")
-        
-        quickmenu_context_slider.valueChanged.connect(update_quickmenu_context_label)
-        
-        prefs_layout.addSpacing(5)
-        
-        # Check TM before API call - with fuzzy or exact mode (single-segment translation only)
-        tm_check_label = QLabel("<b>Check TM before single-segment AI translation (Ctrl+T):</b>")
-        prefs_layout.addWidget(tm_check_label)
-        
+
+        # --- Translation Memory ---
+        tm_header = QLabel("<b>Translation Memory:</b>")
+        prefs_layout.addWidget(tm_header)
+
         # Get current settings
         check_tm_exact_only = general_prefs.get('check_tm_exact_only', False)
-        
+
+        # TM check before AI - applies to both single and batch
+        tm_check_label = QLabel("Check TM before calling AI (saves API costs):")
+        prefs_layout.addWidget(tm_check_label)
+
         # Radio buttons for TM check mode
         tm_no_check_rb = CheckmarkRadioButton("Don't check TM - always call AI")
         tm_fuzzy_rb = CheckmarkRadioButton("Check TM first (including fuzzy matches)")
         tm_exact_rb = CheckmarkRadioButton("Check TM first (only 100% matches - faster)")
-        
+
         # Set initial state
         if not check_tm_before_api:
             tm_no_check_rb.setChecked(True)
@@ -16868,20 +16839,20 @@ class SupervertalerQt(QMainWindow):
             tm_exact_rb.setChecked(True)
         else:
             tm_fuzzy_rb.setChecked(True)
-        
+
         prefs_layout.addWidget(tm_no_check_rb)
         prefs_layout.addWidget(tm_fuzzy_rb)
         prefs_layout.addWidget(tm_exact_rb)
-        
+
         prefs_layout.addSpacing(5)
-        
+
         # Auto-propagate 100% TM matches
         auto_propagate_cb = CheckmarkCheckBox("Auto-propagate 100% TM matches")
         auto_propagate_cb.setChecked(auto_propagate_100)
         prefs_layout.addWidget(auto_propagate_cb)
-        
+
         prefs_layout.addSpacing(5)
-        
+
         # TM/Termbase lookup delay
         lookup_delay = general_prefs.get('lookup_delay', 1500)
         delay_layout = QHBoxLayout()
@@ -16899,7 +16870,46 @@ class SupervertalerQt(QMainWindow):
         delay_info = QLabel("  ⓘ Prevents searches while navigating quickly. Default: 1500ms")
         delay_info.setStyleSheet("font-size: 9pt; color: #666; padding-left: 20px;")
         prefs_layout.addWidget(delay_info)
-        
+
+        prefs_layout.addSpacing(10)
+
+        # --- Document Context (for AI Prompts) ---
+        quickmenu_context_label = QLabel("<b>Document Context (for QuickMenu AI prompts):</b>")
+        prefs_layout.addWidget(quickmenu_context_label)
+
+        quickmenu_context_percent = general_prefs.get('quickmenu_context_percent', 50)
+        quickmenu_context_layout = QHBoxLayout()
+        quickmenu_context_layout.addWidget(QLabel("  Document context size:"))
+        quickmenu_context_slider = QSlider(Qt.Orientation.Horizontal)
+        quickmenu_context_slider.setMinimum(0)
+        quickmenu_context_slider.setMaximum(100)
+        quickmenu_context_slider.setValue(quickmenu_context_percent)
+        quickmenu_context_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
+        quickmenu_context_slider.setTickInterval(10)
+        quickmenu_context_layout.addWidget(quickmenu_context_slider)
+        quickmenu_context_value_label = QLabel(f"{quickmenu_context_percent}%")
+        quickmenu_context_value_label.setMinimumWidth(60)
+        quickmenu_context_layout.addWidget(quickmenu_context_value_label)
+        quickmenu_context_layout.addStretch()
+        prefs_layout.addLayout(quickmenu_context_layout)
+
+        quickmenu_context_info = QLabel(
+            "  ⓘ When using {{SOURCE+TARGET_CONTEXT}} or {{SOURCE_CONTEXT}} placeholders in QuickMenu prompts.\n"
+            "  0% = disabled, 50% = half the document (default), 100% = entire document.\n"
+            "  Limit: maximum 100 segments for performance."
+        )
+        quickmenu_context_info.setStyleSheet("font-size: 9pt; color: #666; padding-left: 20px;")
+        quickmenu_context_info.setWordWrap(True)
+        prefs_layout.addWidget(quickmenu_context_info)
+
+        def update_quickmenu_context_label(value):
+            if value == 0:
+                quickmenu_context_value_label.setText("0% (disabled)")
+            else:
+                quickmenu_context_value_label.setText(f"{value}%")
+
+        quickmenu_context_slider.valueChanged.connect(update_quickmenu_context_label)
+
         prefs_group.setLayout(prefs_layout)
         layout.addWidget(prefs_group)
         

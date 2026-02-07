@@ -2,9 +2,22 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.226 (February 6, 2026)
+**Current Version:** v1.9.227 (February 7, 2026)
 
 
+
+## v1.9.227 - February 7, 2026
+
+### 🎨 UI Improvements
+
+- **Settings Panel Reorganized** : The "AI Translation Preferences" settings section has been reorganized with clear sub-headings: *Single-Segment Translation*, *Batch Translation*, *Translation Memory*, and *Document Context*. Previously these were mixed together without clear grouping.
+- **TM Check Label Corrected**: The "Check TM before AI translation" setting was incorrectly labeled as applying only to single-segment translation. It actually applies to both single-segment and batch translation, and the label now reflects this.
+
+### 🔧 Internal
+
+- **Version auto-read from pyproject.toml**: `__version__` in Supervertaler.py now reads automatically from `pyproject.toml`, eliminating a manual version sync step.
+
+---
 
 ## v1.9.226 - February 6, 2026
 
