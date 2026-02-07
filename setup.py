@@ -16,17 +16,21 @@ import os
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
-# Read version from main module
+# Read version from pyproject.toml (single source of truth)
 def get_version():
-    """Extract version from Supervertaler.py"""
+    """Extract version from pyproject.toml"""
     try:
-        with open("Supervertaler.py", "r", encoding="utf-8") as f:
-            for line in f:
-                if line.startswith("__version__"):
-                    return line.split("=")[1].strip().strip('"')
-    except FileNotFoundError:
-        pass
-    return "1.9.54"
+        import tomllib
+    except ImportError:
+        try:
+            import tomli as tomllib
+        except ImportError:
+            return "1.9.227"
+    try:
+        with open("pyproject.toml", "rb") as f:
+            return tomllib.load(f)["project"]["version"]
+    except Exception:
+        return "1.9.227"
 
 setup(
     name="Supervertaler",
