@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** February 6, 2026 | **Version:** v1.9.223
+> **Last Updated:** February 7, 2026 | **Version:** v1.9.236
 
 ---
 
@@ -10,11 +10,11 @@
 **IMPORTANT: If you're continuing from a previous session or ran out of context:**
 
 1. **Skip to the end of this file** - The most recent development context is in the **"🔄 Recent Development History"** section (search for the latest date)
-2. **Current version: v1.9.223** - memoQ RTF bilingual support, TM fixes
+2. **Current version: v1.9.236** - Custom OpenAI-Compatible API provider, version fix, multi-file export
 3. **Read only what you need** - The Project Overview and Architecture sections are reference material; the dated history entries contain the actual working context
 
 **Quick Navigation:**
-- **Latest context:** See CHANGELOG.md for v1.9.223 (memoQ RTF support)
+- **Latest context:** See CHANGELOG.md for v1.9.236 (Custom OpenAI-Compatible API)
 - **Module list:** Search for `## 🔌 Complete Module List`
 - **Architecture:** Search for `## 🏗️ Architecture Patterns`
 - **Common pitfalls:** Search for `## ⚠️ Common Pitfalls`
@@ -28,7 +28,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.223 (February 2026) |
+| **Version** | v1.9.236 (February 2026) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -39,7 +39,7 @@
 
 ### Key Capabilities
 
-- **Multi-LLM AI Translation**: OpenAI GPT-4, Anthropic Claude, Google Gemini, Local Ollama
+- **Multi-LLM AI Translation**: OpenAI GPT-4, Anthropic Claude, Google Gemini, Local Ollama, Custom OpenAI-Compatible API (Volcengine/Doubao, Tongyi/Qwen, DeepSeek, etc.)
 - **CAT Tool Integration**: Trados SDLPPX/SDLRPX, memoQ XLIFF/DOCX/RTF, Phrase/Memsource DOCX, CafeTran DOCX, Déjà Vu X3 RTF
 - **Translation Memory**: Fuzzy matching TM with TMX import/export + Supermemory (ChromaDB vector search)
 - **Terminology Management**: SQLite-based termbases with priority highlighting and automatic extraction
@@ -293,7 +293,7 @@ class Segment:
 ## 🔌 Complete Module List
 
 ### AI & LLM (`modules/`)
-- `llm_clients.py` - OpenAI, Anthropic Claude, Google Gemini, Ollama integration
+- `llm_clients.py` - OpenAI, Anthropic Claude, Google Gemini, Ollama, Custom OpenAI-Compatible API integration
 - `model_version_checker.py` - Auto-detect new LLM models from providers
 - `model_update_dialog.py` - UI for selecting new models
 - `prompt_library.py` - Prompt management and favorites
@@ -389,7 +389,8 @@ class Segment:
 
 ### Settings Storage
 - `user_data/general_settings.json` - App preferences
-- `user_data/ui_preferences.json` - Window geometry, button states
+- `user_data/ui_preferences.json` - Window geometry, button states, LLM settings (`llm_settings`, `provider_enabled_states`)
+- `user_data/api_keys.txt` - API keys for LLM and MT providers (key=value format)
 - `.svproj` files - Per-project settings
 
 ---
@@ -397,10 +398,11 @@ class Segment:
 ## 📝 Development Guidelines
 
 ### When Editing Supervertaler.py
-1. The file is large (~32K lines) - use line ranges when reading
+1. The file is large (~38K+ lines) - use line ranges when reading
 2. Search for method names with `grep_search` before editing
 3. Follow existing patterns for new features
-4. Update `__version__` at the top when making changes
+4. `__version__` auto-reads from `pyproject.toml` (dev) or `importlib.metadata` (pip) — no manual update needed
+5. To bump version: edit `pyproject.toml`, `CHANGELOG.md`, and `docs/index.html` (see Version Bump Checklist below)
 
 ### When Adding New Modules
 1. Create in `modules/` directory
@@ -452,6 +454,27 @@ Use semantic prefixes:
 ---
 
 ## 📋 Planned Features & Refactoring
+
+### 🔑 Inline API Key Editing in Settings UI (Planned)
+
+**Identified:** February 7, 2026
+**Status:** Planned, not yet implemented
+**Complexity:** Low-Medium
+
+**Current Problem:**
+Users must manually edit `api_keys.txt` in a text editor. Several users have reported this is inconvenient. The Settings UI currently only has an "Open API Keys File" button.
+
+**Proposed Solution:**
+Add password-masked `QLineEdit` fields in Settings > AI Settings for each provider's API key, with a show/hide toggle button (eye icon). Fields read from and write to the same `api_keys.txt` file, preserving backward compatibility.
+
+**Implementation Notes:**
+- Add `QLineEdit(echoMode=Password)` + toggle button for each provider (openai, claude, google/gemini, custom_openai, deepl, google_translate, etc.)
+- Read initial values from `load_api_keys()` on settings dialog open
+- Save back to `api_keys.txt` using same key=value format on "Save"
+- Keep the "Open API Keys File" button for power users
+- Consider grouping: LLM keys at top, MT keys below
+
+---
 
 ### 🔧 Configuration File Consolidation (PRIORITY - Scheduled)
 
@@ -768,20 +791,131 @@ openai=sk-...
 claude=sk-ant-...
 google=AI...
 gemini=AI...
+custom_openai=sk-...
 deepl=...
 ```
 
-**Note:** `google=` and `gemini=` are aliases - both work identically (v1.9.146+).
+**Notes:**
+- `google=` and `gemini=` are aliases - both work identically (v1.9.146+)
+- `custom_openai=` is for any OpenAI-compatible endpoint (v1.9.236+). Configure the endpoint URL and model in Settings > AI Settings.
+- `ollama_endpoint=` can override the default Ollama URL (default: `http://localhost:11434`)
 
 **Implementation Details:**
 - `Supervertaler.py`: `load_api_keys()` method reads from user_data_path
+- `modules/llm_clients.py`: `load_api_keys()` also reads keys (same format)
 - Automatic normalization: if `google` is set, `gemini` is also populated (and vice versa)
 - All API key loading now unified through main app's method
+- See `user_data_private/api_keys.example.txt` for full documented template
 
 ---
 
 ## 🔄 Recent Development History
 
+
+### February 7, 2026 - Custom OpenAI-Compatible API Provider (v1.9.236)
+
+**✨ Feature Summary**
+
+Added a generic "Custom (OpenAI-Compatible API)" provider that enables any OpenAI SDK-compatible endpoint — Volcengine (ByteDance Doubao), Alibaba Tongyi (Qwen), DeepSeek, Mistral, Groq, and more. This addresses GitHub issue #155 requesting Chinese AI services that handle Chinese translation better.
+
+**Status:** Implementation complete, version 1.9.236 released to PyPI
+
+**Issue Addressed:**
+- GitHub #155 - Feature request for Volcengine (Doubao) and Tongyi (Qwen) support
+
+**Approach:**
+Rather than adding each Chinese AI provider individually, implemented a single `custom_openai` provider that reuses `_call_openai()` with a user-specified `base_url`. Users configure: endpoint URL, API key (in `api_keys.txt` as `custom_openai = <key>`), and model name (free-text input since model names vary by provider).
+
+**Files Modified:**
+
+1. **`modules/llm_clients.py`**:
+   - Added `base_url: Optional[str] = None` parameter to `__init__`
+   - `translate()` routes `"custom_openai"` to `_call_openai()` (same as `"openai"`)
+   - `_call_openai()` passes `base_url` to `OpenAI()` constructor when set
+   - `DEFAULT_MODELS` includes `"custom_openai": "custom-model"`
+   - `load_api_keys()` includes `"custom_openai": ""` in defaults
+   - API key validation skipped for `custom_openai` (some endpoints don't need one)
+
+2. **`Supervertaler.py`** — Settings UI:
+   - Added `custom_radio = CustomRadioButton("🔌 Custom (OpenAI-Compatible API)")` in `_create_ai_settings_tab()`
+   - Added `custom_endpoint_input` (QLineEdit for URL) and `custom_model_input` (QLineEdit for model name)
+   - Added `custom_enable_cb = CheckmarkCheckBox("Enable Custom (OpenAI-Compatible)")`
+   - Save handler (`_save_ai_settings_from_ui()`) saves `custom_openai_model`, `custom_openai_endpoint`
+   - `load_llm_settings()` includes `custom_openai_model` and `custom_openai_endpoint` defaults
+   - `load_provider_enabled_states()` includes `llm_custom_openai: True`
+
+3. **`Supervertaler.py`** — Helper method:
+   - Added `create_llm_client(provider, model, api_keys, settings)` method that handles `base_url` logic in one place
+   - Used at ~12 `LLMClient()` instantiation points to avoid duplicating custom_openai logic
+   - `PreTranslationWorker` accepts `base_url` parameter for batch translation
+
+4. **`modules/quicktrans.py`**:
+   - Added `("Custom", "CUS", "custom_openai", "mtql_custom_openai")` to `llm_defs`
+   - `_call_llm_translation()` handles base_url for custom_openai, reads endpoint from parent_app settings
+
+5. **`user_data_private/api_keys.example.txt`**: Added `custom_openai` section with example endpoints
+
+**LLM Provider Architecture (5 providers total):**
+- `openai` — OpenAI GPT models
+- `claude` — Anthropic Claude models
+- `gemini` — Google Gemini models
+- `ollama` — Local Ollama models (no API key needed)
+- `custom_openai` — Any OpenAI-compatible endpoint (reuses `_call_openai()` with custom `base_url`)
+
+**Settings stored in `ui_preferences.json`:**
+- `llm_settings.provider` — active provider name
+- `llm_settings.custom_openai_model` — model name or endpoint ID
+- `llm_settings.custom_openai_endpoint` — base URL (e.g., `https://ark.cn-beijing.volces.com/api/v3/`)
+- `provider_enabled_states.llm_custom_openai` — enabled toggle
+
+---
+
+### February 7, 2026 - Version Display Fix for pip Users (v1.9.235)
+
+**🐛 Bug Fix**
+
+Fixed `_read_version()` which caused all pip-installed users to see version 1.9.227 regardless of the actual installed version. The function only tried `pyproject.toml` (which isn't included in pip wheels) and had a hardcoded fallback. Now uses a two-step approach:
+1. Try `pyproject.toml` via `tomllib` (works in dev/source checkout)
+2. Try `importlib.metadata.version("supervertaler")` (works after pip install)
+3. Fallback to `"0.0.0"` instead of a misleading real version number
+
+---
+
+### February 7, 2026 - Multi-file Export & Batch Fixes (v1.9.232-234)
+
+**✨ Features:**
+- **Multi-file export "Original Format" option** (v1.9.234): Exports each file back to its source format (`.txt`, `.md`, or `.docx`), useful for mixed-format projects
+- **Saved Views** (v1.9.232): Named views that filter the grid to selected files, persisted in project file
+- **File boundary separators** (v1.9.232): Blue separator lines between files in multi-file projects
+- **Markdown in multi-file import** (v1.9.232): `.md` files recognized alongside `.docx` and `.txt`
+- **Tabbed Project Info dialog** (v1.9.232): Overview and File Progress tabs merged into one dialog
+
+**🐛 Bug Fixes:**
+- **Batch pre-translation SQLite thread error** (v1.9.233): Worker thread was calling main thread's SQLite connection for AI-inject glossary terms. Terms now pre-fetched on main thread and passed to worker.
+
+---
+
+### February 7, 2026 - memoQ RTF Fixes & UI Improvements (v1.9.228-231)
+
+**🐛 Bug Fixes:**
+- **memoQ RTF Unicode/formatting loss** (v1.9.231): Unicode escapes and RTF character control words were stripped by the generic cleanup regex. All Unicode escapes, hex escapes, and named character control words now decoded before the generic strip.
+- **memoQ RTF combined formatting** (v1.9.231): Segments with bold+underline lost all formatting. Replaced pair-matching regex with direct marker-to-tag conversion.
+- **memoQ RTF missing import options dialog** (v1.9.231): RTF import now shows the same formatting options dialog as DOCX import.
+- **TM Read/Write settings persistence** (v1.9.228): Stale global TM activations could override project-specific settings on restart. Project-specific settings now always take priority.
+
+**🎨 UI Improvements:**
+- **Settings panel reorganized** (v1.9.227): AI Translation Preferences section reorganized with sub-headings
+- **Version auto-read from pyproject.toml** (v1.9.227): `__version__` no longer needs manual updates
+
+---
+
+### February 6, 2026 - WYSIWYG Fix & Import Language Memory (v1.9.224-226)
+
+**🐛 Bug Fixes:**
+- **WYSIWYG/Tags toggle corrupted target text** (v1.9.225, #142): View mode toggle permanently destroyed whitespace/indentation. Fixed with `white-space: pre-wrap` CSS and `_suppress_target_change_handlers` guard.
+- **Import dialogs ignored saved language pair** (v1.9.226, #143): Text/Markdown and multi-file import dialogs always defaulted to English → Dutch. Now all three import dialogs share language memory via `general_settings.json`.
+
+---
 
 ### February 6, 2026 - memoQ Bilingual RTF Support (v1.9.223)
 

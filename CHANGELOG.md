@@ -2,9 +2,17 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.236 (February 7, 2026)
+**Current Version:** v1.9.237 (February 7, 2026)
 
 
+
+## v1.9.237 - February 7, 2026
+
+### ✨ New Features
+
+- **Custom OpenAI-Compatible API profiles**: The custom provider now supports named profiles, allowing users to save multiple endpoint configurations (e.g., "Volcengine Doubao", "DeepSeek", "My Local vLLM") and switch between them from a dropdown in Settings > AI Settings. Each profile stores its own endpoint URL, model name, and API key (password-masked). Existing single-endpoint configurations are automatically migrated. The `api_keys.txt` `custom_openai` key still works as a fallback.
+
+---
 
 ## v1.9.236 - February 7, 2026
 

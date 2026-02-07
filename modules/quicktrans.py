@@ -537,10 +537,16 @@ class MTQuickPopup(QDialog):
 
             base_url = None
             if provider == 'custom_openai':
-                api_key = api_key or 'not-needed'
                 if hasattr(self, 'parent_app') and self.parent_app:
-                    settings = self.parent_app.load_llm_settings()
-                    base_url = settings.get('custom_openai_endpoint', '') or None
+                    profile = self.parent_app._get_active_custom_profile()
+                    if profile:
+                        base_url = profile.get('endpoint') or None
+                        profile_key = (profile.get('api_key') or '').strip()
+                        api_key = profile_key or api_key or 'not-needed'
+                    else:
+                        api_key = api_key or 'not-needed'
+                else:
+                    api_key = api_key or 'not-needed'
 
             client = LLMClient(
                 api_key=api_key,

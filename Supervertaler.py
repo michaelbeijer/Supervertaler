@@ -5930,7 +5930,7 @@ class PreTranslationWorker(QThread):
     translation_error = pyqtSignal(str)  # error_message
     retry_needed = pyqtSignal(list)  # empty_segments list of (row_index, segment)
     
-    def __init__(self, parent_app, segments, provider_type, provider_name, model, tm_exact_only=False, prompt_manager=None, retry_enabled=False, retry_pass=0, tm_ids=None, glossary_terms=None, base_url=None):
+    def __init__(self, parent_app, segments, provider_type, provider_name, model, tm_exact_only=False, prompt_manager=None, retry_enabled=False, retry_pass=0, tm_ids=None, glossary_terms=None, base_url=None, custom_api_key=None):
         super().__init__()
         self.parent_app = parent_app
         self.segments = segments
@@ -5938,6 +5938,7 @@ class PreTranslationWorker(QThread):
         self.provider_name = provider_name
         self.model = model
         self.base_url = base_url
+        self.custom_api_key = custom_api_key  # Profile API key (takes priority over api_keys.txt)
         self.tm_exact_only = tm_exact_only
         self.prompt_manager = prompt_manager
         self.retry_enabled = retry_enabled
@@ -6176,16 +6177,20 @@ class PreTranslationWorker(QThread):
         """Translate a single segment using LLM."""
         try:
             from modules.llm_clients import LLMClient
-            
+
             # Get source/target languages
             source_lang = getattr(self.parent_app.current_project, 'source_lang', 'en')
             target_lang = getattr(self.parent_app.current_project, 'target_lang', 'nl')
-            
+
             # Load API keys
             api_keys = self.parent_app.load_api_keys()
             api_key = api_keys.get(self.provider_name) or (api_keys.get('google') if self.provider_name == 'gemini' else None)
-            if self.provider_name == 'custom_openai' and not api_key:
-                api_key = api_keys.get('custom_openai', '') or 'not-needed'
+            if self.provider_name == 'custom_openai':
+                # Profile API key takes priority over api_keys.txt
+                if self.custom_api_key:
+                    api_key = self.custom_api_key
+                elif not api_key:
+                    api_key = api_keys.get('custom_openai', '') or 'not-needed'
 
             # Build custom prompt from prompt library
             custom_prompt = None
@@ -6239,17 +6244,21 @@ class PreTranslationWorker(QThread):
             import traceback
             
             print(f"🚀 _translate_batch_with_llm: Starting batch of {len(batch_segments)} segments")
-            
+
             # Get source/target languages
             source_lang = getattr(self.parent_app.current_project, 'source_lang', 'en')
             target_lang = getattr(self.parent_app.current_project, 'target_lang', 'nl')
             print(f"🚀 Languages: {source_lang} → {target_lang}")
-            
+
             # Load API keys
             api_keys = self.parent_app.load_api_keys()
             api_key = api_keys.get(self.provider_name) or (api_keys.get('google') if self.provider_name == 'gemini' else None)
-            if self.provider_name == 'custom_openai' and not api_key:
-                api_key = api_keys.get('custom_openai', '') or 'not-needed'
+            if self.provider_name == 'custom_openai':
+                # Profile API key takes priority over api_keys.txt
+                if self.custom_api_key:
+                    api_key = self.custom_api_key
+                elif not api_key:
+                    api_key = api_keys.get('custom_openai', '') or 'not-needed'
 
             # Build batch prompt
             batch_prompt_parts = []
@@ -7979,7 +7988,12 @@ class SupervertalerQt(QMainWindow):
                 display = f"{icon} {model}"
             elif provider == 'custom_openai':
                 icon = "🔌"
-                display = f"{icon} Custom: {model}"
+                profile = self._get_active_custom_profile(settings)
+                profile_name = profile.get('name', '') if profile else ''
+                if profile_name:
+                    display = f"{icon} {profile_name}: {model}"
+                else:
+                    display = f"{icon} Custom: {model}"
             else:
                 display = f"{provider}: {model}"
             
@@ -10416,9 +10430,13 @@ class SupervertalerQt(QMainWindow):
 
             base_url = None
             if provider == 'custom_openai':
-                settings = self.load_llm_settings()
-                base_url = settings.get('custom_openai_endpoint', '') or None
-                api_key = api_key or 'not-needed'
+                profile = self._get_active_custom_profile()
+                if profile:
+                    base_url = profile.get('endpoint') or None
+                    profile_key = (profile.get('api_key') or '').strip()
+                    api_key = profile_key or api_key or 'not-needed'
+                else:
+                    api_key = api_key or 'not-needed'
             return LLMClient(api_key=api_key, provider=provider, model=model_id, base_url=base_url)
 
         # Create and return the leaderboard UI widget
@@ -16607,10 +16625,44 @@ class SupervertalerQt(QMainWindow):
             ollama_status_widget = None
             tab.ollama_status_widget = None
         
-        # Custom OpenAI-compatible endpoint settings
+        # Custom OpenAI-compatible endpoint settings (with profiles)
         model_layout.addSpacing(10)
         custom_model_label = QLabel("<b>🔌 Custom (OpenAI-Compatible) Settings:</b>")
         model_layout.addWidget(custom_model_label)
+
+        # Profile selector row
+        profile_row = QHBoxLayout()
+        profile_label = QLabel("Profile:")
+        profile_label.setStyleSheet("font-size: 9pt; margin-top: 2px;")
+        profile_row.addWidget(profile_label)
+
+        custom_profile_combo = QComboBox()
+        custom_profile_combo.setMinimumWidth(200)
+        profiles = settings.get('custom_openai_profiles', [])
+        active_profile_name = settings.get('custom_openai_active_profile', '')
+        for p in profiles:
+            custom_profile_combo.addItem(p.get('name', 'Unnamed'))
+        if active_profile_name:
+            idx = custom_profile_combo.findText(active_profile_name)
+            if idx >= 0:
+                custom_profile_combo.setCurrentIndex(idx)
+        custom_profile_combo.setEnabled(custom_radio.isChecked())
+        profile_row.addWidget(custom_profile_combo)
+
+        add_profile_btn = QPushButton("+")
+        add_profile_btn.setFixedWidth(30)
+        add_profile_btn.setToolTip("Add a new custom API profile")
+        add_profile_btn.setEnabled(custom_radio.isChecked())
+        profile_row.addWidget(add_profile_btn)
+
+        remove_profile_btn = QPushButton("−")
+        remove_profile_btn.setFixedWidth(30)
+        remove_profile_btn.setToolTip("Remove the selected profile")
+        remove_profile_btn.setEnabled(custom_radio.isChecked() and custom_profile_combo.count() > 0)
+        profile_row.addWidget(remove_profile_btn)
+
+        profile_row.addStretch()
+        model_layout.addLayout(profile_row)
 
         custom_endpoint_label = QLabel("API Endpoint URL:")
         custom_endpoint_label.setStyleSheet("font-size: 9pt; margin-top: 2px;")
@@ -16618,7 +16670,6 @@ class SupervertalerQt(QMainWindow):
 
         custom_endpoint_input = QLineEdit()
         custom_endpoint_input.setPlaceholderText("https://api.example.com/v1")
-        custom_endpoint_input.setText(settings.get('custom_openai_endpoint', ''))
         custom_endpoint_input.setEnabled(custom_radio.isChecked())
         model_layout.addWidget(custom_endpoint_input)
 
@@ -16628,14 +16679,116 @@ class SupervertalerQt(QMainWindow):
 
         custom_model_input = QLineEdit()
         custom_model_input.setPlaceholderText("e.g. qwen-plus, ep-xxxxx, deepseek-chat")
-        custom_model_input.setText(settings.get('custom_openai_model', ''))
         custom_model_input.setEnabled(custom_radio.isChecked())
         model_layout.addWidget(custom_model_input)
+
+        custom_key_label = QLabel("API Key:")
+        custom_key_label.setStyleSheet("font-size: 9pt; margin-top: 2px;")
+        model_layout.addWidget(custom_key_label)
+
+        custom_key_row = QHBoxLayout()
+        custom_key_input = QLineEdit()
+        custom_key_input.setPlaceholderText("API key for this endpoint (leave empty to use api_keys.txt)")
+        custom_key_input.setEchoMode(QLineEdit.EchoMode.Password)
+        custom_key_input.setEnabled(custom_radio.isChecked())
+        custom_key_row.addWidget(custom_key_input)
+
+        custom_key_toggle = QPushButton("👁")
+        custom_key_toggle.setFixedWidth(30)
+        custom_key_toggle.setCheckable(True)
+        custom_key_toggle.setToolTip("Show/hide API key")
+        custom_key_toggle.toggled.connect(
+            lambda checked: custom_key_input.setEchoMode(
+                QLineEdit.EchoMode.Normal if checked else QLineEdit.EchoMode.Password
+            )
+        )
+        custom_key_row.addWidget(custom_key_toggle)
+        model_layout.addLayout(custom_key_row)
+
+        # Populate fields from active profile
+        def _populate_profile_fields(index):
+            """Populate endpoint/model/key fields from the selected profile."""
+            _profiles = settings.get('custom_openai_profiles', [])
+            if 0 <= index < len(_profiles):
+                p = _profiles[index]
+                custom_endpoint_input.setText(p.get('endpoint', ''))
+                custom_model_input.setText(p.get('model', ''))
+                custom_key_input.setText(p.get('api_key', ''))
+            else:
+                custom_endpoint_input.clear()
+                custom_model_input.clear()
+                custom_key_input.clear()
+
+        # Initial population
+        if custom_profile_combo.count() > 0:
+            _populate_profile_fields(custom_profile_combo.currentIndex())
+
+        custom_profile_combo.currentIndexChanged.connect(_populate_profile_fields)
+
+        # Save current field values back into the profiles list when fields change
+        def _sync_fields_to_profile():
+            """Write current field values back into the profiles list."""
+            idx = custom_profile_combo.currentIndex()
+            _profiles = settings.get('custom_openai_profiles', [])
+            if 0 <= idx < len(_profiles):
+                _profiles[idx]['endpoint'] = custom_endpoint_input.text().strip()
+                _profiles[idx]['model'] = custom_model_input.text().strip()
+                _profiles[idx]['api_key'] = custom_key_input.text().strip()
+
+        custom_endpoint_input.editingFinished.connect(_sync_fields_to_profile)
+        custom_model_input.editingFinished.connect(_sync_fields_to_profile)
+        custom_key_input.editingFinished.connect(_sync_fields_to_profile)
+
+        # Add profile handler
+        def _add_custom_profile():
+            from PyQt6.QtWidgets import QInputDialog
+            name, ok = QInputDialog.getText(
+                self, "New Custom API Profile",
+                "Profile name (e.g. 'Volcengine Doubao', 'DeepSeek'):"
+            )
+            if ok and name.strip():
+                name = name.strip()
+                _profiles = settings.get('custom_openai_profiles', [])
+                # Check for duplicate name
+                if any(p.get('name') == name for p in _profiles):
+                    from PyQt6.QtWidgets import QMessageBox
+                    QMessageBox.warning(self, "Duplicate Name", f"A profile named '{name}' already exists.")
+                    return
+                new_profile = {'name': name, 'endpoint': '', 'model': '', 'api_key': ''}
+                _profiles.append(new_profile)
+                settings['custom_openai_profiles'] = _profiles
+                custom_profile_combo.addItem(name)
+                custom_profile_combo.setCurrentIndex(custom_profile_combo.count() - 1)
+                remove_profile_btn.setEnabled(True)
+
+        add_profile_btn.clicked.connect(_add_custom_profile)
+
+        # Remove profile handler
+        def _remove_custom_profile():
+            idx = custom_profile_combo.currentIndex()
+            if idx < 0:
+                return
+            from PyQt6.QtWidgets import QMessageBox
+            name = custom_profile_combo.currentText()
+            reply = QMessageBox.question(
+                self, "Remove Profile",
+                f"Remove profile '{name}'?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            )
+            if reply == QMessageBox.StandardButton.Yes:
+                _profiles = settings.get('custom_openai_profiles', [])
+                if idx < len(_profiles):
+                    _profiles.pop(idx)
+                    settings['custom_openai_profiles'] = _profiles
+                custom_profile_combo.removeItem(idx)
+                remove_profile_btn.setEnabled(custom_profile_combo.count() > 0)
+
+        remove_profile_btn.clicked.connect(_remove_custom_profile)
 
         custom_info = QLabel(
             "💡 Works with any OpenAI-compatible API: Volcengine (Doubao), "
             "Alibaba Tongyi (Qwen), DeepSeek, Mistral, Groq, etc.\n"
-            "Add your API key as <code>custom_openai = YOUR_KEY</code> in api_keys.txt"
+            "Create multiple profiles to switch between different endpoints."
         )
         custom_info.setWordWrap(True)
         custom_info.setStyleSheet("color: #666; font-size: 9pt; padding: 5px;")
@@ -16648,8 +16801,13 @@ class SupervertalerQt(QMainWindow):
             gemini_combo.setEnabled(gemini_radio.isChecked())
             if ollama_status_widget:
                 ollama_status_widget.setEnabled(ollama_radio.isChecked())
-            custom_endpoint_input.setEnabled(custom_radio.isChecked())
-            custom_model_input.setEnabled(custom_radio.isChecked())
+            _custom_enabled = custom_radio.isChecked()
+            custom_profile_combo.setEnabled(_custom_enabled)
+            add_profile_btn.setEnabled(_custom_enabled)
+            remove_profile_btn.setEnabled(_custom_enabled and custom_profile_combo.count() > 0)
+            custom_endpoint_input.setEnabled(_custom_enabled)
+            custom_model_input.setEnabled(_custom_enabled)
+            custom_key_input.setEnabled(_custom_enabled)
         
         # Handler to show setup dialog when Ollama is selected but not running
         def on_ollama_selected(checked):
@@ -17050,7 +17208,8 @@ class SupervertalerQt(QMainWindow):
             llm_matching_cb, auto_markdown_cb, llm_spin,
             quickmenu_context_slider,
             custom_radio=custom_radio, custom_endpoint_input=custom_endpoint_input,
-            custom_model_input=custom_model_input, custom_enable_cb=custom_enable_cb
+            custom_model_input=custom_model_input, custom_enable_cb=custom_enable_cb,
+            custom_profile_combo=custom_profile_combo, custom_key_input=custom_key_input
         ))
         layout.addWidget(save_btn)
         
@@ -17285,7 +17444,7 @@ class SupervertalerQt(QMainWindow):
             llm_row.addStretch()
             llm_layout.addLayout(llm_row)
 
-        # Custom OpenAI-compatible provider (separate - uses text input for model)
+        # Custom OpenAI-compatible provider (shows active profile info)
         custom_row = QHBoxLayout()
         custom_cb = CheckmarkCheckBox("Custom (OpenAI-Compatible)")
         custom_cb.setChecked(mt_quick_settings.get("mtql_custom_openai", False))
@@ -17293,12 +17452,20 @@ class SupervertalerQt(QMainWindow):
         self._mtql_checkboxes["mtql_custom_openai"] = custom_cb
         custom_row.addWidget(custom_cb)
 
+        llm_settings = self.load_llm_settings()
+        profile = self._get_active_custom_profile(llm_settings)
+        profile_display = ""
+        if profile:
+            profile_display = f"{profile.get('name', 'Custom')} — {profile.get('model', '')}"
+        else:
+            profile_display = mt_quick_settings.get("mtql_custom_openai_model", llm_settings.get('custom_openai_model', ''))
+
         custom_model_edit = QLineEdit()
         custom_model_edit.setMinimumWidth(200)
-        custom_model_edit.setPlaceholderText("Model name from AI Settings")
-        llm_settings = self.load_llm_settings()
-        saved_custom_model = mt_quick_settings.get("mtql_custom_openai_model", llm_settings.get('custom_openai_model', ''))
-        custom_model_edit.setText(saved_custom_model)
+        custom_model_edit.setPlaceholderText("Uses active profile from AI Settings")
+        custom_model_edit.setText(profile_display)
+        custom_model_edit.setReadOnly(True)
+        custom_model_edit.setStyleSheet("color: #666; background: #f5f5f5;")
         self._mtql_llm_combos["mtql_custom_openai_model"] = custom_model_edit
         custom_row.addWidget(custom_model_edit)
         custom_row.addStretch()
@@ -20513,7 +20680,8 @@ class SupervertalerQt(QMainWindow):
                                    llm_matching_cb, auto_markdown_cb, llm_spin,
                                    quickmenu_context_slider,
                                    custom_radio=None, custom_endpoint_input=None,
-                                   custom_model_input=None, custom_enable_cb=None):
+                                   custom_model_input=None, custom_enable_cb=None,
+                                   custom_profile_combo=None, custom_key_input=None):
         """Save all AI settings from the unified AI Settings tab"""
         # Determine selected provider
         if openai_radio.isChecked():
@@ -20536,14 +20704,34 @@ class SupervertalerQt(QMainWindow):
             if selected:
                 ollama_model = selected
 
+        # Build profiles list from UI state
+        existing_settings = self.load_llm_settings()
+        profiles = existing_settings.get('custom_openai_profiles', [])
+        active_profile_name = ''
+
+        if custom_profile_combo and custom_profile_combo.count() > 0:
+            # Sync current field values into the active profile
+            idx = custom_profile_combo.currentIndex()
+            if 0 <= idx < len(profiles):
+                profiles[idx]['endpoint'] = custom_endpoint_input.text().strip() if custom_endpoint_input else ''
+                profiles[idx]['model'] = custom_model_input.text().strip() if custom_model_input else ''
+                profiles[idx]['api_key'] = custom_key_input.text().strip() if custom_key_input else ''
+            active_profile_name = custom_profile_combo.currentText()
+
+        # For legacy compat, also store flat fields from active profile
+        active_endpoint = custom_endpoint_input.text().strip() if custom_endpoint_input else ''
+        active_model = custom_model_input.text().strip() if custom_model_input else ''
+
         new_settings = {
             'provider': provider,
             'openai_model': openai_combo.currentText().split()[0],
             'claude_model': claude_combo.currentText().split()[0],
             'gemini_model': gemini_combo.currentText().split()[0],
             'ollama_model': ollama_model,
-            'custom_openai_model': custom_model_input.text().strip() if custom_model_input else '',
-            'custom_openai_endpoint': custom_endpoint_input.text().strip() if custom_endpoint_input else ''
+            'custom_openai_model': active_model,
+            'custom_openai_endpoint': active_endpoint,
+            'custom_openai_profiles': profiles,
+            'custom_openai_active_profile': active_profile_name
         }
         self.save_llm_settings(new_settings)
 
@@ -35011,14 +35199,19 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                 api_key = api_keys.get('claude', '')
             elif provider == 'gemini':
                 api_key = api_keys.get('gemini', '')
-            elif provider in ('ollama', 'custom_openai'):
-                api_key = api_keys.get(provider, '') or 'not-needed'
+            elif provider == 'ollama':
+                api_key = api_keys.get('ollama', '') or 'not-needed'
+            elif provider == 'custom_openai':
+                profile = self._get_active_custom_profile(settings)
+                profile_key = (profile.get('api_key') or '').strip() if profile else ''
+                api_key = profile_key or api_keys.get('custom_openai', '') or 'not-needed'
             else:
                 api_key = ''
 
             base_url = None
             if provider == 'custom_openai':
-                base_url = settings.get('custom_openai_endpoint', '') or None
+                profile = self._get_active_custom_profile(settings)
+                base_url = profile.get('endpoint') or None if profile else None
             llm_client = LLMClient(api_key=api_key, provider=provider, model=model, base_url=base_url)
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to initialize LLM client:\n{str(e)}")
@@ -42544,7 +42737,9 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             'gemini_model': 'gemini-2.5-flash',
             'ollama_model': 'qwen2.5:7b',
             'custom_openai_model': '',
-            'custom_openai_endpoint': ''
+            'custom_openai_endpoint': '',
+            'custom_openai_profiles': [],
+            'custom_openai_active_profile': ''
         }
 
         if not prefs_file.exists():
@@ -42557,6 +42752,16 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                 # Ensure new keys exist for older configs
                 for k, v in defaults.items():
                     saved.setdefault(k, v)
+                # Auto-migrate: old single-field config → profiles
+                if not saved.get('custom_openai_profiles') and saved.get('custom_openai_endpoint'):
+                    api_keys = self.load_api_keys() if hasattr(self, 'load_api_keys') else {}
+                    saved['custom_openai_profiles'] = [{
+                        'name': 'Custom Endpoint',
+                        'endpoint': saved['custom_openai_endpoint'],
+                        'model': saved.get('custom_openai_model', ''),
+                        'api_key': api_keys.get('custom_openai', '')
+                    }]
+                    saved['custom_openai_active_profile'] = 'Custom Endpoint'
                 return saved
         except:
             return defaults
@@ -42584,6 +42789,34 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         except Exception as e:
             self.log(f"⚠ Could not save LLM settings: {str(e)}")
 
+    def _get_active_custom_profile(self, settings=None):
+        """Get the active custom_openai profile dict (endpoint, model, api_key).
+
+        Returns dict with keys: name, endpoint, model, api_key — or None if no profile configured.
+        Falls back to legacy single-field config for backward compatibility.
+        """
+        if settings is None:
+            settings = self.load_llm_settings()
+        profiles = settings.get('custom_openai_profiles', [])
+        active_name = settings.get('custom_openai_active_profile', '')
+
+        # Find active profile by name
+        for p in profiles:
+            if p.get('name') == active_name:
+                return p
+
+        # Fallback to first profile
+        if profiles:
+            return profiles[0]
+
+        # Legacy fallback: old single-field config (pre-profiles)
+        endpoint = settings.get('custom_openai_endpoint', '')
+        model = settings.get('custom_openai_model', '')
+        if endpoint:
+            return {'name': 'Custom Endpoint', 'endpoint': endpoint, 'model': model, 'api_key': ''}
+
+        return None
+
     def create_llm_client(self, provider, model, api_keys, settings=None):
         """Create an LLMClient with proper base_url handling for custom_openai."""
         from modules.llm_clients import LLMClient
@@ -42592,8 +42825,14 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         if provider == 'custom_openai':
             if settings is None:
                 settings = self.load_llm_settings()
-            base_url = settings.get('custom_openai_endpoint', '') or None
-            if not api_key:
+            profile = self._get_active_custom_profile(settings)
+            if profile:
+                base_url = profile.get('endpoint') or None
+                model = model or profile.get('model') or 'custom-model'
+                # Profile API key takes priority, then api_keys.txt fallback
+                profile_key = (profile.get('api_key') or '').strip()
+                api_key = profile_key or api_keys.get('custom_openai', '') or 'not-needed'
+            elif not api_key:
                 api_key = api_keys.get('custom_openai', '') or 'not-needed'
         return LLMClient(api_key=api_key, provider=provider, model=model, base_url=base_url)
 
@@ -44231,12 +44470,15 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         model_key = f'{provider}_model'
         model = settings.get(model_key)
 
-        # Load API keys (unless Ollama)
-        if provider in ('ollama', 'custom_openai'):
-            api_keys = self.load_api_keys()
-            api_key = api_keys.get(provider, '') or 'not-needed'
+        # Load API keys
+        api_keys = self.load_api_keys()
+        if provider == 'ollama':
+            api_key = api_keys.get('ollama', '') or 'not-needed'
+        elif provider == 'custom_openai':
+            profile = self._get_active_custom_profile(settings)
+            profile_key = (profile.get('api_key') or '').strip() if profile else ''
+            api_key = profile_key or api_keys.get('custom_openai', '') or 'not-needed'
         else:
-            api_keys = self.load_api_keys()
             if not api_keys:
                 QMessageBox.warning(self, "QuickMenu", "No API keys found. Configure them in Settings first.")
                 return
@@ -44258,7 +44500,8 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
 
             base_url = None
             if provider == 'custom_openai':
-                base_url = settings.get('custom_openai_endpoint', '') or None
+                profile = self._get_active_custom_profile(settings)
+                base_url = profile.get('endpoint') or None if profile else None
             client = LLMClient(api_key=api_key, provider=provider, model=model, base_url=base_url)
             
             # Use translate() with empty text and custom_prompt for generic AI completion
@@ -44691,7 +44934,12 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             model_key = f'{llm_provider}_model'
             llm_model = settings.get(model_key, 'gpt-4o')
 
-            provider_display = "Custom (OpenAI-Compatible)" if llm_provider == 'custom_openai' else llm_provider.title()
+            if llm_provider == 'custom_openai':
+                profile = self._get_active_custom_profile(settings)
+                profile_name = profile.get('name', 'Custom') if profile else 'Custom'
+                provider_display = f"Custom: {profile_name}"
+            else:
+                provider_display = llm_provider.title()
             llm_info = QLabel(f"📊 Current LLM: {provider_display} ({llm_model})")
             llm_info.setStyleSheet("color: #666; font-size: 9pt; padding: 5px 0;")
             dialog_layout.addWidget(llm_info)
@@ -44971,10 +45219,16 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         # Pre-fetch glossary terms on main thread (SQLite is not thread-safe)
         glossary_terms = self.get_ai_inject_glossary_terms()
 
-        # Get base_url for custom_openai provider
+        # Get base_url and api_key for custom_openai provider (from active profile)
         custom_base_url = None
+        custom_api_key = None
         if translation_provider_name == 'custom_openai':
-            custom_base_url = settings.get('custom_openai_endpoint', '') or None
+            profile = self._get_active_custom_profile(settings)
+            if profile:
+                custom_base_url = profile.get('endpoint') or None
+                profile_key = (profile.get('api_key') or '').strip()
+                if profile_key:
+                    custom_api_key = profile_key
 
         worker = PreTranslationWorker(
             self,
@@ -44988,7 +45242,8 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             retry_pass=retry_pass,
             tm_ids=None,  # TM pre-translation now on main thread
             glossary_terms=glossary_terms,
-            base_url=custom_base_url
+            base_url=custom_base_url,
+            custom_api_key=custom_api_key
         )
         dialog = LiveProgressDialog(self, len(segments_needing_translation), provider_info)
         
@@ -45884,24 +46139,28 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         api_key_value = api_keys.get(provider) or (api_keys.get('google') if provider == 'gemini' else None)
         if not api_key_value and provider not in ('ollama', 'custom_openai'):
             return  # No API key for selected provider
+        # Resolve custom_openai profile for API key and base_url
+        _custom_profile = None
         if provider == 'custom_openai':
-            api_key_value = api_key_value or 'not-needed'
+            _custom_profile = self._get_active_custom_profile(settings)
+            profile_key = (_custom_profile.get('api_key') or '').strip() if _custom_profile else ''
+            api_key_value = profile_key or api_key_value or 'not-needed'
 
         # Get model based on provider
         model_key = f'{provider}_model'
         model = settings.get(model_key, 'gpt-4o')
-        
+
         # Get languages
         source_lang = getattr(self.current_project, 'source_lang', 'en')
         target_lang = getattr(self.current_project, 'target_lang', 'nl')
-        
+
         # Use QTimer to run in background (non-blocking)
         def fetch_and_update():
             try:
                 from modules.llm_clients import LLMClient
                 from modules.translation_results_panel import TranslationMatch
-                
-                base_url = settings.get('custom_openai_endpoint', '') or None if provider == 'custom_openai' else None
+
+                base_url = _custom_profile.get('endpoint') or None if _custom_profile else None
                 client = LLMClient(
                     api_key=api_key_value,
                     provider=provider,
