@@ -2,9 +2,17 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.233 (February 7, 2026)
+**Current Version:** v1.9.234 (February 7, 2026)
 
 
+
+## v1.9.234 - February 7, 2026
+
+### ✨ New Features
+
+- **Multi-file export: "Original Format" option**: The multi-file export dialog now defaults to "Original Format", which exports each file back to its source format (`.txt`, `.md`, or `.docx`). This is especially useful for mixed-format projects where different files were imported with different types.
+
+---
 
 ## v1.9.233 - February 7, 2026
 

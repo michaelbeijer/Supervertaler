@@ -27046,11 +27046,15 @@ class SupervertalerQt(QMainWindow):
         # Export format selection
         format_group = QGroupBox("Export Format")
         format_layout = QVBoxLayout(format_group)
-        
+
         format_btn_group = QButtonGroup(dialog)
-        
+
+        original_radio = CheckmarkRadioButton("Original Format - Each file exports to its source format")
+        original_radio.setChecked(True)
+        format_btn_group.addButton(original_radio, 5)
+        format_layout.addWidget(original_radio)
+
         txt_radio = CheckmarkRadioButton("Plain Text (.txt) - One line per segment")
-        txt_radio.setChecked(True)
         format_btn_group.addButton(txt_radio, 1)
         format_layout.addWidget(txt_radio)
 
@@ -27104,24 +27108,31 @@ class SupervertalerQt(QMainWindow):
         preview_layout.addWidget(preview_table)
         layout.addWidget(preview_group)
         
+        # Map file types to extensions for "Original Format" export
+        _type_to_ext = {'txt': '.txt', 'md': '.md', 'docx': '.docx'}
+
         # Update output names when format changes
         def update_output_names():
-            if txt_radio.isChecked():
-                ext = ".txt"
-            elif md_radio.isChecked():
-                ext = ".md"
-            else:
-                ext = ".docx"
             for row, file_info in enumerate(files):
                 base_name = os.path.splitext(file_info['name'])[0]
                 suffix = "_bilingual" if bilingual_radio.isChecked() else "_translated"
+                if original_radio.isChecked():
+                    ext = _type_to_ext.get(file_info.get('type', 'txt'), '.txt')
+                elif txt_radio.isChecked():
+                    ext = ".txt"
+                elif md_radio.isChecked():
+                    ext = ".md"
+                else:
+                    ext = ".docx"
                 output_name = f"{base_name}{suffix}{ext}"
                 preview_table.setItem(row, 3, QTableWidgetItem(output_name))
 
+        original_radio.toggled.connect(update_output_names)
         txt_radio.toggled.connect(update_output_names)
         md_radio.toggled.connect(update_output_names)
         docx_radio.toggled.connect(update_output_names)
         bilingual_radio.toggled.connect(update_output_names)
+        update_output_names()  # Set initial preview with original format selected
         
         layout.addSpacing(10)
         
@@ -27142,7 +27153,9 @@ class SupervertalerQt(QMainWindow):
             return
         
         # Get export format
-        if txt_radio.isChecked():
+        if original_radio.isChecked():
+            export_format = "original"
+        elif txt_radio.isChecked():
             export_format = "txt"
         elif md_radio.isChecked():
             export_format = "md"
@@ -27229,26 +27242,29 @@ class SupervertalerQt(QMainWindow):
                 continue
             
             try:
-                if export_format in ("txt", "md"):
+                # Resolve per-file format when "Original Format" is selected
+                file_format = export_format
+                if export_format == "original":
+                    file_format = file_info.get('type', 'txt')
+
+                format_note = ""
+                if file_format in ("txt", "md"):
                     # Export as plain text / Markdown
-                    ext = ".md" if export_format == "md" else ".txt"
+                    ext = ".md" if file_format == "md" else ".txt"
                     output_path = os.path.join(output_folder, f"{base_name}_translated{ext}")
                     self._export_file_as_txt(file_segments, output_path)
 
-                elif export_format == "docx":
+                elif file_format == "docx":
                     # Export as DOCX (preserving original formatting if possible)
                     output_path = os.path.join(output_folder, f"{base_name}_translated.docx")
-                    # Track if we'll preserve formatting
-                    format_note = ""
                     if not path_exists:
                         format_note = " (no original - plain text)"
                         files_missing_originals.append(file_name)
                     self._export_file_as_docx(file_segments, output_path, original_path if path_exists else None)
-                    
-                elif export_format == "bilingual":
+
+                elif file_format == "bilingual":
                     # Export as bilingual table
                     output_path = os.path.join(output_folder, f"{base_name}_bilingual.docx")
-                    format_note = ""
                     self._export_file_as_bilingual(file_segments, output_path)
                 
                 exported_count += 1
