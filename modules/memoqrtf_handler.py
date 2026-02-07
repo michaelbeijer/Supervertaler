@@ -300,11 +300,31 @@ class MemoQRTFHandler:
         content = re.sub(r'\\line\s?', '\n', content)           # line break
         content = re.sub(r'\\tab\s?', '\t', content)            # tab
 
+        # Decode Unicode escapes BEFORE generic strip (e.g. \uc0\u8220 → ")
+        # The generic strip below would otherwise eat \uc0 and \u8220 as control words.
+        def _replace_unicode(match):
+            code = int(match.group(1))
+            if code < 0:
+                code = 65536 + code
+            try:
+                return chr(code)
+            except (ValueError, OverflowError):
+                return ''
+        content = re.sub(r'\\uc0\\u(-?\d+)\s?', _replace_unicode, content)
+        content = re.sub(r'\\u(-?\d+)\?', _replace_unicode, content)
+        content = re.sub(r'\\u(-?\d+) ', _replace_unicode, content)
+
+        # Decode RTF hex escapes before generic strip (e.g. \'93 → ")
+        for rtf_code, char in RTF_ESCAPE_MAP.items():
+            content = content.replace(rtf_code, char)
+
         # Remove remaining control words
         content = re.sub(r'\\[a-z]+\d*\s*', '', content)
 
-        # Decode special characters
-        content = self._decode_rtf_text(content)
+        # Decode remaining special characters (brace/backslash unescaping)
+        content = content.replace(r'\{', '{')
+        content = content.replace(r'\}', '}')
+        content = content.replace('\\\\', '\\')
 
         # Remove \cell marker
         content = re.sub(r'\\cell\s*', '', content)
