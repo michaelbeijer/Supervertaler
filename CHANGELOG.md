@@ -2,9 +2,15 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.227 (February 7, 2026)
+**Current Version:** v1.9.228 (February 7, 2026)
 
 
+
+## v1.9.228 - February 7, 2026
+
+### 🐛 Bug Fixes
+
+- **TM Read/Write settings now persist correctly across restarts** (#143): Fixed a bug where TM activation (Read checkbox) and write status (Write checkbox) could revert to wrong values after closing and reopening a project. The root cause was stale global TM activations overriding project-specific settings. Project-specific TM settings now always take priority over global defaults.
 
 ## v1.9.227 - February 7, 2026
 

@@ -323,16 +323,20 @@ class TMMetadataManager:
             return False
     
     def deactivate_tm(self, tm_db_id: int, project_id: int) -> bool:
-        """Deactivate a TM for a specific project"""
+        """Deactivate a TM for a specific project.
+
+        Uses INSERT OR REPLACE to ensure a project-specific record exists,
+        which prevents stale global (project_id=0) activations from leaking through.
+        """
         try:
             cursor = self.db_manager.cursor
-            
+            now = datetime.now().isoformat()
+
             cursor.execute("""
-                UPDATE tm_activation 
-                SET is_active = 0
-                WHERE tm_id = ? AND project_id = ?
-            """, (tm_db_id, project_id))
-            
+                INSERT OR REPLACE INTO tm_activation (tm_id, project_id, is_active, activated_date)
+                VALUES (?, ?, 0, ?)
+            """, (tm_db_id, project_id, now))
+
             self.db_manager.connection.commit()
             self.log(f"✓ Deactivated TM {tm_db_id} for project {project_id}")
             return True
@@ -341,24 +345,35 @@ class TMMetadataManager:
             return False
     
     def is_tm_active(self, tm_db_id: int, project_id: Optional[int]) -> bool:
-        """Check if a TM is active for a project (or global when project_id=0)"""
+        """Check if a TM is active for a project (or global when project_id=0).
+
+        Project-specific records take priority over global (project_id=0) records.
+        Global records are only used as fallback when no project-specific record exists.
+        """
         if project_id is None:
             return False  # If None (not 0), default to inactive
 
         try:
             cursor = self.db_manager.cursor
 
-            # Check if TM is active for this project OR globally (project_id=0)
+            # Check project-specific record first (takes priority)
+            if project_id != 0:
+                cursor.execute("""
+                    SELECT is_active FROM tm_activation
+                    WHERE tm_id = ? AND project_id = ?
+                """, (tm_db_id, project_id))
+                row = cursor.fetchone()
+                if row is not None:
+                    return bool(row[0])
+
+            # Fall back to global (project_id=0) only if no project-specific record
             cursor.execute("""
                 SELECT is_active FROM tm_activation
-                WHERE tm_id = ? AND (project_id = ? OR project_id = 0)
-                ORDER BY project_id DESC
-            """, (tm_db_id, project_id))
-
-            # Return True if any activation is active (project-specific takes priority due to ORDER BY)
-            for row in cursor.fetchall():
-                if bool(row[0]):
-                    return True
+                WHERE tm_id = ? AND project_id = 0
+            """, (tm_db_id,))
+            row = cursor.fetchone()
+            if row is not None:
+                return bool(row[0])
 
             # If no activation record exists, TM is inactive by default
             return False
@@ -386,16 +401,31 @@ class TMMetadataManager:
         try:
             cursor = self.db_manager.cursor
 
-            # Only return TMs that have been explicitly activated (is_active = 1)
-            # Include both project-specific activations AND global activations (project_id=0)
+            # Project-specific activations take priority over global (project_id=0).
+            # A TM is active if:
+            #   1. It has a project-specific record with is_active=1, OR
+            #   2. It has NO project-specific record but has a global record with is_active=1
             cursor.execute("""
                 SELECT DISTINCT tm.tm_id
                 FROM translation_memories tm
                 INNER JOIN tm_activation ta ON tm.id = ta.tm_id
-                WHERE (ta.project_id = ? OR ta.project_id = 0) AND ta.is_active = 1
+                WHERE ta.project_id = ? AND ta.is_active = 1
             """, (project_id,))
+            result = [row[0] for row in cursor.fetchall()]
 
-            return [row[0] for row in cursor.fetchall()]
+            # Add globally activated TMs that don't have a project-specific record
+            cursor.execute("""
+                SELECT DISTINCT tm.tm_id
+                FROM translation_memories tm
+                INNER JOIN tm_activation ta ON tm.id = ta.tm_id
+                WHERE ta.project_id = 0 AND ta.is_active = 1
+                AND tm.id NOT IN (
+                    SELECT tm_id FROM tm_activation WHERE project_id = ?
+                )
+            """, (project_id,))
+            result.extend(row[0] for row in cursor.fetchall())
+
+            return result
         except Exception as e:
             self.log(f"✗ Error fetching active tm_ids: {e}")
             return []
@@ -428,16 +458,29 @@ class TMMetadataManager:
             cursor = self.db_manager.cursor
 
             # Return TMs where Write checkbox is enabled (read_only = 0)
-            # AND the TM has an activation record for this project OR for global (project_id=0)
-            # This ensures TMs created when no project was loaded still work
+            # AND the TM is active for this project.
+            # Project-specific records take priority over global (project_id=0).
             cursor.execute("""
                 SELECT DISTINCT tm.tm_id
                 FROM translation_memories tm
                 INNER JOIN tm_activation ta ON tm.id = ta.tm_id
-                WHERE (ta.project_id = ? OR ta.project_id = 0) AND tm.read_only = 0
+                WHERE ta.project_id = ? AND ta.is_active = 1 AND tm.read_only = 0
             """, (project_id,))
+            result = [row[0] for row in cursor.fetchall()]
 
-            return [row[0] for row in cursor.fetchall()]
+            # Add globally activated writable TMs that don't have a project-specific record
+            cursor.execute("""
+                SELECT DISTINCT tm.tm_id
+                FROM translation_memories tm
+                INNER JOIN tm_activation ta ON tm.id = ta.tm_id
+                WHERE ta.project_id = 0 AND ta.is_active = 1 AND tm.read_only = 0
+                AND tm.id NOT IN (
+                    SELECT tm_id FROM tm_activation WHERE project_id = ?
+                )
+            """, (project_id,))
+            result.extend(row[0] for row in cursor.fetchall())
+
+            return result
         except Exception as e:
             self.log(f"✗ Error fetching writable tm_ids: {e}")
             return []
