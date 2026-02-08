@@ -1,20 +1,20 @@
-# Supervertaler QuickMenu Integration Plan
+# Supervertaler Quickmenu Integration Plan
 
 **Date:** 2025-01-06  
 **Status:** Planning Phase  
-**Goal:** Integrate Beijer.bot (AutoHotkey) as "Supervertaler QuickMenu" companion tool
+**Goal:** Integrate Beijer.bot (AutoHotkey) as "Supervertaler Quickmenu" companion tool
 
 ---
 
 ## 🎯 Executive Summary
 
-This document outlines the plan to integrate Beijer.bot (an AutoHotkey-based productivity menu) with Supervertaler as a companion tool called **"Supervertaler QuickMenu"**.
+This document outlines the plan to integrate Beijer.bot (an AutoHotkey-based productivity menu) with Supervertaler as a companion tool called **"Supervertaler Quickmenu"**.
 
 ### The Vision
 
 Create a unified translator toolkit:
 - **Supervertaler** (Python/Qt) - The main application for deep translation work
-- **Supervertaler QuickMenu** (AutoHotkey) - Lightning-fast companion for instant access anywhere in Windows
+- **Supervertaler Quickmenu** (AutoHotkey) - Lightning-fast companion for instant access anywhere in Windows
 
 ---
 
@@ -28,7 +28,7 @@ Create a unified translator toolkit:
 - ✅ Users work **inside** the application
 - ✅ Context-aware translation with multiple data sources
 
-### Beijer.bot / QuickMenu (AutoHotkey)
+### Beijer.bot / Quickmenu (AutoHotkey)
 - ✅ Lightning-fast access **anywhere** in Windows
 - ✅ Context menu integration = zero workflow disruption
 - ✅ Hotstrings & hotkeys for instant text expansion
@@ -40,7 +40,7 @@ Create a unified translator toolkit:
 ### Key Insight
 **Don't compete - complement!** Each tool excels in different scenarios:
 - Supervertaler: Deep, focused translation work
-- QuickMenu: Quick access, text snippets, instant searches, cross-application productivity
+- Quickmenu: Quick access, text snippets, instant searches, cross-application productivity
 
 ---
 
@@ -98,9 +98,9 @@ Use AutoHotkey as frontend, Python as backend.
 
 **Combine Option 1 + Option 3:** Keep tools separate but create tight integration through:
 
-1. **Unified Branding** - "Supervertaler QuickMenu"
-2. **Launcher Integration** - QuickMenu launches Supervertaler features
-3. **Python CLI Bridge** - QuickMenu calls Supervertaler functions via CLI
+1. **Unified Branding** - "Supervertaler Quickmenu"
+2. **Launcher Integration** - Quickmenu launches Supervertaler features
+3. **Python CLI Bridge** - Quickmenu calls Supervertaler functions via CLI
 4. **Shared Configuration** - Both tools read from shared config files
 
 ---
@@ -110,12 +110,12 @@ Use AutoHotkey as frontend, Python as backend.
 ```
 Supervertaler Ecosystem/
 ├── Supervertaler_Qt.exe             # Main application (Python/Qt)
-├── Supervertaler_QuickMenu.exe      # Companion menu (AutoHotkey)
+├── Supervertaler_Quickmenu.exe      # Companion menu (AutoHotkey)
 ├── supervertaler_cli.py             # CLI bridge for integration
 ├── README.md
 └── config/
     ├── supervertaler_config.ini     # Main app config
-    └── quickmenu_config.ini         # QuickMenu config (shared data)
+    └── quickmenu_config.ini         # Quickmenu config (shared data)
 ```
 
 ---
@@ -134,12 +134,12 @@ MenuPopup.Add("• Translate (Dutch to English)", TranslateDutchEnglish)
 
 **New structure:**
 ```autohotkey
-MenuPopup.Add("Supervertaler QuickMenu v1.0", EditScript)
+MenuPopup.Add("Supervertaler Quickmenu v1.0", EditScript)
 MenuPopup.Add("Open Supervertaler (Main App)", OpenSupervertaler)
 MenuPopup.Add()
 
 MenuPopup.Add("&SUPERVERTALER ACTIONS:", NOP)
-MenuPopup.Add("• Quick Translate Selection", QuickTranslate)
+MenuPopup.Add("• Quick Translate Selection", Quicktranslate)
 MenuPopup.Add("• Universal Lookup", (*) => Send("^!l"))
 MenuPopup.Add("• Open PDF Rescue", OpenPDFRescue)
 MenuPopup.Add("• Open TMX Editor", OpenTMXEditor)
@@ -181,7 +181,7 @@ OpenSupervertaler(*) {
 
 #### Quick Translate via Python Backend
 ```autohotkey
-QuickTranslate(*) {
+Quicktranslate(*) {
     ; Copy selected text
     A_Clipboard := ""
     Send "^c"
@@ -254,7 +254,7 @@ Create `supervertaler_cli.py` in Supervertaler project:
 #!/usr/bin/env python3
 """
 Supervertaler CLI Bridge
-Allows external tools (like QuickMenu) to call Supervertaler functions.
+Allows external tools (like Quickmenu) to call Supervertaler functions.
 """
 
 import argparse
@@ -344,18 +344,18 @@ SupervertalerPath = C:\Dev\Supervertaler
 PythonExecutable = pythonw.exe
 
 [Integration]
-EnableQuickTranslate = true
+EnableQuicktranslate = true
 EnableModuleLaunchers = true
 EnableUniversalLookup = true
 
 [Hotkeys]
-QuickMenu = ^+!k
+Quickmenu = ^+!k
 UniversalLookup = ^!l
 ```
 
 ---
 
-## 📋 QuickMenu Features to Keep
+## 📋 Quickmenu Features to Keep
 
 ### Core Features (Keep as-is)
 - ✅ **ChatGPT Integration** - Quick AI translations, proofreading, etc.
@@ -376,7 +376,7 @@ UniversalLookup = ^!l
 ## 🎯 Menu Structure (Proposed)
 
 ```
-Supervertaler QuickMenu
+Supervertaler Quickmenu
 ├─ About / Edit / Settings
 ├─ Open Supervertaler (Main App)
 │
@@ -428,10 +428,10 @@ Supervertaler QuickMenu
 ## 🚀 Implementation Phases
 
 ### Phase 1: Core Rebranding ✅
-**Goal:** Rename and restructure QuickMenu with Supervertaler branding
+**Goal:** Rename and restructure Quickmenu with Supervertaler branding
 
 **Tasks:**
-1. Rename script from `Beijer.bot.ahk` to `Supervertaler_QuickMenu.ahk`
+1. Rename script from `Beijer.bot.ahk` to `Supervertaler_Quickmenu.ahk`
 2. Update all references (window titles, about text, etc.)
 3. Restructure menu with new categories
 4. Add Supervertaler integration section (placeholder)
@@ -439,14 +439,14 @@ Supervertaler QuickMenu
 6. Create basic documentation
 
 **Deliverables:**
-- `Supervertaler_QuickMenu.ahk`
+- `Supervertaler_Quickmenu.ahk`
 - Updated README
 - New icon file
 
 ---
 
 ### Phase 2: Python CLI Bridge 🔄
-**Goal:** Create communication layer between QuickMenu and Supervertaler
+**Goal:** Create communication layer between Quickmenu and Supervertaler
 
 **Tasks:**
 1. Create `supervertaler_cli.py` with translate command
@@ -463,19 +463,19 @@ Supervertaler QuickMenu
 
 ---
 
-### Phase 3: QuickMenu Integration ⏳
-**Goal:** Connect QuickMenu to Supervertaler via CLI
+### Phase 3: Quickmenu Integration ⏳
+**Goal:** Connect Quickmenu to Supervertaler via CLI
 
 **Tasks:**
 1. Implement `OpenSupervertaler()` function
-2. Implement `QuickTranslate()` function
+2. Implement `Quicktranslate()` function
 3. Add module launcher functions
 4. Add Universal Lookup trigger
 5. Create settings UI for paths
 6. Test all integration functions
 
 **Deliverables:**
-- Working integration functions in QuickMenu
+- Working integration functions in Quickmenu
 - Settings dialog for configuration
 - Integration testing results
 
@@ -502,12 +502,12 @@ Supervertaler QuickMenu
 
 ## 🔐 Configuration & Settings
 
-### QuickMenu Settings Dialog
+### Quickmenu Settings Dialog
 Create a settings GUI for users to configure integration:
 
 ```autohotkey
 ShowSettings(*) {
-    SettingsGui := Gui("+Resize", "Supervertaler QuickMenu - Settings")
+    SettingsGui := Gui("+Resize", "Supervertaler Quickmenu - Settings")
     
     ; Supervertaler Integration
     SettingsGui.Add("GroupBox", "w400 h150", "Supervertaler Integration")
@@ -518,7 +518,7 @@ ShowSettings(*) {
     SettingsGui.Add("Text", "x20 y+10", "Python Executable:")
     pythonEdit := SettingsGui.Add("Edit", "w300", PythonExecutable)
     
-    SettingsGui.Add("Checkbox", "x20 y+10", "Enable Quick Translate").Value := EnableQuickTranslate
+    SettingsGui.Add("Checkbox", "x20 y+10", "Enable Quick Translate").Value := EnableQuicktranslate
     SettingsGui.Add("Checkbox", "x20 y+5", "Enable Module Launchers").Value := EnableModuleLaunchers
     
     ; Save/Cancel buttons
@@ -536,7 +536,7 @@ ShowSettings(*) {
 ### For Users
 1. **Quick Start Guide** - Get started in 5 minutes
 2. **User Manual** - Complete feature documentation
-3. **Integration Guide** - How QuickMenu works with Supervertaler
+3. **Integration Guide** - How Quickmenu works with Supervertaler
 4. **Hotkey Reference** - All keyboard shortcuts
 5. **FAQ** - Common questions
 
@@ -559,14 +559,14 @@ ShowSettings(*) {
 
 ### Naming Convention
 - Main tool: **Supervertaler**
-- Companion: **Supervertaler QuickMenu**
-- Shortened: **QuickMenu**
+- Companion: **Supervertaler Quickmenu**
+- Shortened: **Quickmenu**
 - CLI: **Supervertaler CLI**
 
 ### Messaging
 - "The Ultimate Translator Toolkit"
 - "Supervertaler: Deep translation work"
-- "QuickMenu: Instant access anywhere"
+- "Quickmenu: Instant access anywhere"
 - "Better together"
 
 ---
@@ -588,8 +588,8 @@ ShowSettings(*) {
 ### Challenge 4: Two Tools Running
 **Problem:** Users need both tools running for full integration  
 **Solution:** 
-- QuickMenu can auto-start Supervertaler if needed
-- QuickMenu works standalone without Supervertaler
+- Quickmenu can auto-start Supervertaler if needed
+- Quickmenu works standalone without Supervertaler
 - Clear documentation on what requires Supervertaler
 
 ---
@@ -618,20 +618,20 @@ ShowSettings(*) {
 ## 🔮 Future Possibilities
 
 ### Phase 5+: Advanced Integration
-- **Bidirectional Communication** - Supervertaler can trigger QuickMenu functions
+- **Bidirectional Communication** - Supervertaler can trigger Quickmenu functions
 - **Shared Clipboard History** - Recent translations accessible in both tools
-- **Synchronized Glossaries** - QuickMenu can insert from Supervertaler termbases
-- **Smart Context** - QuickMenu detects active CAT tool and adjusts features
+- **Synchronized Glossaries** - Quickmenu can insert from Supervertaler termbases
+- **Smart Context** - Quickmenu detects active CAT tool and adjusts features
 - **Voice Control** - Dragon/Talon integration for both tools
 - **Cloud Sync** - Optional cloud sync for snippets and settings
-- **Plugin System** - Community-created extensions for QuickMenu
+- **Plugin System** - Community-created extensions for Quickmenu
 
 ---
 
 ## 📝 Next Steps
 
 1. **Review this document** - Ensure alignment on vision and approach
-2. **Finalize naming** - Confirm "Supervertaler QuickMenu" as official name
+2. **Finalize naming** - Confirm "Supervertaler Quickmenu" as official name
 3. **Set up project structure** - Create folders in Supervertaler repo
 4. **Start Phase 1** - Begin rebranding work
 5. **Create CLI spec** - Define all CLI commands needed
@@ -641,11 +641,11 @@ ShowSettings(*) {
 
 ## 📞 Questions to Resolve
 
-- [ ] Should QuickMenu be distributed separately or bundled with Supervertaler?
+- [ ] Should Quickmenu be distributed separately or bundled with Supervertaler?
 - [ ] What installation method: Installer vs. Portable zip?
-- [ ] Should we create a public GitHub repo for QuickMenu or keep it in Supervertaler repo?
+- [ ] Should we create a public GitHub repo for Quickmenu or keep it in Supervertaler repo?
 - [ ] What's the minimum Python version to support?
-- [ ] Should QuickMenu have auto-update capability?
+- [ ] Should Quickmenu have auto-update capability?
 - [ ] Which features should require Supervertaler running vs. work standalone?
 
 ---

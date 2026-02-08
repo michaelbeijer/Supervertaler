@@ -1,14 +1,14 @@
-# Supervertaler QuickMenu Integration Documentation
+# Supervertaler Quickmenu Integration Documentation
 
 **Last Updated:** 2025-01-06  
 **Status:** Planning Phase  
-**Project:** Integrate Beijer.bot as Supervertaler QuickMenu
+**Project:** Integrate Beijer.bot as Supervertaler Quickmenu
 
 ---
 
 ## 📚 Documentation Overview
 
-This directory contains comprehensive documentation for integrating Beijer.bot (AutoHotkey productivity menu) with Supervertaler as a companion tool called **"Supervertaler QuickMenu"**.
+This directory contains comprehensive documentation for integrating Beijer.bot (AutoHotkey productivity menu) with Supervertaler as a companion tool called **"Supervertaler Quickmenu"**.
 
 ---
 
@@ -69,7 +69,7 @@ This directory contains comprehensive documentation for integrating Beijer.bot (
 - Configuration file format
 - Future enhancements
 
-**Use this** to implement the Python CLI that bridges QuickMenu and Supervertaler.
+**Use this** to implement the Python CLI that bridges Quickmenu and Supervertaler.
 
 ---
 
@@ -94,20 +94,20 @@ This directory contains comprehensive documentation for integrating Beijer.bot (
 ## 🎯 Quick Reference
 
 ### The Vision in One Sentence
-Create a unified translator toolkit where **Supervertaler** handles deep translation work and **Supervertaler QuickMenu** provides lightning-fast access to tools, searches, and AI features from anywhere in Windows.
+Create a unified translator toolkit where **Supervertaler** handles deep translation work and **Supervertaler Quickmenu** provides lightning-fast access to tools, searches, and AI features from anywhere in Windows.
 
 ### The Approach
 **Hybrid Companion Model** - Keep tools separate but create tight integration:
 - Unified branding (both named "Supervertaler X")
-- Launch integration (QuickMenu launches Supervertaler features)
-- Python CLI bridge (QuickMenu calls Supervertaler functions)
+- Launch integration (Quickmenu launches Supervertaler features)
+- Python CLI bridge (Quickmenu calls Supervertaler functions)
 - Shared configuration (both tools read shared config)
 
 ### The Package
 ```
 Supervertaler Ecosystem/
 ├── Supervertaler_Qt.exe             # Main application
-├── Supervertaler_QuickMenu.exe      # Companion menu
+├── Supervertaler_Quickmenu.exe      # Companion menu
 ├── supervertaler_cli.py             # CLI bridge
 └── config/
     └── shared_config.ini
@@ -141,9 +141,9 @@ mkdir supervertaler\cli
 Once implementation is complete, users will:
 
 1. **Install** both tools together (bundled package)
-2. **Configure** Supervertaler path in QuickMenu settings
-3. **Use** QuickMenu for quick access (Ctrl+Shift+Alt+K by default)
-4. **Launch** Supervertaler from QuickMenu for deep work
+2. **Configure** Supervertaler path in Quickmenu settings
+3. **Use** Quickmenu for quick access (Ctrl+Shift+Alt+K by default)
+4. **Launch** Supervertaler from Quickmenu for deep work
 5. **Enjoy** seamless integration between both tools
 
 ---
@@ -152,7 +152,7 @@ Once implementation is complete, users will:
 
 ### Phase 1: Foundation (Week 1-2)
 - [ ] Project structure setup
-- [ ] Basic rebranding (Beijer.bot → Supervertaler QuickMenu)
+- [ ] Basic rebranding (Beijer.bot → Supervertaler Quickmenu)
 - [ ] Menu restructuring
 - [ ] Configuration system
 
@@ -180,8 +180,8 @@ Once implementation is complete, users will:
 
 ## 🔑 Key Concepts
 
-### QuickMenu vs Supervertaler
-| Aspect | Supervertaler (Main) | QuickMenu (Companion) |
+### Quickmenu vs Supervertaler
+| Aspect | Supervertaler (Main) | Quickmenu (Companion) |
 |--------|---------------------|----------------------|
 | **Technology** | Python + PyQt6 | AutoHotkey v2 |
 | **Usage** | Deep, focused work | Quick, instant access |
@@ -190,7 +190,7 @@ Once implementation is complete, users will:
 | **Startup** | Open when needed | Always running (low memory) |
 
 ### The Power of Integration
-- **From QuickMenu:**
+- **From Quickmenu:**
   - Launch Supervertaler
   - Quick translate via Python backend
   - Open Supervertaler modules
@@ -231,9 +231,9 @@ Best of both worlds:
 
 ### Naming Convention
 - Main application: **Supervertaler**
-- Companion menu: **Supervertaler QuickMenu**
+- Companion menu: **Supervertaler Quickmenu**
 - CLI interface: **Supervertaler CLI**
-- Shortened reference: **QuickMenu**
+- Shortened reference: **Quickmenu**
 
 ### Visual Identity
 - Use consistent Supervertaler branding
@@ -244,7 +244,7 @@ Best of both worlds:
 ### Messaging
 - "The Ultimate Translator Toolkit"
 - "Supervertaler: Deep translation work"
-- "QuickMenu: Instant access anywhere"
+- "Quickmenu: Instant access anywhere"
 - "Better together"
 
 ---
@@ -268,13 +268,13 @@ Best of both worlds:
 **A:** AutoHotkey's system-level integration (hotkeys, hotstrings, system-wide menus) is superior for quick access. Python can't match AHK's responsiveness for these features.
 
 ### Q: Will existing Beijer.bot users be affected?
-**A:** No. This is a new project. Existing Beijer.bot can continue as-is. QuickMenu is for Supervertaler users.
+**A:** No. This is a new project. Existing Beijer.bot can continue as-is. Quickmenu is for Supervertaler users.
 
-### Q: Can QuickMenu work without Supervertaler?
-**A:** Yes! QuickMenu retains all its existing features (searches, snippets, text tools, ChatGPT) and works independently. Integration features only work when Supervertaler is installed.
+### Q: Can Quickmenu work without Supervertaler?
+**A:** Yes! Quickmenu retains all its existing features (searches, snippets, text tools, ChatGPT) and works independently. Integration features only work when Supervertaler is installed.
 
 ### Q: What about performance?
-**A:** QuickMenu runs in background with minimal memory (<10MB). CLI calls add ~1-2 seconds for translations. Overall impact is negligible.
+**A:** Quickmenu runs in background with minimal memory (<10MB). CLI calls add ~1-2 seconds for translations. Overall impact is negligible.
 
 ### Q: Will this be open source?
 **A:** Yes, both tools will remain open source under MIT license.
@@ -341,10 +341,10 @@ Best of both worlds:
 ## 🔮 Future Vision
 
 ### Phase 5+ (After Initial Release)
-- **Bidirectional Communication** - Supervertaler triggers QuickMenu
+- **Bidirectional Communication** - Supervertaler triggers Quickmenu
 - **Shared Clipboard History** - Recent translations in both tools
-- **Synchronized Glossaries** - QuickMenu inserts from Supervertaler termbases
-- **Smart Context Detection** - QuickMenu adapts to active CAT tool
+- **Synchronized Glossaries** - Quickmenu inserts from Supervertaler termbases
+- **Smart Context Detection** - Quickmenu adapts to active CAT tool
 - **Voice Control** - Full Dragon/Talon integration
 - **Cloud Sync** - Optional sync for settings and snippets
 - **Plugin System** - Community extensions
@@ -354,7 +354,7 @@ Best of both worlds:
 
 ## 📄 License
 
-Both Supervertaler and QuickMenu are released under the MIT License.
+Both Supervertaler and Quickmenu are released under the MIT License.
 
 ---
 

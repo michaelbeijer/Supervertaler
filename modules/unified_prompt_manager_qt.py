@@ -518,7 +518,7 @@ class UnifiedPromptManagerQt:
     """
     Unified Prompt Manager - Single-tab interface with:
     - Tree view with nested folders
-    - Favorites and QuickMenu
+    - Favorites and Quickmenu
     - Multi-attach capability
     - Active prompt configuration panel
     """
@@ -1812,18 +1812,18 @@ class UnifiedPromptManagerQt:
         
         layout.addLayout(metadata_layout)
 
-        # QuickMenu fields
+        # Quickmenu fields
         quickmenu_layout = QHBoxLayout()
 
-        quickmenu_layout.addWidget(QLabel("QuickMenu label:"))
+        quickmenu_layout.addWidget(QLabel("Quickmenu label:"))
         self.editor_quickmenu_label_input = QLineEdit()
-        self.editor_quickmenu_label_input.setPlaceholderText("Label shown in QuickMenu")
+        self.editor_quickmenu_label_input.setPlaceholderText("Label shown in Quickmenu")
         quickmenu_layout.addWidget(self.editor_quickmenu_label_input, 2)
 
-        self.editor_quickmenu_in_grid_cb = CheckmarkCheckBox("Show in QuickMenu (in-app)")
+        self.editor_quickmenu_in_grid_cb = CheckmarkCheckBox("Show in Quickmenu (in-app)")
         quickmenu_layout.addWidget(self.editor_quickmenu_in_grid_cb, 2)
 
-        self.editor_quickmenu_in_quickmenu_cb = CheckmarkCheckBox("Show in QuickMenu (global)")
+        self.editor_quickmenu_in_quickmenu_cb = CheckmarkCheckBox("Show in Quickmenu (global)")
         quickmenu_layout.addWidget(self.editor_quickmenu_in_quickmenu_cb, 1)
 
         layout.addLayout(quickmenu_layout)
@@ -1876,7 +1876,7 @@ class UnifiedPromptManagerQt:
             item.setFlags(item.flags() | Qt.ItemFlag.ItemIsDragEnabled)
             favorites_root.addChild(item)
         
-        # Library folders (QuickMenu parent folder removed - folder hierarchy now defines menu structure)
+        # Library folders (Quickmenu parent folder removed - folder hierarchy now defines menu structure)
         self.log_message(f"🔍 DEBUG: Building tree from {self.unified_library_dir}")
         self._build_tree_recursive(None, self.unified_library_dir, "")
         
@@ -2348,18 +2348,18 @@ class UnifiedPromptManagerQt:
                 action_fav = menu.addAction("☆ Add to Favorites")
             action_fav.triggered.connect(lambda: self._toggle_favorite(path))
             
-            # Toggle QuickMenu (legacy: quick_run)
+            # Toggle Quickmenu (legacy: quick_run)
             if prompt_data.get('sv_quickmenu', prompt_data.get('quick_run', False)):
-                action_qr = menu.addAction("⚡ Remove from QuickMenu")
+                action_qr = menu.addAction("⚡ Remove from Quickmenu")
             else:
-                action_qr = menu.addAction("⚡ Add to QuickMenu")
+                action_qr = menu.addAction("⚡ Add to Quickmenu")
             action_qr.triggered.connect(lambda: self._toggle_quick_run(path))
 
-            # Toggle Grid right-click QuickMenu
+            # Toggle Grid right-click Quickmenu
             if prompt_data.get('quickmenu_grid', False):
-                action_grid = menu.addAction("🖱️ Remove from Grid QuickMenu")
+                action_grid = menu.addAction("🖱️ Remove from Grid Quickmenu")
             else:
-                action_grid = menu.addAction("🖱️ Add to Grid QuickMenu")
+                action_grid = menu.addAction("🖱️ Add to Grid Quickmenu")
             action_grid.triggered.connect(lambda: self._toggle_quickmenu_grid(path))
             
             menu.addSeparator()
@@ -2518,7 +2518,7 @@ class UnifiedPromptManagerQt:
                     'version': '1.0',
                     'task_type': 'Translation',
                     'favorite': False,
-                    # QuickMenu
+                    # Quickmenu
                     'quickmenu_label': quickmenu_label or name,
                     'quickmenu_grid': quickmenu_grid,
                     'sv_quickmenu': sv_quickmenu,
@@ -2727,12 +2727,12 @@ class UnifiedPromptManagerQt:
             self._refresh_tree()
     
     def _toggle_quick_run(self, relative_path: str):
-        """Toggle QuickMenu (future app menu) status (legacy name: quick_run)."""
+        """Toggle Quickmenu (future app menu) status (legacy name: quick_run)."""
         if self.library.toggle_quick_run(relative_path):
             self._refresh_tree()
 
     def _toggle_quickmenu_grid(self, relative_path: str):
-        """Toggle whether this prompt appears in the Grid right-click QuickMenu."""
+        """Toggle whether this prompt appears in the Grid right-click Quickmenu."""
         if self.library.toggle_quickmenu_grid(relative_path):
             self._refresh_tree()
     

@@ -1,6 +1,6 @@
 # Beijer.bot Feature Analysis
 
-**Purpose:** Comprehensive analysis of all Beijer.bot features to determine what to keep, modify, or enhance in Supervertaler QuickMenu.
+**Purpose:** Comprehensive analysis of all Beijer.bot features to determine what to keep, modify, or enhance in Supervertaler Quickmenu.
 
 ---
 
@@ -286,24 +286,24 @@
 ### How This Complements Supervertaler
 
 **Supervertaler** = Deep, focused translation work  
-**QuickMenu** = Quick access, cross-application productivity
+**Quickmenu** = Quick access, cross-application productivity
 
 **Example workflows:**
 
 1. **In memoQ:**
-   - Select term → QuickMenu → Multi-Search (opens 10 dictionaries)
-   - Select sentence → QuickMenu → Quick Translate (via Supervertaler)
-   - Need emoji → QuickMenu → Special Characters
+   - Select term → Quickmenu → Multi-Search (opens 10 dictionaries)
+   - Select sentence → Quickmenu → Quick Translate (via Supervertaler)
+   - Need emoji → Quickmenu → Special Characters
 
 2. **In Email:**
    - Type `mukk` → expands to email address
-   - Need translation → QuickMenu → Translate (Quick AI)
-   - Insert boilerplate → QuickMenu → Snippets
+   - Need translation → Quickmenu → Translate (Quick AI)
+   - Insert boilerplate → Quickmenu → Snippets
 
 3. **In Supervertaler:**
-   - Need to reference dictionary → QuickMenu → Citations
-   - Quick search → QuickMenu → Multi-Search
-   - Insert special characters → QuickMenu → Characters
+   - Need to reference dictionary → Quickmenu → Citations
+   - Quick search → Quickmenu → Multi-Search
+   - Insert special characters → Quickmenu → Characters
 
 **They don't compete - they multiply effectiveness!**
 
@@ -420,7 +420,7 @@ Low Priority (Nice to Have):
 2. **Modify:** Personal data → user-customizable template system
 3. **Enhance:** Configuration and customization capabilities
 4. **Remove:** Only truly personal data (IDs, specific credentials)
-5. **Rebrand:** All references to Supervertaler QuickMenu
+5. **Rebrand:** All references to Supervertaler Quickmenu
 
 The result will be a powerful, professional tool that:
 - Serves translators excellently

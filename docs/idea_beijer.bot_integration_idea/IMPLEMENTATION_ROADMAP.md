@@ -1,12 +1,12 @@
-# Implementation Roadmap: Supervertaler QuickMenu
+# Implementation Roadmap: Supervertaler Quickmenu
 
-**Purpose:** Step-by-step guide for implementing the Beijer.bot → Supervertaler QuickMenu integration.
+**Purpose:** Step-by-step guide for implementing the Beijer.bot → Supervertaler Quickmenu integration.
 
 ---
 
 ## 🎯 Project Goals
 
-1. **Rebrand** Beijer.bot as Supervertaler QuickMenu
+1. **Rebrand** Beijer.bot as Supervertaler Quickmenu
 2. **Integrate** with Supervertaler main application
 3. **Create** Python CLI bridge for communication
 4. **Package** as unified translator toolkit
@@ -23,7 +23,7 @@
 **Goal:** Create Python CLI for integration
 
 ### Phase 3: Integration (Week 5-6)
-**Goal:** Connect QuickMenu to Supervertaler
+**Goal:** Connect Quickmenu to Supervertaler
 
 ### Phase 4: Polish & Release (Week 7-8)
 **Goal:** Testing, documentation, packaging
@@ -40,8 +40,8 @@
 ```bash
 # Create directory structure
 Supervertaler/
-├── quickmenu/                    # NEW: QuickMenu source files
-│   ├── Supervertaler_QuickMenu.ahk
+├── quickmenu/                    # NEW: Quickmenu source files
+│   ├── Supervertaler_Quickmenu.ahk
 │   ├── config/
 │   │   └── quickmenu_config.ini
 │   ├── icons/
@@ -61,7 +61,7 @@ Supervertaler/
 **Actions:**
 - [x] Create `quickmenu/` directory
 - [ ] Copy Beijer.bot files to `quickmenu/`
-- [ ] Rename main script to `Supervertaler_QuickMenu.ahk`
+- [ ] Rename main script to `Supervertaler_Quickmenu.ahk`
 - [ ] Create `supervertaler/cli/` module structure
 - [ ] Set up version control branches
 
@@ -70,7 +70,7 @@ Supervertaler/
 ---
 
 #### Task 1.2: Basic Rebranding
-**File:** `quickmenu/Supervertaler_QuickMenu.ahk`
+**File:** `quickmenu/Supervertaler_Quickmenu.ahk`
 
 **Changes:**
 ```autohotkey
@@ -78,7 +78,7 @@ Supervertaler/
 MenuPopup.Add("Beijer.bot (click to edit)", EditBeijerBot)
 
 ; NEW
-MenuPopup.Add("Supervertaler QuickMenu v1.0", EditScript)
+MenuPopup.Add("Supervertaler Quickmenu v1.0", EditScript)
 MenuPopup.Add("Open Supervertaler (Main App)", OpenSupervertaler)
 ```
 
@@ -88,7 +88,7 @@ MenuPopup.Add("Open Supervertaler (Main App)", OpenSupervertaler)
 - [ ] Update tray icon
 - [ ] Change about dialog
 - [ ] Update all menu references
-- [ ] Update variable names (BeijerBot → QuickMenu)
+- [ ] Update variable names (BeijerBot → Quickmenu)
 - [ ] Update hotkey comments
 
 **Time Estimate:** 2-3 hours
@@ -101,14 +101,14 @@ MenuPopup.Add("Open Supervertaler (Main App)", OpenSupervertaler)
 **New Menu Structure:**
 ```autohotkey
 MenuPopup := Menu()
-MenuPopup.Add("Supervertaler QuickMenu v1.0", ShowAbout)
+MenuPopup.Add("Supervertaler Quickmenu v1.0", ShowAbout)
 MenuPopup.Add("Settings", ShowSettings)
 MenuPopup.Add()
 
 ; SUPERVERTALER INTEGRATION (NEW)
 MenuPopup.Add("&SUPERVERTALER:", NOP, "BarBreak")
 MenuPopup.Add("• Open Supervertaler", OpenSupervertaler)
-MenuPopup.Add("• Quick Translate Selection", QuickTranslate)  ; Will implement later
+MenuPopup.Add("• Quick Translate Selection", Quicktranslate)  ; Will implement later
 MenuPopup.Add("• Universal Lookup (Ctrl+Alt+L)", TriggerUniversalLookup)
 MenuPopup.Add("• Open PDF Rescue", OpenPDFRescue)
 MenuPopup.Add("• Open TMX Editor", OpenTMXEditor)
@@ -133,7 +133,7 @@ MenuPopup.Add("&SNIPPETS:", NOP, "BarBreak")
 
 **Checklist:**
 - [ ] Create SUPERVERTALER section
-- [ ] Add placeholder functions (OpenSupervertaler, QuickTranslate, etc.)
+- [ ] Add placeholder functions (OpenSupervertaler, Quicktranslate, etc.)
 - [ ] Keep all existing features
 - [ ] Test menu navigation
 - [ ] Update hotkey assignments
@@ -153,18 +153,18 @@ PythonExecutable = python.exe
 AutoStart = false
 
 [Integration]
-EnableQuickTranslate = true
+EnableQuicktranslate = true
 EnableModuleLaunchers = true
 
 [Hotkeys]
-QuickMenu = ^+!k
+Quickmenu = ^+!k
 UniversalLookup = ^!l
 ```
 
 **Create Settings Dialog:**
 ```autohotkey
 ShowSettings(*) {
-    SettingsGui := Gui("+Resize", "QuickMenu Settings")
+    SettingsGui := Gui("+Resize", "Quickmenu Settings")
     SettingsGui.SetFont("s10")
     
     ; Supervertaler Integration
@@ -177,7 +177,7 @@ ShowSettings(*) {
     SettingsGui.Add("Text", "x30 y+15", "Python Executable:")
     PythonEdit := SettingsGui.Add("Edit", "w350", PythonExecutable)
     
-    SettingsGui.Add("Checkbox", "x30 y+15 Checked" EnableQuickTranslate, "Enable Quick Translate")
+    SettingsGui.Add("Checkbox", "x30 y+15 Checked" EnableQuicktranslate, "Enable Quick Translate")
     SettingsGui.Add("Checkbox", "x30 y+5 Checked" EnableModuleLaunchers, "Enable Module Launchers")
     
     ; Test Connection Button
@@ -411,9 +411,9 @@ python supervertaler_cli.py translate "Hello world" --quick
 ### Phase 3: Integration
 
 #### Task 3.1: Launcher Functions (AutoHotkey)
-**Goal:** QuickMenu can launch Supervertaler
+**Goal:** Quickmenu can launch Supervertaler
 
-**Implement in QuickMenu:**
+**Implement in Quickmenu:**
 
 ```autohotkey
 ; Global config
@@ -486,7 +486,7 @@ TriggerUniversalLookup(*) {
 **Implement:**
 
 ```autohotkey
-QuickTranslate(*) {
+Quicktranslate(*) {
     ; Copy selected text
     savedClipboard := A_Clipboard
     A_Clipboard := ""
@@ -569,7 +569,7 @@ QuickTranslate(*) {
 **Test Plan:**
 
 1. **Integration Tests**
-   - [ ] Launch Supervertaler from QuickMenu
+   - [ ] Launch Supervertaler from Quickmenu
    - [ ] Quick Translate functionality
    - [ ] Module launchers (PDF Rescue, TMX Editor)
    - [ ] Universal Lookup trigger
@@ -596,7 +596,7 @@ QuickTranslate(*) {
 **Goal:** Comprehensive user and developer documentation
 
 **Create:**
-- [ ] User Guide for QuickMenu
+- [ ] User Guide for Quickmenu
 - [ ] Installation instructions
 - [ ] Configuration guide
 - [ ] Troubleshooting guide
@@ -611,17 +611,17 @@ QuickTranslate(*) {
 **Goal:** Create distributable package
 
 **Steps:**
-1. **Compile QuickMenu**
+1. **Compile Quickmenu**
    ```bash
    # Use Ahk2Exe to compile
-   Ahk2Exe.exe /in "Supervertaler_QuickMenu.ahk" /out "Supervertaler_QuickMenu.exe"
+   Ahk2Exe.exe /in "Supervertaler_Quickmenu.ahk" /out "Supervertaler_Quickmenu.exe"
    ```
 
 2. **Create Package Structure**
    ```
    Supervertaler_Package/
    ├── Supervertaler_Qt.exe
-   ├── Supervertaler_QuickMenu.exe
+   ├── Supervertaler_Quickmenu.exe
    ├── supervertaler_cli.py
    ├── README.md
    ├── INSTALL.md
@@ -629,7 +629,7 @@ QuickTranslate(*) {
    │   ├── quickmenu_config.ini.template
    │   └── supervertaler_config.ini.template
    └── docs/
-       ├── QuickMenu_Guide.pdf
+       ├── Quickmenu_Guide.pdf
        └── CLI_Reference.pdf
    ```
 
@@ -640,7 +640,7 @@ QuickTranslate(*) {
    - Create shortcuts
 
 **Checklist:**
-- [ ] Compile QuickMenu to .exe
+- [ ] Compile Quickmenu to .exe
 - [ ] Create package structure
 - [ ] Write installation guide
 - [ ] Create installer (optional)
@@ -657,12 +657,12 @@ QuickTranslate(*) {
 # Clone/navigate to Supervertaler
 cd C:\Dev\Supervertaler
 
-# Create QuickMenu directory
+# Create Quickmenu directory
 mkdir quickmenu
 cd quickmenu
 
 # Copy Beijer.bot files
-cp "C:\Users\mbeijer\My Drive\Software\AutoHotkey\_current scripts\Beijer.bot\Beijer.bot.ahk" Supervertaler_QuickMenu.ahk
+cp "C:\Users\mbeijer\My Drive\Software\AutoHotkey\_current scripts\Beijer.bot\Beijer.bot.ahk" Supervertaler_Quickmenu.ahk
 
 # Create CLI module
 cd ..
@@ -678,13 +678,13 @@ python supervertaler_cli.py version
 python supervertaler_cli.py translate "Hello" --quick
 ```
 
-### Test QuickMenu
+### Test Quickmenu
 ```bash
 # Open in VS Code or Cursor
-code quickmenu\Supervertaler_QuickMenu.ahk
+code quickmenu\Supervertaler_Quickmenu.ahk
 
 # Or run directly
-"C:\Program Files\AutoHotkey\v2\AutoHotkey64.exe" quickmenu\Supervertaler_QuickMenu.ahk
+"C:\Program Files\AutoHotkey\v2\AutoHotkey64.exe" quickmenu\Supervertaler_Quickmenu.ahk
 ```
 
 ---
@@ -722,7 +722,7 @@ code quickmenu\Supervertaler_QuickMenu.ahk
 ## 🎯 Success Criteria
 
 ### Functional Requirements
-- ✅ QuickMenu launches Supervertaler
+- ✅ Quickmenu launches Supervertaler
 - ✅ Quick Translate works via CLI
 - ✅ Module launchers functional
 - ✅ All existing features preserved

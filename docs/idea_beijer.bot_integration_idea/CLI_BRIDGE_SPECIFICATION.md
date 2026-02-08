@@ -1,6 +1,6 @@
 # Supervertaler CLI Bridge - Technical Specification
 
-**Purpose:** Define the command-line interface that allows external tools (like QuickMenu) to interact with Supervertaler.
+**Purpose:** Define the command-line interface that allows external tools (like Quickmenu) to interact with Supervertaler.
 
 ---
 
@@ -582,7 +582,7 @@ default_target_lang = auto
 
 ### Basic Translation
 ```autohotkey
-QuickTranslate(*) {
+Quicktranslate(*) {
     ; Get selected text
     A_Clipboard := ""
     Send "^c"
@@ -610,7 +610,7 @@ QuickTranslate(*) {
 
 ### With Error Handling
 ```autohotkey
-QuickTranslate(*) {
+Quicktranslate(*) {
     A_Clipboard := ""
     Send "^c"
     if !ClipWait(2) {
