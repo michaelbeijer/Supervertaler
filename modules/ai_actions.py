@@ -570,7 +570,7 @@ class AIActionSystem:
 
     def _action_toggle_quick_run(self, params: Dict) -> Dict:
         """
-        Toggle Quickmenu (legacy name: quick_run) status of a prompt.
+        Toggle QuickMenu (legacy name: quick_run) status of a prompt.
 
         Params:
             path (required): Relative path to prompt
@@ -590,7 +590,7 @@ class AIActionSystem:
                 'success': True,
                 'path': path,
                 'quick_run': is_quick_run,
-                'message': f"{'Added to' if is_quick_run else 'Removed from'} Quickmenu"
+                'message': f"{'Added to' if is_quick_run else 'Removed from'} QuickMenu"
             }
         else:
             raise Exception("Failed to toggle quick run")
@@ -611,7 +611,7 @@ class AIActionSystem:
 
     def _action_get_quick_run(self, params: Dict) -> Dict:
         """
-        Get list of Quickmenu prompts (legacy name: quick_run).
+        Get list of QuickMenu prompts (legacy name: quick_run).
 
         Returns:
             {count: int, prompts: [{name, path}]}
@@ -853,7 +853,7 @@ Toggle favorite status.
 PARAMS: {"path": "Domain Expertise/Medical.md"}
 
 ### 9. toggle_quick_run
-Toggle Quickmenu status (legacy name: quick_run).
+Toggle QuickMenu status (legacy name: quick_run).
 PARAMS: {"path": "Domain Expertise/Medical.md"}
 
 ### 10. get_favorites
@@ -861,7 +861,7 @@ Get list of favorite prompts.
 PARAMS: {}
 
 ### 11. get_quick_run
-Get list of Quickmenu prompts (legacy name: quick_run).
+Get list of QuickMenu prompts (legacy name: quick_run).
 PARAMS: {}
 
 ### 12. get_folder_structure

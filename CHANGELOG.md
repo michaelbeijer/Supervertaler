@@ -8,7 +8,7 @@ All notable changes to Supervertaler are documented in this file.
 
 ### ðŸ› Bug Fixes
 
-- **Quicktrans LLM API keys on macOS/custom data paths**: Fixed Quicktrans incorrectly reporting missing API keys for Claude, OpenAI, and Gemini when keys were present in the configured user data location. Quicktrans now uses the app's unified key loader (`parent_app.load_api_keys()`), supports Gemini `google`/`gemini` aliases consistently, and reuses shared LLM client wiring.
+- **QuickTrans LLM API keys on macOS/custom data paths**: Fixed QuickTrans incorrectly reporting missing API keys for Claude, OpenAI, and Gemini when keys were present in the configured user data location. QuickTrans now uses the app's unified key loader (`parent_app.load_api_keys()`), supports Gemini `google`/`gemini` aliases consistently, and reuses shared LLM client wiring.
 - **LLM key path resolution fallback**: Updated `modules/llm_clients.load_api_keys()` to read the cross-platform config pointer and resolve keys from the actual configured user data folder (`settings/settings.json`), with legacy fallbacks retained.
 
 ---
@@ -43,7 +43,7 @@ All notable changes to Supervertaler are documented in this file.
 
 ### ✨ New Features
 
-- **Custom OpenAI-Compatible API provider** ([#155](https://github.com/michaelbeijer/Supervertaler/issues/155)): Added support for any OpenAI-compatible API endpoint — Volcengine (Doubao), Alibaba Tongyi (Qwen), DeepSeek, Mistral, Groq, and more. Configure endpoint URL, model name, and API key in Settings > AI Settings. Works for single-segment translation, batch translation, and Quicktrans.
+- **Custom OpenAI-Compatible API provider** ([#155](https://github.com/michaelbeijer/Supervertaler/issues/155)): Added support for any OpenAI-compatible API endpoint — Volcengine (Doubao), Alibaba Tongyi (Qwen), DeepSeek, Mistral, Groq, and more. Configure endpoint URL, model name, and API key in Settings > AI Settings. Works for single-segment translation, batch translation, and QuickTrans.
 
 ---
 
@@ -234,7 +234,7 @@ All notable changes to Supervertaler are documented in this file.
 
 ### 🐛 Bug Fixes
 
-- **Quicktrans Project Languages**: Fixed Quicktrans not using the current project's source/target languages for MT and LLM providers. Now directly reads from `current_project.source_lang` and `current_project.target_lang` when a project is open, ensuring the correct language pair is sent to all translation providers.
+- **QuickTrans Project Languages**: Fixed QuickTrans not using the current project's source/target languages for MT and LLM providers. Now directly reads from `current_project.source_lang` and `current_project.target_lang` when a project is open, ensuring the correct language pair is sent to all translation providers.
 
 ---
 
@@ -292,7 +292,7 @@ All notable changes to Supervertaler are documented in this file.
 
 - **CRITICAL: Project Segments Corruption Fixed**: Fixed a critical bug where importing a new document would save the OLD project's segments instead of the newly imported ones. This affected all import functions (DOCX, text, memoQ, Trados, SDL package, Phrase, CafeTran, Déjà Vu). The issue was that `_original_segment_order` wasn't being updated after imports, causing the save function to overwrite new segments with old ones.
 
-- **Quicktrans Language Mapping**: Fixed Quicktrans not respecting project source/target language settings. Machine translation providers (MyMemory, DeepL, Microsoft, ModernMT) now correctly map language names like "English" and "Dutch" to ISO codes.
+- **QuickTrans Language Mapping**: Fixed QuickTrans not respecting project source/target language settings. Machine translation providers (MyMemory, DeepL, Microsoft, ModernMT) now correctly map language names like "English" and "Dutch" to ISO codes.
 
 - **Focus Rectangles Removed**: Fixed dotted focus rectangles appearing on buttons throughout the application. Added global stylesheet rules in theme manager and individual button fixes where custom stylesheets were used.
 
@@ -334,9 +334,9 @@ All notable changes to Supervertaler are documented in this file.
 
 ### ⚡ Performance Improvements
 
-- **Faster Ctrl+Enter Navigation**: Removed wasteful MT/LLM API calls that were happening on every segment navigation. Machine translation providers (Google Translate, DeepL, Amazon, etc.) and LLM providers were being called even when the Translation Results panel was hidden. Now MT/LLM is only available via Quicktrans (Ctrl+M).
+- **Faster Ctrl+Enter Navigation**: Removed wasteful MT/LLM API calls that were happening on every segment navigation. Machine translation providers (Google Translate, DeepL, Amazon, etc.) and LLM providers were being called even when the Translation Results panel was hidden. Now MT/LLM is only available via QuickTrans (Ctrl+M).
 
-- **Removed Translation Results Panel**: The deprecated Translation Results panel has been removed from the UI. This panel was hidden by default with no way to enable it, but was still consuming resources. TM matching continues to work via the Match Panel, and MT/LLM translations are available via Quicktrans (Ctrl+M).
+- **Removed Translation Results Panel**: The deprecated Translation Results panel has been removed from the UI. This panel was hidden by default with no way to enable it, but was still consuming resources. TM matching continues to work via the Match Panel, and MT/LLM translations are available via QuickTrans (Ctrl+M).
 
 ---
 
@@ -409,7 +409,7 @@ All notable changes to Supervertaler are documented in this file.
 
 ### 🏗️ Code Architecture
 
-- **Module Rename**: Renamed `mt_quick_popup.py` → `quicktrans.py` to align with the Quicktrans branding. This prepares the module for future standalone distribution as a separate Windows executable.
+- **Module Rename**: Renamed `mt_quick_popup.py` → `quicktrans.py` to align with the QuickTrans branding. This prepares the module for future standalone distribution as a separate Windows executable.
 
 ---
 
@@ -420,12 +420,12 @@ All notable changes to Supervertaler are documented in this file.
 - **Tool Suite Naming**: Established consistent naming for Supervertaler's modular tools:
   - **Supervertaler** - Main CAT tool / translation workbench
   - **Superlookup** - Comprehensive research tool (TM, TB, MT, web, dictionaries)
-  - **Quicktrans** - Instant translation popup (MT + LLM, GT4T-style)
-  - **Quickmenu** - Quick access menu with various tools
+  - **QuickTrans** - Instant translation popup (MT + LLM, GT4T-style)
+  - **QuickMenu** - Quick access menu with various tools
 
-- **Quicktrans** (formerly "MT Quick Lookup"): Renamed to better reflect that it provides instant translations from both MT engines AND LLMs. The tool can work standalone or integrated with Supervertaler.
+- **QuickTrans** (formerly "MT Quick Lookup"): Renamed to better reflect that it provides instant translations from both MT engines AND LLMs. The tool can work standalone or integrated with Supervertaler.
 
-- **Superlookup** (formerly "Superlookup"): Updated to CamelCase for consistency and readability. Now clearly distinguished from Quicktrans - Superlookup is for deep research, Quicktrans is for instant translations.
+- **Superlookup** (formerly "Superlookup"): Updated to CamelCase for consistency and readability. Now clearly distinguished from QuickTrans - Superlookup is for deep research, QuickTrans is for instant translations.
 
 ---
 
@@ -433,11 +433,11 @@ All notable changes to Supervertaler are documented in this file.
 
 ### ✨ New Features
 
-- **Quicktrans - LLM Support**: Added Claude, OpenAI (GPT), and Gemini as translation providers in Quicktrans. Now you can get translations from both MT engines AND LLMs in a single popup. Configure which providers to use in the Quicktrans settings (click the ⚙️ button in the popup).
+- **QuickTrans - LLM Support**: Added Claude, OpenAI (GPT), and Gemini as translation providers in QuickTrans. Now you can get translations from both MT engines AND LLMs in a single popup. Configure which providers to use in the QuickTrans settings (click the ⚙️ button in the popup).
 
-- **Global Quicktrans Hotkey (Ctrl+Alt+M)**: Use Quicktrans from ANY application (memoQ, Word, browser, etc.) via AutoHotkey. Select text anywhere, press **Ctrl+Alt+M**, and the Quicktrans popup appears as an overlay at your cursor position - without switching focus to Supervertaler. Perfect for quick translations while working in your CAT tool.
+- **Global QuickTrans Hotkey (Ctrl+Alt+M)**: Use QuickTrans from ANY application (memoQ, Word, browser, etc.) via AutoHotkey. Select text anywhere, press **Ctrl+Alt+M**, and the QuickTrans popup appears as an overlay at your cursor position - without switching focus to Supervertaler. Perfect for quick translations while working in your CAT tool.
 
-- **Quicktrans Settings**: Added dedicated settings tab (Settings → Quicktrans) to configure:
+- **QuickTrans Settings**: Added dedicated settings tab (Settings → QuickTrans) to configure:
   - Which MT engines to include (Google, DeepL, Microsoft, Amazon, ModernMT, MyMemory)
   - Which LLMs to include (Claude, OpenAI, Gemini) with model selection
   - Access settings directly from the popup via the ⚙️ button
@@ -454,7 +454,7 @@ All notable changes to Supervertaler are documented in this file.
 
 ### ✨ New Features
 
-- **Quicktrans (GT4T-style)**: Added a new popup window for instant translation suggestions, inspired by GT4T. Press **Ctrl+M** (default) or use the **right-click context menu** to open a popup showing translations from all enabled MT engines (Google Translate, DeepL, Microsoft Translator, Amazon Translate, ModernMT, MyMemory). Features include:
+- **QuickTrans (GT4T-style)**: Added a new popup window for instant translation suggestions, inspired by GT4T. Press **Ctrl+M** (default) or use the **right-click context menu** to open a popup showing translations from all enabled MT engines (Google Translate, DeepL, Microsoft Translator, Amazon Translate, ModernMT, MyMemory). Features include:
   - Source text displayed at the top for context
   - Numbered list of translation suggestions with provider badges
   - Press **1-9** to quickly insert a translation
@@ -463,7 +463,7 @@ All notable changes to Supervertaler are documented in this file.
   - Translations fetched in parallel for fast results
   - Color-coded provider badges for easy identification
   - **Smart text selection**: If you have text selected in source or target, only that selection gets translated; otherwise translates the full source segment
-  - Available from both source and target cell context menus ("⚡ Quicktrans")
+  - Available from both source and target cell context menus ("⚡ QuickTrans")
   - **Resizable and movable**: Popup window can be dragged and resized to your preference
   - **Customizable shortcut**: Change the keyboard shortcut in Settings → Keyboard Shortcuts
 
@@ -1033,7 +1033,7 @@ The `PreTranslationWorker` ran in a background thread, but SQLite connections cr
 - Language dropdowns are all you need
 
 **UI Polish:**
-- **Renamed "Quickmenu" tab to "Prompt Manager"** - Better clarity for new users looking for translation prompts
+- **Renamed "QuickMenu" tab to "Prompt Manager"** - Better clarity for new users looking for translation prompts
 - **Sub-tab renamed**: "Library" → "Prompt Library"
 - Resolves confusion about where to find prompts for single-segment and batch translation
 
@@ -1045,7 +1045,7 @@ The `PreTranslationWorker` ran in a background thread, but SQLite connections cr
 **Files Modified:**
 - `modules/database_manager.py` - Smart language-aware concordance search
 - `modules/superlookup.py` - Column name handling
-- `Supervertaler.py` - Removed Direction controls, simplified UI, renamed Quickmenu to Prompt Manager
+- `Supervertaler.py` - Removed Direction controls, simplified UI, renamed QuickMenu to Prompt Manager
 - `modules/unified_prompt_manager_qt.py` - Updated tab and header labels
 
 ---
@@ -1120,7 +1120,7 @@ The `PreTranslationWorker` ran in a background thread, but SQLite connections cr
 - Fixed 6+ locations where the alias wasn't being handled correctly:
   - Single segment translation (Ctrl+T)
   - Batch translation
-  - Quickmenu prompts
+  - QuickMenu prompts
   - Async LLM fetch for Translation Results panel
   - Proofreading (also fixed `anthropic` → `claude` provider name bug)
 
@@ -1410,15 +1410,15 @@ The Ctrl+K shortcut to open Superlookup with selected text was broken due to a d
 
 ---
 
-## ⌨️ Alt+K Quickmenu Shortcut (v1.9.131) - January 20, 2026
+## ⌨️ Alt+K QuickMenu Shortcut (v1.9.131) - January 20, 2026
 
-**Direct Quickmenu Access via Keyboard**
+**Direct QuickMenu Access via Keyboard**
 
-Added Alt+K keyboard shortcut to open the Quickmenu popup directly without right-clicking:
+Added Alt+K keyboard shortcut to open the QuickMenu popup directly without right-clicking:
 
 **How It Works:**
 1. Press Alt+K while in the grid (source or target cell)
-2. Quickmenu popup appears at cursor position
+2. QuickMenu popup appears at cursor position
 3. Use Up/Down arrows to navigate prompts
 4. Press Enter to expand a prompt's actions
 5. Select "Run (show response)" or "Run and replace target"
@@ -1437,7 +1437,7 @@ Added Alt+K keyboard shortcut to open the Quickmenu popup directly without right
 
 ## ✨ Context Placeholders & Auto-Center Fix (v1.9.130) - January 20, 2026
 
-**Three Context Placeholders for Quickmenu Prompts**
+**Three Context Placeholders for QuickMenu Prompts**
 
 Split the `{{DOCUMENT_CONTEXT}}` placeholder into three specialized variants for better AI prompt control:
 
@@ -1480,14 +1480,14 @@ Renamed AHK script for clarity:
 
 ---
 
-## 🐛 Quickmenu Document Context Bug Fix (v1.9.129) - January 19, 2026
+## 🐛 QuickMenu Document Context Bug Fix (v1.9.129) - January 19, 2026
 
 **Fixed Critical Bug: {{DOCUMENT_CONTEXT}} Placeholder Now Works**
 
-Fixed a critical bug where the `{{DOCUMENT_CONTEXT}}` placeholder in Quickmenu prompts was completely broken due to a method name typo:
+Fixed a critical bug where the `{{DOCUMENT_CONTEXT}}` placeholder in QuickMenu prompts was completely broken due to a method name typo:
 
 **The Problem:**
-- Quickmenu prompts using `{{DOCUMENT_CONTEXT}}` would fail to load project segments
+- QuickMenu prompts using `{{DOCUMENT_CONTEXT}}` would fail to load project segments
 - Instead of receiving actual document context, the AI received an error message
 - This made context-aware prompts ineffective (AI answered generic questions without project knowledge)
 
@@ -1502,7 +1502,7 @@ Fixed a critical bug where the `{{DOCUMENT_CONTEXT}}` placeholder in Quickmenu p
 - Maximum 100 segments as safety limit to prevent token overflow
 
 **User Impact:**
-- ✅ Quickmenu prompts can now access full project context
+- ✅ QuickMenu prompts can now access full project context
 - ✅ AI receives actual segments instead of error messages
 - ✅ Context-aware translation suggestions now work as intended
 - ✅ Better handling of domain-specific terminology with project knowledge
@@ -1558,12 +1558,12 @@ Fixed issue where Save button remained greyed out (disabled) after creating a ne
 
 **Label Rename**
 
-Renamed Quickmenu checkbox label for clarity:
+Renamed QuickMenu checkbox label for clarity:
 
-**Before:** "Show in Quickmenu"  
-**After:** "Show in Supervertaler Quickmenu"
+**Before:** "Show in QuickMenu"  
+**After:** "Show in Supervertaler QuickMenu"
 
-**Reason:** Distinguishes the app-level Quickmenu from the Grid right-click Quickmenu for better user understanding.
+**Reason:** Distinguishes the app-level QuickMenu from the Grid right-click QuickMenu for better user understanding.
 
 **Files Modified:**
 - `modules/unified_prompt_manager_qt.py` - Save button enable call, checkbox label text
@@ -1574,7 +1574,7 @@ Renamed Quickmenu checkbox label for clarity:
 
 **Field Rename: `quickmenu_quickmenu` → `sv_quickmenu`**
 
-Renamed the redundant `quickmenu_quickmenu` field to cleaner `sv_quickmenu` (Supervertaler Quickmenu) throughout the codebase:
+Renamed the redundant `quickmenu_quickmenu` field to cleaner `sv_quickmenu` (Supervertaler QuickMenu) throughout the codebase:
 
 **What Changed:**
 - All internal code now uses `sv_quickmenu` instead of `quickmenu_quickmenu`
@@ -1645,17 +1645,17 @@ except Exception as e:
 
 ---
 
-## 📄 Quickmenu Document Context Support (v1.9.124) - January 19, 2026
+## 📄 QuickMenu Document Context Support (v1.9.124) - January 19, 2026
 
-**Quickmenu Prompts Can Now Access Full Document Context**
+**QuickMenu Prompts Can Now Access Full Document Context**
 
-Major enhancement allowing Quickmenu prompts to access the entire project's source segments for context-aware AI suggestions:
+Major enhancement allowing QuickMenu prompts to access the entire project's source segments for context-aware AI suggestions:
 
 **New Placeholder:**
 - `{{DOCUMENT_CONTEXT}}` - Inserts formatted list of project segments (source + target)
 
 **Configurable Context:**
-- Slider in Settings → AI Settings → Quickmenu Document Context (0-100%)
+- Slider in Settings → AI Settings → QuickMenu Document Context (0-100%)
 - Default: 50% of project segments
 - Safety limit: Maximum 100 segments to prevent token overload
 - 0% disables document context
@@ -1692,14 +1692,14 @@ Suggest the best possible translation of "{{SELECTION}}" from {{SOURCE_LANGUAGE}
 
 ---
 
-## 🤖 Quickmenu Generic AI Support (v1.9.123) - January 19, 2026
+## 🤖 QuickMenu Generic AI Support (v1.9.123) - January 19, 2026
 
-**Quickmenu Now Supports Any AI Task**
+**QuickMenu Now Supports Any AI Task**
 
-Fixed critical bug where Quickmenu prompts were being forced into translation mode, preventing generic AI tasks from working correctly:
+Fixed critical bug where QuickMenu prompts were being forced into translation mode, preventing generic AI tasks from working correctly:
 
 **The Problem:**
-- Quickmenu was calling `client.translate()` with the selected text as input
+- QuickMenu was calling `client.translate()` with the selected text as input
 - This forced the LLM to interpret every prompt as a translation task
 - Generic prompts like "Explain this", "Define the selection", "Suggest four translations" would fail
 - The AI would try to translate the prompt itself instead of executing it
@@ -1707,7 +1707,7 @@ Fixed critical bug where Quickmenu prompts were being forced into translation mo
 **The Fix:**
 - Changed to use generic AI completion pattern (empty text + custom_prompt)
 - Simplified prompt builder to not add translation-specific instructions
-- Quickmenu prompts now work as intended for ANY task
+- QuickMenu prompts now work as intended for ANY task
 
 **What You Can Do Now:**
 - ✅ **Explain this** - Get explanations of technical terms
@@ -1715,9 +1715,9 @@ Fixed critical bug where Quickmenu prompts were being forced into translation mo
 - ✅ **Suggest four translations** - Multiple translation options with context
 - ✅ **Analyze tone** - Check if translation matches source tone
 - ✅ **Search for examples** - Find usage examples
-- ✅ **Any custom prompt** - Quickmenu works for any AI task
+- ✅ **Any custom prompt** - QuickMenu works for any AI task
 
-**Example Quickmenu Prompts:**
+**Example QuickMenu Prompts:**
 ```
 Explain {{SELECTION}} in simple terms.
 
@@ -1732,7 +1732,7 @@ Define {{SELECTION}} and provide usage examples.
 - Supports placeholders: `{{SELECTION}}`, `{{SOURCE_TEXT}}`, `{{SOURCE_LANGUAGE}}`, `{{TARGET_LANGUAGE}}`
 
 **Files Modified:**
-- `Supervertaler.py` - Fixed Quickmenu AI execution to support generic tasks
+- `Supervertaler.py` - Fixed QuickMenu AI execution to support generic tasks
 
 ---
 
@@ -2308,16 +2308,16 @@ Added full import/export support for memoQ XLIFF files - feature was implemented
 - Added new screenshots demonstrating the **Compare Panel** (MT + TM) and **Termview**.
 - Updated the Prompt Manager screenshot reference.
 
-## ⚡ Quickmenu in the Grid (v1.9.102) - January 14, 2026
+## ⚡ QuickMenu in the Grid (v1.9.102) - January 14, 2026
 
-- New **⚡ Quickmenu** in the Grid right-click menu (Source + Target cells)
+- New **⚡ QuickMenu** in the Grid right-click menu (Source + Target cells)
   - Run a prompt and preview the response
   - Run a prompt and replace the selected text / target
-- Prompt system update: renamed “Quick Run menu” terminology to **Quickmenu**
+- Prompt system update: renamed “Quick Run menu” terminology to **QuickMenu**
 - New prompt metadata fields (backward compatible with `quick_run`):
   - `quickmenu_label` (menu label)
-  - `quickmenu_grid` (show in Grid right-click Quickmenu)
-  - `quickmenu_quickmenu` (show in future app-level Quickmenu)
+  - `quickmenu_grid` (show in Grid right-click QuickMenu)
+  - `quickmenu_quickmenu` (show in future app-level QuickMenu)
 - UI rename: main tab “📝 Project editor” → “📝 Grid”
 **Framework:** PyQt6
 **Status:** Active Development

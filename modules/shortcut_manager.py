@@ -557,7 +557,7 @@ class ShortcutManager:
         },
         "editor_open_quickmenu": {
             "category": "Editor",
-            "description": "Open Quickmenu for AI prompt actions",
+            "description": "Open QuickMenu for AI prompt actions",
             "default": "Alt+K",
             "action": "open_quickmenu",
             "context": "grid_editor"
@@ -585,10 +585,10 @@ class ShortcutManager:
             "action": "filter_on_selected_text"
         },
 
-        # Quicktrans (GT4T-style instant translation popup)
+        # QuickTrans (GT4T-style instant translation popup)
         "mt_quick_lookup": {
             "category": "Translation",
-            "description": "Quicktrans (instant translation popup)",
+            "description": "QuickTrans (instant translation popup)",
             "default": "Ctrl+M",
             "action": "show_mt_quick_popup",
             "context": "editor"

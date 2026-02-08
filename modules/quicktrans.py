@@ -1,5 +1,5 @@
 """
-Quicktrans - Instant translation popup (GT4T-style)
+QuickTrans - Instant translation popup (GT4T-style)
 
 A popup window that shows translations from all enabled MT engines and LLMs.
 Part of the Supervertaler tool suite. Triggered by Ctrl+M (in-app) or Ctrl+Alt+M (global).
@@ -222,7 +222,7 @@ class MTQuickPopup(QDialog):
 
     def setup_ui(self):
         """Setup the popup UI"""
-        self.setWindowTitle("⚡ Supervertaler Quicktrans")
+        self.setWindowTitle("⚡ Supervertaler QuickTrans")
         # Use standard dialog with title bar for resize/move support
         self.setWindowFlags(
             Qt.WindowType.Dialog |
@@ -269,7 +269,7 @@ class MTQuickPopup(QDialog):
         header_layout = QHBoxLayout()
         header_layout.setContentsMargins(0, 0, 0, 4)
 
-        title_label = QLabel("⚡ Supervertaler Quicktrans")
+        title_label = QLabel("⚡ Supervertaler QuickTrans")
         title_label.setStyleSheet("font-size: 11px; font-weight: bold; color: #333;")
         header_layout.addWidget(title_label)
 
@@ -278,7 +278,7 @@ class MTQuickPopup(QDialog):
         # Settings button
         settings_btn = QPushButton("⚙️")
         settings_btn.setFixedSize(24, 24)
-        settings_btn.setToolTip("Configure Quicktrans providers")
+        settings_btn.setToolTip("Configure QuickTrans providers")
         settings_btn.setStyleSheet("""
             QPushButton {
                 border: none;

@@ -6,7 +6,7 @@
 
 **Professional AI-enhanced translation workbench** with multi-LLM support (GPT-4, Claude, Gemini, Ollama), translation memory, glossary management, and seamless CAT tool integration (memoQ, Trados, CafeTran, Phrase, Déjà Vu).
 
-**Latest release:** v1.9.241 - Quicktrans LLM API key loading fix for macOS/custom user data paths.
+**Latest release:** v1.9.241 - QuickTrans LLM API key loading fix for macOS/custom user data paths.
 
 ---
 

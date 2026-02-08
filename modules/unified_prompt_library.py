@@ -51,7 +51,7 @@ class UnifiedPromptLibrary:
         
         # Cached lists for quick access
         self._favorites = []
-        # Backward-compatible name; now represents Quickmenu (future app-level menu)
+        # Backward-compatible name; now represents QuickMenu (future app-level menu)
         self._quick_run = []
         self._quickmenu_grid = []
     
@@ -169,7 +169,7 @@ class UnifiedPromptLibrary:
             # Ensure boolean fields exist
             prompt_data.setdefault('favorite', False)
             # Backward compatibility: quick_run is the legacy field; internally we
-            # treat it as the "Quickmenu (future app menu)" flag.
+            # treat it as the "QuickMenu (future app menu)" flag.
             prompt_data.setdefault('quick_run', False)
             # Support legacy quickmenu_quickmenu field (rename to sv_quickmenu)
             if 'quickmenu_quickmenu' in prompt_data:
@@ -180,7 +180,7 @@ class UnifiedPromptLibrary:
             # Keep legacy field in sync so older code/versions still behave.
             prompt_data['quick_run'] = bool(prompt_data['sv_quickmenu'])
 
-            # New Quickmenu fields
+            # New QuickMenu fields
             prompt_data.setdefault('quickmenu_grid', False)
             prompt_data.setdefault('quickmenu_label', prompt_data.get('name', filepath.stem))
             prompt_data.setdefault('tags', [])
@@ -272,7 +272,7 @@ class UnifiedPromptLibrary:
             frontmatter_fields = [
                 'name', 'description', 'domain', 'version', 'task_type', 
                 'favorite',
-                # Quickmenu
+                # QuickMenu
                 'quickmenu_label', 'quickmenu_grid', 'sv_quickmenu',
                 # Legacy (kept for backward compatibility)
                 'quick_run',
@@ -454,7 +454,7 @@ class UnifiedPromptLibrary:
         return True
     
     def toggle_quick_run(self, relative_path: str) -> bool:
-        """Toggle Quickmenu (future app menu) status for a prompt (legacy name: quick_run)."""
+        """Toggle QuickMenu (future app menu) status for a prompt (legacy name: quick_run)."""
         if relative_path not in self.prompts:
             return False
         
@@ -472,7 +472,7 @@ class UnifiedPromptLibrary:
         return True
 
     def toggle_quickmenu_grid(self, relative_path: str) -> bool:
-        """Toggle whether this prompt appears in the Grid right-click Quickmenu."""
+        """Toggle whether this prompt appears in the Grid right-click QuickMenu."""
         if relative_path not in self.prompts:
             return False
 
@@ -493,7 +493,7 @@ class UnifiedPromptLibrary:
         ]
     
     def _update_quick_run_list(self):
-        """Update cached Quickmenu (future app menu) list (legacy name: quick_run)."""
+        """Update cached QuickMenu (future app menu) list (legacy name: quick_run)."""
         self._quick_run = []
         for path, data in self.prompts.items():
             is_enabled = bool(data.get('sv_quickmenu', data.get('quick_run', False)))
@@ -503,7 +503,7 @@ class UnifiedPromptLibrary:
             self._quick_run.append((path, label))
 
     def _update_quickmenu_grid_list(self):
-        """Update cached Grid Quickmenu list."""
+        """Update cached Grid QuickMenu list."""
         self._quickmenu_grid = []
         for path, data in self.prompts.items():
             if not bool(data.get('quickmenu_grid', False)):
@@ -516,7 +516,7 @@ class UnifiedPromptLibrary:
         return self._favorites
     
     def get_quick_run_prompts(self) -> List[Tuple[str, str]]:
-        """Get list of Quickmenu (future app menu) prompts (path, label)."""
+        """Get list of QuickMenu (future app menu) prompts (path, label)."""
         return self._quick_run
 
     def get_quickmenu_prompts(self) -> List[Tuple[str, str]]:
@@ -524,7 +524,7 @@ class UnifiedPromptLibrary:
         return self.get_quick_run_prompts()
 
     def get_quickmenu_grid_prompts(self) -> List[Tuple[str, str]]:
-        """Get list of prompts shown in the Grid right-click Quickmenu (path, label)."""
+        """Get list of prompts shown in the Grid right-click QuickMenu (path, label)."""
         return self._quickmenu_grid
     
     def create_folder(self, folder_path: str) -> bool:

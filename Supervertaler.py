@@ -2652,12 +2652,12 @@ class ReadOnlyGridTextEditor(QTextEdit):
             menu.addAction(superlookup_action)
 
         # MT Quick Lookup action
-        mt_lookup_action = QAction(f"⚡ Quicktrans ({format_shortcut_for_display('Ctrl+M')})", self)
+        mt_lookup_action = QAction(f"⚡ QuickTrans ({format_shortcut_for_display('Ctrl+M')})", self)
         mt_lookup_action.triggered.connect(self._handle_mt_quick_lookup)
         menu.addAction(mt_lookup_action)
         menu.addSeparator()
 
-        # Quickmenu (prompt-based actions)
+        # QuickMenu (prompt-based actions)
         try:
             main_window = self._get_main_window()
             quickmenu_items = []
@@ -2667,7 +2667,7 @@ class ReadOnlyGridTextEditor(QTextEdit):
                     quickmenu_items = lib.get_quickmenu_grid_prompts() or []
 
             if quickmenu_items:
-                qm_menu = menu.addMenu("⚡ Quickmenu")
+                qm_menu = menu.addMenu("⚡ QuickMenu")
                 for rel_path, label in sorted(quickmenu_items, key=lambda x: (x[1] or x[0]).lower()):
                     prompt_menu = qm_menu.addMenu(label or rel_path)
 
@@ -2685,7 +2685,7 @@ class ReadOnlyGridTextEditor(QTextEdit):
 
                 menu.addSeparator()
         except Exception:
-            # Never break the normal context menu due to Quickmenu errors
+            # Never break the normal context menu due to QuickMenu errors
             pass
         
         # Add to glossary action (with dialog)
@@ -3369,12 +3369,12 @@ class EditableGridTextEditor(QTextEdit):
             menu.addAction(superlookup_action)
 
         # MT Quick Lookup action
-        mt_lookup_action = QAction(f"⚡ Quicktrans ({format_shortcut_for_display('Ctrl+M')})", self)
+        mt_lookup_action = QAction(f"⚡ QuickTrans ({format_shortcut_for_display('Ctrl+M')})", self)
         mt_lookup_action.triggered.connect(self._handle_mt_quick_lookup)
         menu.addAction(mt_lookup_action)
         menu.addSeparator()
 
-        # Quickmenu (prompt-based actions)
+        # QuickMenu (prompt-based actions)
         try:
             main_window = self.table.parent() if self.table else None
             while main_window and not hasattr(main_window, 'run_grid_quickmenu_prompt'):
@@ -3387,7 +3387,7 @@ class EditableGridTextEditor(QTextEdit):
                     quickmenu_items = lib.get_quickmenu_grid_prompts() or []
 
             if quickmenu_items:
-                qm_menu = menu.addMenu("⚡ Quickmenu")
+                qm_menu = menu.addMenu("⚡ QuickMenu")
                 for rel_path, label in sorted(quickmenu_items, key=lambda x: (x[1] or x[0]).lower()):
                     prompt_menu = qm_menu.addMenu(label or rel_path)
 
@@ -3405,7 +3405,7 @@ class EditableGridTextEditor(QTextEdit):
 
                 menu.addSeparator()
         except Exception:
-            # Never break the normal context menu due to Quickmenu errors
+            # Never break the normal context menu due to QuickMenu errors
             pass
         
         # Add to termbase action (with dialog)
@@ -7687,7 +7687,7 @@ class SupervertalerQt(QMainWindow):
         # Ctrl+N - Focus Segment Note tab
         create_shortcut("editor_focus_notes", "Ctrl+N", self.focus_segment_notes)
         
-        # Alt+K - Open Quickmenu directly
+        # Alt+K - Open QuickMenu directly
         create_shortcut("editor_open_quickmenu", "Alt+K", self.open_quickmenu)
 
         # Ctrl+Shift+Q - MT Quick Lookup (GT4T-style popup)
@@ -7711,12 +7711,12 @@ class SupervertalerQt(QMainWindow):
             self.bottom_notes_edit.setFocus()
     
     def open_quickmenu(self):
-        """Open Quickmenu popup at current cursor position for quick AI prompt selection.
+        """Open QuickMenu popup at current cursor position for quick AI prompt selection.
         
         User can navigate with arrow keys and press Enter to select a prompt.
         """
         try:
-            # Get Quickmenu items from prompt library
+            # Get QuickMenu items from prompt library
             quickmenu_items = []
             if hasattr(self, 'prompt_manager_qt') and self.prompt_manager_qt:
                 lib = getattr(self.prompt_manager_qt, 'library', None)
@@ -7724,7 +7724,7 @@ class SupervertalerQt(QMainWindow):
                     quickmenu_items = lib.get_quickmenu_grid_prompts() or []
             
             if not quickmenu_items:
-                self.log("⚠️ No Quickmenu prompts available. Add prompts with 'Show in Quickmenu' enabled.")
+                self.log("⚠️ No QuickMenu prompts available. Add prompts with 'Show in QuickMenu' enabled.")
                 return
             
             # Find the currently focused widget (source or target cell)
@@ -7732,7 +7732,7 @@ class SupervertalerQt(QMainWindow):
             
             # Build the menu
             menu = QMenu(self)
-            menu.setTitle("⚡ Quickmenu")
+            menu.setTitle("⚡ QuickMenu")
             
             for rel_path, label in sorted(quickmenu_items, key=lambda x: (x[1] or x[0]).lower()):
                 prompt_menu = menu.addMenu(label or rel_path)
@@ -7765,7 +7765,7 @@ class SupervertalerQt(QMainWindow):
             menu.exec(pos)
             
         except Exception as e:
-            self.log(f"❌ Error opening Quickmenu: {e}")
+            self.log(f"❌ Error opening QuickMenu: {e}")
 
     def show_mt_quick_popup(self, text_override: str = None):
         """Show GT4T-style MT Quick Lookup popup with translations from all enabled MT engines.
@@ -8550,7 +8550,7 @@ class SupervertalerQt(QMainWindow):
         go_resources_action.triggered.connect(lambda: self.main_tabs.setCurrentIndex(1) if hasattr(self, 'main_tabs') else None)
         nav_menu.addAction(go_resources_action)
         
-        go_prompt_manager_action = QAction("⚡ &Quickmenu", self)
+        go_prompt_manager_action = QAction("⚡ &QuickMenu", self)
         go_prompt_manager_action.triggered.connect(lambda: self.main_tabs.setCurrentIndex(2) if hasattr(self, 'main_tabs') else None)
         nav_menu.addAction(go_prompt_manager_action)
         
@@ -16289,7 +16289,7 @@ class SupervertalerQt(QMainWindow):
 
         # ===== TAB 5: MT Quick Lookup Settings =====
         mt_quick_tab = self._create_mt_quick_lookup_settings_tab()
-        settings_tabs.addTab(scroll_area_wrapper(mt_quick_tab), "⚡ Quicktrans")
+        settings_tabs.addTab(scroll_area_wrapper(mt_quick_tab), "⚡ QuickTrans")
         self.mt_quick_lookup_tab_index = settings_tabs.count() - 1  # Store index for opening
 
         # ===== TAB 6: View Settings =====
@@ -17140,7 +17140,7 @@ class SupervertalerQt(QMainWindow):
         prefs_layout.addSpacing(10)
 
         # --- Document Context (for AI Prompts) ---
-        quickmenu_context_label = QLabel("<b>Document Context (for Quickmenu AI prompts):</b>")
+        quickmenu_context_label = QLabel("<b>Document Context (for QuickMenu AI prompts):</b>")
         prefs_layout.addWidget(quickmenu_context_label)
 
         quickmenu_context_percent = general_prefs.get('quickmenu_context_percent', 50)
@@ -17160,7 +17160,7 @@ class SupervertalerQt(QMainWindow):
         prefs_layout.addLayout(quickmenu_context_layout)
 
         quickmenu_context_info = QLabel(
-            "  ⓘ When using {{SOURCE+TARGET_CONTEXT}} or {{SOURCE_CONTEXT}} placeholders in Quickmenu prompts.\n"
+            "  ⓘ When using {{SOURCE+TARGET_CONTEXT}} or {{SOURCE_CONTEXT}} placeholders in QuickMenu prompts.\n"
             "  0% = disabled, 50% = half the document (default), 100% = entire document.\n"
             "  Limit: maximum 100 segments for performance."
         )
@@ -17376,7 +17376,7 @@ class SupervertalerQt(QMainWindow):
 
         # Header info
         header_info = QLabel(
-            f"⚡ <b>Quicktrans</b> - Configure which providers appear in the Quicktrans popup ({format_shortcut_for_display('Ctrl+M')} / {format_shortcut_for_display('Ctrl+Alt+M')}).<br>"
+            f"⚡ <b>QuickTrans</b> - Configure which providers appear in the QuickTrans popup ({format_shortcut_for_display('Ctrl+M')} / {format_shortcut_for_display('Ctrl+Alt+M')}).<br>"
             "Enable MT engines and/or LLMs to get instant translation suggestions."
         )
         header_info.setTextFormat(Qt.TextFormat.RichText)
@@ -17419,7 +17419,7 @@ class SupervertalerQt(QMainWindow):
                 checkbox.setToolTip(f"API key not configured for {name}")
                 checkbox.setStyleSheet("color: #999;")
             else:
-                checkbox.setToolTip(f"Include {name} in Quicktrans results")
+                checkbox.setToolTip(f"Include {name} in QuickTrans results")
 
             self._mtql_checkboxes[f"mtql_{code}"] = checkbox
             mt_layout.addWidget(checkbox)
@@ -17477,7 +17477,7 @@ class SupervertalerQt(QMainWindow):
                 checkbox.setToolTip(f"API key not configured for {name}. Add it in AI Settings.")
                 checkbox.setStyleSheet("color: #999;")
             else:
-                checkbox.setToolTip(f"Include {name} translations in Quicktrans")
+                checkbox.setToolTip(f"Include {name} translations in QuickTrans")
 
             self._mtql_checkboxes[f"mtql_{code}"] = checkbox
             llm_row.addWidget(checkbox)
@@ -17533,7 +17533,7 @@ class SupervertalerQt(QMainWindow):
         layout.addWidget(llm_group)
 
         # Save button
-        save_btn = QPushButton("💾 Save Quicktrans Settings")
+        save_btn = QPushButton("💾 Save QuickTrans Settings")
         save_btn.setStyleSheet("font-weight: bold; padding: 8px;")
         save_btn.clicked.connect(self._save_mt_quick_lookup_settings)
         layout.addWidget(save_btn)
@@ -17562,8 +17562,8 @@ class SupervertalerQt(QMainWindow):
         general_settings['mt_quick_lookup'] = mt_quick_settings
         self.save_general_settings(general_settings)
 
-        self.log("✓ Quicktrans settings saved")
-        QMessageBox.information(self, "Settings Saved", "Quicktrans settings have been saved.")
+        self.log("✓ QuickTrans settings saved")
+        QMessageBox.information(self, "Settings Saved", "QuickTrans settings have been saved.")
 
     def open_mt_quick_lookup_settings(self):
         """Open Settings and navigate to MT Quick Lookup tab"""
@@ -22143,7 +22143,7 @@ class SupervertalerQt(QMainWindow):
         right_tabs.tabBar().setExpanding(False)
         right_tabs.setStyleSheet("QTabBar::tab { outline: 0; } QTabBar::tab:focus { outline: none; } QTabBar::tab:selected { border-bottom: 1px solid #2196F3; background-color: rgba(33, 150, 243, 0.08); }")
 
-        # NOTE: Translation Results panel is deprecated - MT/LLM is now only via Quicktrans (Ctrl+M)
+        # NOTE: Translation Results panel is deprecated - MT/LLM is now only via QuickTrans (Ctrl+M)
         # Panel is no longer created to save resources. Set to None for compatibility checks.
         self.translation_results_panel = None
         if not hasattr(self, 'results_panels'):
@@ -42756,7 +42756,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             subtab_name: Name of the sub-tab to navigate to (e.g., "AI Settings")
         """
         if hasattr(self, 'main_tabs'):
-            # Main tabs: Grid=0, Resources=1, Quickmenu=2, Tools=3, Settings=4
+            # Main tabs: Grid=0, Resources=1, QuickMenu=2, Tools=3, Settings=4
             self.main_tabs.setCurrentIndex(4)
             
             # Navigate to specific sub-tab if requested
@@ -42777,7 +42777,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
     def _go_to_superlookup(self):
         """Navigate to Superlookup in Tools tab"""
         if hasattr(self, 'main_tabs'):
-            # Main tabs: Grid=0, Resources=1, Quickmenu=2, Tools=3, Settings=4
+            # Main tabs: Grid=0, Resources=1, QuickMenu=2, Tools=3, Settings=4
             self.main_tabs.setCurrentIndex(3)  # Switch to Tools tab
             # Then switch to Superlookup sub-tab
             if hasattr(self, 'modules_tabs'):
@@ -42790,7 +42790,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
     def _navigate_to_tool(self, tool_name: str):
         """Navigate to a specific tool in the Tools tab"""
         if hasattr(self, 'main_tabs'):
-            # Main tabs: Grid=0, Resources=1, Quickmenu=2, Tools=3, Settings=4
+            # Main tabs: Grid=0, Resources=1, QuickMenu=2, Tools=3, Settings=4
             self.main_tabs.setCurrentIndex(3)  # Switch to Tools tab
             # Then switch to the specific tool sub-tab
             if hasattr(self, 'modules_tabs'):
@@ -44313,9 +44313,9 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         return text.strip()
 
     def _quickmenu_build_custom_prompt(self, prompt_relative_path: str, source_text: str, source_lang: str, target_lang: str) -> str:
-        """Build a prompt for Quickmenu using the selected prompt as instructions.
+        """Build a prompt for QuickMenu using the selected prompt as instructions.
         
-        This is a GENERIC prompt builder (not translation-specific) that allows Quickmenu prompts
+        This is a GENERIC prompt builder (not translation-specific) that allows QuickMenu prompts
         to do anything: explain, define, search, translate, analyze, etc.
         
         Supports placeholders:
@@ -44354,20 +44354,20 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         if (has_source_target or has_source_only or has_target_only) and hasattr(self, 'current_project') and self.current_project:
             if has_source_target:
                 source_target_context = self._build_quickmenu_document_context(mode="both")
-                self.log(f"🔍 Quickmenu: Built SOURCE+TARGET context ({len(source_target_context)} chars)")
+                self.log(f"🔍 QuickMenu: Built SOURCE+TARGET context ({len(source_target_context)} chars)")
             if has_source_only:
                 source_only_context = self._build_quickmenu_document_context(mode="source")
-                self.log(f"🔍 Quickmenu: Built SOURCE_ONLY context ({len(source_only_context)} chars)")
+                self.log(f"🔍 QuickMenu: Built SOURCE_ONLY context ({len(source_only_context)} chars)")
             if has_target_only:
                 target_only_context = self._build_quickmenu_document_context(mode="target")
-                self.log(f"🔍 Quickmenu: Built TARGET_ONLY context ({len(target_only_context)} chars)")
+                self.log(f"🔍 QuickMenu: Built TARGET_ONLY context ({len(target_only_context)} chars)")
         else:
             if has_source_target:
-                self.log("⚠️ Quickmenu: {{SOURCE+TARGET_CONTEXT}} requested but no project loaded")
+                self.log("⚠️ QuickMenu: {{SOURCE+TARGET_CONTEXT}} requested but no project loaded")
             if has_source_only:
-                self.log("⚠️ Quickmenu: {{SOURCE_CONTEXT}} requested but no project loaded")
+                self.log("⚠️ QuickMenu: {{SOURCE_CONTEXT}} requested but no project loaded")
             if has_target_only:
-                self.log("⚠️ Quickmenu: {{TARGET_CONTEXT}} requested but no project loaded")
+                self.log("⚠️ QuickMenu: {{TARGET_CONTEXT}} requested but no project loaded")
 
         # Replace placeholders in the prompt content
         prompt_content = prompt_content.replace("{{SOURCE_LANGUAGE}}", source_lang)
@@ -44379,7 +44379,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         prompt_content = prompt_content.replace("{{TARGET_CONTEXT}}", target_only_context)
         
         # Debug: Log the final prompt being sent
-        self.log(f"📝 Quickmenu: Final prompt ({len(prompt_content)} chars):")
+        self.log(f"📝 QuickMenu: Final prompt ({len(prompt_content)} chars):")
         self.log("─" * 80)
         self.log(prompt_content[:500] + ("..." if len(prompt_content) > 500 else ""))
         self.log("─" * 80)
@@ -44391,7 +44391,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         return prompt_content
     
     def _build_quickmenu_document_context(self, mode: str = "both") -> str:
-        """Build document context for Quickmenu prompts.
+        """Build document context for QuickMenu prompts.
         
         Args:
             mode: One of:
@@ -44479,7 +44479,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         dlg.exec()
 
     def run_grid_quickmenu_prompt(self, prompt_relative_path: str, origin_widget: QTextEdit, behavior: str = "show"):
-        """Run a Quickmenu prompt on the current selection and either show the result or replace selection/target."""
+        """Run a QuickMenu prompt on the current selection and either show the result or replace selection/target."""
         from PyQt6.QtWidgets import QMessageBox, QApplication
         from modules.llm_clients import LLMClient
 
@@ -44488,7 +44488,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
 
         input_text = self._quickmenu_get_selection_text(origin_widget)
         if not input_text:
-            QMessageBox.information(self, "Quickmenu", "Please select some text first (or click inside a non-empty cell).")
+            QMessageBox.information(self, "QuickMenu", "Please select some text first (or click inside a non-empty cell).")
             return
 
         # Determine project languages
@@ -44514,15 +44514,15 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             api_key = profile_key or api_keys.get('custom_openai', '') or 'not-needed'
         else:
             if not api_keys:
-                QMessageBox.warning(self, "Quickmenu", "No API keys found. Configure them in Settings first.")
+                QMessageBox.warning(self, "QuickMenu", "No API keys found. Configure them in Settings first.")
                 return
             api_key = api_keys.get(provider) or (api_keys.get('google') if provider == 'gemini' else None)
             if not api_key:
-                QMessageBox.warning(self, "Quickmenu", f"No API key found for provider '{provider}'.")
+                QMessageBox.warning(self, "QuickMenu", f"No API key found for provider '{provider}'.")
                 return
 
         try:
-            self.status_bar.showMessage(f"⚡ Quickmenu: running '{prompt_relative_path}'…")
+            self.status_bar.showMessage(f"⚡ QuickMenu: running '{prompt_relative_path}'…")
             QApplication.processEvents()
 
             custom_prompt = self._quickmenu_build_custom_prompt(
@@ -44539,7 +44539,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             client = LLMClient(api_key=api_key, provider=provider, model=model, base_url=base_url)
             
             # Use translate() with empty text and custom_prompt for generic AI completion
-            # This allows Quickmenu prompts to do anything (explain, define, search, etc.)
+            # This allows QuickMenu prompts to do anything (explain, define, search, etc.)
             # not just translation. Same pattern as AI Assistant.
             output_text = client.translate(
                 text="",  # Empty - we're using custom_prompt for everything
@@ -44549,11 +44549,11 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             )
 
             if not output_text:
-                QMessageBox.warning(self, "Quickmenu", "No response received from the LLM.")
+                QMessageBox.warning(self, "QuickMenu", "No response received from the LLM.")
                 return
 
         except Exception as e:
-            QMessageBox.critical(self, "Quickmenu", f"Quickmenu failed:\n\n{e}")
+            QMessageBox.critical(self, "QuickMenu", f"QuickMenu failed:\n\n{e}")
             return
         finally:
             try:
@@ -44592,7 +44592,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
 
         if behavior == "replace":
             if not target_widget or not isinstance(target_widget, QTextEdit):
-                self._quickmenu_show_result_dialog("⚡ Quickmenu result", output_text)
+                self._quickmenu_show_result_dialog("⚡ QuickMenu result", output_text)
                 return
 
             apply_replacement()
@@ -44600,7 +44600,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
 
         # Default: show dialog (with optional Replace button)
         can_apply = target_widget is not None and isinstance(target_widget, QTextEdit)
-        title = "⚡ Quickmenu result"
+        title = "⚡ QuickMenu result"
         self._quickmenu_show_result_dialog(title, output_text, apply_callback=apply_replacement if can_apply else None)
     
     def translate_multiple_segments(self, scope: str):
@@ -47320,10 +47320,10 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
     def _add_mt_and_llm_matches_progressive(self, segment, source_lang, target_lang, source_lang_code, target_lang_code):
         """DEPRECATED: Translation Results panel has been removed.
 
-        MT/LLM translations are now only available via Quicktrans (Ctrl+M).
+        MT/LLM translations are now only available via QuickTrans (Ctrl+M).
         This function is kept as a stub for backwards compatibility.
         """
-        pass  # Translation Results panel removed - use Quicktrans (Ctrl+M) for MT/LLM
+        pass  # Translation Results panel removed - use QuickTrans (Ctrl+M) for MT/LLM
 
     def _REMOVED_add_mt_and_llm_matches_progressive(self, segment, source_lang, target_lang, source_lang_code, target_lang_code):
         """REMOVED - kept for reference only, will be deleted in future cleanup."""
@@ -51430,7 +51430,7 @@ class SuperlookupTab(QWidget):
         self.mt_lookup_signal_file = Path(__file__).parent / "mt_lookup_signal.txt"
 
         print(f"[Superlookup] File watcher started, watching: {self.signal_file}")
-        print(f"[Quicktrans] File watcher started, watching: {self.mt_lookup_signal_file}")
+        print(f"[QuickTrans] File watcher started, watching: {self.mt_lookup_signal_file}")
         
         # Create timer to check for signal file
         self.file_check_timer = QTimer()
@@ -51459,7 +51459,7 @@ class SuperlookupTab(QWidget):
 
         # Check for MT Quick Lookup signal
         if hasattr(self, 'mt_lookup_signal_file') and self.mt_lookup_signal_file.exists():
-            print(f"[Quicktrans] Signal file detected!")
+            print(f"[QuickTrans] Signal file detected!")
             try:
                 # Small delay to let AHK finish writing/close the file
                 time.sleep(0.05)
@@ -51468,7 +51468,7 @@ class SuperlookupTab(QWidget):
                 for attempt in range(3):
                     try:
                         self.mt_lookup_signal_file.unlink()
-                        print(f"[Quicktrans] Signal file deleted")
+                        print(f"[QuickTrans] Signal file deleted")
                         break
                     except PermissionError:
                         if attempt < 2:
@@ -51484,7 +51484,7 @@ class SuperlookupTab(QWidget):
                 if text:
                     self.on_ahk_mt_lookup_capture(text)
             except Exception as e:
-                print(f"[Quicktrans] Error reading capture: {e}")
+                print(f"[QuickTrans] Error reading capture: {e}")
     
     def on_ahk_capture(self, text):
         """Handle text captured by AHK"""
@@ -51524,19 +51524,19 @@ class SuperlookupTab(QWidget):
     def on_ahk_mt_lookup_capture(self, text):
         """Handle MT Quick Lookup text captured by AHK (Ctrl+Alt+M)"""
         try:
-            print(f"[Quicktrans] on_ahk_mt_lookup_capture called with text: {text[:50]}...")
+            print(f"[QuickTrans] on_ahk_mt_lookup_capture called with text: {text[:50]}...")
 
             # Show popup directly without bringing Supervertaler to foreground
             # The popup has WindowStaysOnTopHint so it will appear over any app
             QTimer.singleShot(100, lambda: self.show_mt_quick_lookup_from_ahk(text))
 
         except Exception as e:
-            print(f"[Quicktrans] Error handling capture: {e}")
+            print(f"[QuickTrans] Error handling capture: {e}")
 
     def show_mt_quick_lookup_from_ahk(self, text):
         """Show MT Quick Lookup popup with text from AHK capture"""
         try:
-            print(f"[Quicktrans] show_mt_quick_lookup_from_ahk called with text: {text[:50]}...")
+            print(f"[QuickTrans] show_mt_quick_lookup_from_ahk called with text: {text[:50]}...")
 
             # Get main window reference for settings access
             main_window = self.main_window
@@ -51544,7 +51544,7 @@ class SuperlookupTab(QWidget):
                 main_window = self.window()
 
             if not main_window:
-                print("[Quicktrans] ERROR: Could not find main window")
+                print("[QuickTrans] ERROR: Could not find main window")
                 return
 
             # Get project languages - prefer project settings over app defaults
@@ -51575,10 +51575,10 @@ class SuperlookupTab(QWidget):
             popup.show()
             popup.raise_()
             popup.activateWindow()
-            print(f"[Quicktrans] Popup shown for text: {text[:30]}...")
+            print(f"[QuickTrans] Popup shown for text: {text[:30]}...")
 
         except Exception as e:
-            print(f"[Quicktrans] Error showing popup: {e}")
+            print(f"[QuickTrans] Error showing popup: {e}")
             import traceback
             traceback.print_exc()
 
@@ -51597,7 +51597,7 @@ class SuperlookupTab(QWidget):
             print(f"[Superlookup] Has main_tabs: {hasattr(main_window, 'main_tabs')}")
             
             # Switch to Tools tab (main_tabs index 3)
-            # Tab structure: Grid=0, Resources=1, Quickmenu=2, Tools=3, Settings=4
+            # Tab structure: Grid=0, Resources=1, QuickMenu=2, Tools=3, Settings=4
             if hasattr(main_window, 'main_tabs'):
                 print(f"[Superlookup] Current main_tab index: {main_window.main_tabs.currentIndex()}")
                 main_window.main_tabs.setCurrentIndex(3)  # Tools tab
