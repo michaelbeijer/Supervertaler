@@ -14,6 +14,7 @@ from PyQt6.QtCore import Qt, QEvent, QPointF, QRect
 from PyQt6.QtGui import QKeySequence, QKeyEvent, QFont, QPainter, QPen, QColor
 
 from modules.shortcut_manager import ShortcutManager
+from modules.shortcut_display import format_shortcut_for_display, format_shortcuts_in_text
 
 
 class CheckmarkCheckBox(QCheckBox):
@@ -142,13 +143,13 @@ class ShortcutEditDialog(QDialog):
         self.data = data
         self.manager = manager
         
-        self.setWindowTitle(f"Edit Shortcut: {data['description']}")
+        self.setWindowTitle(f"Edit Shortcut: {format_shortcuts_in_text(data['description'])}")
         self.setMinimumWidth(500)
         
         layout = QVBoxLayout(self)
         
         # Description
-        desc_label = QLabel(f"<b>Action:</b> {data['description']}")
+        desc_label = QLabel(f"<b>Action:</b> {format_shortcuts_in_text(data['description'])}")
         desc_label.setWordWrap(True)
         layout.addWidget(desc_label)
         
@@ -157,7 +158,7 @@ class ShortcutEditDialog(QDialog):
         layout.addWidget(cat_label)
         
         # Default shortcut
-        default_label = QLabel(f"<b>Default:</b> {data['default']}")
+        default_label = QLabel(f"<b>Default:</b> {format_shortcut_for_display(data['default'])}")
         layout.addWidget(default_label)
         
         layout.addSpacing(10)
@@ -212,7 +213,7 @@ class ShortcutEditDialog(QDialog):
             conflict_names = []
             all_shortcuts = self.manager.get_all_shortcuts()
             for conflict_id in conflicts:
-                conflict_names.append(all_shortcuts[conflict_id]['description'])
+                conflict_names.append(format_shortcuts_in_text(all_shortcuts[conflict_id]['description']))
             
             self.warning_label.setText(
                 f"⚠️ Warning: This shortcut conflicts with:\n" + 
@@ -407,11 +408,11 @@ class KeyboardShortcutsWidget(QWidget):
                 self.table.setItem(row, 1, cat_item)
                 
                 # Action (column 2)
-                action_item = QTableWidgetItem(data["description"])
+                action_item = QTableWidgetItem(format_shortcuts_in_text(data["description"]))
                 self.table.setItem(row, 2, action_item)
                 
                 # Shortcut (column 3)
-                shortcut_item = QTableWidgetItem(data["current"])
+                shortcut_item = QTableWidgetItem(format_shortcut_for_display(data["current"]))
                 shortcut_font = QFont()
                 shortcut_font.setFamily("Courier New")
                 shortcut_font.setBold(True)
@@ -523,7 +524,8 @@ class KeyboardShortcutsWidget(QWidget):
         reply = QMessageBox.question(
             self,
             "Reset Shortcut",
-            f"Reset '{data['description']}' to its default shortcut ({data['default']})?",
+            f"Reset '{format_shortcuts_in_text(data['description'])}' to its default shortcut "
+            f"({format_shortcut_for_display(data['default'])})?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         )
         

@@ -64,19 +64,7 @@ from pathlib import Path
 from typing import List, Optional, Dict, Any, Tuple, Callable
 from dataclasses import dataclass, asdict
 from datetime import datetime
-
-
-def format_shortcut_for_display(shortcut: str) -> str:
-    """Return a platform-appropriate shortcut label for UI text."""
-    if sys.platform != 'darwin':
-        return shortcut
-
-    key_map = {
-        "Ctrl": "Command",
-        "Alt": "Option",
-        "Meta": "Command",
-    }
-    return "+".join(key_map.get(part, part) for part in shortcut.split("+"))
+from modules.shortcut_display import format_shortcut_for_display
 
 
 def get_resource_path(relative_path: str) -> Path:
@@ -2338,7 +2326,7 @@ class ReadOnlyGridTextEditor(QTextEdit):
                 "1. Select term in source cell\\n"
                 "2. Press Tab to cycle to target cell\\n"
                 "3. Select corresponding translation\\n"
-                "4. Press Ctrl+E (or right-click) to add to glossary"
+                f"4. Press {format_shortcut_for_display('Ctrl+E')} (or right-click) to add to glossary"
             )
             return
         
@@ -2371,7 +2359,7 @@ class ReadOnlyGridTextEditor(QTextEdit):
                 self,
                 "Selection Required",
                 "Please select text in both Source and Target cells before quick-adding to termbase.\n\n"
-                "Tip: Use Ctrl+E to add with a dialog where you can choose termbase and add metadata."
+                f"Tip: Use {format_shortcut_for_display('Ctrl+E')} to add with a dialog where you can choose termbase and add metadata."
             )
             return
         
@@ -3231,7 +3219,7 @@ class EditableGridTextEditor(QTextEdit):
                 "1. Select term in source/target cell\\n"
                 "2. Press Tab to cycle to other cell\\n"
                 "3. Select corresponding term\\n"
-                "4. Press Ctrl+E (or right-click) to add to glossary"
+                f"4. Press {format_shortcut_for_display('Ctrl+E')} (or right-click) to add to glossary"
             )
             return
         
@@ -3264,7 +3252,7 @@ class EditableGridTextEditor(QTextEdit):
                 self,
                 "Selection Required",
                 "Please select text in both Source and Target cells before quick-adding to glossary.\n\n"
-                "Tip: Use Ctrl+E to add with a dialog where you can choose glossary and add metadata."
+                f"Tip: Use {format_shortcut_for_display('Ctrl+E')} to add with a dialog where you can choose glossary and add metadata."
             )
             return
         
@@ -3341,7 +3329,10 @@ class EditableGridTextEditor(QTextEdit):
                     menu.addSeparator()
                 
                 # Add to dictionary action
-                add_to_dict_action = QAction(f"📖 Add '{misspelled_word}' to Dictionary (Alt+D)", self)
+                add_to_dict_action = QAction(
+                    f"📖 Add '{misspelled_word}' to Dictionary ({format_shortcut_for_display('Alt+D')})",
+                    self,
+                )
                 add_to_dict_action.triggered.connect(
                     lambda checked, w=misspelled_word: self._add_to_dictionary(w)
                 )
@@ -8407,7 +8398,7 @@ class SupervertalerQt(QMainWindow):
         
         edit_menu.addSeparator()
         
-        goto_action = QAction("&Go to Segment...\tCtrl+G", self)
+        goto_action = QAction(f"&Go to Segment...\t{format_shortcut_for_display('Ctrl+G')}", self)
         goto_action.triggered.connect(self.show_goto_dialog)
         edit_menu.addAction(goto_action)
         
@@ -8481,7 +8472,9 @@ class SupervertalerQt(QMainWindow):
 
         confirm_selected_action = QAction("✅ &Confirm Selected Segments", self)
         confirm_selected_action.setShortcut("Ctrl+Shift+Return")
-        confirm_selected_action.setToolTip("Confirm all selected segments (Ctrl+Shift+Enter)")
+        confirm_selected_action.setToolTip(
+            f"Confirm all selected segments ({format_shortcut_for_display('Ctrl+Shift+Enter')})"
+        )
         confirm_selected_action.triggered.connect(self.confirm_selected_segments_from_menu)
         bulk_menu.addAction(confirm_selected_action)
 
@@ -8676,7 +8669,7 @@ class SupervertalerQt(QMainWindow):
         supercleaner_action.triggered.connect(lambda: self._navigate_to_tool("Supercleaner"))
         tools_menu.addAction(supercleaner_action)
         
-        superlookup_action = QAction("🔍 Super&lookup (Ctrl+K)...", self)
+        superlookup_action = QAction(f"🔍 Super&lookup ({format_shortcut_for_display('Ctrl+K')})...", self)
         # Note: Actual Ctrl+K shortcut handled by QShortcut in setup_global_shortcuts()
         # which calls show_concordance_search() for proper selection capture
         superlookup_action.triggered.connect(self.show_concordance_search)
@@ -8765,7 +8758,9 @@ class SupervertalerQt(QMainWindow):
         # AutoHotkey setup (Windows only)
         if os.name == 'nt':
             ahk_setup_action = QAction("⌨️ Setup AutoHotkey (Global Hotkey)", self)
-            ahk_setup_action.setToolTip("Configure AutoHotkey for Superlookup global hotkey (Ctrl+Alt+L)")
+            ahk_setup_action.setToolTip(
+                f"Configure AutoHotkey for Superlookup global hotkey ({format_shortcut_for_display('Ctrl+Alt+L')})"
+            )
             ahk_setup_action.triggered.connect(self._show_ahk_setup_from_menu)
             help_menu.addAction(ahk_setup_action)
             help_menu.addSeparator()
@@ -12477,7 +12472,7 @@ class SupervertalerQt(QMainWindow):
                     self, 
                     "No Selection", 
                     "Please select one or more rows in the grid first.\n\n"
-                    "Click on row numbers or use Ctrl+Click to select multiple rows."
+                    f"Click on row numbers or use {format_shortcut_for_display('Ctrl+Click')} to select multiple rows."
                 )
                 return
             
@@ -13247,8 +13242,8 @@ class SupervertalerQt(QMainWindow):
         # Check if we have a last-selected termbase from Ctrl+E
         if not hasattr(self, '_last_selected_termbase_ids') or not self._last_selected_termbase_ids:
             QMessageBox.information(self, "No Glossary Selected", 
-                "Please use Ctrl+E first to select which glossary to save terms to.\n\n"
-                "After that, Ctrl+Q will quick-save to the same glossary(s).")
+                f"Please use {format_shortcut_for_display('Ctrl+E')} first to select which glossary to save terms to.\n\n"
+                f"After that, {format_shortcut_for_display('Ctrl+Q')} will quick-save to the same glossary(s).")
             return
         
         # Get all termbases to find the ones matching the saved IDs
@@ -13265,7 +13260,7 @@ class SupervertalerQt(QMainWindow):
         if not target_termbases:
             QMessageBox.warning(self, "Glossary Not Found", 
                 "The previously selected glossary(s) could not be found.\n\n"
-                "Please use Ctrl+E to select a glossary again.")
+                f"Please use {format_shortcut_for_display('Ctrl+E')} to select a glossary again.")
             self._last_selected_termbase_ids = None
             return
         
@@ -13572,7 +13567,10 @@ class SupervertalerQt(QMainWindow):
         
         # Check if we're in an editable grid cell
         if not isinstance(focused_widget, EditableGridTextEditor):
-            self.statusBar().showMessage("Alt+D: Place cursor on a misspelled word in the target cell first", 3000)
+            self.statusBar().showMessage(
+                f"{format_shortcut_for_display('Alt+D')}: Place cursor on a misspelled word in the target cell first",
+                3000,
+            )
             return
         
         # Get cursor position
@@ -17000,7 +16998,9 @@ class SupervertalerQt(QMainWindow):
         auto_propagate_100 = general_prefs.get('auto_propagate_100', True)
 
         # --- Single-Segment Translation (Ctrl+T) ---
-        single_header = QLabel("<b>Single-Segment Translation (Ctrl+T):</b>")
+        single_header = QLabel(
+            f"<b>Single-Segment Translation ({format_shortcut_for_display('Ctrl+T')}):</b>"
+        )
         prefs_layout.addWidget(single_header)
 
         surrounding_layout = QHBoxLayout()
@@ -17376,7 +17376,7 @@ class SupervertalerQt(QMainWindow):
 
         # Header info
         header_info = QLabel(
-            "⚡ <b>Quicktrans</b> - Configure which providers appear in the Quicktrans popup (Ctrl+M / Ctrl+Alt+M).<br>"
+            f"⚡ <b>Quicktrans</b> - Configure which providers appear in the Quicktrans popup ({format_shortcut_for_display('Ctrl+M')} / {format_shortcut_for_display('Ctrl+Alt+M')}).<br>"
             "Enable MT engines and/or LLMs to get instant translation suggestions."
         )
         header_info.setTextFormat(Qt.TextFormat.RichText)
@@ -17917,10 +17917,12 @@ class SupervertalerQt(QMainWindow):
         tm_termbase_layout.addWidget(auto_insert_100_cb)
         
         # Auto-confirm 100% matches when navigating with Ctrl+Enter
-        auto_confirm_100_cb = CheckmarkCheckBox("Auto-confirm 100% TM matches when navigating (Ctrl+Enter)")
+        auto_confirm_100_cb = CheckmarkCheckBox(
+            f"Auto-confirm 100% TM matches when navigating ({format_shortcut_for_display('Ctrl+Enter')})"
+        )
         auto_confirm_100_cb.setChecked(general_settings.get('auto_confirm_100_percent_matches', False))
         auto_confirm_100_cb.setToolTip(
-            "When enabled, Ctrl+Enter will automatically insert, confirm, and skip past\n"
+            f"When enabled, {format_shortcut_for_display('Ctrl+Enter')} will automatically insert, confirm, and skip past\n"
             "segments that have 100% TM matches. This speeds up workflow by automatically\n"
             "handling perfect matches while navigating through unconfirmed segments."
         )
@@ -18043,7 +18045,7 @@ class SupervertalerQt(QMainWindow):
             ahk_layout = QVBoxLayout()
             
             ahk_info = QLabel(
-                "AutoHotkey enables the global hotkey (Ctrl+Alt+L) for Superlookup,\n"
+                f"AutoHotkey enables the global hotkey ({format_shortcut_for_display('Ctrl+Alt+L')}) for Superlookup,\n"
                 "allowing you to look up selected text from any application."
             )
             ahk_info.setWordWrap(True)
@@ -19057,11 +19059,11 @@ class SupervertalerQt(QMainWindow):
         reference_text = QLabel(
             "<b>All Zoom Controls:</b><br>"
             "View → Grid Text Zoom<br>"
-            "• Ctrl+= (or Ctrl+NumPad +) - Increase<br>"
-            "• Ctrl+- (or Ctrl+NumPad -) - Decrease<br><br>"
+            f"• {format_shortcut_for_display('Ctrl+=')} (or {format_shortcut_for_display('Ctrl+NumPad +')}) - Increase<br>"
+            f"• {format_shortcut_for_display('Ctrl+-')} (or {format_shortcut_for_display('Ctrl+NumPad -')}) - Decrease<br><br>"
             "View → Translation Results Pane<br>"
-            "• Ctrl+Shift++ (Ctrl+Shift+=) - Increase<br>"
-            "• Ctrl+Shift+- - Decrease<br>"
+            f"• {format_shortcut_for_display('Ctrl+Shift++')} ({format_shortcut_for_display('Ctrl+Shift+=')}) - Increase<br>"
+            f"• {format_shortcut_for_display('Ctrl+Shift+-')} - Decrease<br>"
             "• Results Zoom Reset - Back to default (9pt)<br>"
         )
         reference_text.setTextFormat(Qt.TextFormat.RichText)
@@ -21762,7 +21764,7 @@ class SupervertalerQt(QMainWindow):
         pagination_layout.addWidget(self.pagination_label)
 
         # Tip label for Ctrl+, shortcut (subtle, helpful for new users)
-        tip_label = QLabel("💡 Tip: Ctrl+, inserts the next tag from source")
+        tip_label = QLabel(f"💡 Tip: {format_shortcut_for_display('Ctrl+,')} inserts the next tag from source")
         tip_label.setStyleSheet("color: #888; font-size: 9pt; margin-left: 20px;")
         tip_label.setToolTip("Select text first to wrap it with a tag pair (e.g., <b>selection</b>)")
         pagination_layout.addWidget(tip_label)
@@ -21881,7 +21883,9 @@ class SupervertalerQt(QMainWindow):
         wysiwyg_btn = QPushButton("WYSIWYG")
         wysiwyg_btn.setCheckable(True)
         wysiwyg_btn.setChecked(False)
-        wysiwyg_btn.setToolTip("WYSIWYG View (Ctrl+Alt+T)\nShows formatted text without raw tags")
+        wysiwyg_btn.setToolTip(
+            f"WYSIWYG View ({format_shortcut_for_display('Ctrl+Alt+T')})\nShows formatted text without raw tags"
+        )
         wysiwyg_btn.setStyleSheet("""
             QPushButton {
                 background-color: #757575;
@@ -21910,7 +21914,9 @@ class SupervertalerQt(QMainWindow):
         tags_btn = QPushButton("Tags")
         tags_btn.setCheckable(True)
         tags_btn.setChecked(True)  # Default: Tags mode
-        tags_btn.setToolTip("Tag View (Ctrl+Alt+T)\nShows raw tags like <b>bold</b>")
+        tags_btn.setToolTip(
+            f"Tag View ({format_shortcut_for_display('Ctrl+Alt+T')})\nShows raw tags like <b>bold</b>"
+        )
         tags_btn.setStyleSheet("""
             QPushButton {
                 background-color: #757575;
@@ -22001,7 +22007,9 @@ class SupervertalerQt(QMainWindow):
         save_next_btn = QPushButton("✓ Confirm && Next")
         save_next_btn.setStyleSheet("background-color: #2196F3; color: white; font-weight: bold; padding: 3px 5px; border: none; outline: none;")
         save_next_btn.clicked.connect(self.confirm_selected_or_next)
-        save_next_btn.setToolTip("Confirm current segment and go to next unconfirmed (Ctrl+Enter)")
+        save_next_btn.setToolTip(
+            f"Confirm current segment and go to next unconfirmed ({format_shortcut_for_display('Ctrl+Enter')})"
+        )
         toolbar_layout.addWidget(save_next_btn)
         
         grid_layout.addWidget(toolbar)
@@ -22963,7 +22971,7 @@ class SupervertalerQt(QMainWindow):
         save_btn = QPushButton("💾 Save")
         save_btn.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 3px 5px;")
         save_btn.clicked.connect(self.save_tab_segment)
-        save_next_btn = QPushButton("✓ Confirm && Next (Ctrl+Enter)")
+        save_next_btn = QPushButton(f"✓ Confirm && Next ({format_shortcut_for_display('Ctrl+Enter')})")
         save_next_btn.setStyleSheet("background-color: #2196F3; color: white; font-weight: bold; padding: 3px 5px;")
         save_next_btn.clicked.connect(self.confirm_selected_or_next)
 
@@ -29361,7 +29369,7 @@ class SupervertalerQt(QMainWindow):
         workflow_dialog.setInformativeText(
             "<b>Required Preparation Steps in Trados Studio:</b><br><br>"
             "1. Import your document into Trados Studio<br>"
-            "2. Select all segments (Ctrl+A)<br>"
+            f"2. Select all segments ({format_shortcut_for_display('Ctrl+A')})<br>"
             "3. Copy source to target for all segments<br>"
             "4. Save project<br>"
             "5. Export → Bilingual Review (DOCX)<br>"
@@ -31770,7 +31778,9 @@ class SupervertalerQt(QMainWindow):
                 }
             """)
             if shortcut_badge_tooltip:
-                badge_label.setToolTip(f"Press {shortcut_badge_tooltip} to insert")
+                badge_label.setToolTip(
+                    f"Press {format_shortcut_for_display(shortcut_badge_tooltip)} to insert"
+                )
             header_layout.addWidget(badge_label)
 
         # Add stretch to push navigation controls to the right (aligned with scrollbar)
@@ -34830,7 +34840,7 @@ class SupervertalerQt(QMainWindow):
             menu.addSeparator()
 
         # Select all action
-        select_all_action = menu.addAction("📋 Select All (Ctrl+A)")
+        select_all_action = menu.addAction(f"📋 Select All ({format_shortcut_for_display('Ctrl+A')})")
         select_all_action.triggered.connect(lambda: self.table.selectAll())
 
         menu.exec(self.table.viewport().mapToGlobal(position))
@@ -41133,7 +41143,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         # Toggle: if filters are active, clear them and return
         if filters_active:
             self.clear_filters()
-            self.log("🔍 Filters cleared (Ctrl+Shift+F toggle)")
+            self.log(f"🔍 Filters cleared ({format_shortcut_for_display('Ctrl+Shift+F')} toggle)")
             return
         
         # No filters active - try to filter on selected text
@@ -41942,12 +41952,12 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
     def confirm_and_next_unconfirmed(self):
         """Set current segment to confirmed and move to next unconfirmed segment (Ctrl+Enter)."""
         if not hasattr(self, 'table') or not self.table or not self.current_project:
-            self.log("⚠️ Ctrl+Enter: Missing table or project")
+            self.log(f"⚠️ {format_shortcut_for_display('Ctrl+Enter')}: Missing table or project")
             return
         
         current_row = self.table.currentRow()
         if current_row < 0:
-            self.log("⚠️ Ctrl+Enter: No row selected")
+            self.log(f"⚠️ {format_shortcut_for_display('Ctrl+Enter')}: No row selected")
             return
 
         # If text filters are active, Ctrl+Enter should advance through the filtered/visible rows,
@@ -47916,7 +47926,7 @@ class SuperlookupTab(QWidget):
             # Windows - full functionality
             description_text = (
                 "Look up translations anywhere on your computer.\n"
-                "Press Ctrl+Alt+L or paste text manually to search your TMs and Termbases.\n"
+                f"Press {format_shortcut_for_display('Ctrl+Alt+L')} or paste text manually to search your TMs and Termbases.\n"
                 "Perfect for translating in other CAT tools while accessing Supervertaler resources!"
             )
         else:
@@ -48118,7 +48128,7 @@ class SuperlookupTab(QWidget):
         button_layout.addWidget(copy_btn)
         
         insert_btn = QPushButton("📥 Insert Target")
-        insert_btn.setToolTip("Insert selected translation (Ctrl+V)")
+        insert_btn.setToolTip(f"Insert selected translation ({format_shortcut_for_display('Ctrl+V')})")
         insert_btn.clicked.connect(self.insert_selected_tm_target)
         button_layout.addWidget(insert_btn)
         
@@ -50650,7 +50660,9 @@ class SuperlookupTab(QWidget):
             target_item = self.tm_results_table.item(row, 2)
             if target_item:
                 pyperclip.copy(target_item.text())
-                self.status_label.setText("✓ Copied to clipboard. Press Ctrl+V to paste.")
+                self.status_label.setText(
+                    f"✓ Copied to clipboard. Press {format_shortcut_for_display('Ctrl+V')} to paste."
+                )
                 # Could auto-paste here if we wanted to be aggressive
                 # pyautogui.hotkey('ctrl', 'v')
     
@@ -51132,7 +51144,7 @@ class SuperlookupTab(QWidget):
         
         # Explanation
         explanation = QLabel(
-            "Superlookup uses AutoHotkey to provide a global hotkey (Ctrl+Alt+L) "
+            f"Superlookup uses AutoHotkey to provide a global hotkey ({format_shortcut_for_display('Ctrl+Alt+L')}) "
             "that works from any application.\n\n"
             "Without AutoHotkey, Superlookup will still work, but only when "
             "Supervertaler is the active window."
@@ -52215,7 +52227,12 @@ class AutoFingersWidget(QWidget):
             # Ctrl+Alt+R - Reload TMX
             self.hotkeys.append(keyboard.add_hotkey('ctrl+alt+r', self.reload_tmx_safe))
             
-            self.log("✓ Global hotkeys registered: Ctrl+Alt+P (single), Ctrl+Shift+L (loop), Ctrl+Alt+S (stop), Ctrl+Alt+R (reload)")
+            self.log(
+                f"✓ Global hotkeys registered: {format_shortcut_for_display('Ctrl+Alt+P')} (single), "
+                f"{format_shortcut_for_display('Ctrl+Shift+L')} (loop), "
+                f"{format_shortcut_for_display('Ctrl+Alt+S')} (stop), "
+                f"{format_shortcut_for_display('Ctrl+Alt+R')} (reload)"
+            )
             self.log("ℹ️ Hotkeys work globally - even when memoQ has focus!")
             
         except Exception as e:
@@ -52296,7 +52313,7 @@ class AutoFingersWidget(QWidget):
         single_btn.setStyleSheet("font-size: 10pt; font-weight: bold;")
         single_btn.clicked.connect(self.process_single)
         single_col.addWidget(single_btn)
-        single_info = QLabel("(Ctrl+Alt+P)")
+        single_info = QLabel(f"({format_shortcut_for_display('Ctrl+Alt+P')})")
         single_info.setStyleSheet("color: #666; font-size: 8pt;")
         single_info.setAlignment(Qt.AlignmentFlag.AlignCenter)
         single_col.addWidget(single_info)
@@ -52310,7 +52327,7 @@ class AutoFingersWidget(QWidget):
         self.loop_btn.setStyleSheet("font-size: 10pt; font-weight: bold; background-color: #4CAF50; color: white;")
         self.loop_btn.clicked.connect(self.toggle_loop)
         loop_col.addWidget(self.loop_btn)
-        loop_info = QLabel("(Ctrl+Shift+L)")
+        loop_info = QLabel(f"({format_shortcut_for_display('Ctrl+Shift+L')})")
         loop_info.setStyleSheet("color: #666; font-size: 8pt;")
         loop_info.setAlignment(Qt.AlignmentFlag.AlignCenter)
         loop_col.addWidget(loop_info)
@@ -52454,7 +52471,10 @@ class AutoFingersWidget(QWidget):
         # Use custom checkboxes with green background and white checkmark when checked
         self.auto_confirm_check = CheckmarkCheckBox("Confirm segments")
         self.auto_confirm_check.setChecked(True)
-        self.auto_confirm_check.setToolTip("When checked: Confirm segment with Ctrl+Enter before moving to next. When unchecked: Move to next with Alt+N without confirming")
+        self.auto_confirm_check.setToolTip(
+            f"When checked: Confirm segment with {format_shortcut_for_display('Ctrl+Enter')} before moving to next. "
+            f"When unchecked: Move to next with {format_shortcut_for_display('Alt+N')} without confirming"
+        )
         behavior_group.addWidget(self.auto_confirm_check)
         self.skip_no_match_check = CheckmarkCheckBox("Skip no match")
         self.skip_no_match_check.setChecked(True)

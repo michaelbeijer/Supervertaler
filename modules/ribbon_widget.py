@@ -14,6 +14,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, QSize, pyqtSignal
 from PyQt6.QtGui import QIcon, QFont, QPainter, QColor
+from modules.shortcut_display import format_shortcut_for_display
 
 
 class RibbonButton(QToolButton):
@@ -392,7 +393,9 @@ class RibbonWidget(QTabWidget):
             self.setMaximumHeight(self.expanded_height)
             self.setMinimumHeight(0)
             self.collapse_button.setText("▼ Hide")
-            self.collapse_button.setToolTip("Hide Ribbon (Ctrl+F1)")
+            self.collapse_button.setToolTip(
+                f"Hide Ribbon ({format_shortcut_for_display('Ctrl+F1')})"
+            )
             
         tab_name = self.tabText(index)
         tab_color = self.TAB_COLORS.get(tab_name, "#F5F5F5")
@@ -450,7 +453,9 @@ class RibbonWidget(QTabWidget):
         """Create a collapse/expand button - more visible and better positioned"""
         # Create button widget - larger and more visible
         self.collapse_button = QPushButton("▼ Hide")
-        self.collapse_button.setToolTip("Hide/Show Ribbon (Ctrl+F1)")
+        self.collapse_button.setToolTip(
+            f"Hide/Show Ribbon ({format_shortcut_for_display('Ctrl+F1')})"
+        )
         self.collapse_button.setFixedSize(60, 26)  # Larger size with text
         self.collapse_button.setStyleSheet("""
             QPushButton {
@@ -490,7 +495,9 @@ class RibbonWidget(QTabWidget):
                 if widget:
                     widget.setVisible(False)
             self.collapse_button.setText("▲ Show")
-            self.collapse_button.setToolTip("Show Ribbon (Ctrl+F1)")
+            self.collapse_button.setToolTip(
+                f"Show Ribbon ({format_shortcut_for_display('Ctrl+F1')})"
+            )
         else:
             # Expand: show full ribbon with content
             self.setMaximumHeight(self.expanded_height)
@@ -502,7 +509,9 @@ class RibbonWidget(QTabWidget):
                 if widget:
                     widget.setVisible(True)
             self.collapse_button.setText("▼ Hide")
-            self.collapse_button.setToolTip("Hide Ribbon (Ctrl+F1)")
+            self.collapse_button.setToolTip(
+                f"Hide Ribbon ({format_shortcut_for_display('Ctrl+F1')})"
+            )
     
     def _on_tab_clicked(self, index: int):
         """Handle tab click - if collapsed, temporarily expand"""
@@ -519,7 +528,9 @@ class RibbonWidget(QTabWidget):
             
             # Update button text
             self.collapse_button.setText("▼ Hide")
-            self.collapse_button.setToolTip("Hide Ribbon (Ctrl+F1)")
+            self.collapse_button.setToolTip(
+                f"Hide Ribbon ({format_shortcut_for_display('Ctrl+F1')})"
+            )
             
             # Update colors for the newly selected tab
             if index >= 0 and index < self.count():

@@ -29,6 +29,7 @@ from modules.prompt_library_migration import migrate_prompt_library
 from modules.ai_attachment_manager import AttachmentManager
 from modules.ai_file_viewer_dialog import FileViewerDialog, FileRemoveConfirmDialog
 from modules.ai_actions import AIActionSystem
+from modules.shortcut_display import format_shortcut_for_display
 
 
 class CheckmarkCheckBox(QCheckBox):
@@ -1540,7 +1541,9 @@ class UnifiedPromptManagerQt:
         input_layout.setSpacing(5)
         
         self.chat_input = QPlainTextEdit()
-        self.chat_input.setPlaceholderText("Type your message here... (Shift+Enter for new line)")
+        self.chat_input.setPlaceholderText(
+            f"Type your message here... ({format_shortcut_for_display('Shift+Enter')} for new line)"
+        )
         self.chat_input.setMaximumHeight(80)
         self.chat_input.setStyleSheet("""
             QPlainTextEdit {

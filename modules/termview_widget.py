@@ -18,6 +18,7 @@ from PyQt6.QtCore import Qt, QPoint, pyqtSignal, QRect, QSize
 from PyQt6.QtGui import QFont, QCursor, QAction
 from typing import Dict, List, Optional, Tuple
 import re
+from modules.shortcut_display import format_shortcut_for_display
 
 
 class FlowLayout(QLayout):
@@ -278,11 +279,15 @@ class TermBlock(QWidget):
                 if self.shortcut_number in (0, 10):
                     shortcut_hint = ""
                 elif self.shortcut_number <= 9:
-                    shortcut_hint = f"<br><i>Press Alt+{self.shortcut_number} to insert</i>"
+                    shortcut_hint = (
+                        f"<br><i>Press {format_shortcut_for_display(f'Alt+{self.shortcut_number}')} to insert</i>"
+                    )
                 else:
                     # Double-tap shortcuts (10-19 displayed as 00, 11, 22, etc.)
                     double_digit = (self.shortcut_number - 10)
-                    shortcut_hint = f"<br><i>Press Alt+{double_digit},{double_digit} to insert</i>"
+                    shortcut_hint = (
+                        f"<br><i>Press {format_shortcut_for_display(f'Alt+{double_digit},{double_digit}')} to insert</i>"
+                    )
             else:
                 shortcut_hint = ""
             
@@ -334,13 +339,13 @@ class TermBlock(QWidget):
                 # Badge text: 0-9 for first 10 terms, 00/11/22/.../99 for terms 11-20
                 if self.shortcut_number < 10:
                     badge_text = str(self.shortcut_number)
-                    shortcut_hint = f"Alt+{self.shortcut_number}"
+                    shortcut_hint = format_shortcut_for_display(f"Alt+{self.shortcut_number}")
                     badge_width = 14
                 else:
                     # Terms 11-20: show as 00, 11, 22, ..., 99
                     digit = self.shortcut_number - 10
                     badge_text = str(digit) * 2  # "00", "11", "22", etc.
-                    shortcut_hint = f"Alt+{digit},{digit}"
+                    shortcut_hint = format_shortcut_for_display(f"Alt+{digit},{digit}")
                     badge_width = 20  # Wider for 2 digits
                 
                 badge_label = QLabel(badge_text)

@@ -15,6 +15,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtGui import QFont, QShortcut, QKeySequence
+from modules.shortcut_display import format_shortcut_for_display
 
 
 class RecordingThread(QThread):
@@ -292,7 +293,7 @@ class VoiceDictationWidget(QWidget):
 
         # Keyboard shortcuts info
         shortcuts_text = QLabel(
-            "⌨️ Shortcuts: F9 = Start/Stop Recording | Esc = Cancel | Ctrl+C = Copy"
+            f"⌨️ Shortcuts: F9 = Start/Stop Recording | Esc = Cancel | {format_shortcut_for_display('Ctrl+C')} = Copy"
         )
         shortcuts_text.setWordWrap(True)
         shortcuts_text.setStyleSheet(

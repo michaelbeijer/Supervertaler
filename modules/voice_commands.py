@@ -15,6 +15,7 @@ from typing import Optional, Dict, List, Callable, Tuple
 from dataclasses import dataclass, field
 from difflib import SequenceMatcher
 from PyQt6.QtCore import QObject, pyqtSignal
+from modules.shortcut_display import format_shortcut_for_display
 
 
 @dataclass
@@ -99,7 +100,7 @@ class VoiceCommandManager(QObject):
         
         # Lookup & Search
         VoiceCommand("lookup", ["super lookup", "search"], "internal", "open_superlookup",
-                    "Open Superlookup (Ctrl+K)", "lookup"),
+                    f"Open Superlookup ({format_shortcut_for_display('Ctrl+K')})", "lookup"),
         VoiceCommand("concordance", ["search memory", "search TM"], "internal", "concordance_search",
                     "Open concordance search", "lookup"),
         
@@ -917,4 +918,3 @@ class _VADListenerThread(QObject):
 class _ListenerThread(_VADListenerThread):
     """Legacy alias for _VADListenerThread"""
     pass
-
