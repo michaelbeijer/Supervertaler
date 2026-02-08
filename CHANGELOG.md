@@ -2,16 +2,16 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.238 (February 8, 2026)
+**Current Version:** v1.9.239 (February 8, 2026)
 
 
 
-## v1.9.238 - February 8, 2026
+## v1.9.239 - February 8, 2026
 
 ### 🐛 Bug Fixes
 
-- **macOS: tabs now left-aligned**: Fixed all tab bars (main tabs, settings sub-tabs, resource tabs, etc.) being centered/expanded on macOS. Added `setExpanding(False)` to all 12 tab widgets so tabs align to the left, matching Windows behavior.
-- **macOS: combo box dropdowns no longer blank**: Fixed a macOS Qt issue where QComboBox popup menus (pagination "Per page", language selectors, model dropdowns, etc.) rendered with blank/empty item text. Applied a global `combobox-popup: 0` stylesheet rule on macOS to force Qt's own list-view popup instead of the native menu.
+- **macOS: tabs now left-aligned**: Fixed all tab bars (main tabs, settings sub-tabs, resource tabs, etc.) being centered/expanded on macOS. Qt's native `QMacStyle` ignores `setExpanding(False)`, so the app now uses the Fusion style on macOS which respects all Qt widget properties while keeping the app's custom stylesheets intact.
+- **macOS: combo box dropdowns no longer blank**: Fixed a macOS Qt issue where QComboBox popup menus (pagination "Per page", language selectors, model dropdowns, etc.) rendered with blank/empty item text. The Fusion style renders combo items with Qt's own paint code instead of the native NSMenu.
 
 ---
 

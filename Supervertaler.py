@@ -53107,10 +53107,12 @@ def main():
         }
     """)
 
-    # macOS: force QComboBox to use list-view popup instead of native menu
-    # (native macOS menu popup can render blank/empty item text in Qt)
+    # macOS: use Fusion style instead of native QMacStyle.
+    # QMacStyle ignores QTabBar.setExpanding(False) (tabs always centered/expanded)
+    # and renders QComboBox popup items blank. Fusion respects all Qt properties
+    # and the app's custom stylesheets still apply on top.
     if sys.platform == 'darwin':
-        app.setStyleSheet(app.styleSheet() + "\nQComboBox { combobox-popup: 0; }")
+        app.setStyle("Fusion")
 
     # Set Windows AppUserModelID for taskbar icon grouping (Windows 7+)
     if sys.platform == 'win32':
