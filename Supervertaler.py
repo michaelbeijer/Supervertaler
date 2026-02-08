@@ -9010,6 +9010,7 @@ class SupervertalerQt(QMainWindow):
         self.main_tabs = QTabWidget()
         self.main_tabs.tabBar().setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.main_tabs.tabBar().setDrawBase(False)
+        self.main_tabs.tabBar().setExpanding(False)
         self.main_tabs.setStyleSheet("""
             QTabBar::tab { padding: 8px 15px; outline: 0; }
             QTabBar::tab:focus { outline: none; }
@@ -10815,6 +10816,7 @@ class SupervertalerQt(QMainWindow):
         resources_tabs = QTabWidget()
         resources_tabs.tabBar().setFocusPolicy(Qt.FocusPolicy.NoFocus)
         resources_tabs.tabBar().setDrawBase(False)
+        resources_tabs.tabBar().setExpanding(False)
         resources_tabs.setStyleSheet("QTabBar::tab { outline: 0; } QTabBar::tab:focus { outline: none; } QTabBar::tab:selected { border-bottom: 1px solid #2196F3; background-color: rgba(33, 150, 243, 0.08); }")
         self.resources_tabs = resources_tabs  # Store for navigation
         
@@ -10848,6 +10850,7 @@ class SupervertalerQt(QMainWindow):
         modules_tabs = QTabWidget()
         modules_tabs.tabBar().setFocusPolicy(Qt.FocusPolicy.NoFocus)
         modules_tabs.tabBar().setDrawBase(False)
+        modules_tabs.tabBar().setExpanding(False)
         modules_tabs.setStyleSheet("QTabBar::tab { outline: 0; } QTabBar::tab:focus { outline: none; } QTabBar::tab:selected { border-bottom: 1px solid #2196F3; background-color: rgba(33, 150, 243, 0.08); }")
         self.modules_tabs = modules_tabs  # Store for navigation
         
@@ -10920,6 +10923,7 @@ class SupervertalerQt(QMainWindow):
         tm_tabs = QTabWidget()
         tm_tabs.tabBar().setFocusPolicy(Qt.FocusPolicy.NoFocus)
         tm_tabs.tabBar().setDrawBase(False)
+        tm_tabs.tabBar().setExpanding(False)
         tm_tabs.setStyleSheet("QTabBar::tab { outline: 0; } QTabBar::tab:focus { outline: none; } QTabBar::tab:selected { border-bottom: 1px solid #2196F3; background-color: rgba(33, 150, 243, 0.08); }")
         
         # Tab 1: TM List (Management) - manage multiple TMs
@@ -16261,6 +16265,7 @@ class SupervertalerQt(QMainWindow):
         settings_tabs = QTabWidget()
         settings_tabs.tabBar().setFocusPolicy(Qt.FocusPolicy.NoFocus)
         settings_tabs.tabBar().setDrawBase(False)
+        settings_tabs.tabBar().setExpanding(False)
         settings_tabs.setStyleSheet("QTabBar::tab { outline: 0; } QTabBar::tab:focus { outline: none; } QTabBar::tab:selected { border-bottom: 1px solid #2196F3; background-color: rgba(33, 150, 243, 0.08); }")
         self.settings_tabs = settings_tabs  # Store for reference
         
@@ -20399,6 +20404,7 @@ class SupervertalerQt(QMainWindow):
         domain_tabs = QTabWidget()
         domain_tabs.tabBar().setFocusPolicy(Qt.FocusPolicy.NoFocus)
         domain_tabs.tabBar().setDrawBase(False)
+        domain_tabs.tabBar().setExpanding(False)
         domain_tabs.setStyleSheet("QTabBar::tab { outline: 0; } QTabBar::tab:focus { outline: none; } QTabBar::tab:selected { border-bottom: 1px solid #2196F3; background-color: rgba(33, 150, 243, 0.08); }")
 
         # Legal domain
@@ -22059,6 +22065,7 @@ class SupervertalerQt(QMainWindow):
         right_tabs = QTabWidget()
         right_tabs.tabBar().setFocusPolicy(Qt.FocusPolicy.NoFocus)
         right_tabs.tabBar().setDrawBase(False)
+        right_tabs.tabBar().setExpanding(False)
         right_tabs.setStyleSheet("QTabBar::tab { outline: 0; } QTabBar::tab:focus { outline: none; } QTabBar::tab:selected { border-bottom: 1px solid #2196F3; background-color: rgba(33, 150, 243, 0.08); }")
 
         # NOTE: Translation Results panel is deprecated - MT/LLM is now only via QuickTrans (Ctrl+M)
@@ -22793,6 +22800,7 @@ class SupervertalerQt(QMainWindow):
         tabs = QTabWidget()
         tabs.tabBar().setFocusPolicy(Qt.FocusPolicy.NoFocus)
         tabs.tabBar().setDrawBase(False)
+        tabs.tabBar().setExpanding(False)
         tabs.setStyleSheet("QTabBar::tab { outline: 0; } QTabBar::tab:focus { outline: none; } QTabBar::tab:selected { border-bottom: 1px solid #2196F3; background-color: rgba(33, 150, 243, 0.08); }")
         tabs.setTabPosition(QTabWidget.TabPosition.South)  # Tabs at bottom for easy access
         
@@ -23092,6 +23100,7 @@ class SupervertalerQt(QMainWindow):
         import_tabs = QTabWidget()
         import_tabs.tabBar().setFocusPolicy(Qt.FocusPolicy.NoFocus)
         import_tabs.tabBar().setDrawBase(False)
+        import_tabs.tabBar().setExpanding(False)
         import_tabs.setStyleSheet("QTabBar::tab { outline: 0; } QTabBar::tab:focus { outline: none; } QTabBar::tab:selected { border-bottom: 1px solid #2196F3; background-color: rgba(33, 150, 243, 0.08); }")
         
         # Tab 1: Paste Text
@@ -38375,6 +38384,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         tabs = QTabWidget()
         tabs.tabBar().setFocusPolicy(Qt.FocusPolicy.NoFocus)
         tabs.tabBar().setDrawBase(False)
+        tabs.tabBar().setExpanding(False)
         tabs.setStyleSheet("QTabBar::tab { outline: 0; } QTabBar::tab:focus { outline: none; } QTabBar::tab:selected { border-bottom: 1px solid #2196F3; background-color: rgba(33, 150, 243, 0.08); }")
 
         # ═══════════════════════════════════════════════
@@ -48125,6 +48135,7 @@ class SuperlookupTab(QWidget):
         self.results_tabs = QTabWidget()
         self.results_tabs.tabBar().setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.results_tabs.tabBar().setDrawBase(False)
+        self.results_tabs.tabBar().setExpanding(False)
         self.results_tabs.setStyleSheet("QTabBar::tab { outline: 0; } QTabBar::tab:focus { outline: none; } QTabBar::tab:selected { border-bottom: 1px solid #2196F3; background-color: rgba(33, 150, 243, 0.08); }")
         
         # TM Results tab
@@ -49440,6 +49451,7 @@ class SuperlookupTab(QWidget):
         self.settings_subtabs = QTabWidget()
         self.settings_subtabs.tabBar().setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.settings_subtabs.tabBar().setDrawBase(False)
+        self.settings_subtabs.tabBar().setExpanding(False)
         
         # TM Settings sub-tab
         tm_settings_tab = self.create_tm_settings_subtab()
@@ -53094,6 +53106,11 @@ def main():
             border: none;
         }
     """)
+
+    # macOS: force QComboBox to use list-view popup instead of native menu
+    # (native macOS menu popup can render blank/empty item text in Qt)
+    if sys.platform == 'darwin':
+        app.setStyleSheet(app.styleSheet() + "\nQComboBox { combobox-popup: 0; }")
 
     # Set Windows AppUserModelID for taskbar icon grouping (Windows 7+)
     if sys.platform == 'win32':
