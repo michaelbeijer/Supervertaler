@@ -66,6 +66,19 @@ from dataclasses import dataclass, asdict
 from datetime import datetime
 
 
+def format_shortcut_for_display(shortcut: str) -> str:
+    """Return a platform-appropriate shortcut label for UI text."""
+    if sys.platform != 'darwin':
+        return shortcut
+
+    key_map = {
+        "Ctrl": "Command",
+        "Alt": "Option",
+        "Meta": "Command",
+    }
+    return "+".join(key_map.get(part, part) for part in shortcut.split("+"))
+
+
 def get_resource_path(relative_path: str) -> Path:
     """Get absolute path to resource, works for dev and for PyInstaller bundled app."""
     if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
@@ -2646,12 +2659,12 @@ class ReadOnlyGridTextEditor(QTextEdit):
         
         # Superlookup search action
         if self.textCursor().hasSelection():
-            superlookup_action = QAction("🔍 Search in Superlookup (Ctrl+K)", self)
+            superlookup_action = QAction(f"🔍 Search in Superlookup ({format_shortcut_for_display('Ctrl+K')})", self)
             superlookup_action.triggered.connect(self._handle_superlookup_search)
             menu.addAction(superlookup_action)
 
         # MT Quick Lookup action
-        mt_lookup_action = QAction("⚡ Quicktrans (Ctrl+M)", self)
+        mt_lookup_action = QAction(f"⚡ Quicktrans ({format_shortcut_for_display('Ctrl+M')})", self)
         mt_lookup_action.triggered.connect(self._handle_mt_quick_lookup)
         menu.addAction(mt_lookup_action)
         menu.addSeparator()
@@ -2688,17 +2701,17 @@ class ReadOnlyGridTextEditor(QTextEdit):
             pass
         
         # Add to glossary action (with dialog)
-        add_to_tb_action = QAction("📖 Add to Glossary (Ctrl+E)", self)
+        add_to_tb_action = QAction(f"📖 Add to Glossary ({format_shortcut_for_display('Ctrl+E')})", self)
         add_to_tb_action.triggered.connect(self._handle_add_to_termbase)
         menu.addAction(add_to_tb_action)
         
         # Quick add to glossary action (no dialog) - uses last-selected glossary from Ctrl+E
-        quick_add_action = QAction("⚡ Quick Add to Glossary (Alt+Left)", self)
+        quick_add_action = QAction(f"⚡ Quick Add to Glossary ({format_shortcut_for_display('Alt+Left')})", self)
         quick_add_action.triggered.connect(self._handle_quick_add_to_termbase)
         menu.addAction(quick_add_action)
         
         # Add to non-translatables action
-        add_to_nt_action = QAction("🚫 Add to Non-Translatables (Ctrl+Alt+N)", self)
+        add_to_nt_action = QAction(f"🚫 Add to Non-Translatables ({format_shortcut_for_display('Ctrl+Alt+N')})", self)
         add_to_nt_action.triggered.connect(self._handle_add_to_nt)
         menu.addAction(add_to_nt_action)
         
@@ -3360,12 +3373,12 @@ class EditableGridTextEditor(QTextEdit):
         
         # Superlookup search action
         if self.textCursor().hasSelection():
-            superlookup_action = QAction("🔍 Search in Superlookup (Ctrl+K)", self)
+            superlookup_action = QAction(f"🔍 Search in Superlookup ({format_shortcut_for_display('Ctrl+K')})", self)
             superlookup_action.triggered.connect(self._handle_superlookup_search)
             menu.addAction(superlookup_action)
 
         # MT Quick Lookup action
-        mt_lookup_action = QAction("⚡ Quicktrans (Ctrl+M)", self)
+        mt_lookup_action = QAction(f"⚡ Quicktrans ({format_shortcut_for_display('Ctrl+M')})", self)
         mt_lookup_action.triggered.connect(self._handle_mt_quick_lookup)
         menu.addAction(mt_lookup_action)
         menu.addSeparator()
@@ -3405,17 +3418,17 @@ class EditableGridTextEditor(QTextEdit):
             pass
         
         # Add to termbase action (with dialog)
-        add_to_tb_action = QAction("📖 Add to Glossary (Ctrl+E)", self)
+        add_to_tb_action = QAction(f"📖 Add to Glossary ({format_shortcut_for_display('Ctrl+E')})", self)
         add_to_tb_action.triggered.connect(self._handle_add_to_termbase)
         menu.addAction(add_to_tb_action)
         
         # Quick add to termbase action (no dialog) - uses last-selected termbase from Ctrl+E
-        quick_add_action = QAction("⚡ Quick Add to Glossary (Alt+Left)", self)
+        quick_add_action = QAction(f"⚡ Quick Add to Glossary ({format_shortcut_for_display('Alt+Left')})", self)
         quick_add_action.triggered.connect(self._handle_quick_add_to_termbase)
         menu.addAction(quick_add_action)
         
         # Add to non-translatables action
-        add_to_nt_action = QAction("🚫 Add to Non-Translatables (Ctrl+Alt+N)", self)
+        add_to_nt_action = QAction(f"🚫 Add to Non-Translatables ({format_shortcut_for_display('Ctrl+Alt+N')})", self)
         add_to_nt_action.triggered.connect(self._handle_add_to_nt)
         menu.addAction(add_to_nt_action)
         
