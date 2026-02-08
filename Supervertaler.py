@@ -4865,41 +4865,23 @@ class TermMetadataDialog(QDialog):
         """Load saved termbase selections from preferences"""
         if not self.user_data_path:
             return None
-        
-        prefs_file = self.user_data_path / "ui_preferences.json"
-        if not prefs_file.exists():
-            return None
-        
+
         try:
-            with open(prefs_file, 'r') as f:
-                prefs = json.load(f)
-                return prefs.get('add_term_termbase_selections', None)
+            prefs = self._load_settings_section("ui")
+            return prefs.get('add_term_termbase_selections', None)
         except:
             return None
-    
+
     def _save_termbase_selections(self):
         """Save current termbase selections to preferences"""
         if not self.user_data_path:
             return
-        
-        prefs_file = self.user_data_path / "ui_preferences.json"
-        
-        # Load existing preferences
-        prefs = {}
-        if prefs_file.exists():
-            try:
-                with open(prefs_file, 'r') as f:
-                    prefs = json.load(f)
-            except:
-                pass
-        
-        # Save the selected termbase IDs
-        selected_ids = [tb_id for tb_id, cb in self.termbase_checkboxes.items() if cb.isChecked()]
-        prefs['add_term_termbase_selections'] = selected_ids
-        
+
         try:
-            with open(prefs_file, 'w') as f:
-                json.dump(prefs, f, indent=2)
+            all_settings = self._load_unified_settings()
+            selected_ids = [tb_id for tb_id, cb in self.termbase_checkboxes.items() if cb.isChecked()]
+            all_settings.setdefault("ui", {})['add_term_termbase_selections'] = selected_ids
+            self._save_unified_settings(all_settings)
         except:
             pass
         
@@ -6708,7 +6690,11 @@ class SupervertalerQt(QMainWindow):
             self.user_data_path.mkdir(parents=True, exist_ok=True)
         
         print(f"[Data Paths] User data: {self.user_data_path}")
-        
+
+        # Migrate old settings files to unified settings/settings.json (one-time)
+        if not self._needs_data_location_dialog:
+            self._migrate_settings_to_unified()
+
         # Database Manager for Termbases
         self.db_manager = DatabaseManager(
             db_path=str(self.user_data_path / "resources" / "supervertaler.db"),
@@ -6749,7 +6735,7 @@ class SupervertalerQt(QMainWindow):
         self.fr_history = FindReplaceHistory(str(self.user_data_path))
         
         # Shortcut Manager for keyboard shortcuts (including enable/disable)
-        self.shortcut_manager = ShortcutManager(Path(self.user_data_path) / "shortcuts.json")
+        self.shortcut_manager = ShortcutManager(Path(self.user_data_path) / "settings" / "shortcuts.json")
         
         # Voice Command Manager for Talon-style voice commands
         self.voice_command_manager = VoiceCommandManager(self.user_data_path, main_window=self)
@@ -6769,7 +6755,7 @@ class SupervertalerQt(QMainWindow):
         # If .supervertaler.local exists: uses "user_data_private" (git-ignored)
         # Otherwise: uses "user_data" (safe to commit)
         base_folder = "user_data_private" if ENABLE_PRIVATE_FEATURES else "user_data"
-        self.recent_projects_file = self.user_data_path / "recent_projects.json"
+        self.recent_projects_file = self.user_data_path / "settings" / "recent_projects.json"
         
         # Initialize UI
         self.init_ui()
@@ -6817,9 +6803,6 @@ class SupervertalerQt(QMainWindow):
         # This ensures all widgets are properly themed at startup
         from PyQt6.QtCore import QTimer
         QTimer.singleShot(100, self.refresh_theme_colors)
-        
-        # Create example API keys file on first launch (after UI is ready)
-        self.ensure_example_api_keys()
         
         self.log(f"Welcome to Supervertaler v{__version__}")
         self.log("Supervertaler: The Ultimate Translation Workbench.")
@@ -6990,6 +6973,9 @@ class SupervertalerQt(QMainWindow):
     def _reinitialize_with_new_data_path(self):
         """Re-initialize managers after user changes data path."""
         try:
+            # Migrate settings if needed for the new data path
+            self._migrate_settings_to_unified()
+
             # Close existing database connection
             if hasattr(self, 'db_manager') and self.db_manager:
                 self.db_manager.close()
@@ -7018,7 +7004,7 @@ class SupervertalerQt(QMainWindow):
             # Update other managers
             self.spellcheck_manager = get_spellcheck_manager(str(self.user_data_path))
             self.fr_history = FindReplaceHistory(str(self.user_data_path))
-            self.shortcut_manager = ShortcutManager(Path(self.user_data_path) / "shortcuts.json")
+            self.shortcut_manager = ShortcutManager(Path(self.user_data_path) / "settings" / "shortcuts.json")
             self.voice_command_manager = VoiceCommandManager(self.user_data_path, main_window=self)
             
             # Update theme manager
@@ -7030,7 +7016,7 @@ class SupervertalerQt(QMainWindow):
             self.theme_manager.apply_theme(QApplication.instance())
             
             # Update recent projects file path
-            self.recent_projects_file = self.user_data_path / "recent_projects.json"
+            self.recent_projects_file = self.user_data_path / "settings" / "recent_projects.json"
             
             self.log(f"✅ Re-initialized all managers with new data path")
             
@@ -7381,7 +7367,7 @@ class SupervertalerQt(QMainWindow):
             api_keys = load_api_keys()
 
             # Initialize checker with cache in user_data
-            cache_path = self.user_data_path / "model_version_cache.json"
+            cache_path = self.user_data_path / "settings" / "model_version_cache.json"
             checker = ModelVersionChecker(cache_path=str(cache_path))
 
             # Check if we should run (unless forced)
@@ -16887,21 +16873,47 @@ class SupervertalerQt(QMainWindow):
         layout.addWidget(version_check_group)
 
         # ========== SECTION 2c: API Keys ==========
-        api_keys_group = QGroupBox("🔑 API Keys")
-        api_keys_layout = QVBoxLayout()
+        api_keys_group = QGroupBox("🔑 LLM API Keys")
+        api_keys_form = QFormLayout()
+        api_keys_form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
 
-        api_keys_info = QLabel(
-            f"Configure your API keys in:<br>"
-            f"<code>{self.user_data_path / 'api_keys.txt'}</code>"
-        )
-        api_keys_info.setWordWrap(True)
-        api_keys_layout.addWidget(api_keys_info)
+        current_keys = self.load_api_keys()
+        if not hasattr(self, '_api_key_inputs'):
+            self._api_key_inputs = {}
 
-        open_keys_btn = QPushButton("📝 Open API Keys File")
-        open_keys_btn.clicked.connect(lambda: self.open_api_keys_file())
-        api_keys_layout.addWidget(open_keys_btn)
+        llm_key_fields = [
+            ("OpenAI:", "openai", "sk-proj-..."),
+            ("Claude (Anthropic):", "claude", "sk-ant-api03-..."),
+            ("Google / Gemini:", "google", "AIza..."),
+            ("Ollama Endpoint:", "ollama_endpoint", "http://localhost:11434"),
+        ]
 
-        api_keys_group.setLayout(api_keys_layout)
+        for label, key_name, placeholder in llm_key_fields:
+            row = QHBoxLayout()
+            key_input = QLineEdit()
+            key_input.setPlaceholderText(placeholder)
+            key_input.setText(current_keys.get(key_name, ''))
+            if key_name != 'ollama_endpoint':
+                key_input.setEchoMode(QLineEdit.EchoMode.Password)
+            row.addWidget(key_input)
+
+            if key_name != 'ollama_endpoint':
+                toggle_btn = QPushButton("Show")
+                toggle_btn.setFixedWidth(50)
+                toggle_btn.setCheckable(True)
+                toggle_btn.clicked.connect(
+                    lambda checked, inp=key_input, btn=toggle_btn:
+                        (inp.setEchoMode(QLineEdit.EchoMode.Normal if checked else QLineEdit.EchoMode.Password),
+                         btn.setText("Hide" if checked else "Show"))
+                )
+                row.addWidget(toggle_btn)
+
+            container = QWidget()
+            container.setLayout(row)
+            api_keys_form.addRow(label, container)
+            self._api_key_inputs[key_name] = key_input
+
+        api_keys_group.setLayout(api_keys_form)
         layout.addWidget(api_keys_group)
 
         # ========== SECTION 3: Enable/Disable LLM Providers ==========
@@ -17272,25 +17284,53 @@ class SupervertalerQt(QMainWindow):
         mt_provider_group.setLayout(mt_provider_layout)
         layout.addWidget(mt_provider_group)
         
-        # API Keys info for MT
-        mt_api_keys_group = QGroupBox("API Keys")
-        mt_api_keys_layout = QVBoxLayout()
-        
-        mt_api_keys_info = QLabel(
-            f"Configure your MT API keys in:<br>"
-            f"<code>{self.user_data_path / 'api_keys.txt'}</code><br><br>"
-            f"See example file for format:<br>"
-            f"<code>{self.user_data_path / 'api_keys.example.txt'}</code>"
-        )
-        mt_api_keys_info.setWordWrap(True)
-        mt_api_keys_layout.addWidget(mt_api_keys_info)
-        
-        # Button to open API keys file
-        mt_open_keys_btn = QPushButton("📝 Open API Keys File")
-        mt_open_keys_btn.clicked.connect(lambda: self.open_api_keys_file())
-        mt_api_keys_layout.addWidget(mt_open_keys_btn)
-        
-        mt_api_keys_group.setLayout(mt_api_keys_layout)
+        # Inline MT API Keys
+        mt_api_keys_group = QGroupBox("🔑 MT API Keys")
+        mt_keys_form = QFormLayout()
+        mt_keys_form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
+
+        current_keys = self.load_api_keys()
+        if not hasattr(self, '_api_key_inputs'):
+            self._api_key_inputs = {}
+
+        mt_key_fields = [
+            ("Google Translate:", "google_translate", "AIza...", True),
+            ("DeepL:", "deepl", "your-deepl-key", True),
+            ("Microsoft Translate:", "microsoft_translate", "your-azure-key", True),
+            ("Microsoft Region:", "microsoft_translate_region", "global", False),
+            ("Amazon Access Key:", "amazon_translate", "AKIA...", True),
+            ("Amazon Secret Key:", "amazon_translate_secret", "your-secret", True),
+            ("Amazon Region:", "amazon_translate_region", "us-east-1", False),
+            ("ModernMT:", "modernmt", "your-modernmt-key", True),
+            ("MyMemory:", "mymemory", "your-mymemory-key", True),
+        ]
+
+        for label, key_name, placeholder, is_secret in mt_key_fields:
+            row = QHBoxLayout()
+            key_input = QLineEdit()
+            key_input.setPlaceholderText(placeholder)
+            key_input.setText(current_keys.get(key_name, ''))
+            if is_secret:
+                key_input.setEchoMode(QLineEdit.EchoMode.Password)
+            row.addWidget(key_input)
+
+            if is_secret:
+                toggle_btn = QPushButton("Show")
+                toggle_btn.setFixedWidth(50)
+                toggle_btn.setCheckable(True)
+                toggle_btn.clicked.connect(
+                    lambda checked, inp=key_input, btn=toggle_btn:
+                        (inp.setEchoMode(QLineEdit.EchoMode.Normal if checked else QLineEdit.EchoMode.Password),
+                         btn.setText("Hide" if checked else "Show"))
+                )
+                row.addWidget(toggle_btn)
+
+            container = QWidget()
+            container.setLayout(row)
+            mt_keys_form.addRow(label, container)
+            self._api_key_inputs[key_name] = key_input
+
+        mt_api_keys_group.setLayout(mt_keys_form)
         layout.addWidget(mt_api_keys_group)
         
         # Save button
@@ -19698,34 +19738,27 @@ class SupervertalerQt(QMainWindow):
         self.save_dictation_settings(model, duration, language)
         
         # Save voice commands enabled state, sensitivity, and recognition engine
-        prefs_file = self.user_data_path / "ui_preferences.json"
-        prefs = {}
-        if prefs_file.exists():
-            try:
-                with open(prefs_file, 'r') as f:
-                    prefs = json.load(f)
-            except:
-                pass
-        
+        all_settings = self._load_unified_settings()
+        prefs = all_settings.setdefault("ui", {})
+
         if 'dictation_settings' not in prefs:
             prefs['dictation_settings'] = {}
         prefs['dictation_settings']['voice_commands_enabled'] = voice_commands_enabled
-        
+
         # Save sensitivity setting
         if hasattr(self, 'sensitivity_combo'):
             idx = self.sensitivity_combo.currentIndex()
             sensitivity = ['low', 'medium', 'high'][idx]
             prefs['dictation_settings']['alwayson_sensitivity'] = sensitivity
-        
+
         # Save recognition engine setting
         if hasattr(self, 'recognition_engine_combo'):
             idx = self.recognition_engine_combo.currentIndex()
             engine = 'api' if idx == 1 else 'local'
             prefs['dictation_settings']['recognition_engine'] = engine
-        
+
         try:
-            with open(prefs_file, 'w') as f:
-                json.dump(prefs, f, indent=2)
+            self._save_unified_settings(all_settings)
             
             # Update active listener if running
             if self.voice_listener and hasattr(self, 'sensitivity_combo'):
@@ -20804,11 +20837,32 @@ class SupervertalerQt(QMainWindow):
         # Update LLM indicator in status bar
         self._update_llm_indicator()
         
+        # Save API keys from inline fields
+        self._save_api_keys_from_ui()
+
         self.log(f"✓ AI settings saved: Provider={provider}, Model={self.current_model}")
         QMessageBox.information(self, "Settings Saved", "AI settings have been saved successfully.")
     
+    def _save_api_keys_from_ui(self):
+        """Save API keys from inline input fields to unified settings"""
+        if not hasattr(self, '_api_key_inputs') or not self._api_key_inputs:
+            return
+        api_keys = self._load_settings_section("api_keys")
+        for key_name, input_widget in self._api_key_inputs.items():
+            value = input_widget.text().strip()
+            api_keys[key_name] = value
+        # Sync google/gemini aliases
+        if api_keys.get('google') and not api_keys.get('gemini'):
+            api_keys['gemini'] = api_keys['google']
+        elif api_keys.get('gemini') and not api_keys.get('google'):
+            api_keys['google'] = api_keys['gemini']
+        self.save_api_keys(api_keys)
+
     def _save_mt_settings_from_ui(self, google_cb, deepl_cb, microsoft_cb, amazon_cb, modernmt_cb, mymemory_cb):
         """Save MT settings from UI"""
+        # Save API keys from inline fields
+        self._save_api_keys_from_ui()
+
         enabled_states = {
             'mt_google_translate': google_cb.isChecked(),
             'mt_deepl': deepl_cb.isChecked(),
@@ -33367,10 +33421,154 @@ class SupervertalerQt(QMainWindow):
 
         return settings
     
+    # ═══════════════════════════════════════════════════════════════════════
+    # Unified Settings Infrastructure
+    # All settings are stored in settings/settings.json with top-level sections:
+    #   "api_keys", "general", "ui", "features"
+    # ═══════════════════════════════════════════════════════════════════════
+
+    def _get_settings_dir(self) -> Path:
+        """Get the settings subdirectory path"""
+        return self.user_data_path / "settings"
+
+    def _get_unified_settings_path(self) -> Path:
+        """Get the unified settings.json file path"""
+        return self._get_settings_dir() / "settings.json"
+
+    def _load_unified_settings(self) -> Dict[str, Any]:
+        """Load the entire unified settings file"""
+        settings_file = self._get_unified_settings_path()
+        if not settings_file.exists():
+            return {"api_keys": {}, "general": {}, "ui": {}, "features": {}}
+        try:
+            with open(settings_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            # Ensure all sections exist
+            for section in ("api_keys", "general", "ui", "features"):
+                if section not in data:
+                    data[section] = {}
+            return data
+        except Exception:
+            return {"api_keys": {}, "general": {}, "ui": {}, "features": {}}
+
+    def _save_unified_settings(self, data: Dict[str, Any]):
+        """Save the entire unified settings file"""
+        settings_dir = self._get_settings_dir()
+        settings_dir.mkdir(parents=True, exist_ok=True)
+        settings_file = settings_dir / "settings.json"
+        try:
+            with open(settings_file, 'w', encoding='utf-8') as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
+        except Exception as e:
+            self.log(f"⚠ Could not save settings: {str(e)}")
+
+    def _load_settings_section(self, section: str) -> Dict[str, Any]:
+        """Load a specific section from unified settings"""
+        return self._load_unified_settings().get(section, {})
+
+    def _save_settings_section(self, section: str, section_data: Dict[str, Any]):
+        """Save a specific section to unified settings (preserves other sections)"""
+        all_settings = self._load_unified_settings()
+        all_settings[section] = section_data
+        self._save_unified_settings(all_settings)
+
+    def _migrate_settings_to_unified(self):
+        """One-time migration from old settings files to unified settings/settings.json"""
+        settings_dir = self._get_settings_dir()
+        unified_file = settings_dir / "settings.json"
+
+        # Skip if already migrated
+        if unified_file.exists():
+            return
+
+        print("[Settings] Migrating to unified settings/settings.json ...")
+        settings_dir.mkdir(parents=True, exist_ok=True)
+        unified = {"api_keys": {}, "general": {}, "ui": {}, "features": {}}
+
+        # 1. Migrate general_settings.json
+        old_general = self.user_data_path / "general_settings.json"
+        if old_general.exists():
+            try:
+                with open(old_general, 'r', encoding='utf-8') as f:
+                    unified["general"] = json.load(f)
+                old_general.rename(old_general.with_suffix('.json.migrated'))
+            except Exception as e:
+                print(f"[Settings] Warning: could not migrate general_settings.json: {e}")
+
+        # 2. Migrate ui_preferences.json
+        old_prefs = self.user_data_path / "ui_preferences.json"
+        if old_prefs.exists():
+            try:
+                with open(old_prefs, 'r', encoding='utf-8') as f:
+                    prefs = json.load(f)
+                # Remove the nested general_settings (it's a stale duplicate of general_settings.json)
+                prefs.pop('general_settings', None)
+                unified["ui"] = prefs
+                old_prefs.rename(old_prefs.with_suffix('.json.migrated'))
+            except Exception as e:
+                print(f"[Settings] Warning: could not migrate ui_preferences.json: {e}")
+
+        # 3. Migrate feature_settings.json
+        old_features = self.user_data_path / "feature_settings.json"
+        if old_features.exists():
+            try:
+                with open(old_features, 'r', encoding='utf-8') as f:
+                    unified["features"] = json.load(f)
+                old_features.rename(old_features.with_suffix('.json.migrated'))
+            except Exception as e:
+                print(f"[Settings] Warning: could not migrate feature_settings.json: {e}")
+
+        # 4. Migrate api_keys.txt
+        api_keys_file = None
+        for candidate in [self.user_data_path / "api_keys.txt",
+                          Path(__file__).parent / "user_data_private" / "api_keys.txt"]:
+            if candidate.exists():
+                api_keys_file = candidate
+                break
+
+        if api_keys_file:
+            try:
+                api_keys = {}
+                with open(api_keys_file, 'r', encoding='utf-8') as f:
+                    for line in f:
+                        line = line.strip()
+                        if line and '=' in line and not line.startswith('#'):
+                            key, value = line.split('=', 1)
+                            api_keys[key.strip().lower()] = value.strip()
+                # Apply gemini/google alias sync
+                if api_keys.get('google') and not api_keys.get('gemini'):
+                    api_keys['gemini'] = api_keys['google']
+                elif api_keys.get('gemini') and not api_keys.get('google'):
+                    api_keys['google'] = api_keys['gemini']
+                unified["api_keys"] = api_keys
+                api_keys_file.rename(api_keys_file.with_suffix('.txt.migrated'))
+            except Exception as e:
+                print(f"[Settings] Warning: could not migrate api_keys.txt: {e}")
+
+        # 5. Relocate satellite JSON files to settings/ subfolder
+        import shutil
+        for filename in ['find_replace_history.json', 'superlookup_history.json',
+                         'recent_projects.json', 'model_version_cache.json',
+                         'themes.json', 'shortcuts.json', 'voice_commands.json']:
+            old_path = self.user_data_path / filename
+            new_path = settings_dir / filename
+            if old_path.exists() and not new_path.exists():
+                try:
+                    shutil.move(str(old_path), str(new_path))
+                except Exception as e:
+                    print(f"[Settings] Warning: could not move {filename}: {e}")
+
+        # 6. Write unified settings
+        try:
+            with open(unified_file, 'w', encoding='utf-8') as f:
+                json.dump(unified, f, indent=2, ensure_ascii=False)
+            print(f"[Settings] Migration complete: {unified_file}")
+        except Exception as e:
+            print(f"[Settings] Error writing unified settings: {e}")
+
     def _load_general_settings_from_file(self) -> Dict[str, Any]:
-        """Load general settings from general_settings.json (global defaults)"""
-        settings_file = self.user_data_path / "general_settings.json"
-        
+        """Load general settings from unified settings.json (general section)"""
+
         defaults = {
             'restore_last_project': False,
             'auto_propagate_exact_matches': True,
@@ -33387,68 +33585,46 @@ class SupervertalerQt(QMainWindow):
             'results_match_font_size': 9,
             'results_compare_font_size': 9
         }
-        
-        if not settings_file.exists():
+
+        settings = self._load_settings_section("general")
+        if not settings:
             return defaults
-        
-        try:
-            with open(settings_file, 'r') as f:
-                settings = json.load(f)
-                # Merge with defaults to ensure all keys exist
-                result = defaults.copy()
-                result.update(settings)
-                return result
-        except:
-            return defaults
-    
+
+        # Merge with defaults to ensure all keys exist
+        result = defaults.copy()
+        result.update(settings)
+        return result
+
     def save_general_settings(self, settings: Dict[str, Any]):
-        """Save general settings to general_settings.json (global defaults)"""
-        settings_file = self.user_data_path / "general_settings.json"
-        
-        # Save settings directly (not nested)
+        """Save general settings to unified settings.json (general section)"""
         try:
-            with open(settings_file, 'w') as f:
-                json.dump(settings, f, indent=2)
+            self._save_settings_section("general", settings)
         except Exception as e:
             self.log(f"⚠ Could not save general settings: {str(e)}")
 
     def load_dictation_settings(self) -> Dict[str, Any]:
         """Load Supervoice settings"""
-        prefs_file = self.user_data_path / "ui_preferences.json"
-
         defaults = {
             'model': 'base',
             'max_duration': 10,
             'language': 'Auto (use project target language)'
         }
 
-        if not prefs_file.exists():
-            return defaults
-
         try:
-            with open(prefs_file, 'r') as f:
-                prefs = json.load(f)
-                dictation = prefs.get('dictation_settings', {})
-                result = defaults.copy()
-                result.update(dictation)
-                return result
+            prefs = self._load_settings_section("ui")
+            dictation = prefs.get('dictation_settings', {})
+            result = defaults.copy()
+            result.update(dictation)
+            return result
         except:
             return defaults
 
     def save_dictation_settings(self, model: str, duration: int, language: str):
         """Save Supervoice settings"""
-        prefs_file = self.user_data_path / "ui_preferences.json"
-
         # Load existing preferences to check if model changed
-        old_model = None
-        prefs = {}
-        if prefs_file.exists():
-            try:
-                with open(prefs_file, 'r') as f:
-                    prefs = json.load(f)
-                    old_model = prefs.get('dictation_settings', {}).get('model')
-            except:
-                pass
+        all_settings = self._load_unified_settings()
+        prefs = all_settings.setdefault("ui", {})
+        old_model = prefs.get('dictation_settings', {}).get('model')
 
         # Update dictation settings
         prefs['dictation_settings'] = {
@@ -33468,8 +33644,7 @@ class SupervertalerQt(QMainWindow):
 
         # Save back
         try:
-            with open(prefs_file, 'w') as f:
-                json.dump(prefs, f, indent=2)
+            self._save_unified_settings(all_settings)
             self.log(f"✓ Supervoice settings saved: Model={model}, Duration={duration}s")
 
             # Build message
@@ -33502,60 +33677,40 @@ class SupervertalerQt(QMainWindow):
 
     def load_language_settings(self):
         """Load language settings from preferences"""
-        prefs_file = self.user_data_path / "ui_preferences.json"
-
         defaults = {
             'source_language': 'English',
             'target_language': 'Dutch'
         }
-        
-        if not prefs_file.exists():
-            return
-        
+
         try:
-            with open(prefs_file, 'r') as f:
-                prefs = json.load(f)
-                lang_settings = prefs.get('language_settings', {})
-                self.source_language = lang_settings.get('source_language', defaults['source_language'])
-                self.target_language = lang_settings.get('target_language', defaults['target_language'])
-                
-                # Load spellcheck settings
-                spellcheck_settings = prefs.get('spellcheck_settings', {})
-                self.spellcheck_enabled = spellcheck_settings.get('enabled', False)
-                TagHighlighter.set_spellcheck_enabled(self.spellcheck_enabled)
-                
-                # Set spellcheck language based on target language
-                if self.spellcheck_manager and self.spellcheck_enabled:
-                    if self.spellcheck_manager.set_language(self.target_language):
-                        self.log(f"✓ Spellcheck initialized for {self.target_language}")
-                    else:
-                        self.log(f"⚠ Spellcheck dictionary not available for {self.target_language}")
+            prefs = self._load_settings_section("ui")
+            lang_settings = prefs.get('language_settings', {})
+            self.source_language = lang_settings.get('source_language', defaults['source_language'])
+            self.target_language = lang_settings.get('target_language', defaults['target_language'])
+
+            # Load spellcheck settings
+            spellcheck_settings = prefs.get('spellcheck_settings', {})
+            self.spellcheck_enabled = spellcheck_settings.get('enabled', False)
+            TagHighlighter.set_spellcheck_enabled(self.spellcheck_enabled)
+
+            # Set spellcheck language based on target language
+            if self.spellcheck_manager and self.spellcheck_enabled:
+                if self.spellcheck_manager.set_language(self.target_language):
+                    self.log(f"✓ Spellcheck initialized for {self.target_language}")
+                else:
+                    self.log(f"⚠ Spellcheck dictionary not available for {self.target_language}")
         except:
             pass
-    
+
     def save_language_settings(self, source_lang: str, target_lang: str):
         """Save language settings to preferences"""
-        prefs_file = self.user_data_path / "ui_preferences.json"
-        
-        # Load existing preferences
-        prefs = {}
-        if prefs_file.exists():
-            try:
-                with open(prefs_file, 'r') as f:
-                    prefs = json.load(f)
-            except:
-                pass
-        
-        # Update language settings
-        prefs['language_settings'] = {
-            'source_language': source_lang,
-            'target_language': target_lang
-        }
-        
-        # Save back
         try:
-            with open(prefs_file, 'w') as f:
-                json.dump(prefs, f, indent=2)
+            all_settings = self._load_unified_settings()
+            all_settings.setdefault("ui", {})['language_settings'] = {
+                'source_language': source_lang,
+                'target_language': target_lang
+            }
+            self._save_unified_settings(all_settings)
         except Exception as e:
             self.log(f"⚠ Could not save language settings: {str(e)}")
     
@@ -36749,38 +36904,18 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
     
     def get_termbase_code_map(self) -> Dict[int, str]:
         """Get mapping of termbase_id to custom codes (from user preferences)"""
-        prefs_file = self.user_data_path / "ui_preferences.json"
-        
-        if not prefs_file.exists():
-            return {}
-        
         try:
-            with open(prefs_file, 'r') as f:
-                prefs = json.load(f)
-                return prefs.get('termbase_code_map', {})  # {termbase_id: "CODE"}
+            prefs = self._load_settings_section("ui")
+            return prefs.get('termbase_code_map', {})  # {termbase_id: "CODE"}
         except:
             return {}
     
     def save_termbase_code_map(self, code_map: Dict[int, str]):
         """Save termbase code mappings to user preferences"""
-        prefs_file = self.user_data_path / "ui_preferences.json"
-        
-        # Load existing preferences
-        prefs = {}
-        if prefs_file.exists():
-            try:
-                with open(prefs_file, 'r') as f:
-                    prefs = json.load(f)
-            except:
-                pass
-        
-        # Update termbase code map
-        prefs['termbase_code_map'] = code_map
-        
-        # Save back
         try:
-            with open(prefs_file, 'w') as f:
-                json.dump(prefs, f, indent=2)
+            all_settings = self._load_unified_settings()
+            all_settings.setdefault("ui", {})['termbase_code_map'] = code_map
+            self._save_unified_settings(all_settings)
         except Exception as e:
             self.log(f"⚠ Could not save termbase code map: {str(e)}")
     
@@ -39645,39 +39780,23 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
 
     def _save_spellcheck_settings(self):
         """Save spellcheck settings to preferences"""
-        prefs_file = self.user_data_path / "ui_preferences.json"
-        
-        prefs = {}
-        if prefs_file.exists():
-            try:
-                with open(prefs_file, 'r') as f:
-                    prefs = json.load(f)
-            except:
-                pass
-        
-        prefs['spellcheck_settings'] = {
-            'enabled': self.spellcheck_enabled
-        }
-        
         try:
-            with open(prefs_file, 'w') as f:
-                json.dump(prefs, f, indent=2)
+            all_settings = self._load_unified_settings()
+            all_settings.setdefault("ui", {})['spellcheck_settings'] = {
+                'enabled': self.spellcheck_enabled
+            }
+            self._save_unified_settings(all_settings)
         except Exception as e:
             self.log(f"⚠ Could not save spellcheck settings: {e}")
 
     def _load_spellcheck_settings(self):
         """Load spellcheck settings from preferences"""
-        prefs_file = self.user_data_path / "ui_preferences.json"
-        
-        if prefs_file.exists():
-            try:
-                with open(prefs_file, 'r') as f:
-                    prefs = json.load(f)
-                settings = prefs.get('spellcheck_settings', {})
-                return settings.get('enabled', False)
-            except:
-                pass
-        return False
+        try:
+            prefs = self._load_settings_section("ui")
+            settings = prefs.get('spellcheck_settings', {})
+            return settings.get('enabled', False)
+        except:
+            return False
 
     def _refresh_all_highlighters(self):
         """Refresh syntax highlighters in VISIBLE rows only (performance optimization)
@@ -42607,43 +42726,6 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         # Redirect to Settings tab instead of showing dialog
         self._go_to_settings_tab()
     
-    def open_api_keys_file(self):
-        """Open API keys file in system text editor"""
-        api_keys_file = self.user_data_path / "api_keys.txt"
-        
-        # Create file if it doesn't exist
-        if not api_keys_file.exists():
-            try:
-                # Copy from example file
-                example_file = self.user_data_path / "api_keys.example.txt"
-                if example_file.exists():
-                    import shutil
-                    shutil.copy(example_file, api_keys_file)
-                    self.log(f"✓ Created api_keys.txt from example")
-                else:
-                    # Create basic file
-                    with open(api_keys_file, 'w') as f:
-                        f.write("# Add your API keys here\n")
-                        f.write("# openai=sk-your-key\n")
-                        f.write("# claude=sk-ant-your-key\n")
-                        f.write("# gemini=your-key\n")
-            except Exception as e:
-                QMessageBox.warning(self, "Error", f"Could not create api_keys.txt: {str(e)}")
-                return
-        
-        # Open in system editor
-        try:
-            import subprocess
-            import platform
-            if platform.system() == 'Windows':
-                os.startfile(api_keys_file)  # type: ignore
-            elif platform.system() == 'Darwin':  # macOS
-                subprocess.run(['open', str(api_keys_file)])
-            else:  # Linux
-                subprocess.run(['xdg-open', str(api_keys_file)])
-        except Exception as e:
-            QMessageBox.warning(self, "Error", f"Could not open api_keys.txt: {str(e)}")
-    
     def _go_to_settings_tab(self, subtab_name: str = None):
         """Navigate to Settings tab (from menu), optionally to a specific sub-tab
         
@@ -42694,52 +42776,8 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                         self.modules_tabs.setCurrentIndex(i)
                         break
     
-    def open_api_keys_file(self):
-        """Open API keys file in system text editor"""
-        api_keys_file = self.user_data_path / "api_keys.txt"
-        
-        # Create file if it doesn't exist
-        if not api_keys_file.exists():
-            try:
-                # Copy from example file
-                example_file = self.user_data_path / "api_keys.example.txt"
-                if example_file.exists():
-                    import shutil
-                    shutil.copy(example_file, api_keys_file)
-                    self.log(f"✓ Created api_keys.txt from example")
-                else:
-                    # Create basic file
-                    with open(api_keys_file, 'w') as f:
-                        f.write("# Add your API keys here\n")
-                        f.write("# openai=sk-your-key\n")
-                        f.write("# claude=sk-ant-your-key\n")
-                        f.write("# gemini=your-key\n")
-            except Exception as e:
-                QMessageBox.warning(self, "Error", f"Could not create api_keys.txt: {str(e)}")
-                return
-        
-        # Open in system editor
-        try:
-            import subprocess
-            import platform
-            
-            if platform.system() == 'Windows':
-                os.startfile(api_keys_file)
-            elif platform.system() == 'Darwin':  # macOS
-                subprocess.call(['open', api_keys_file])
-            else:  # Linux
-                subprocess.call(['xdg-open', api_keys_file])
-                
-            self.log(f"✓ Opened {api_keys_file}")
-        except Exception as e:
-            QMessageBox.information(
-                self, "API Keys File",
-                f"Please edit this file manually:\n\n{api_keys_file}"
-            )
-    
     def load_llm_settings(self) -> Dict[str, str]:
         """Load LLM settings from user preferences"""
-        prefs_file = self.user_data_path / "ui_preferences.json"
         defaults = {
             'provider': 'openai',
             'openai_model': 'gpt-4o',
@@ -42752,50 +42790,32 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             'custom_openai_active_profile': ''
         }
 
-        if not prefs_file.exists():
-            return defaults
-
         try:
-            with open(prefs_file, 'r') as f:
-                prefs = json.load(f)
-                saved = prefs.get('llm_settings', defaults)
-                # Ensure new keys exist for older configs
-                for k, v in defaults.items():
-                    saved.setdefault(k, v)
-                # Auto-migrate: old single-field config → profiles
-                if not saved.get('custom_openai_profiles') and saved.get('custom_openai_endpoint'):
-                    api_keys = self.load_api_keys() if hasattr(self, 'load_api_keys') else {}
-                    saved['custom_openai_profiles'] = [{
-                        'name': 'Custom Endpoint',
-                        'endpoint': saved['custom_openai_endpoint'],
-                        'model': saved.get('custom_openai_model', ''),
-                        'api_key': api_keys.get('custom_openai', '')
-                    }]
-                    saved['custom_openai_active_profile'] = 'Custom Endpoint'
-                return saved
+            prefs = self._load_settings_section("ui")
+            saved = prefs.get('llm_settings', defaults)
+            # Ensure new keys exist for older configs
+            for k, v in defaults.items():
+                saved.setdefault(k, v)
+            # Auto-migrate: old single-field config → profiles
+            if not saved.get('custom_openai_profiles') and saved.get('custom_openai_endpoint'):
+                api_keys = self.load_api_keys() if hasattr(self, 'load_api_keys') else {}
+                saved['custom_openai_profiles'] = [{
+                    'name': 'Custom Endpoint',
+                    'endpoint': saved['custom_openai_endpoint'],
+                    'model': saved.get('custom_openai_model', ''),
+                    'api_key': api_keys.get('custom_openai', '')
+                }]
+                saved['custom_openai_active_profile'] = 'Custom Endpoint'
+            return saved
         except:
             return defaults
     
     def save_llm_settings(self, settings: Dict[str, str]):
         """Save LLM settings to user preferences"""
-        prefs_file = self.user_data_path / "ui_preferences.json"
-        
-        # Load existing preferences
-        prefs = {}
-        if prefs_file.exists():
-            try:
-                with open(prefs_file, 'r') as f:
-                    prefs = json.load(f)
-            except:
-                pass
-        
-        # Update LLM settings
-        prefs['llm_settings'] = settings
-        
-        # Save back
         try:
-            with open(prefs_file, 'w') as f:
-                json.dump(prefs, f, indent=2)
+            all_settings = self._load_unified_settings()
+            all_settings.setdefault("ui", {})['llm_settings'] = settings
+            self._save_unified_settings(all_settings)
         except Exception as e:
             self.log(f"⚠ Could not save LLM settings: {str(e)}")
 
@@ -42848,7 +42868,6 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
 
     def load_provider_enabled_states(self) -> Dict[str, bool]:
         """Load provider enable/disable states from user preferences"""
-        prefs_file = self.user_data_path / "ui_preferences.json"
         defaults = {
             'llm_openai': True,
             'llm_claude': True,
@@ -42863,40 +42882,22 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             'mt_mymemory': True
         }
 
-        if not prefs_file.exists():
-            return defaults
-
         try:
-            with open(prefs_file, 'r') as f:
-                prefs = json.load(f)
-                saved = prefs.get('provider_enabled_states', defaults)
-                # Ensure new keys exist for older configs
-                for k, v in defaults.items():
-                    saved.setdefault(k, v)
-                return saved
+            prefs = self._load_settings_section("ui")
+            saved = prefs.get('provider_enabled_states', defaults)
+            # Ensure new keys exist for older configs
+            for k, v in defaults.items():
+                saved.setdefault(k, v)
+            return saved
         except:
             return defaults
 
     def save_provider_enabled_states(self, states: Dict[str, bool]):
         """Save provider enable/disable states to user preferences"""
-        prefs_file = self.user_data_path / "ui_preferences.json"
-        
-        # Load existing preferences
-        prefs = {}
-        if prefs_file.exists():
-            try:
-                with open(prefs_file, 'r') as f:
-                    prefs = json.load(f)
-            except:
-                pass
-        
-        # Update provider enabled states
-        prefs['provider_enabled_states'] = states
-        
-        # Save back
         try:
-            with open(prefs_file, 'w') as f:
-                json.dump(prefs, f, indent=2)
+            all_settings = self._load_unified_settings()
+            all_settings.setdefault("ui", {})['provider_enabled_states'] = states
+            self._save_unified_settings(all_settings)
         except Exception as e:
             self.log(f"⚠ Could not save provider enabled states: {str(e)}")
     
@@ -46724,46 +46725,20 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             return f"[MyMemory error: {str(e)}]"
     
     def load_api_keys(self) -> Dict[str, str]:
-        """Load API keys with dev-first priority
-        
-        Priority order:
-        1. user_data_private/api_keys.txt (dev mode, gitignored)
-        2. user_data/api_keys.txt (user mode, shipped with app)
-        """
-        api_keys = {}
-        
-        # Priority 1: Dev mode (gitignored, never shipped)
-        dev_file = Path("user_data_private") / "api_keys.txt"
-        
-        # Priority 2: User mode (ships with app)
-        user_file = self.user_data_path / "api_keys.txt"
-        
-        # Check dev first, then user
-        if dev_file.exists():
-            api_keys_file = dev_file
-        elif user_file.exists():
-            api_keys_file = user_file
-        else:
-            return api_keys
-        
-        try:
-            with open(api_keys_file, 'r', encoding='utf-8') as f:
-                for line in f:
-                    line = line.strip()
-                    if line and '=' in line and not line.startswith('#'):
-                        key, value = line.split('=', 1)
-                        api_keys[key.strip().lower()] = value.strip()
-        except Exception as e:
-            self.log(f"⚠ Error loading API keys: {str(e)}")
-        
+        """Load API keys from unified settings"""
+        api_keys = self._load_settings_section("api_keys")
+
         # Normalize gemini/google aliases - users can use either name
-        # This allows downstream code to just use api_keys.get('gemini') directly
         if api_keys.get('google') and not api_keys.get('gemini'):
             api_keys['gemini'] = api_keys['google']
         elif api_keys.get('gemini') and not api_keys.get('google'):
             api_keys['google'] = api_keys['gemini']
-        
+
         return api_keys
+
+    def save_api_keys(self, api_keys: Dict[str, str]):
+        """Save API keys to unified settings"""
+        self._save_settings_section("api_keys", api_keys)
 
     def get_ai_inject_glossary_terms(self) -> list:
         """Get glossary terms from AI-inject-enabled termbases for the current project.
@@ -46780,118 +46755,6 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
 
         return self.termbase_mgr.get_ai_inject_terms(project_id)
 
-    def ensure_example_api_keys(self):
-        """Create example API keys file on first launch for new users"""
-        example_file = self.user_data_path / "api_keys.example.txt"
-        
-        # Only create if it doesn't exist
-        if example_file.exists():
-            return
-        
-        example_content = """# Supervertaler API Keys Configuration
-# =======================================
-# 
-# Add your API keys below. Remove the # to activate a key.
-# Never commit this file with real keys to version control!
-#
-# For actual use:
-# 1. Copy this file to "api_keys.txt" in the same folder
-# 2. Add your real API keys (remove the # from the lines you use)
-# 3. Save the file
-#
-# Available providers:
-
-# OpenAI (GPT-4, GPT-4o, GPT-5, o1, o3 models)
-# Get your key at: https://platform.openai.com/api-keys
-#openai = YOUR_OPENAI_KEY_HERE
-
-# Anthropic Claude (Claude Sonnet 4.5, Haiku 4.5, Opus 4.1)
-# Get your key at: https://console.anthropic.com/settings/keys
-#claude = YOUR_CLAUDE_KEY_HERE
-
-# Google Gemini (Gemini 2.0 Flash, Pro models)
-# Get your key at: https://aistudio.google.com/app/apikey
-#google = YOUR_GOOGLE_GEMINI_KEY_HERE
-
-# ===== Machine Translation APIs (for MT preview) =====
-
-# Supervertaler will use MT providers in this priority order (first available):
-# 1. Google Translate
-# 2. DeepL
-# 3. Microsoft Translator
-# 4. Amazon Translate
-# 5. ModernMT
-# 6. MyMemory (free fallback, works without key)
-
-# Google Cloud Translation API (Priority: Highest)
-# Get your key at: https://console.cloud.google.com/apis/credentials
-# Enable "Cloud Translation API" first, then create API key
-#google_translate = YOUR_GOOGLE_CLOUD_TRANSLATE_API_KEY
-
-# DeepL API Pro
-# Get your key at: https://www.deepl.com/pro-api
-# Note: Free DeepL web version keys don't work, you need API Pro
-#deepl = YOUR_DEEPL_API_PRO_KEY
-
-# Microsoft Azure Translator
-# Get your key at: https://azure.microsoft.com/en-us/services/cognitive-services/translator/
-# Requires Azure subscription
-#microsoft_translate = YOUR_AZURE_TRANSLATOR_KEY
-#microsoft_translate_region = global
-# (Region examples: "global", "eastus", "westus")
-
-# Amazon Translate (AWS)
-# Get your keys at: https://aws.amazon.com/translate/
-# Requires AWS account
-#amazon_translate = YOUR_AWS_ACCESS_KEY_ID
-#amazon_translate_secret = YOUR_AWS_SECRET_ACCESS_KEY
-#amazon_translate_region = us-east-1
-# (AWS region examples: "us-east-1", "eu-west-1", etc.)
-
-# ModernMT
-# Get your key at: https://www.modernmt.com/api
-#modernmt = YOUR_MODERNMT_API_KEY
-
-# MyMemory Translation (Free tier available, no key required)
-# Get API key (optional, for higher limits): https://mymemory.translated.net/
-# Works without key but with lower rate limits
-#mymemory = YOUR_MYMEMORY_KEY
-
-# ===== NOTES =====
-
-# Temperature settings for reasoning models:
-# - GPT-5, o1, o3: Temperature parameter OMITTED (not supported by these models)
-# - Standard models: Use temperature=0.3 (automatically applied)
-
-# TROUBLESHOOTING:
-# ---------------
-# If you see "API Key Missing" errors:
-# 1. Check that your file is named "api_keys.txt" (not "api_keys.example.txt")
-# 2. Make sure the # is removed from the beginning of the line
-# 3. Verify there are no extra spaces around the = sign
-# 4. Confirm your key is valid (test at the provider's website)
-#
-# If keys still don't work:
-# 1. Check console output to see which file was loaded
-# 2. Look for errors: "Error reading api_keys.txt"
-# 3. Restart Supervertaler after editing api_keys.txt
-#
-# DeepL Authorization Error:
-# - Your key must be for "DeepL API Pro" (not free web version)
-# - Get API key from: https://www.deepl.com/pro-api
-#
-# Google Translate Error:
-# - Enable "Cloud Translation API" in Google Cloud Console
-# - Create API key at: https://console.cloud.google.com/apis/credentials
-"""
-        
-        try:
-            with open(example_file, 'w', encoding='utf-8') as f:
-                f.write(example_content)
-            self.log(f"✓ Created example API keys file: {example_file}")
-        except Exception as e:
-            self.log(f"⚠ Could not create example API keys file: {str(e)}")
-    
     def show_autofingers(self):
         """Show AutoFingers by switching to the AutoFingers tab"""
         # Find the AutoFingers tab index and activate it
@@ -50787,7 +50650,7 @@ class SuperlookupTab(QWidget):
         if self.main_window and hasattr(self.main_window, 'user_data_path'):
             from pathlib import Path
             user_data = Path(self.main_window.user_data_path)
-            self._search_history_file = user_data / "superlookup_history.json"
+            self._search_history_file = user_data / "settings" / "superlookup_history.json"
             
             # Load existing history
             if self._search_history_file.exists():

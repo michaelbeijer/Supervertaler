@@ -39,7 +39,7 @@ class FindReplaceHistory:
     
     def __init__(self, user_data_path: str):
         self.user_data_path = Path(user_data_path)
-        self.history_file = self.user_data_path / "find_replace_history.json"
+        self.history_file = self.user_data_path / "settings" / "find_replace_history.json"
         self.find_history: List[str] = []
         self.replace_history: List[str] = []
         self._load()

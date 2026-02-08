@@ -1,7 +1,7 @@
-# Supervertaler - AI Agent Documentation
+﻿# Supervertaler - AI Agent Documentation
 
 > **This is the single source of truth for AI coding assistants working on this project.**
-> **Last Updated:** February 7, 2026 | **Version:** v1.9.236
+> **Last Updated:** February 8, 2026 | **Version:** v1.9.240
 
 ---
 
@@ -10,11 +10,11 @@
 **IMPORTANT: If you're continuing from a previous session or ran out of context:**
 
 1. **Skip to the end of this file** - The most recent development context is in the **"🔄 Recent Development History"** section (search for the latest date)
-2. **Current version: v1.9.236** - Custom OpenAI-Compatible API provider, version fix, multi-file export
+2. **Current version: v1.9.240** - Unified settings system, inline API keys
 3. **Read only what you need** - The Project Overview and Architecture sections are reference material; the dated history entries contain the actual working context
 
 **Quick Navigation:**
-- **Latest context:** See CHANGELOG.md for v1.9.236 (Custom OpenAI-Compatible API)
+- **Latest context:** See CHANGELOG.md for v1.9.240 (Unified settings + inline API keys)
 - **Module list:** Search for `## 🔌 Complete Module List`
 - **Architecture:** Search for `## 🏗️ Architecture Patterns`
 - **Common pitfalls:** Search for `## ⚠️ Common Pitfalls`
@@ -28,7 +28,7 @@
 | Property | Value |
 |----------|-------|
 | **Name** | Supervertaler |
-| **Version** | v1.9.236 (February 2026) |
+| **Version** | v1.9.240 (February 2026) |
 | **Framework** | PyQt6 (Qt for Python) |
 | **Language** | Python 3.10+ |
 | **Platform** | Windows (primary), Linux compatible |
@@ -388,9 +388,9 @@ class Segment:
 3. Export → Reconstruct original format with translations
 
 ### Settings Storage
-- `user_data/general_settings.json` - App preferences
-- `user_data/ui_preferences.json` - Window geometry, button states, LLM settings (`llm_settings`, `provider_enabled_states`)
-- `user_data/api_keys.txt` - API keys for LLM and MT providers (key=value format)
+- `settings/settings.json` - Unified configuration with `api_keys`, `general`, `ui`, and `features` sections
+- `settings/` - Satellite files: `themes.json`, `shortcuts.json`, `recent_projects.json`, `find_replace_history.json`, `superlookup_history.json`, `voice_commands.json`, `model_version_cache.json`
+- Legacy settings files are one-time migrated on startup and renamed to `.migrated`
 - `.svproj` files - Per-project settings
 
 ---
@@ -455,230 +455,27 @@ Use semantic prefixes:
 
 ## 📋 Planned Features & Refactoring
 
-### 🔑 Inline API Key Editing in Settings UI (Planned)
+### 🔑 Inline API Key Editing in Settings UI (Completed in v1.9.240)
 
-**Identified:** February 7, 2026
-**Status:** Planned, not yet implemented
-**Complexity:** Low-Medium
+**Status:** Completed and released in v1.9.240
 
-**Current Problem:**
-Users must manually edit `api_keys.txt` in a text editor. Several users have reported this is inconvenient. The Settings UI currently only has an "Open API Keys File" button.
-
-**Proposed Solution:**
-Add password-masked `QLineEdit` fields in Settings > AI Settings for each provider's API key, with a show/hide toggle button (eye icon). Fields read from and write to the same `api_keys.txt` file, preserving backward compatibility.
-
-**Implementation Notes:**
-- Add `QLineEdit(echoMode=Password)` + toggle button for each provider (openai, claude, google/gemini, custom_openai, deepl, google_translate, etc.)
-- Read initial values from `load_api_keys()` on settings dialog open
-- Save back to `api_keys.txt` using same key=value format on "Save"
-- Keep the "Open API Keys File" button for power users
-- Consider grouping: LLM keys at top, MT keys below
+Users can now manage API keys directly in Settings > AI Settings with password-masked `QLineEdit` fields and show/hide toggles. Keys are read from and written to unified settings storage.
 
 ---
 
-### 🔧 Configuration File Consolidation (PRIORITY - Scheduled)
+### 🔧 Configuration File Consolidation (Completed in v1.9.240)
 
-**Identified:** January 9, 2026  
-**Status:** Documented, not yet implemented  
-**Complexity:** Medium (30-40 file edits + migration script)
+**Status:** Completed and released in v1.9.240
 
-**Current Problem: Configuration File Sprawl**
+Configuration was consolidated into `settings/settings.json` with four top-level sections:
+- `api_keys`
+- `general`
+- `ui`
+- `features`
 
-Settings are currently scattered across multiple JSON files in `user_data/`:
-- `general_settings.json` - General application preferences
-- `ui_preferences.json` - Window geometry, button states (DEPRECATED, migrated to general_settings.json)
-- `themes.json` - Theme definitions
-- `recent_projects.json` - Recent project list
-- `feature_settings.json` - Optional feature toggles
-- `find_replace_history.json` - Find & Replace history
-- `superlookup_history.json` - Superlookup search history
-- `voice_commands.json` - Voice command library
-- Plus module-specific configs...
+The following files were also relocated under `settings/`: `themes.json`, `shortcuts.json`, `recent_projects.json`, `find_replace_history.json`, `superlookup_history.json`, `voice_commands.json`, and `model_version_cache.json`.
 
-**Issues:**
-1. **Scattered settings** - Hard to find where a setting is stored
-2. **Code complexity** - Multiple file read/write operations throughout codebase
-3. **Inconsistent structure** - Each file has different patterns (nested vs flat, etc.)
-4. **Migration headaches** - Changing structure requires updating multiple files
-5. **User confusion** - Manual editing requires knowing which file to look in
-6. **Backup/restore complexity** - Must backup multiple files to preserve all settings
-
-**Proposed Solution: Single `config.json`**
-
-Consolidate all settings into one well-structured file:
-
-```json
-{
-  "config_version": "1.0.0",
-  "general": {
-    "restore_last_project": false,
-    "auto_propagate_exact_matches": true,
-    "auto_center_active_segment": true,
-    "auto_insert_100_percent_matches": true,
-    "auto_confirm_100_percent_matches": false,
-    "tm_save_mode": "latest",
-    "enable_smart_word_selection": true,
-    "enable_auto_backup": true,
-    "backup_interval_minutes": 5
-  },
-  "ui": {
-    "theme": "light",
-    "window_geometry": {
-      "x": 100,
-      "y": 100,
-      "width": 1200,
-      "height": 800
-    },
-    "fonts": {
-      "grid_family": "Segoe UI",
-      "grid_size": 11,
-      "results_match_size": 9,
-      "results_compare_size": 9,
-      "termview_family": "Segoe UI",
-      "termview_size": 10,
-      "termview_bold": false
-    },
-    "colors": {
-      "tag_color": "#7f0001",
-      "focus_border_color": "#2196F3",
-      "focus_border_thickness": 2,
-      "badge_text_color": "#333333",
-      "invisible_char_color": "#999999",
-      "even_row_color": "#FFFFFF",
-      "odd_row_color": "#F0F0F0"
-    },
-    "layout": {
-      "tabs_above_grid": false,
-      "enable_alternating_row_colors": true,
-      "show_invisibles": false
-    }
-  },
-  "features": {
-    "supermemory_enabled": true,
-    "supermemory_auto_init": false,
-    "voice_enabled": false,
-    "web_browser_enabled": true,
-    "pdf_rescue_enabled": true,
-    "autofingers_enabled": false
-  },
-  "match_limits": {
-    "LLM": 3,
-    "MT": 5,
-    "TM": 10,
-    "Termbases": 10
-  },
-  "termbase": {
-    "enable_grid_highlighting": true,
-    "highlight_style": "semibold",
-    "display_order": "appearance",
-    "hide_shorter_matches": false,
-    "dotted_color": "#808080"
-  },
-  "precision_scroll": {
-    "divisor": 3
-  },
-  "recent_projects": [
-    "/path/to/project1.svproj",
-    "/path/to/project2.svproj",
-    "/path/to/project3.svproj"
-  ],
-  "custom_themes": [
-    {
-      "name": "Dark Blue",
-      "is_dark": true,
-      "colors": {
-        "background": "#1e1e1e",
-        "foreground": "#d4d4d4",
-        ...
-      }
-    }
-  ],
-  "history": {
-    "find_replace": [
-      {"find": "example", "replace": "sample"}
-    ],
-    "superlookup_searches": [
-      "translation memory",
-      "terminology"
-    ]
-  },
-  "voice_commands": {
-    "enabled": false,
-    "recognition_engine": "openai_whisper",
-    "custom_commands": [
-      {
-        "phrase": "next segment",
-        "aliases": ["go next", "move forward"],
-        "action_type": "internal",
-        "action": "next_segment"
-      }
-    ]
-  },
-  "ollama": {
-    "keepwarm": false
-  },
-  "autohotkey": {
-    "path": "C:\\Program Files\\AutoHotkey\\v2\\AutoHotkey64.exe"
-  }
-}
-```
-
-**Benefits:**
-- ✅ **Single source of truth** - All settings in one place
-- ✅ **Clear hierarchy** - Logical grouping by functionality
-- ✅ **Easy to read/edit** - Clear structure for manual editing
-- ✅ **Atomic saves** - All settings updated together (no partial updates)
-- ✅ **Simple backup/restore** - One file to backup
-- ✅ **Version tracking** - `config_version` field for migrations
-- ✅ **Better defaults** - Easy to see all default values at once
-
-**Implementation Plan:**
-
-1. **Create `modules/config_manager_v2.py`** (new unified config manager):
-   - `ConfigManager` class with section accessors
-   - `get(section, key, default)` method
-   - `set(section, key, value)` method
-   - `save()` method (atomic write)
-   - `load()` method with validation
-
-2. **Migration script** (`scripts/migrate_config.py`):
-   - Read all existing JSON files
-   - Map to new structure
-   - Write `config.json`
-   - Backup old files to `user_data/config_backup/`
-   - Run automatically on first startup after update
-
-3. **Update all load/save calls** (~30-40 locations):
-   - Replace `_load_general_settings_from_file()` → `config_manager.get('general', key)`
-   - Replace `save_general_settings()` → `config_manager.set('general', key, value)` + `config_manager.save()`
-   - Update theme manager
-   - Update recent projects
-   - Update find/replace history
-   - Update voice command loader
-
-4. **Backward compatibility**:
-   - Keep old loaders as fallback for 1-2 versions
-   - Log migration warnings
-   - Auto-migrate on first run
-
-5. **Testing checklist**:
-   - [ ] Fresh install (no config files)
-   - [ ] Migration from old files
-   - [ ] Settings persist correctly
-   - [ ] All features still work
-   - [ ] No performance regression
-
-**Files to modify:**
-- `Supervertaler.py` - Replace all config load/save calls
-- `modules/config_manager_v2.py` - NEW unified config manager
-- `modules/theme_manager.py` - Use new config manager
-- `modules/voice_commands.py` - Use new config manager
-- `modules/find_replace_qt.py` - Use new config manager
-- `scripts/migrate_config.py` - NEW migration script
-
-**Estimated effort:** 3-4 hours (careful testing needed)
-
-**Priority:** High (improves maintainability significantly)
+A one-time startup migration converts legacy files and renames originals to `.migrated`.
 
 ---
 
@@ -756,60 +553,48 @@ pytest tests/
 
 ## 🔑 API Keys
 
-**Unified Loading System with Persistent Storage:**
+**Unified Settings Storage (v1.9.240+):**
 
-API keys are stored in the persistent user data location (see Installation section).
+API keys are stored in `settings/settings.json` under the `api_keys` section.
 
-**User Data Locations (v1.9.148+):**
+| Platform | Default Data Folder | API Key Storage |
+|----------|---------------------|-----------------|
+| **All Users (default)** | `~/Supervertaler/` | `settings/settings.json` → `api_keys` |
+| **Windows (default)** | `C:\Users\Username\Supervertaler\` | `settings\settings.json` → `api_keys` |
+| **Development** | `user_data_private\` (git-ignored) | `settings\settings.json` → `api_keys` |
 
-| Platform | Default Data Folder | API Keys File |
-|----------|---------------------|---------------|
-| **All Users (default)** | `~/Supervertaler/` | `~/Supervertaler/api_keys.txt` |
-| **Windows (default)** | `C:\Users\Username\Supervertaler\` | `...\Supervertaler\api_keys.txt` |
-| **Development** | `user_data_private\` (git-ignored) | `user_data_private\api_keys.txt` |
+**Backward compatibility:**
+- Legacy `api_keys.txt` remains supported as a fallback input path.
+- New writes persist to `settings/settings.json`.
 
-**Note:** Users can choose their own data folder location on first run or via Settings → General → Data Folder Location.
-
-**For Developers (running from source):**
-- Store keys in: `user_data_private/api_keys.txt`
-- This location is fully gitignored and will **never** be uploaded to GitHub
-- All features (translation, AI Assistant, tests) will find keys here
-
-**For End Users (pip install):**
-- On first run, choose where to store your data (default: `~/Supervertaler/`)
-- Store API keys in: `[your-data-folder]/api_keys.txt`
-- The app prints the exact path on startup: `[Data Paths] User data: ...`
-- Keys persist across pip upgrades!
-
-**For Windows EXE Users:**
-- Same as pip users - choose your data folder on first run
-- Default is visible in your home folder: `C:\Users\Username\Supervertaler\`
-
-**Format:**
-```
-openai=sk-...
-claude=sk-ant-...
-google=AI...
-gemini=AI...
-custom_openai=sk-...
-deepl=...
-```
+**Supported keys:**
+- `openai`, `claude`, `google`, `gemini`, `custom_openai`, `deepl`, `google_translate`, `ollama_endpoint`
 
 **Notes:**
-- `google=` and `gemini=` are aliases - both work identically (v1.9.146+)
-- `custom_openai=` is for any OpenAI-compatible endpoint (v1.9.236+). Configure the endpoint URL and model in Settings > AI Settings.
-- `ollama_endpoint=` can override the default Ollama URL (default: `http://localhost:11434`)
-
-**Implementation Details:**
-- `Supervertaler.py`: `load_api_keys()` method reads from user_data_path
-- `modules/llm_clients.py`: `load_api_keys()` also reads keys (same format)
-- Automatic normalization: if `google` is set, `gemini` is also populated (and vice versa)
-- All API key loading now unified through main app's method
-- See `user_data_private/api_keys.example.txt` for full documented template
+- `google` and `gemini` are aliases.
+- `custom_openai` is for OpenAI-compatible endpoints; endpoint/model are configured in Settings > AI Settings.
+- `ollama_endpoint` can override the default (`http://localhost:11434`).
 
 ---
 
 ## 🔄 Recent Development History
+
+### February 8, 2026 - Unified Settings + Inline API Key Editing (v1.9.240)
+
+**✨ Feature Summary**
+
+Completed the unified settings migration and inline API key editing workflow.
+
+**Status:** Implementation complete, version 1.9.240 released to PyPI
+
+**Highlights:**
+- Consolidated core settings into `settings/settings.json` with `api_keys`, `general`, `ui`, and `features` sections
+- Added password-masked API key fields with show/hide toggles in Settings > AI Settings
+- Implemented one-time startup migration that renames legacy files to `.migrated`
+- Moved satellite settings/history files into the `settings/` subfolder
+- Removed dead code for deprecated settings paths
+
+---
 
 
 ### February 7, 2026 - Custom OpenAI-Compatible API Provider (v1.9.236)
@@ -862,7 +647,7 @@ Rather than adding each Chinese AI provider individually, implemented a single `
 - `ollama` — Local Ollama models (no API key needed)
 - `custom_openai` — Any OpenAI-compatible endpoint (reuses `_call_openai()` with custom `base_url`)
 
-**Settings stored in `ui_preferences.json`:**
+**Settings stored in `settings/settings.json` (`ui` section):**
 - `llm_settings.provider` — active provider name
 - `llm_settings.custom_openai_model` — model name or endpoint ID
 - `llm_settings.custom_openai_endpoint` — base URL (e.g., `https://ark.cn-beijing.volces.com/api/v3/`)

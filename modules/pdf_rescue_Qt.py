@@ -1759,19 +1759,29 @@ if __name__ == "__main__":
             title.setAlignment(Qt.AlignmentFlag.AlignCenter)
             main_layout.addWidget(title)
             
-            # Load API keys
+            # Load API keys from unified settings, with legacy fallback
             self.api_keys = {}
-            api_file = Path("api_keys.txt")
-            if not api_file.exists():
-                # Try user_data folder
-                api_file = Path("user_data_private" if os.path.exists(".supervertaler.local") else "user_data") / "api_keys.txt"
-            
-            if api_file.exists():
-                with open(api_file, 'r', encoding='utf-8') as f:
-                    for line in f:
-                        line = line.strip()
-                        if line and not line.startswith('#') and '=' in line:
-                            key, value = line.split('=', 1)
+            data_dir = "user_data_private" if os.path.exists(".supervertaler.local") else "user_data"
+            settings_file = Path(data_dir) / "settings" / "settings.json"
+            if settings_file.exists():
+                try:
+                    import json as _json
+                    with open(settings_file, 'r', encoding='utf-8') as f:
+                        self.api_keys = _json.load(f).get("api_keys", {})
+                except Exception:
+                    pass
+
+            # Legacy fallback: api_keys.txt
+            if not self.api_keys:
+                api_file = Path("api_keys.txt")
+                if not api_file.exists():
+                    api_file = Path(data_dir) / "api_keys.txt"
+                if api_file.exists():
+                    with open(api_file, 'r', encoding='utf-8') as f:
+                        for line in f:
+                            line = line.strip()
+                            if line and not line.startswith('#') and '=' in line:
+                                key, value = line.split('=', 1)
                             if 'openai' in key.lower():
                                 self.api_keys['openai'] = value.strip()
             

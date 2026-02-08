@@ -209,7 +209,7 @@ class ThemeManager:
             user_data_path: Path to user_data folder for saving custom themes
         """
         self.user_data_path = user_data_path
-        self.themes_file = user_data_path / "themes.json"
+        self.themes_file = user_data_path / "settings" / "themes.json"
         self.current_theme: Theme = self.PREDEFINED_THEMES["Light (Default)"]
         self.custom_themes: Dict[str, Theme] = {}
 

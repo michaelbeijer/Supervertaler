@@ -28,8 +28,7 @@ class ConfigManager:
     CONFIG_FILENAME = ".supervertaler_config.json"
     DEFAULT_USER_DATA_FOLDER = "Supervertaler_Data"
     DEV_MODE_FLAG = ".supervertaler.local"
-    API_KEYS_EXAMPLE_FILENAME = "api_keys.example.txt"
-    API_KEYS_FILENAME = "api_keys.txt"
+    API_KEYS_FILENAME = "api_keys.txt"  # legacy, used for migration only
     
     # Folder structure that must exist in user_data directory
     REQUIRED_FOLDERS = [
@@ -43,6 +42,7 @@ class ConfigManager:
         "resources/non_translatables",
         "resources/segmentation_rules",
         "projects",
+        "settings",
     ]
     
     def __init__(self):
@@ -221,47 +221,9 @@ class ConfigManager:
                 folder_path = os.path.join(user_data_path, folder)
                 Path(folder_path).mkdir(parents=True, exist_ok=True)
             
-            # Copy api_keys.example.txt if it exists and api_keys.txt doesn't
-            self._setup_api_keys(user_data_path)
-            
             return True, f"User data folder structure created at: {user_data_path}"
         except Exception as e:
             return False, f"Failed to create user_data structure: {e}"
-    
-    def _setup_api_keys(self, user_data_path: str) -> Tuple[bool, str]:
-        """
-        Copy api_keys.example.txt to api_keys.txt in user_data folder.
-        
-        Only creates if api_keys.txt doesn't already exist.
-        """
-        try:
-            # Get paths
-            repo_root = os.path.dirname(self.script_dir)
-            example_source = os.path.join(repo_root, self.API_KEYS_EXAMPLE_FILENAME)
-            api_keys_dest = os.path.join(user_data_path, self.API_KEYS_FILENAME)
-            
-            # If api_keys.txt already exists, nothing to do
-            if os.path.exists(api_keys_dest):
-                return True, "api_keys.txt already exists"
-            
-            # If example file exists, copy it
-            if os.path.exists(example_source):
-                shutil.copy2(example_source, api_keys_dest)
-                print(f"[Config] Created {api_keys_dest} from template")
-                return True, f"Created api_keys.txt from template"
-            else:
-                # Create empty api_keys.txt with instructions
-                with open(api_keys_dest, 'w', encoding='utf-8') as f:
-                    f.write("# API Keys Configuration\n")
-                    f.write("# Add your API keys here in the format: KEY_NAME=value\n")
-                    f.write("# Example:\n")
-                    f.write("# OPENAI_API_KEY=sk-...\n")
-                    f.write("# ANTHROPIC_API_KEY=sk-ant-...\n\n")
-                print(f"[Config] Created empty {api_keys_dest} with instructions")
-                return True, "Created api_keys.txt with instructions"
-        except Exception as e:
-            print(f"[Config] Error setting up api_keys: {e}")
-            return False, f"Failed to setup api_keys.txt: {e}"
     
     def get_subfolder_path(self, subfolder: str) -> str:
         """
@@ -391,29 +353,39 @@ class ConfigManager:
             return False, f"User data path is not writable: {e}"
     
     def get_preferences_path(self) -> str:
-        """Get the path to the UI preferences file."""
+        """Get the path to the unified settings file (ui section)."""
         user_data_path = self.get_user_data_path()
-        return os.path.join(user_data_path, 'ui_preferences.json')
-    
+        return os.path.join(user_data_path, 'settings', 'settings.json')
+
     def load_preferences(self) -> dict:
-        """Load UI preferences from file."""
+        """Load UI preferences from unified settings file."""
         prefs_path = self.get_preferences_path()
         if os.path.exists(prefs_path):
             try:
                 with open(prefs_path, 'r', encoding='utf-8') as f:
-                    return json.load(f)
+                    all_settings = json.load(f)
+                    return all_settings.get('ui', {})
             except (json.JSONDecodeError, IOError) as e:
                 print(f"[Config] Error loading preferences: {e}")
         return {}
-    
+
     def save_preferences(self, preferences: dict) -> bool:
-        """Save UI preferences to file."""
+        """Save UI preferences to unified settings file."""
         prefs_path = self.get_preferences_path()
         try:
             # Ensure directory exists
             os.makedirs(os.path.dirname(prefs_path), exist_ok=True)
+            # Load existing unified settings to preserve other sections
+            all_settings = {}
+            if os.path.exists(prefs_path):
+                try:
+                    with open(prefs_path, 'r', encoding='utf-8') as f:
+                        all_settings = json.load(f)
+                except (json.JSONDecodeError, IOError):
+                    pass
+            all_settings['ui'] = preferences
             with open(prefs_path, 'w', encoding='utf-8') as f:
-                json.dump(preferences, f, indent=2, ensure_ascii=False)
+                json.dump(all_settings, f, indent=2, ensure_ascii=False)
             return True
         except IOError as e:
             print(f"[Config] Error saving preferences: {e}")

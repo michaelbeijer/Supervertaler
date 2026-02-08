@@ -37,72 +37,55 @@ from dataclasses import dataclass
 
 
 def load_api_keys() -> Dict[str, str]:
-    """Load API keys from api_keys.txt file (supports both root and user_data_private locations)"""
+    """Load API keys from unified settings/settings.json, with legacy api_keys.txt fallback"""
+    import json
     script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-    # Try user_data_private first (dev mode), then fallback to root
-    possible_paths = [
-        os.path.join(script_dir, "user_data_private", "api_keys.txt"),
-        os.path.join(script_dir, "api_keys.txt")
+    api_keys = {}
+
+    # Try unified settings first: user_data_private/settings/settings.json, then user_data/settings/settings.json
+    unified_paths = [
+        os.path.join(script_dir, "user_data_private", "settings", "settings.json"),
+        os.path.join(script_dir, "user_data", "settings", "settings.json"),
     ]
 
-    api_keys_file = None
-    for path in possible_paths:
-        if os.path.exists(path):
-            api_keys_file = path
-            break
-
-    # If no file exists, create example file from template
-    if api_keys_file is None:
-        api_keys_file = possible_paths[1]  # Default to root
-        example_file = os.path.join(script_dir, "api_keys.example.txt")
-
-        # Create api_keys.txt from example if it exists
-        if os.path.exists(example_file) and not os.path.exists(api_keys_file):
+    for settings_path in unified_paths:
+        if os.path.exists(settings_path):
             try:
-                import shutil
-                shutil.copy(example_file, api_keys_file)
-                print(f"Created {api_keys_file} from example template.")
-                print("Please edit this file and add your API keys.")
-            except Exception as e:
-                print(f"Could not create api_keys.txt: {e}")
+                with open(settings_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                api_keys = data.get("api_keys", {})
+                if api_keys:
+                    break
+            except Exception:
+                pass
 
-    api_keys = {
-        "google": "",           # For Gemini (primary key name)
-        "gemini": "",           # For Gemini (alias - synced with 'google')
-        "google_translate": "", # For Google Cloud Translation API
-        "claude": "",
-        "openai": "",
-        "custom_openai": "",    # For custom OpenAI-compatible endpoints
-        "deepl": "",
-        "mymemory": "",
-        "ollama_endpoint": "http://localhost:11434"  # Local LLM endpoint (no key needed)
-    }
+    # Legacy fallback: api_keys.txt (for backward compatibility)
+    if not api_keys:
+        legacy_paths = [
+            os.path.join(script_dir, "user_data_private", "api_keys.txt"),
+            os.path.join(script_dir, "api_keys.txt"),
+        ]
+        for legacy_path in legacy_paths:
+            if os.path.exists(legacy_path):
+                try:
+                    with open(legacy_path, 'r', encoding='utf-8') as f:
+                        for line in f:
+                            line = line.strip()
+                            if line and not line.startswith('#') and '=' in line:
+                                key, value = line.split('=', 1)
+                                api_keys[key.strip()] = value.strip()
+                    if api_keys:
+                        break
+                except Exception:
+                    pass
 
-    if os.path.exists(api_keys_file):
-        try:
-            with open(api_keys_file, 'r', encoding='utf-8') as f:
-                for line in f:
-                    line = line.strip()
-                    if line and not line.startswith('#') and '=' in line:
-                        key, value = line.split('=', 1)
-                        key = key.strip()
-                        value = value.strip()
-                        if key in api_keys:
-                            api_keys[key] = value
-                        # Also check for ollama_endpoint
-                        elif key == 'ollama_endpoint' and value:
-                            api_keys['ollama_endpoint'] = value
-        except Exception as e:
-            print(f"Error loading API keys: {e}")
-    
     # Sync 'google' and 'gemini' keys (they're aliases for the same API)
-    # If one is set and the other isn't, copy the value
     if api_keys.get('google') and not api_keys.get('gemini'):
         api_keys['gemini'] = api_keys['google']
     elif api_keys.get('gemini') and not api_keys.get('google'):
         api_keys['google'] = api_keys['gemini']
-    
+
     # Set environment variable for Ollama endpoint if configured
     if api_keys.get('ollama_endpoint'):
         os.environ['OLLAMA_ENDPOINT'] = api_keys['ollama_endpoint']
@@ -1116,22 +1099,12 @@ def get_claude_translation(text: str, source_lang: str, target_lang: str, contex
 
 
 def _load_api_key(provider: str) -> str:
-    """Load API key from api_keys.txt file"""
+    """Load a single API key by provider name from unified settings (with legacy fallback)"""
     try:
-        import os
-        api_keys_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'api_keys.txt')
-        
-        if not os.path.exists(api_keys_path):
-            return None
-            
-        with open(api_keys_path, 'r') as f:
-            for line in f:
-                line = line.strip()
-                if line and not line.startswith('#') and '=' in line:
-                    key_name, key_value = line.split('=', 1)
-                    if key_name.strip().lower() == provider.lower():
-                        return key_value.strip()
-        return None
+        api_keys = load_api_keys()
+        # Try exact match first, then case-insensitive
+        value = api_keys.get(provider) or api_keys.get(provider.lower())
+        return value if value else None
     except Exception:
         return None
 

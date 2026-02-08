@@ -2,9 +2,18 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.239 (February 8, 2026)
+**Current Version:** v1.9.240 (February 8, 2026)
 
 
+
+## v1.9.240 - February 8, 2026
+
+### ✨ New Features
+
+- **Unified settings system**: Merged `general_settings.json`, `ui_preferences.json`, `feature_settings.json`, and `api_keys.txt` into a single `settings/settings.json` file. All settings files (themes, shortcuts, find/replace history, etc.) are now organized in a `settings/` subfolder within the user data folder. Existing installations are automatically migrated on first launch — old files are renamed to `.migrated` as a safety net.
+- **Inline API key editing**: API keys can now be entered directly in the Settings UI instead of editing a text file. AI provider keys (OpenAI, Claude, Google/Gemini, Ollama endpoint) are in the AI Settings tab; machine translation keys (Google Translate, DeepL, Microsoft, Amazon, ModernMT, MyMemory) are in the MT Settings tab. All key fields are password-masked with a show/hide toggle.
+
+---
 
 ## v1.9.239 - February 8, 2026
 

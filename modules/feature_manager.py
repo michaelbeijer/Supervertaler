@@ -163,29 +163,42 @@ class FeatureManager:
     
     def __init__(self, user_data_path: str = "user_data"):
         self.user_data_path = Path(user_data_path)
-        self.settings_file = self.user_data_path / "feature_settings.json"
+        self.settings_file = self.user_data_path / "settings" / "settings.json"
         self._preferences: Dict[str, bool] = {}
         self._load_preferences()
     
     def _load_preferences(self):
-        """Load user feature preferences from disk."""
+        """Load user feature preferences from unified settings/settings.json -> 'features' section."""
         if self.settings_file.exists():
             try:
                 with open(self.settings_file, "r", encoding="utf-8") as f:
-                    self._preferences = json.load(f)
+                    data = json.load(f)
+                self._preferences = data.get("features", {})
             except (json.JSONDecodeError, IOError):
                 self._preferences = {}
-        
+
         # Apply defaults for any missing features
         for feature_id, feature in FEATURE_MODULES.items():
             if feature_id not in self._preferences:
                 self._preferences[feature_id] = feature.enabled_by_default
-    
+
     def _save_preferences(self):
-        """Save user feature preferences to disk."""
-        self.user_data_path.mkdir(parents=True, exist_ok=True)
+        """Save user feature preferences to unified settings/settings.json -> 'features' section."""
+        settings_dir = self.user_data_path / "settings"
+        settings_dir.mkdir(parents=True, exist_ok=True)
+
+        # Read entire settings file to preserve other sections
+        data = {}
+        if self.settings_file.exists():
+            try:
+                with open(self.settings_file, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+            except (json.JSONDecodeError, IOError):
+                data = {}
+
+        data["features"] = self._preferences
         with open(self.settings_file, "w", encoding="utf-8") as f:
-            json.dump(self._preferences, f, indent=2)
+            json.dump(data, f, indent=2, ensure_ascii=False)
     
     def get_feature(self, feature_id: str) -> Optional[FeatureModule]:
         """Get a feature module definition by ID."""
