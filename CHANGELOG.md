@@ -2,9 +2,16 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.240 (February 8, 2026)
+**Current Version:** v1.9.241 (February 8, 2026)
 
+## v1.9.241 - February 8, 2026
 
+### ðŸ› Bug Fixes
+
+- **Quicktrans LLM API keys on macOS/custom data paths**: Fixed Quicktrans incorrectly reporting missing API keys for Claude, OpenAI, and Gemini when keys were present in the configured user data location. Quicktrans now uses the app's unified key loader (`parent_app.load_api_keys()`), supports Gemini `google`/`gemini` aliases consistently, and reuses shared LLM client wiring.
+- **LLM key path resolution fallback**: Updated `modules/llm_clients.load_api_keys()` to read the cross-platform config pointer and resolve keys from the actual configured user data folder (`settings/settings.json`), with legacy fallbacks retained.
+
+---
 
 ## v1.9.240 - February 8, 2026
 
@@ -6145,4 +6152,3 @@ Supervertaler Qt uses semantic versioning:
 - **PHASE** - Development phase tracking (Phase 5+)
 
 **Current**: v1.0.2 (Phase 5.4)
-

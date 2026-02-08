@@ -509,7 +509,14 @@ class MTQuickPopup(QDialog):
                 continue
 
             # Check if API key is available (custom_openai may not need one)
-            if api_key_name != 'custom_openai' and not api_keys.get(api_key_name):
+            if api_key_name == 'gemini':
+                has_key = bool(api_keys.get('gemini') or api_keys.get('google'))
+            elif api_key_name == 'custom_openai':
+                has_key = True
+            else:
+                has_key = bool(api_keys.get(api_key_name))
+
+            if not has_key:
                 continue
 
             # Get model from settings or use default
@@ -529,31 +536,33 @@ class MTQuickPopup(QDialog):
         try:
             from modules.llm_clients import LLMClient, load_api_keys
 
-            api_keys = load_api_keys()
-            api_key = api_keys.get(provider)
+            if hasattr(self, 'parent_app') and self.parent_app and hasattr(self.parent_app, 'load_api_keys'):
+                api_keys = self.parent_app.load_api_keys()
+            else:
+                api_keys = load_api_keys()
+
+            api_key = api_keys.get(provider) or (api_keys.get('google') if provider == 'gemini' else None)
 
             if not api_key and provider != 'custom_openai':
                 return f"[Error: No API key for {provider}]"
 
-            base_url = None
-            if provider == 'custom_openai':
-                if hasattr(self, 'parent_app') and self.parent_app:
-                    profile = self.parent_app._get_active_custom_profile()
-                    if profile:
-                        base_url = profile.get('endpoint') or None
-                        profile_key = (profile.get('api_key') or '').strip()
-                        api_key = profile_key or api_key or 'not-needed'
-                    else:
-                        api_key = api_key or 'not-needed'
-                else:
+            # Reuse main app client wiring when available (supports custom profiles/base_url)
+            if hasattr(self, 'parent_app') and self.parent_app and hasattr(self.parent_app, 'create_llm_client'):
+                llm_settings = self.parent_app.load_llm_settings() if hasattr(self.parent_app, 'load_llm_settings') else None
+                resolved_model = model
+                if not resolved_model and llm_settings:
+                    resolved_model = llm_settings.get(f"{provider}_model")
+                client = self.parent_app.create_llm_client(provider, resolved_model, api_keys, settings=llm_settings)
+            else:
+                base_url = None
+                if provider == 'custom_openai':
                     api_key = api_key or 'not-needed'
-
-            client = LLMClient(
-                api_key=api_key,
-                provider=provider,
-                model=model,
-                base_url=base_url
-            )
+                client = LLMClient(
+                    api_key=api_key,
+                    provider=provider,
+                    model=model,
+                    base_url=base_url
+                )
 
             # Use the translate method
             result = client.translate(

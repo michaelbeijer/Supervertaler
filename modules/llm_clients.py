@@ -32,24 +32,49 @@ Usage:
 """
 
 import os
+import sys
 from typing import Dict, Optional, Literal, List
 from dataclasses import dataclass
 
 
 def load_api_keys() -> Dict[str, str]:
-    """Load API keys from unified settings/settings.json, with legacy api_keys.txt fallback"""
+    """Load API keys from unified settings/settings.json, with legacy api_keys.txt fallback."""
     import json
     script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
     api_keys = {}
+    configured_user_data_path = None
 
-    # Try unified settings first: user_data_private/settings/settings.json, then user_data/settings/settings.json
-    unified_paths = [
+    # Resolve user data pointer path (same cross-platform location as main app)
+    if sys.platform == 'win32':
+        appdata = os.environ.get('APPDATA', os.path.expanduser('~'))
+        pointer_path = os.path.join(appdata, "Supervertaler", "config.json")
+    elif sys.platform == 'darwin':
+        pointer_path = os.path.join(os.path.expanduser('~'), "Library", "Application Support", "Supervertaler", "config.json")
+    else:
+        xdg_config = os.environ.get('XDG_CONFIG_HOME', os.path.expanduser('~/.config'))
+        pointer_path = os.path.join(xdg_config, "Supervertaler", "config.json")
+
+    # Read configured user data path from pointer file (if available)
+    if os.path.exists(pointer_path):
+        try:
+            with open(pointer_path, 'r', encoding='utf-8') as f:
+                pointer_data = json.load(f)
+            configured_user_data_path = pointer_data.get("user_data_path") or None
+        except Exception:
+            configured_user_data_path = None
+
+    # Try unified settings first
+    unified_paths = []
+    if configured_user_data_path:
+        unified_paths.append(os.path.join(configured_user_data_path, "settings", "settings.json"))
+    unified_paths.extend([
+        os.path.join(os.path.expanduser('~'), "Supervertaler", "settings", "settings.json"),
         os.path.join(script_dir, "user_data_private", "settings", "settings.json"),
         os.path.join(script_dir, "user_data", "settings", "settings.json"),
-    ]
+    ])
 
-    for settings_path in unified_paths:
+    for settings_path in dict.fromkeys(unified_paths):
         if os.path.exists(settings_path):
             try:
                 with open(settings_path, 'r', encoding='utf-8') as f:
@@ -62,11 +87,16 @@ def load_api_keys() -> Dict[str, str]:
 
     # Legacy fallback: api_keys.txt (for backward compatibility)
     if not api_keys:
-        legacy_paths = [
+        legacy_paths = []
+        if configured_user_data_path:
+            legacy_paths.append(os.path.join(configured_user_data_path, "api_keys.txt"))
+        legacy_paths.extend([
+            os.path.join(os.path.expanduser('~'), "Supervertaler", "api_keys.txt"),
             os.path.join(script_dir, "user_data_private", "api_keys.txt"),
+            os.path.join(script_dir, "user_data", "api_keys.txt"),
             os.path.join(script_dir, "api_keys.txt"),
-        ]
-        for legacy_path in legacy_paths:
+        ])
+        for legacy_path in dict.fromkeys(legacy_paths):
             if os.path.exists(legacy_path):
                 try:
                     with open(legacy_path, 'r', encoding='utf-8') as f:

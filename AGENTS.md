@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation (Compact)
 
 > **Purpose:** Fast, reliable handoff when context is low or chats reset.
-> **Last Updated:** February 8, 2026 | **Version:** v1.9.240
+> **Last Updated:** February 8, 2026 | **Version:** v1.9.241
 
 ---
 
@@ -18,7 +18,7 @@
 
 ## 🎯 Current State
 
-- **Current version:** `v1.9.240`
+- **Current version:** `v1.9.241`
 - **Main app:** `Supervertaler.py` (large monolithic PyQt6 file)
 - **Latest major completed work:**
   - Unified settings system in `settings/settings.json`
