@@ -33,6 +33,7 @@ import subprocess
 import webbrowser
 from typing import Dict, List, Optional, Tuple, Callable
 from dataclasses import dataclass
+from modules.platform_helpers import open_file, get_hidden_subprocess_flags
 
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
@@ -817,7 +818,7 @@ class LocalLLMSetupDialog(QDialog):
         # Try the Start Menu shortcut first (most reliable on Windows)
         if os.path.exists(start_menu_lnk):
             try:
-                os.startfile(start_menu_lnk)
+                open_file(start_menu_lnk)
                 started = True
                 self.status_label.setText("⏳ Starting Ollama... please wait")
                 self.status_label.setStyleSheet("background-color: #FFF3CD; padding: 10px;")
@@ -830,8 +831,8 @@ class LocalLLMSetupDialog(QDialog):
             for path in ollama_paths:
                 if os.path.exists(path) and path.endswith('.exe'):
                     try:
-                        subprocess.Popen([path, "serve"], 
-                                       creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, 'CREATE_NO_WINDOW') else 0)
+                        subprocess.Popen([path, "serve"],
+                                       **get_hidden_subprocess_flags())
                         started = True
                         self.status_label.setText("⏳ Starting Ollama... please wait")
                         self.status_label.setStyleSheet("background-color: #FFF3CD; padding: 10px;")

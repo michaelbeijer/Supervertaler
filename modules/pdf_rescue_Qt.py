@@ -10,6 +10,7 @@ Can also be run independently as a standalone application.
 import os
 import base64
 from pathlib import Path
+from modules.platform_helpers import open_file
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QListWidget, QTextEdit,
     QComboBox, QCheckBox, QProgressBar, QFileDialog, QMessageBox, QSplitter,
@@ -812,8 +813,8 @@ Please:
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
             )
             if reply == QMessageBox.StandardButton.Yes:
-                os.startfile(output_file)
-        
+                open_file(output_file)
+
         except Exception as e:
             QMessageBox.critical(None, "Error", f"Failed to save report:\n\n{str(e)}")
     
@@ -1498,9 +1499,9 @@ Please:
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
             )
             if reply == QMessageBox.StandardButton.Yes:
-                os.startfile(md_file)
-                os.startfile(docx_file)
-                os.startfile(report_file)
+                open_file(md_file)
+                open_file(docx_file)
+                open_file(report_file)
         
         except Exception as e:
             QMessageBox.critical(None, "Error", f"Failed to export documents:\n\n{str(e)}")
@@ -1699,8 +1700,8 @@ Please:
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
             )
             if reply == QMessageBox.StandardButton.Yes:
-                os.startfile(output_file)
-        
+                open_file(output_file)
+
         except Exception as e:
             QMessageBox.critical(None, "Error", f"Failed to save document:\n\n{str(e)}")
     

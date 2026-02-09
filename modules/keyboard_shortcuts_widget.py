@@ -15,6 +15,7 @@ from PyQt6.QtGui import QKeySequence, QKeyEvent, QFont, QPainter, QPen, QColor
 
 from modules.shortcut_manager import ShortcutManager
 from modules.shortcut_display import format_shortcut_for_display, format_shortcuts_in_text
+from modules.platform_helpers import IS_WINDOWS, IS_MACOS, IS_LINUX
 
 
 class CheckmarkCheckBox(QCheckBox):
@@ -368,6 +369,110 @@ class KeyboardShortcutsWidget(QWidget):
         info.setWordWrap(True)
         info.setStyleSheet("color: #666; font-style: italic; margin-top: 5px;")
         layout.addWidget(info)
+
+        # Global Hotkeys Settings group (cross-platform)
+        # Note: && is used so Qt displays a literal ampersand instead of treating
+        # the next character as a mnemonic accelerator.
+        hotkey_group = QGroupBox("⌨️ Global Hotkeys (Superlookup && QuickTrans)")
+        hotkey_layout = QVBoxLayout()
+
+        hotkey_info = QLabel(
+            f"Global hotkeys allow {format_shortcut_for_display('Ctrl+Alt+L')} (Superlookup) and "
+            f"{format_shortcut_for_display('Ctrl+Alt+M')} (QuickTrans) to work from any application."
+        )
+        hotkey_info.setWordWrap(True)
+        hotkey_info.setStyleSheet("color: #666; font-size: 9pt; padding: 5px;")
+        hotkey_layout.addWidget(hotkey_info)
+
+        # Current status
+        hotkey_status_layout = QHBoxLayout()
+        hotkey_status_layout.addWidget(QLabel("Status:"))
+
+        hotkey_active = False
+        using_pynput = False
+        mw = self.main_window
+        if mw and hasattr(mw, 'lookup_tab') and hasattr(mw.lookup_tab, 'hotkey_registered'):
+            hotkey_active = mw.lookup_tab.hotkey_registered
+            using_pynput = getattr(mw.lookup_tab, '_using_pynput', False)
+
+        if hotkey_active:
+            backend = "pynput" if using_pynput else "AutoHotkey"
+            status_text = f"✅ Active (via {backend})"
+            status_style = "font-weight: bold; color: green;"
+        else:
+            status_text = "❌ Not active"
+            status_style = "font-weight: bold; color: #c00;"
+
+        hotkey_status_value = QLabel(status_text)
+        hotkey_status_value.setStyleSheet(status_style)
+        hotkey_status_layout.addWidget(hotkey_status_value)
+        hotkey_status_layout.addStretch()
+        hotkey_layout.addLayout(hotkey_status_layout)
+
+        # Platform-specific notes
+        if IS_MACOS:
+            mac_note = QLabel(
+                "macOS: Global hotkeys require Accessibility permissions.\n"
+                "Go to System Preferences > Privacy & Security > Accessibility\n"
+                "and add Supervertaler (or the Python/Terminal app running it)."
+            )
+            mac_note.setWordWrap(True)
+            mac_note.setStyleSheet("color: #d97706; font-size: 9pt; padding: 5px;")
+            hotkey_layout.addWidget(mac_note)
+        elif IS_LINUX:
+            linux_note = QLabel(
+                "Linux: Global hotkeys may require /dev/input access.\n"
+                "If hotkeys don't work, add your user to the 'input' group."
+            )
+            linux_note.setWordWrap(True)
+            linux_note.setStyleSheet("color: #d97706; font-size: 9pt; padding: 5px;")
+            hotkey_layout.addWidget(linux_note)
+
+        # AutoHotkey fallback settings (Windows only)
+        if IS_WINDOWS and mw:
+            import os
+            ahk_path_layout = QHBoxLayout()
+            ahk_path_label = QLabel("AutoHotkey Path (fallback):")
+            ahk_path_layout.addWidget(ahk_path_label)
+
+            ahk_path_edit = QLineEdit()
+            ahk_path_edit.setPlaceholderText("Auto-detect, or specify custom path...")
+            # Read saved path from main window's general_settings
+            general_settings = getattr(mw, 'general_settings', {}) if mw else {}
+            saved_ahk_path = general_settings.get('autohotkey_path', '')
+            ahk_path_edit.setText(saved_ahk_path)
+            ahk_path_edit.setToolTip(
+                "AutoHotkey is used as a fallback if pynput cannot register hotkeys.\n"
+                "Leave empty to auto-detect, or specify the full path to AutoHotkey.exe."
+            )
+            ahk_path_layout.addWidget(ahk_path_edit, stretch=1)
+
+            ahk_browse_btn = QPushButton("📁 Browse...")
+            ahk_browse_btn.setMaximumWidth(100)
+            if hasattr(mw, '_browse_autohotkey_for_settings'):
+                ahk_browse_btn.clicked.connect(
+                    lambda: mw._browse_autohotkey_for_settings(ahk_path_edit)
+                )
+            ahk_path_layout.addWidget(ahk_browse_btn)
+
+            hotkey_layout.addLayout(ahk_path_layout)
+
+            if hasattr(mw, '_find_autohotkey_for_settings'):
+                detected_path, source = mw._find_autohotkey_for_settings()
+                if detected_path:
+                    detected_label = QLabel(f"💡 Detected: {detected_path}")
+                    detected_label.setStyleSheet("color: #666; font-size: 9pt;")
+                    hotkey_layout.addWidget(detected_label)
+
+            # Store reference on main window so save handler can access it
+            mw.ahk_path_edit = ahk_path_edit
+
+        restart_note = QLabel("💡 Changes require restart to take effect.")
+        restart_note.setStyleSheet("color: #666; font-size: 9pt; font-style: italic;")
+        hotkey_layout.addWidget(restart_note)
+
+        hotkey_group.setLayout(hotkey_layout)
+        layout.addWidget(hotkey_group)
     
     def load_shortcuts(self):
         """Load shortcuts into the table"""

@@ -65,6 +65,7 @@ from typing import List, Optional, Dict, Any, Tuple, Callable
 from dataclasses import dataclass, asdict
 from datetime import datetime
 from modules.shortcut_display import format_shortcut_for_display
+from modules.platform_helpers import IS_WINDOWS, IS_MACOS, IS_LINUX, open_file, open_folder, get_hidden_subprocess_flags
 
 
 def get_resource_path(relative_path: str) -> Path:
@@ -288,7 +289,7 @@ try:
         QFrame, QListWidget, QListWidgetItem, QStackedWidget, QTreeWidget, QTreeWidgetItem,
         QScrollArea, QSizePolicy, QSlider, QToolButton, QAbstractItemView
     )
-    from PyQt6.QtCore import Qt, QSize, QTimer, pyqtSignal, QObject, QUrl, QThread
+    from PyQt6.QtCore import Qt, QSize, QTimer, pyqtSignal, pyqtSlot, QObject, QUrl, QThread
     from PyQt6.QtGui import QFont, QAction, QKeySequence, QIcon, QTextOption, QColor, QDesktopServices, QTextCharFormat, QTextCursor, QBrush, QSyntaxHighlighter, QPalette, QTextBlockFormat, QCursor, QFontMetrics
     from PyQt6.QtWidgets import QStyleOptionViewItem, QStyle
     from PyQt6.QtCore import QRectF
@@ -323,26 +324,33 @@ else:
 # GLOBAL AHK PROCESS CLEANUP
 # ============================================================================
 
-# Global variable to track AHK process
+# Global variables to track hotkey processes for atexit cleanup
 _ahk_process = None
+_hotkey_manager = None
 
-def cleanup_ahk_process():
-    """Cleanup function to kill AHK process on exit"""
-    global _ahk_process
+def cleanup_hotkey_processes():
+    """Cleanup function to stop hotkey processes on exit"""
+    global _ahk_process, _hotkey_manager
+    if _hotkey_manager:
+        try:
+            _hotkey_manager.stop()
+            print("[Hotkeys] pynput hotkey manager stopped on exit")
+        except Exception:
+            pass
     if _ahk_process:
         try:
             _ahk_process.terminate()
             _ahk_process.wait(timeout=1)
             print("[Hotkeys] AHK process terminated on exit")
-        except:
+        except Exception:
             try:
                 _ahk_process.kill()
                 print("[Hotkeys] AHK process killed on exit")
-            except:
+            except Exception:
                 pass
 
 # Register cleanup function to run on Python exit
-atexit.register(cleanup_ahk_process)
+atexit.register(cleanup_hotkey_processes)
 
 
 # ============================================================================
@@ -1485,6 +1493,63 @@ class _CtrlReturnEventFilter(QObject):
             if hasattr(mw, 'confirm_selected_or_next'):
                 mw.confirm_selected_or_next()
                 return True
+
+        return False
+
+
+class _DoubleTapShiftEventFilter(QObject):
+    """App-level event filter to detect double-tap Shift for context menu.
+
+    Replaces the AutoHotkey double-shift detection that was previously in
+    supervertaler_hotkeys.ahk.  Only fires when the Supervertaler window
+    is active.  Two Shift releases within 350 ms triggers Shift+F10
+    (Qt's standard context-menu shortcut).
+    """
+
+    THRESHOLD_MS = 350
+
+    def __init__(self, main_window):
+        super().__init__(main_window)
+        self._main_window = main_window
+        self._last_shift_release = 0
+
+    def eventFilter(self, obj, event):
+        from PyQt6.QtCore import QEvent
+
+        if event.type() != QEvent.Type.KeyRelease:
+            return False
+
+        if event.key() != Qt.Key.Key_Shift:
+            return False
+
+        # Only when our window is active
+        mw = self._main_window
+        if not mw or not mw.isActiveWindow():
+            return False
+
+        # Ignore auto-repeat
+        if event.isAutoRepeat():
+            return False
+
+        now = time.time() * 1000  # ms
+        elapsed = now - self._last_shift_release
+        self._last_shift_release = now
+
+        if 0 < elapsed <= self.THRESHOLD_MS:
+            # Reset to prevent triple-tap
+            self._last_shift_release = 0
+            # Trigger context menu via Shift+F10
+            from PyQt6.QtWidgets import QApplication
+            focus = QApplication.focusWidget()
+            if focus:
+                from PyQt6.QtGui import QKeyEvent
+                fake_event = QKeyEvent(
+                    QEvent.Type.KeyPress,
+                    Qt.Key.Key_F10,
+                    Qt.KeyboardModifier.ShiftModifier
+                )
+                QApplication.sendEvent(focus, fake_event)
+            return True
 
         return False
 
@@ -7647,8 +7712,11 @@ class SupervertalerQt(QMainWindow):
             self._ctrl_return_event_filter = _CtrlReturnEventFilter(self)
             QApplication.instance().installEventFilter(self._ctrl_return_event_filter)
         
-        # Note: Double-tap Shift for context menu is handled by AutoHotkey (double_shift_menu.ahk)
-        # Qt's event system makes reliable double-tap detection difficult in Python
+        # Double-tap Shift for context menu (cross-platform, replaces AHK detection)
+        if not hasattr(self, '_double_shift_event_filter'):
+            from PyQt6.QtWidgets import QApplication
+            self._double_shift_event_filter = _DoubleTapShiftEventFilter(self)
+            QApplication.instance().installEventFilter(self._double_shift_event_filter)
         
         # Ctrl+Shift+Enter - Always confirm all selected segments
         create_shortcut("editor_confirm_selected", "Ctrl+Shift+Return", self.confirm_selected_segments)
@@ -17767,8 +17835,7 @@ class SupervertalerQt(QMainWindow):
         
         open_folder_btn = QPushButton("Open")
         open_folder_btn.setToolTip("Open this folder in your file manager")
-        open_folder_btn.clicked.connect(lambda: os.startfile(str(self.user_data_path)) if sys.platform == 'win32' 
-                                         else subprocess.run(['xdg-open' if sys.platform == 'linux' else 'open', str(self.user_data_path)]))
+        open_folder_btn.clicked.connect(lambda: open_file(str(self.user_data_path)))
         path_row.addWidget(open_folder_btn)
         
         data_folder_layout.addLayout(path_row)
@@ -18067,81 +18134,8 @@ class SupervertalerQt(QMainWindow):
         editor_group.setLayout(editor_layout)
         layout.addWidget(editor_group)
 
-        # AutoHotkey Settings group (Windows only - for Superlookup global hotkey)
-        if os.name == 'nt':
-            ahk_group = QGroupBox("⌨️ AutoHotkey Settings (Superlookup Global Hotkey)")
-            ahk_layout = QVBoxLayout()
-            
-            ahk_info = QLabel(
-                f"AutoHotkey enables the global hotkey ({format_shortcut_for_display('Ctrl+Alt+L')}) for Superlookup,\n"
-                "allowing you to look up selected text from any application."
-            )
-            ahk_info.setWordWrap(True)
-            ahk_info.setStyleSheet("color: #666; font-size: 9pt; padding: 5px;")
-            ahk_layout.addWidget(ahk_info)
-            
-            # Current status
-            ahk_status_layout = QHBoxLayout()
-            ahk_status_label = QLabel("Status:")
-            ahk_status_layout.addWidget(ahk_status_label)
-            
-            # Check if hotkey is registered
-            hotkey_active = False
-            if hasattr(self, 'lookup_tab') and hasattr(self.lookup_tab, 'hotkey_registered'):
-                hotkey_active = self.lookup_tab.hotkey_registered
-            
-            status_text = "✅ Active" if hotkey_active else "❌ Not active"
-            ahk_status_value = QLabel(status_text)
-            ahk_status_value.setStyleSheet("font-weight: bold; color: green;" if hotkey_active else "font-weight: bold; color: #c00;")
-            ahk_status_layout.addWidget(ahk_status_value)
-            ahk_status_layout.addStretch()
-            ahk_layout.addLayout(ahk_status_layout)
-            
-            # Path input
-            ahk_path_layout = QHBoxLayout()
-            ahk_path_label = QLabel("AutoHotkey Path:")
-            ahk_path_layout.addWidget(ahk_path_label)
-            
-            ahk_path_edit = QLineEdit()
-            ahk_path_edit.setPlaceholderText("Leave empty to auto-detect, or specify custom path...")
-            saved_ahk_path = general_settings.get('autohotkey_path', '')
-            ahk_path_edit.setText(saved_ahk_path)
-            ahk_path_edit.setToolTip(
-                "If AutoHotkey is installed in a non-standard location,\n"
-                "specify the full path to AutoHotkey.exe here.\n"
-                "Leave empty to use auto-detection."
-            )
-            ahk_path_layout.addWidget(ahk_path_edit, stretch=1)
-            
-            # Browse button
-            ahk_browse_btn = QPushButton("📁 Browse...")
-            ahk_browse_btn.setMaximumWidth(100)
-            ahk_browse_btn.clicked.connect(lambda: self._browse_autohotkey_for_settings(ahk_path_edit))
-            ahk_path_layout.addWidget(ahk_browse_btn)
-            
-            ahk_layout.addLayout(ahk_path_layout)
-            
-            # Detected path info
-            detected_path, source = self._find_autohotkey_for_settings()
-            if detected_path:
-                detected_label = QLabel(f"💡 Detected: {detected_path}")
-                detected_label.setStyleSheet("color: #666; font-size: 9pt;")
-                ahk_layout.addWidget(detected_label)
-            else:
-                not_found_label = QLabel("⚠️ AutoHotkey not found. Download from autohotkey.com")
-                not_found_label.setStyleSheet("color: #d97706; font-size: 9pt;")
-                ahk_layout.addWidget(not_found_label)
-            
-            # Note about restart
-            restart_note = QLabel("💡 Changes require restart to take effect.")
-            restart_note.setStyleSheet("color: #666; font-size: 9pt; font-style: italic;")
-            ahk_layout.addWidget(restart_note)
-            
-            ahk_group.setLayout(ahk_layout)
-            layout.addWidget(ahk_group)
-            
-            # Store reference for saving
-            self.ahk_path_edit = ahk_path_edit
+        # Global Hotkeys section has been moved to the Keyboard Shortcuts tab
+        # (see modules/keyboard_shortcuts_widget.py)
 
         # Find & Replace settings group
         find_replace_group = QGroupBox("Find && Replace Settings")
@@ -23370,32 +23364,40 @@ class SupervertalerQt(QMainWindow):
                 self.save_project_as()
     
     def closeEvent(self, event):
-        """Handle application close - cleanup AHK process"""
+        """Handle application close - cleanup hotkey processes"""
         try:
-            # Clean up ahk library if used
-            if hasattr(self, 'lookup_tab') and hasattr(self.lookup_tab, '_using_ahk_library') and self.lookup_tab._using_ahk_library:
-                if hasattr(self.lookup_tab, '_ahk') and self.lookup_tab._ahk:
+            if hasattr(self, 'lookup_tab'):
+                # Clean up pynput hotkey manager (cross-platform)
+                if hasattr(self.lookup_tab, '_hotkey_manager') and self.lookup_tab._hotkey_manager:
                     try:
-                        self.lookup_tab._ahk.stop_hotkeys()
-                        print("[Superlookup] ahk library hotkeys stopped")
+                        self.lookup_tab._hotkey_manager.stop()
+                        print("[Superlookup] pynput hotkey manager stopped")
                     except Exception as e:
-                        print(f"[Superlookup] Error stopping ahk library: {e}")
-            
-            # Terminate external AutoHotkey process if running (fallback method)
-            if hasattr(self, 'lookup_tab') and hasattr(self.lookup_tab, 'ahk_process') and self.lookup_tab.ahk_process:
-                try:
-                    self.lookup_tab.ahk_process.terminate()
-                    self.lookup_tab.ahk_process.wait(timeout=2)
-                    print("[Superlookup] AHK process terminated")
-                except:
-                    # Force kill if terminate doesn't work
+                        print(f"[Superlookup] Error stopping pynput: {e}")
+
+                # Clean up ahk library if used (Windows fallback)
+                if hasattr(self.lookup_tab, '_using_ahk_library') and self.lookup_tab._using_ahk_library:
+                    if hasattr(self.lookup_tab, '_ahk') and self.lookup_tab._ahk:
+                        try:
+                            self.lookup_tab._ahk.stop_hotkeys()
+                            print("[Superlookup] ahk library hotkeys stopped")
+                        except Exception as e:
+                            print(f"[Superlookup] Error stopping ahk library: {e}")
+
+                # Terminate external AutoHotkey process if running (Windows fallback)
+                if hasattr(self.lookup_tab, 'ahk_process') and self.lookup_tab.ahk_process:
                     try:
-                        self.lookup_tab.ahk_process.kill()
-                    except:
-                        pass
+                        self.lookup_tab.ahk_process.terminate()
+                        self.lookup_tab.ahk_process.wait(timeout=2)
+                        print("[Superlookup] AHK process terminated")
+                    except Exception:
+                        try:
+                            self.lookup_tab.ahk_process.kill()
+                        except Exception:
+                            pass
         except Exception as e:
-            print(f"[Superlookup] Error terminating AHK: {e}")
-        
+            print(f"[Superlookup] Error during hotkey cleanup: {e}")
+
         # Accept the close event
         event.accept()
     
@@ -40190,28 +40192,20 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
 
     def _open_folder_in_explorer(self, path: str):
         """Open a folder or file location in the system file explorer"""
-        import os
-        import subprocess
         from pathlib import Path
-        
+
         path_obj = Path(path)
-        
+
         # If it's a file, open the containing folder
         if path_obj.is_file():
             folder = path_obj.parent
         else:
             folder = path_obj
-        
+
         # Create folder if it doesn't exist
         folder.mkdir(parents=True, exist_ok=True)
-        
-        # Open in explorer
-        if sys.platform == 'win32':
-            os.startfile(str(folder))
-        elif sys.platform == 'darwin':
-            subprocess.run(['open', str(folder)])
-        else:
-            subprocess.run(['xdg-open', str(folder)])
+
+        open_file(str(folder))
 
     def filter_empty_segments(self):
         """Quick filter to show only segments with empty target"""
@@ -51291,26 +51285,84 @@ class SuperlookupTab(QWidget):
             )
     
     def register_global_hotkey(self):
-        """Register global hotkey for Superlookup
-        
-        Uses external AHK script + signal file method (most reliable).
-        The ahk library method is available but disabled by default due to
-        callback threading issues.
-        
-        Note: AutoHotkey is Windows-only, so skip on Linux/Mac.
+        """Register global hotkeys for Superlookup and QuickTrans.
+
+        Strategy:
+        1. Try pynput GlobalHotKeys (works on all platforms)
+        2. On Windows, fall back to AHK external script if pynput fails
+        3. On macOS/Linux, if pynput fails, hotkeys are unavailable
         """
-        global _ahk_process
-        print("[Superlookup] register_global_hotkey called")
-        
-        # AutoHotkey is Windows-only - skip on other platforms
-        if sys.platform != 'win32':
-            print("[Superlookup] Skipping AutoHotkey registration (not Windows)")
+        global _ahk_process, _hotkey_manager
+
+        self._using_pynput = False
+        self._hotkey_manager = None
+
+        # --- Attempt 1: WinAPI / pynput (cross-platform) ---
+        try:
+            from modules.platform_helpers import GlobalHotkeyManager, CrossPlatformKeySender
+            manager = GlobalHotkeyManager()
+            if manager.is_available:
+                manager.register('ctrl+alt+l', self._on_pynput_superlookup)
+                manager.register('ctrl+alt+m', self._on_pynput_quicktrans)
+                started = manager.start()
+                if started:
+                    self._hotkey_manager = manager
+                    _hotkey_manager = manager  # global for atexit cleanup
+                    self._using_pynput = True
+                    self.hotkey_registered = True
+                    print(f"[Superlookup] Global hotkeys registered via {manager._backend}")
+                    return
+        except Exception as e:
+            print(f"[Superlookup] Global hotkey registration failed: {e}")
+
+        # --- Attempt 2: AHK external script (Windows only) ---
+        if IS_WINDOWS:
+            self._register_hotkey_external_script()
+        else:
             self.hotkey_registered = False
-            return
-        
-        # Use external script method (most reliable, proven to work)
-        self._register_hotkey_external_script()
-    
+
+    def _on_pynput_superlookup(self):
+        """Called from background thread when Ctrl+Alt+L is pressed."""
+        try:
+            from modules.platform_helpers import CrossPlatformKeySender
+            sender = CrossPlatformKeySender()
+            sender.send_copy()  # Blocking on Windows (AHK subprocess waits)
+            time.sleep(0.15)  # Small extra buffer for clipboard propagation
+
+            text = pyperclip.paste()
+            if text:
+                # Dispatch to Qt main thread — QTimer.singleShot is NOT safe
+                # from a non-Qt thread. Use QMetaObject.invokeMethod instead.
+                from PyQt6.QtCore import QMetaObject, Qt as QtConst, Q_ARG
+                QMetaObject.invokeMethod(
+                    self, "_dispatch_superlookup",
+                    QtConst.ConnectionType.QueuedConnection,
+                    Q_ARG(str, text)
+                )
+        except Exception as e:
+            print(f"[Superlookup] Error in hotkey callback: {e}")
+
+    def _on_pynput_quicktrans(self):
+        """Called from background thread when Ctrl+Alt+M is pressed."""
+        try:
+            from modules.platform_helpers import CrossPlatformKeySender
+            sender = CrossPlatformKeySender()
+            sender.send_copy()  # Blocking on Windows (AHK subprocess waits)
+            time.sleep(0.15)  # Small extra buffer for clipboard propagation
+
+            text = pyperclip.paste()
+            if text:
+                # Dispatch to Qt main thread — QTimer.singleShot is NOT safe
+                # from a non-Qt thread. Use QMetaObject.invokeMethod instead.
+                from PyQt6.QtCore import QMetaObject, Qt as QtConst, Q_ARG
+                QMetaObject.invokeMethod(
+                    self, "_dispatch_quicktrans",
+                    QtConst.ConnectionType.QueuedConnection,
+                    Q_ARG(str, text)
+                )
+        except Exception as e:
+            print(f"[QuickTrans] Error in hotkey callback: {e}")
+
     def _try_ahk_library_method(self):
         """Try to register hotkey using ahk Python library
         
@@ -51514,6 +51566,16 @@ class SuperlookupTab(QWidget):
             except Exception as e:
                 print(f"[QuickTrans] Error reading capture: {e}")
     
+    @pyqtSlot(str)
+    def _dispatch_superlookup(self, text):
+        """Qt slot invoked on the main thread by QMetaObject.invokeMethod."""
+        self.on_ahk_capture(text)
+
+    @pyqtSlot(str)
+    def _dispatch_quicktrans(self, text):
+        """Qt slot invoked on the main thread by QMetaObject.invokeMethod."""
+        self.on_ahk_mt_lookup_capture(text)
+
     def on_ahk_capture(self, text):
         """Handle text captured by AHK"""
         try:
@@ -52859,14 +52921,8 @@ class AutoFingersWidget(QWidget):
     
     def open_tmx_in_editor(self):
         """Open TMX file in external editor"""
-        import subprocess
         try:
-            if sys.platform == 'win32':
-                os.startfile(self.tmx_file)
-            elif sys.platform == 'darwin':
-                subprocess.call(['open', self.tmx_file])
-            else:
-                subprocess.call(['xdg-open', self.tmx_file])
+            open_file(self.tmx_file)
             self.log(f"📂 Opened TMX in editor: {self.tmx_file}")
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Could not open TMX file:\n{str(e)}")

@@ -217,7 +217,7 @@ class QuickAccessSidebar(QWidget):
         # Translation Tools section
         tools_section = SidebarSection("Translation Tools")
         
-        lookup_btn = QuickActionButton("🔍", "Universal Lookup")
+        lookup_btn = QuickActionButton("🔍", "Superlookup")
         lookup_btn.clicked.connect(lambda: self.action_triggered.emit("universal_lookup"))
         tools_section.add_button(lookup_btn)
         

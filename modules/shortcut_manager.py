@@ -168,7 +168,7 @@ class ShortcutManager:
         },
         "tools_universal_lookup": {
             "category": "Resources",
-            "description": "Universal Lookup",
+            "description": "Superlookup",
             "default": "Ctrl+Alt+L",
             "action": "show_universal_lookup"
         },
