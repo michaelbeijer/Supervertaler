@@ -2,8 +2,17 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.243 (February 9, 2026)
+**Current Version:** v1.9.244 (February 9, 2026)
 
+
+## v1.9.244 - February 9, 2026
+
+### Bug Fixes
+
+- **Add to Glossary defaults:** The "Save to Glossary(s)" checklist now defaults to active glossaries for the current project instead of stale previous selections.
+- **Immediate Termview update after glossary add:** After Add/Quick Add, the in-memory termbase cache and index are rebuilt before refresh so newly added terms appear immediately in Termview.
+
+---
 
 ## v1.9.243 - February 9, 2026
 

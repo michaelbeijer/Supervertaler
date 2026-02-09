@@ -6,7 +6,7 @@
 
 **Professional AI-enhanced translation workbench** with multi-LLM support (GPT-4, Claude, Gemini, Ollama), translation memory, glossary management, and seamless CAT tool integration (memoQ, Trados, CafeTran, Phrase, Déjà Vu).
 
-**Latest release:** v1.9.243 - Fixed Match Panel Termview not refreshing immediately after glossary add/quick-add.
+**Latest release:** v1.9.244 - Glossary add dialog now defaults to active project glossaries, and new terms refresh immediately in Termview.
 
 ---
 
