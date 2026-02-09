@@ -74,6 +74,10 @@ deepl>=1.15.0
 # Hunspell backend for 100+ languages
 spylls>=0.1.7  # Pure Python Hunspell (replaces cyhunspell which doesn't work on Windows/Py3.12)
 
+# [hotkeys] - Cross-platform Global Hotkeys
+# Global hotkey registration and keystroke automation (Superlookup, QuickTrans)
+pynput>=1.7.6
+
 # [windows] - Windows Automation (~10 MB)
 # AutoFingers and keyboard control (Windows only)
 keyboard>=0.13.5; sys_platform == "win32"
