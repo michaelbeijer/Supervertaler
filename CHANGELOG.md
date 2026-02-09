@@ -2,8 +2,17 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.245 (February 9, 2026)
+**Current Version:** v1.9.246 (February 9, 2026)
 
+
+## v1.9.246 - February 9, 2026
+
+### Bug Fixes
+
+- **memoQ bilingual RTF: missing segments fixed** — Segments containing mqInternal inline tags (e.g. `[1]`, `[1}...{2]` paired tags) were silently dropped during import. The row-matching regex now uses brace-aware matching to handle nested RTF brace groups. Previously 11 of 155 segments were lost in affected files.
+- **memoQ bilingual RTF: formatting preserved on export** — Bold, italic, and underline formatting is now correctly converted back to RTF control words (`\b`, `\i`, `\ul`) when exporting translations. Previously these appeared as literal `<b>`, `<i>`, `<u>` text when re-imported into memoQ.
+
+---
 
 ## v1.9.245 - February 9, 2026
 

@@ -248,6 +248,20 @@ class MemoQRTFHandler:
         if content.startswith('{') and content.endswith('}'):
             content = content[1:-1]
 
+        # Flatten mqInternal inline tag groups: {\noproof\cs99\f0\fs20\cf13 [1]} → [1]
+        # These nested brace groups contain memoQ inline tag markers like [1], [1\}, \{2]
+        # We extract just the tag content (with escaped braces decoded) and keep it inline.
+        def _flatten_mqinternal(m):
+            tag_content = m.group(1)
+            # Decode escaped braces within tag content: \{ → {, \} → }
+            tag_content = tag_content.replace('\\{', '{').replace('\\}', '}')
+            return tag_content
+        content = re.sub(
+            r'\{\\noproof\\cs99[^}]*?\s((?:[^\{}]|\\[{}])+)\}',
+            _flatten_mqinternal,
+            content
+        )
+
         # Remove RTF formatting preamble
         content = re.sub(r'\\rtlch\\fcs\d+\s*', '', content)
         content = re.sub(r'\\ltrch\\fcs\d+\s*', '', content)
@@ -341,15 +355,20 @@ class MemoQRTFHandler:
 
         # Find all row blocks
         # Pattern: content between row definitions and \row
-        row_pattern = re.compile(
-            r'(\{\\rtlch\\fcs1[^}]*?\\cell\s*\})\s*'  # Cell 1: ID
-            r'(\{\\rtlch\\fcs1[^}]*?\\cell\s*\})\s*'  # Cell 2: Source
-            r'(\{\\rtlch\\fcs1[^}]*?\\cell\s*\})\s*'  # Cell 3: Target
-            r'(\{\\rtlch\\fcs1[^}]*?\\cell\s*\})\s*'  # Cell 4: Comment
-            r'(\{\\rtlch\\fcs1[^}]*?\\cell\s*\})\s*'  # Cell 5: Status
-            r'\\row',
-            re.DOTALL
+        # Brace-aware cell matching that handles:
+        #   - Nested brace groups: {\noproof\cs99\f0\fs20\cf13 [1]}
+        #   - Escaped braces at any level: \{ and \} (RTF literal brace escapes)
+        # The inner group (?:...) matches: non-brace chars | escaped braces | nested {groups}
+        _cell = r'(\{\\rtlch\\fcs1(?:[^{}]|\\[{}]|\{(?:[^{}]|\\[{}])*\})*?\\cell\s*\})'
+        _row_pat = (
+            _cell + r'\s*'   # Cell 1: ID
+            + _cell + r'\s*'   # Cell 2: Source
+            + _cell + r'\s*'   # Cell 3: Target
+            + _cell + r'\s*'   # Cell 4: Comment
+            + _cell + r'\s*'   # Cell 5: Status
+            + r'\\row'
         )
+        row_pattern = re.compile(_row_pat, re.DOTALL)
 
         # Find the header row to skip it
         header_found = False
@@ -463,10 +482,38 @@ class MemoQRTFHandler:
         return updated_count
 
     def _encode_text_for_rtf(self, text: str) -> str:
-        """Encode text for RTF format."""
-        result = []
+        """Encode text for RTF format, converting HTML formatting tags to RTF."""
+        # First, convert HTML-style formatting tags to RTF control words.
+        # These tags come from _extract_cell_text(preserve_formatting=True)
+        # which converts \b → <b>, \b0 → </b>, etc. during import.
+        # We must convert them back to RTF before character-level encoding.
+        text = text.replace('<b>', '\\b ')
+        text = text.replace('</b>', '\\b0 ')
+        text = text.replace('<i>', '\\i ')
+        text = text.replace('</i>', '\\i0 ')
+        text = text.replace('<u>', '\\ul ')
+        text = text.replace('</u>', '\\ul0 ')
 
-        for char in text:
+        result = []
+        i = 0
+        while i < len(text):
+            # Skip RTF control words we just inserted (don't re-encode their backslashes)
+            if text[i] == '\\' and i + 1 < len(text) and text[i + 1].isalpha():
+                # This is an RTF control word — pass it through verbatim
+                j = i + 1
+                while j < len(text) and text[j].isalpha():
+                    j += 1
+                # Include optional trailing digit(s) (e.g. \b0, \ul0)
+                while j < len(text) and text[j].isdigit():
+                    j += 1
+                # Include the delimiter space if present
+                if j < len(text) and text[j] == ' ':
+                    j += 1
+                result.append(text[i:j])
+                i = j
+                continue
+
+            char = text[i]
             code = ord(char)
             if code > 127:
                 # Non-ASCII: use Unicode escape
@@ -483,6 +530,7 @@ class MemoQRTFHandler:
                 pass  # Skip carriage returns
             else:
                 result.append(char)
+            i += 1
 
         return ''.join(result)
 

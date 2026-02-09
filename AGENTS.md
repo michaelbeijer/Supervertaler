@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation (Compact)
 
 > **Purpose:** Fast, reliable handoff when context is low or chats reset.
-> **Last Updated:** February 9, 2026 | **Version:** v1.9.245
+> **Last Updated:** February 9, 2026 | **Version:** v1.9.246
 
 ---
 
@@ -18,11 +18,11 @@
 
 ## 🎯 Current State
 
-- **Current version:** `v1.9.245`
+- **Current version:** `v1.9.246`
 - **Main app:** `Supervertaler.py` (large monolithic PyQt6 file)
 - **Latest major completed work:**
-  - Cross-platform support: macOS/Linux via `modules/platform_helpers.py` (v1.9.245)
-  - Native global hotkey system replacing AHK-only approach (v1.9.245)
+  - Cross-platform support: macOS/Linux via `modules/platform_helpers.py` (v1.9.246)
+  - Native global hotkey system replacing AHK-only approach (v1.9.246)
   - Unified settings system in `settings/settings.json`
   - Inline API key editing in Settings UI
   - One-time migration from legacy settings files (`.migrated`)
@@ -89,7 +89,7 @@ Notes:
 
 ---
 
-## 🌐 Cross-Platform Architecture (v1.9.245+)
+## 🌐 Cross-Platform Architecture (v1.9.246+)
 
 Central module: `modules/platform_helpers.py`
 
