@@ -2,12 +2,20 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.242 (February 8, 2026)
+**Current Version:** v1.9.243 (February 9, 2026)
 
+
+## v1.9.243 - February 9, 2026
+
+### Bug Fixes
+
+- **Glossary Termview refresh (Match Panel):** Fixed a regression where adding terms via "Add to Glossary" or "Quick Add" saved correctly but did not immediately refresh Termview in the Match Panel. Refresh paths now update when either Termview widget is available.
+
+---
 
 ## v1.9.242 - February 8, 2026
 
-### ✨ UI Improvements
+### UI Improvements
 
 - **macOS shortcut labels**: Normalized user-facing shortcut text to native macOS symbols (⌘, ⌥, ⇧) across context menus, tooltips, insert hints, and shortcut settings displays.
 - **Branding consistency**: Restored **QuickTrans** and **QuickMenu** capitalization across user-facing UI and documentation.
@@ -15,7 +23,7 @@ All notable changes to Supervertaler are documented in this file.
 ---
 ## v1.9.241 - February 8, 2026
 
-### ðŸ› Bug Fixes
+### Bug Fixes
 
 - **QuickTrans LLM API keys on macOS/custom data paths**: Fixed QuickTrans incorrectly reporting missing API keys for Claude, OpenAI, and Gemini when keys were present in the configured user data location. QuickTrans now uses the app's unified key loader (`parent_app.load_api_keys()`), supports Gemini `google`/`gemini` aliases consistently, and reuses shared LLM client wiring.
 - **LLM key path resolution fallback**: Updated `modules/llm_clients.load_api_keys()` to read the cross-platform config pointer and resolve keys from the actual configured user data folder (`settings/settings.json`), with legacy fallbacks retained.
@@ -24,7 +32,7 @@ All notable changes to Supervertaler are documented in this file.
 
 ## v1.9.240 - February 8, 2026
 
-### ✨ New Features
+### New Features
 
 - **Unified settings system**: Merged `general_settings.json`, `ui_preferences.json`, `feature_settings.json`, and `api_keys.txt` into a single `settings/settings.json` file. All settings files (themes, shortcuts, find/replace history, etc.) are now organized in a `settings/` subfolder within the user data folder. Existing installations are automatically migrated on first launch — old files are renamed to `.migrated` as a safety net.
 - **Inline API key editing**: API keys can now be entered directly in the Settings UI instead of editing a text file. AI provider keys (OpenAI, Claude, Google/Gemini, Ollama endpoint) are in the AI Settings tab; machine translation keys (Google Translate, DeepL, Microsoft, Amazon, ModernMT, MyMemory) are in the MT Settings tab. All key fields are password-masked with a show/hide toggle.

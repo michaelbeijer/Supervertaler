@@ -12847,7 +12847,7 @@ class SupervertalerQt(QMainWindow):
         This is called directly from Ctrl+Enter navigation to ensure
         the termview updates immediately, bypassing the deferred timer approach.
         """
-        if not segment or not hasattr(self, 'termview_widget'):
+        if not segment or ((not (hasattr(self, 'termview_widget') and self.termview_widget)) and (not (hasattr(self, 'termview_widget_match') and self.termview_widget_match))):
             return
 
         try:
@@ -12975,7 +12975,7 @@ class SupervertalerQt(QMainWindow):
             self.termbase_cache[segment.id] = termbase_matches
         
         # Update TermView widget
-        if hasattr(self, 'termview_widget') and self.termview_widget:
+        if (hasattr(self, 'termview_widget') and self.termview_widget) or (hasattr(self, 'termview_widget_match') and self.termview_widget_match):
             try:
                 # Convert termbase matches to list format for termview
                 # Note: find_termbase_matches_in_source returns dict with 'source' and 'translation' keys
@@ -13503,7 +13503,7 @@ class SupervertalerQt(QMainWindow):
                                     self.termbase_index.sort(key=lambda x: len(x['source_term_lower']), reverse=True)
                                 
                                 # Update TermView widget with the new term
-                                if hasattr(self, 'termview_widget') and self.termview_widget:
+                                if (hasattr(self, 'termview_widget') and self.termview_widget) or (hasattr(self, 'termview_widget_match') and self.termview_widget_match):
                                     # Get current matches from cache
                                     with self.termbase_cache_lock:
                                         cached_matches = self.termbase_cache.get(segment_id, {})
@@ -34188,7 +34188,7 @@ class SupervertalerQt(QMainWindow):
                                 self.log(f"Error displaying cached matches: {e}")
                     
                     # 🔄 Update TermView with cached termbase matches (always update, even if empty)
-                    if hasattr(self, 'termview_widget') and self.current_project:
+                    if self.current_project and ((hasattr(self, 'termview_widget') and self.termview_widget) or (hasattr(self, 'termview_widget_match') and self.termview_widget_match)):
                         try:
                             # Convert TranslationMatch objects to dict format for termview
                             termbase_matches = [
@@ -34293,7 +34293,7 @@ class SupervertalerQt(QMainWindow):
                                         self.termbase_cache[segment_id] = stored_matches
                             
                             # CRITICAL FIX: Always update Termview (even with empty results) - show "No matches" state
-                            if hasattr(self, 'termview_widget') and self.current_project:
+                            if self.current_project and ((hasattr(self, 'termview_widget') and self.termview_widget) or (hasattr(self, 'termview_widget_match') and self.termview_widget_match)):
                                 try:
                                     # Convert dict format to list format
                                     termbase_matches = [
@@ -38301,7 +38301,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         nt_count = len(nt_matches) if nt_matches else 0
         
         # 6. Update TermView with fresh results
-        if hasattr(self, 'termview_widget') and self.termview_widget:
+        if (hasattr(self, 'termview_widget') and self.termview_widget) or (hasattr(self, 'termview_widget_match') and self.termview_widget_match):
             try:
                 # Convert termbase matches dict to list format for termview
                 tb_list = []
