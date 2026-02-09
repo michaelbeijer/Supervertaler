@@ -461,7 +461,9 @@ class CrossPlatformKeySender:
     def __init__(self):
         self._controller = None
         self._Key = None
-        if not IS_WINDOWS:
+        # Only need pynput Controller on Linux (macOS uses osascript,
+        # Windows uses AHK/PowerShell)
+        if IS_LINUX:
             try:
                 from pynput.keyboard import Controller, Key
                 self._controller = Controller()
@@ -473,9 +475,9 @@ class CrossPlatformKeySender:
 
     @property
     def is_available(self) -> bool:
-        if IS_WINDOWS:
-            return True  # AHK or PowerShell always available
-        return self._controller is not None
+        if IS_WINDOWS or IS_MACOS:
+            return True  # AHK/PowerShell on Windows, osascript on macOS
+        return self._controller is not None  # Linux needs pynput
 
     # -- AHK path discovery (Windows) ----------------------------------------
 
@@ -518,17 +520,39 @@ class CrossPlatformKeySender:
     def send_copy(self):
         """Send Ctrl+C (or Cmd+C on macOS) to copy the current selection.
 
-        On Windows, uses a tiny AHK subprocess (``Send ^c``) because
-        AHK's keystroke engine is proven to work across processes.
-        Falls back to PowerShell ``SendKeys`` if AHK is not installed.
+        Each platform uses a proven external mechanism:
+        - Windows: AHK subprocess (or PowerShell fallback)
+        - macOS: ``osascript`` (AppleScript via System Events)
+        - Linux: pynput Controller
         """
         if IS_WINDOWS:
             self._send_copy_win32()
+        elif IS_MACOS:
+            self._send_copy_macos()
         elif self._controller:
             Key = self._Key
-            modifier = Key.cmd if IS_MACOS else Key.ctrl
-            with self._controller.pressed(modifier):
+            with self._controller.pressed(Key.ctrl):
                 self._controller.tap('c')
+
+    # -- macOS-specific implementation ---------------------------------------
+
+    @staticmethod
+    def _send_copy_macos():
+        """Send Cmd+C via osascript (macOS native automation).
+
+        Uses AppleScript ``System Events`` to inject a keystroke into the
+        foreground application — equivalent to AHK on Windows.  Runs as a
+        separate process, so it's thread-safe.
+        """
+        try:
+            subprocess.run(
+                ['osascript', '-e',
+                 'tell application "System Events" to keystroke "c" using command down'],
+                timeout=3,
+                capture_output=True,
+            )
+        except Exception as e:
+            print(f"[CrossPlatformKeySender] osascript Cmd+C failed: {e}")
 
     # -- Windows-specific implementation -------------------------------------
 

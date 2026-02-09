@@ -51322,46 +51322,34 @@ class SuperlookupTab(QWidget):
             self.hotkey_registered = False
 
     def _on_pynput_superlookup(self):
-        """Called from background thread when Ctrl+Alt+L is pressed."""
-        try:
-            from modules.platform_helpers import CrossPlatformKeySender
-            sender = CrossPlatformKeySender()
-            sender.send_copy()  # Blocking on Windows (AHK subprocess waits)
-            time.sleep(0.15)  # Small extra buffer for clipboard propagation
+        """Called from pynput background thread when Ctrl+Alt+L is pressed.
 
-            text = pyperclip.paste()
-            if text:
-                # Dispatch to Qt main thread — QTimer.singleShot is NOT safe
-                # from a non-Qt thread. Use QMetaObject.invokeMethod instead.
-                from PyQt6.QtCore import QMetaObject, Qt as QtConst, Q_ARG
-                QMetaObject.invokeMethod(
-                    self, "_dispatch_superlookup",
-                    QtConst.ConnectionType.QueuedConnection,
-                    Q_ARG(str, text)
-                )
+        IMPORTANT: Do NO work here — pynput callbacks on macOS crash if they
+        touch pyperclip, pynput Controller, or Qt objects.  Just signal the
+        Qt main thread and return immediately.
+        """
+        try:
+            from PyQt6.QtCore import QMetaObject, Qt as QtConst
+            QMetaObject.invokeMethod(
+                self, "_handle_superlookup_hotkey",
+                QtConst.ConnectionType.QueuedConnection,
+            )
         except Exception as e:
-            print(f"[Superlookup] Error in hotkey callback: {e}")
+            print(f"[Superlookup] Error signaling main thread: {e}")
 
     def _on_pynput_quicktrans(self):
-        """Called from background thread when Ctrl+Alt+M is pressed."""
-        try:
-            from modules.platform_helpers import CrossPlatformKeySender
-            sender = CrossPlatformKeySender()
-            sender.send_copy()  # Blocking on Windows (AHK subprocess waits)
-            time.sleep(0.15)  # Small extra buffer for clipboard propagation
+        """Called from pynput background thread when Ctrl+Alt+M is pressed.
 
-            text = pyperclip.paste()
-            if text:
-                # Dispatch to Qt main thread — QTimer.singleShot is NOT safe
-                # from a non-Qt thread. Use QMetaObject.invokeMethod instead.
-                from PyQt6.QtCore import QMetaObject, Qt as QtConst, Q_ARG
-                QMetaObject.invokeMethod(
-                    self, "_dispatch_quicktrans",
-                    QtConst.ConnectionType.QueuedConnection,
-                    Q_ARG(str, text)
-                )
+        IMPORTANT: Do NO work here — see _on_pynput_superlookup docstring.
+        """
+        try:
+            from PyQt6.QtCore import QMetaObject, Qt as QtConst
+            QMetaObject.invokeMethod(
+                self, "_handle_quicktrans_hotkey",
+                QtConst.ConnectionType.QueuedConnection,
+            )
         except Exception as e:
-            print(f"[QuickTrans] Error in hotkey callback: {e}")
+            print(f"[QuickTrans] Error signaling main thread: {e}")
 
     def _try_ahk_library_method(self):
         """Try to register hotkey using ahk Python library
@@ -51566,15 +51554,46 @@ class SuperlookupTab(QWidget):
             except Exception as e:
                 print(f"[QuickTrans] Error reading capture: {e}")
     
-    @pyqtSlot(str)
-    def _dispatch_superlookup(self, text):
-        """Qt slot invoked on the main thread by QMetaObject.invokeMethod."""
-        self.on_ahk_capture(text)
+    @pyqtSlot()
+    def _handle_superlookup_hotkey(self):
+        """Runs on Qt main thread after the global hotkey fires.
 
-    @pyqtSlot(str)
-    def _dispatch_quicktrans(self, text):
-        """Qt slot invoked on the main thread by QMetaObject.invokeMethod."""
-        self.on_ahk_mt_lookup_capture(text)
+        Sends Cmd+C / Ctrl+C to the foreground app, waits for the clipboard
+        to update, then dispatches to Superlookup.  Everything here runs on
+        the main thread, avoiding the macOS crash caused by calling pyperclip
+        or pynput from a background thread.
+        """
+        try:
+            from modules.platform_helpers import CrossPlatformKeySender
+            sender = CrossPlatformKeySender()
+            sender.send_copy()
+            # Read clipboard after a short delay (give OS time to process Cmd+C)
+            QTimer.singleShot(250, self._read_clipboard_for_superlookup)
+        except Exception as e:
+            print(f"[Superlookup] Error in hotkey handler: {e}")
+
+    def _read_clipboard_for_superlookup(self):
+        """Read clipboard and dispatch to Superlookup (main thread)."""
+        text = pyperclip.paste()
+        if text:
+            self.on_ahk_capture(text)
+
+    @pyqtSlot()
+    def _handle_quicktrans_hotkey(self):
+        """Runs on Qt main thread after the QuickTrans global hotkey fires."""
+        try:
+            from modules.platform_helpers import CrossPlatformKeySender
+            sender = CrossPlatformKeySender()
+            sender.send_copy()
+            QTimer.singleShot(250, self._read_clipboard_for_quicktrans)
+        except Exception as e:
+            print(f"[QuickTrans] Error in hotkey handler: {e}")
+
+    def _read_clipboard_for_quicktrans(self):
+        """Read clipboard and dispatch to QuickTrans (main thread)."""
+        text = pyperclip.paste()
+        if text:
+            self.on_ahk_mt_lookup_capture(text)
 
     def on_ahk_capture(self, text):
         """Handle text captured by AHK"""
