@@ -2,8 +2,17 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.241 (February 8, 2026)
+**Current Version:** v1.9.242 (February 8, 2026)
 
+
+## v1.9.242 - February 8, 2026
+
+### ✨ UI Improvements
+
+- **macOS shortcut labels**: Normalized user-facing shortcut text to native macOS symbols (⌘, ⌥, ⇧) across context menus, tooltips, insert hints, and shortcut settings displays.
+- **Branding consistency**: Restored **QuickTrans** and **QuickMenu** capitalization across user-facing UI and documentation.
+
+---
 ## v1.9.241 - February 8, 2026
 
 ### ðŸ› Bug Fixes
