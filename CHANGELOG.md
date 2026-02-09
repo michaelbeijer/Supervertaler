@@ -2,8 +2,28 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.244 (February 9, 2026)
+**Current Version:** v1.9.245 (February 9, 2026)
 
+
+## v1.9.245 - February 9, 2026
+
+### New Features
+
+- **Cross-platform support**: Added `modules/platform_helpers.py` with cross-platform utilities for file opening, subprocess flags, global hotkeys, and keystroke automation. Supervertaler now runs on macOS and Linux in addition to Windows.
+- **Native global hotkey system**: Replaced the AutoHotkey-based hotkey system with a native implementation — Windows `RegisterHotKey` API with AHK-based keystroke injection for Ctrl+C, pynput `GlobalHotKeys` on macOS/Linux. No more signal file watcher or polling timer.
+- **Global Hotkeys settings moved**: The Global Hotkeys (Superlookup & QuickTrans) settings section has moved from the General tab to the Keyboard Shortcuts tab.
+
+### Improvements
+
+- **Cross-platform file opening**: Replaced all unguarded `os.startfile()` calls with `platform_helpers.open_file()` (uses `open` on macOS, `xdg-open` on Linux).
+- **Cross-platform subprocess flags**: Guarded all `subprocess.CREATE_NO_WINDOW` usage behind platform checks so voice commands and other subprocess calls work on macOS/Linux.
+- **Renamed "Universal Lookup" to "Superlookup"** in the Keyboard Shortcuts action column, sidebar, and shortcut cheatsheet for consistency.
+
+### Dependencies
+
+- Added `pynput>=1.7.6` as a cross-platform dependency for global hotkeys and keystroke automation.
+
+---
 
 ## v1.9.244 - February 9, 2026
 
