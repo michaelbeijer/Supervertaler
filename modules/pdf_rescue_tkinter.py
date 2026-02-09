@@ -9,6 +9,7 @@ This module can be embedded in the main Supervertaler application as a tab.
 import os
 import base64
 from pathlib import Path
+from modules.platform_helpers import open_file
 import tkinter as tk
 from tkinter import filedialog, messagebox, scrolledtext, ttk
 from openai import OpenAI
@@ -552,7 +553,7 @@ Please:
                                   f"Session report saved successfully!\n\n"
                                   f"File: {Path(output_file).name}\n\n"
                                   "Open the report now?"):
-                os.startfile(output_file)
+                open_file(output_file)
         
         except Exception as e:
             messagebox.showerror("Error", f"Failed to save report:\n\n{str(e)}")
@@ -804,7 +805,7 @@ Please:
                                   f"Document saved successfully!\n\n"
                                   f"{len(self.extracted_texts)} pages of text extracted\n\n"
                                   "Open the document now?"):
-                os.startfile(output_file)
+                open_file(output_file)
         
         except Exception as e:
             messagebox.showerror("Error", f"Failed to save document:\n\n{str(e)}")

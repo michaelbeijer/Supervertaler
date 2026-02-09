@@ -106,7 +106,10 @@ dependencies = [
     # Advanced spellcheck (Hunspell via pure Python)
     "spylls>=0.1.7",
 
-    # Windows automation / system helpers
+    # Cross-platform global hotkeys and keyboard control
+    "pynput>=1.7.6",
+
+    # Windows-only automation (AutoFingers memoQ integration + AHK fallback)
     "keyboard>=0.13.5; platform_system == 'Windows'",
     "ahk>=1.0.0; platform_system == 'Windows'",
     "pyautogui>=0.9.54; platform_system == 'Windows'",

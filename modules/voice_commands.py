@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 from difflib import SequenceMatcher
 from PyQt6.QtCore import QObject, pyqtSignal
 from modules.shortcut_display import format_shortcut_for_display
+from modules.platform_helpers import IS_WINDOWS, get_hidden_subprocess_flags
 
 
 @dataclass
@@ -341,14 +342,31 @@ class VoiceCommandManager(QObject):
             return False
     
     def _execute_keystroke(self, command: VoiceCommand) -> bool:
-        """Execute a keystroke via AutoHotkey"""
-        # Convert keystroke format (e.g., "ctrl+s") to AHK format
-        ahk_keys = self._convert_to_ahk_keys(command.action)
-        ahk_code = f"Send, {ahk_keys}"
-        return self._run_ahk_code(ahk_code, command)
+        """Execute a keystroke cross-platform using pynput, with AHK fallback on Windows."""
+        try:
+            from modules.platform_helpers import CrossPlatformKeySender
+            sender = CrossPlatformKeySender()
+            if sender.is_available:
+                sender.send_keystroke(command.action)
+                self.command_executed.emit(command.phrase, f"✓ {command.description}")
+                return True
+        except Exception as e:
+            print(f"[VoiceCommands] pynput keystroke failed: {e}")
+
+        # Fallback to AHK on Windows
+        if IS_WINDOWS:
+            ahk_keys = self._convert_to_ahk_keys(command.action)
+            ahk_code = f"Send, {ahk_keys}"
+            return self._run_ahk_code(ahk_code, command)
+
+        self.error_occurred.emit("Keystroke sending not available (pynput not installed)")
+        return False
     
     def _execute_ahk_script(self, command: VoiceCommand) -> bool:
-        """Execute a saved AHK script file"""
+        """Execute a saved AHK script file (Windows only)"""
+        if not IS_WINDOWS:
+            self.error_occurred.emit("AHK scripts are only available on Windows")
+            return False
         script_path = self.ahk_script_dir / f"{command.action}.ahk"
         if not script_path.exists():
             self.error_occurred.emit(f"AHK script not found: {script_path}")
@@ -361,8 +379,8 @@ class VoiceCommandManager(QObject):
                 self.error_occurred.emit("AutoHotkey not found. Please install AutoHotkey v2.")
                 return False
             
-            subprocess.Popen([ahk_exe, str(script_path)], 
-                           creationflags=subprocess.CREATE_NO_WINDOW)
+            subprocess.Popen([ahk_exe, str(script_path)],
+                           **get_hidden_subprocess_flags())
             self.command_executed.emit(command.phrase, f"✓ {command.description}")
             return True
         except Exception as e:
@@ -370,7 +388,10 @@ class VoiceCommandManager(QObject):
             return False
     
     def _execute_ahk_inline(self, command: VoiceCommand) -> bool:
-        """Execute inline AHK code"""
+        """Execute inline AHK code (Windows only)"""
+        if not IS_WINDOWS:
+            self.error_occurred.emit("Inline AHK code is only available on Windows")
+            return False
         return self._run_ahk_code(command.action, command)
     
     def _run_ahk_code(self, ahk_code: str, command: VoiceCommand) -> bool:
@@ -396,7 +417,7 @@ ExitApp
             
             # Run script
             subprocess.Popen([ahk_exe, str(temp_script)],
-                           creationflags=subprocess.CREATE_NO_WINDOW)
+                           **get_hidden_subprocess_flags())
             
             self.command_executed.emit(command.phrase, f"✓ {command.description}")
             return True
