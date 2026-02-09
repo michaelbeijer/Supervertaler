@@ -819,18 +819,50 @@ class DOCXHandler:
             row_cells[1].text = strip_tags(seg.get('source', ''))
             row_cells[2].text = strip_tags(seg.get('target', ''))
 
-        # Set column widths with fixed layout (prevents Word auto-fit)
+        # Set column widths using fixed layout and explicit grid
         from docx.oxml.ns import qn
         from docx.oxml import OxmlElement
         tbl = table._tbl
         tbl_pr = tbl.tblPr if tbl.tblPr is not None else OxmlElement('w:tblPr')
+
         tbl_layout = OxmlElement('w:tblLayout')
         tbl_layout.set(qn('w:type'), 'fixed')
         tbl_pr.append(tbl_layout)
+
+        # 3-column layout: narrow # (5%), equal source/target (47.5% each)
+        section = doc.sections[0]
+        usable_twips = int((section.page_width - section.left_margin - section.right_margin) / 914400 * 1440)
+        col_twips = [int(0.05 * usable_twips), int(0.475 * usable_twips), 0]
+        col_twips[2] = usable_twips - col_twips[0] - col_twips[1]
+
+        tbl_w = OxmlElement('w:tblW')
+        tbl_w.set(qn('w:w'), str(usable_twips))
+        tbl_w.set(qn('w:type'), 'dxa')
+        tbl_pr.append(tbl_w)
+
+        old_grid = tbl.find(qn('w:tblGrid'))
+        if old_grid is not None:
+            tbl.remove(old_grid)
+        new_grid = OxmlElement('w:tblGrid')
+        for tw in col_twips:
+            gc = OxmlElement('w:gridCol')
+            gc.set(qn('w:w'), str(tw))
+            new_grid.append(gc)
+        tbl.insert(tbl.index(tbl_pr) + 1, new_grid)
+
         for row in table.rows:
-            row.cells[0].width = Inches(0.35)
-            row.cells[1].width = Inches(3.3)
-            row.cells[2].width = Inches(3.3)
+            for i, tw in enumerate(col_twips):
+                tc = row.cells[i]._tc
+                tcPr = tc.tcPr
+                if tcPr is None:
+                    tcPr = OxmlElement('w:tcPr')
+                    tc.insert(0, tcPr)
+                tcW = tcPr.find(qn('w:tcW'))
+                if tcW is None:
+                    tcW = OxmlElement('w:tcW')
+                    tcPr.insert(0, tcW)
+                tcW.set(qn('w:w'), str(tw))
+                tcW.set(qn('w:type'), 'dxa')
 
         doc.save(output_path)
         print(f"[DOCX Handler] Bilingual export complete")

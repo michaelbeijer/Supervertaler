@@ -12224,18 +12224,59 @@ class SupervertalerQt(QMainWindow):
             table.style = 'Table Grid'
             table.alignment = WD_TABLE_ALIGNMENT.CENTER
             
-            # Set column widths with fixed layout (prevents Word auto-fit)
+            # Set column widths using fixed layout and explicit grid
+            # (mirrors memoQ's proportions: 4.3% / 38.8% / 38.8% / 7.7% / 10.5%)
             tbl = table._tbl
             tbl_pr = tbl.tblPr if tbl.tblPr is not None else OxmlElement('w:tblPr')
-            # Set table layout to fixed (disables auto-fit)
+
+            # Fixed layout — Word must use our exact widths
             tbl_layout = OxmlElement('w:tblLayout')
             tbl_layout.set(qn('w:type'), 'fixed')
             tbl_pr.append(tbl_layout)
-            # Column widths in EMU (English Metric Units) via Inches()
-            widths = [Inches(0.35), Inches(3.2), Inches(3.2), Inches(0.65), Inches(1.1)]
-            for i, width in enumerate(widths):
-                for cell in table.columns[i].cells:
-                    cell.width = width
+
+            # Calculate usable width from page setup (twips = 1/1440 inch)
+            section = doc.sections[0]
+            usable_twips = int((section.page_width - section.left_margin - section.right_margin) / 914400 * 1440)
+
+            # Proportional column widths (matching memoQ ratios)
+            ratios = [0.043, 0.388, 0.388, 0.077, 0.105]
+            col_twips = [int(r * usable_twips) for r in ratios]
+            # Ensure total matches exactly
+            col_twips[-1] = usable_twips - sum(col_twips[:-1])
+
+            # Set explicit table width
+            tbl_w = OxmlElement('w:tblW')
+            tbl_w.set(qn('w:w'), str(usable_twips))
+            tbl_w.set(qn('w:type'), 'dxa')
+            tbl_pr.append(tbl_w)
+
+            # Replace default grid with our explicit column widths
+            old_grid = tbl.find(qn('w:tblGrid'))
+            if old_grid is not None:
+                tbl.remove(old_grid)
+            new_grid = OxmlElement('w:tblGrid')
+            for tw in col_twips:
+                gc = OxmlElement('w:gridCol')
+                gc.set(qn('w:w'), str(tw))
+                new_grid.append(gc)
+            # Insert grid after tblPr
+            tbl.insert(tbl.index(tbl_pr) + 1, new_grid)
+
+            # Also set cell widths for each row (belt and suspenders)
+            from docx.shared import Emu
+            for row in table.rows:
+                for i, tw in enumerate(col_twips):
+                    tc = row.cells[i]._tc
+                    tcPr = tc.tcPr
+                    if tcPr is None:
+                        tcPr = OxmlElement('w:tcPr')
+                        tc.insert(0, tcPr)
+                    tcW = tcPr.find(qn('w:tcW'))
+                    if tcW is None:
+                        tcW = OxmlElement('w:tcW')
+                        tcPr.insert(0, tcW)
+                    tcW.set(qn('w:w'), str(tw))
+                    tcW.set(qn('w:type'), 'dxa')
             
             # Add header row with actual language names
             header_cells = table.rows[0].cells
@@ -27861,18 +27902,50 @@ class SupervertalerQt(QMainWindow):
             row_cells[1].text = strip_tags(segment.source)
             row_cells[2].text = strip_tags(segment.target) if segment.target else ""
         
-        # Set column widths with fixed layout (prevents Word auto-fit)
+        # Set column widths using fixed layout and explicit grid
         from docx.oxml.ns import qn
         from docx.oxml import OxmlElement
         tbl = table._tbl
         tbl_pr = tbl.tblPr if tbl.tblPr is not None else OxmlElement('w:tblPr')
+
         tbl_layout = OxmlElement('w:tblLayout')
         tbl_layout.set(qn('w:type'), 'fixed')
         tbl_pr.append(tbl_layout)
+
+        # 3-column layout: narrow # (5%), equal source/target (47.5% each)
+        section = doc.sections[0]
+        usable_twips = int((section.page_width - section.left_margin - section.right_margin) / 914400 * 1440)
+        col_twips = [int(0.05 * usable_twips), int(0.475 * usable_twips), 0]
+        col_twips[2] = usable_twips - col_twips[0] - col_twips[1]
+
+        tbl_w = OxmlElement('w:tblW')
+        tbl_w.set(qn('w:w'), str(usable_twips))
+        tbl_w.set(qn('w:type'), 'dxa')
+        tbl_pr.append(tbl_w)
+
+        old_grid = tbl.find(qn('w:tblGrid'))
+        if old_grid is not None:
+            tbl.remove(old_grid)
+        new_grid = OxmlElement('w:tblGrid')
+        for tw in col_twips:
+            gc = OxmlElement('w:gridCol')
+            gc.set(qn('w:w'), str(tw))
+            new_grid.append(gc)
+        tbl.insert(tbl.index(tbl_pr) + 1, new_grid)
+
         for row in table.rows:
-            row.cells[0].width = Inches(0.35)
-            row.cells[1].width = Inches(3.3)
-            row.cells[2].width = Inches(3.3)
+            for i, tw in enumerate(col_twips):
+                tc = row.cells[i]._tc
+                tcPr = tc.tcPr
+                if tcPr is None:
+                    tcPr = OxmlElement('w:tcPr')
+                    tc.insert(0, tcPr)
+                tcW = tcPr.find(qn('w:tcW'))
+                if tcW is None:
+                    tcW = OxmlElement('w:tcW')
+                    tcPr.insert(0, tcW)
+                tcW.set(qn('w:w'), str(tw))
+                tcW.set(qn('w:type'), 'dxa')
 
         doc.save(output_path)
 
