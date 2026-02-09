@@ -12224,7 +12224,14 @@ class SupervertalerQt(QMainWindow):
             table.style = 'Table Grid'
             table.alignment = WD_TABLE_ALIGNMENT.CENTER
             
-            # Set column widths
+            # Set column widths with fixed layout (prevents Word auto-fit)
+            tbl = table._tbl
+            tbl_pr = tbl.tblPr if tbl.tblPr is not None else OxmlElement('w:tblPr')
+            # Set table layout to fixed (disables auto-fit)
+            tbl_layout = OxmlElement('w:tblLayout')
+            tbl_layout.set(qn('w:type'), 'fixed')
+            tbl_pr.append(tbl_layout)
+            # Column widths in EMU (English Metric Units) via Inches()
             widths = [Inches(0.35), Inches(3.2), Inches(3.2), Inches(0.65), Inches(1.1)]
             for i, width in enumerate(widths):
                 for cell in table.columns[i].cells:
@@ -27854,12 +27861,19 @@ class SupervertalerQt(QMainWindow):
             row_cells[1].text = strip_tags(segment.source)
             row_cells[2].text = strip_tags(segment.target) if segment.target else ""
         
-        # Set column widths
+        # Set column widths with fixed layout (prevents Word auto-fit)
+        from docx.oxml.ns import qn
+        from docx.oxml import OxmlElement
+        tbl = table._tbl
+        tbl_pr = tbl.tblPr if tbl.tblPr is not None else OxmlElement('w:tblPr')
+        tbl_layout = OxmlElement('w:tblLayout')
+        tbl_layout.set(qn('w:type'), 'fixed')
+        tbl_pr.append(tbl_layout)
         for row in table.rows:
             row.cells[0].width = Inches(0.35)
             row.cells[1].width = Inches(3.3)
             row.cells[2].width = Inches(3.3)
-        
+
         doc.save(output_path)
 
     def _interpret_memoq_status(self, status_text: str, has_target: bool) -> Tuple[str, Optional[int]]:

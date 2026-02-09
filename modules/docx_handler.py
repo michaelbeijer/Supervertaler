@@ -819,7 +819,14 @@ class DOCXHandler:
             row_cells[1].text = strip_tags(seg.get('source', ''))
             row_cells[2].text = strip_tags(seg.get('target', ''))
 
-        # Set column widths — narrow # column, maximize source/target
+        # Set column widths with fixed layout (prevents Word auto-fit)
+        from docx.oxml.ns import qn
+        from docx.oxml import OxmlElement
+        tbl = table._tbl
+        tbl_pr = tbl.tblPr if tbl.tblPr is not None else OxmlElement('w:tblPr')
+        tbl_layout = OxmlElement('w:tblLayout')
+        tbl_layout.set(qn('w:type'), 'fixed')
+        tbl_pr.append(tbl_layout)
         for row in table.rows:
             row.cells[0].width = Inches(0.35)
             row.cells[1].width = Inches(3.3)
