@@ -12225,7 +12225,7 @@ class SupervertalerQt(QMainWindow):
             table.alignment = WD_TABLE_ALIGNMENT.CENTER
             
             # Set column widths
-            widths = [Inches(0.5), Inches(3.0), Inches(3.0), Inches(0.8), Inches(1.2)]
+            widths = [Inches(0.35), Inches(3.2), Inches(3.2), Inches(0.65), Inches(1.1)]
             for i, width in enumerate(widths):
                 for cell in table.columns[i].cells:
                     cell.width = width
@@ -27856,9 +27856,9 @@ class SupervertalerQt(QMainWindow):
         
         # Set column widths
         for row in table.rows:
-            row.cells[0].width = Inches(0.5)
-            row.cells[1].width = Inches(3.0)
-            row.cells[2].width = Inches(3.0)
+            row.cells[0].width = Inches(0.35)
+            row.cells[1].width = Inches(3.3)
+            row.cells[2].width = Inches(3.3)
         
         doc.save(output_path)
 

@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation (Compact)
 
 > **Purpose:** Fast, reliable handoff when context is low or chats reset.
-> **Last Updated:** February 8, 2026 | **Version:** v1.9.241
+> **Last Updated:** February 9, 2026 | **Version:** v1.9.245
 
 ---
 
@@ -18,9 +18,11 @@
 
 ## 🎯 Current State
 
-- **Current version:** `v1.9.241`
+- **Current version:** `v1.9.245`
 - **Main app:** `Supervertaler.py` (large monolithic PyQt6 file)
 - **Latest major completed work:**
+  - Cross-platform support: macOS/Linux via `modules/platform_helpers.py` (v1.9.245)
+  - Native global hotkey system replacing AHK-only approach (v1.9.245)
   - Unified settings system in `settings/settings.json`
   - Inline API key editing in Settings UI
   - One-time migration from legacy settings files (`.migrated`)
@@ -32,11 +34,14 @@
 
 - Main app: `Supervertaler.py`
 - Modules: `modules/`
+- Platform helpers: `modules/platform_helpers.py`
 - Tests: `tests/`
 - Changelog: `CHANGELOG.md`
 - Version source: `pyproject.toml`
+- Dependencies: `requirements.txt` (includes `pynput>=1.7.6`)
 - Website version mention: `docs/index.html`
 - Unified settings: `settings/settings.json`
+- AHK hotkey script (Windows fallback): `supervertaler_hotkeys.ahk`
 - Archived full agent reference:
   - `docs/agent-archive/AGENTS_FULL_REFERENCE_v1.9.240_2026-02-08.md`
 
@@ -81,6 +86,57 @@ Common key names:
 Notes:
 - `google` and `gemini` are aliases.
 - `custom_openai` supports OpenAI-compatible endpoints (endpoint/model configured in Settings > AI Settings).
+
+---
+
+## 🌐 Cross-Platform Architecture (v1.9.245+)
+
+Central module: `modules/platform_helpers.py`
+
+Constants:
+- `IS_WINDOWS`, `IS_MACOS`, `IS_LINUX`
+
+Utilities:
+- `open_file(path)` / `open_folder(path)` — replaces `os.startfile()`
+- `get_hidden_subprocess_flags()` — `CREATE_NO_WINDOW` on Windows, empty dict elsewhere
+
+Global hotkeys (`GlobalHotkeyManager`):
+- Windows: `RegisterHotKey` API (background thread with `GetMessageW` loop)
+- macOS/Linux: pynput `GlobalHotKeys` (requires Accessibility permission on macOS)
+- Callbacks do **zero work** in the background thread — only signal Qt main thread via `QMetaObject.invokeMethod`
+- Main thread handles: send Cmd/Ctrl+C → wait 250ms → read clipboard → dispatch
+
+Keystroke injection (`CrossPlatformKeySender`):
+- Windows: AHK subprocess (`Send "^c"` via temp `.ahk` file), PowerShell `SendKeys` fallback
+- macOS: `osascript` (`tell application "System Events" to keystroke "c" using command down`)
+- Linux: pynput `Controller`
+
+Hotkey callback flow:
+```
+pynput/WinAPI thread → QMetaObject.invokeMethod (QueuedConnection)
+  → @pyqtSlot _handle_superlookup_hotkey (main thread)
+    → CrossPlatformKeySender.send_copy()
+    → QTimer.singleShot(250ms) → read clipboard → on_ahk_capture(text)
+```
+
+---
+
+## 🍎 macOS Hotkey Status — Pending Fixes
+
+**Working:**
+- pynput `GlobalHotKeys` registers successfully (shows "Active via PYNPUT")
+- Accessibility permission grant flow works
+- Crash fixed (was caused by doing pyperclip/pynput work in background thread)
+
+**Known issues:**
+1. `osascript` Cmd+C deletes selected text in source app (likely stray modifier keys from hotkey)
+2. Cmd+C doesn't actually copy selections — only reads existing clipboard content
+3. Reliability: sometimes works, sometimes doesn't
+
+**Planned fixes:**
+- Debug `osascript` keystroke injection (may need modifier release delay before sending)
+- Consider using `pbcopy` via AppleScript instead of keystroke simulation
+- Change macOS shortcuts: ⌃⌥L/M → **⌃⌘L/M** (Ctrl+Cmd, user-requested — easier to reach)
 
 ---
 
@@ -145,10 +201,13 @@ Windows EXE packaging:
 
 ## 📌 Active Priorities
 
-1. Keep unified settings and migration stable.
-2. Continue reducing monolith pressure in `Supervertaler.py`.
-3. Maintain release reliability (PyPI + Windows core/full artifacts).
-4. Keep this file short and operationally focused.
+1. **Fix macOS global hotkey Cmd+C issues** (deletes selection, doesn't copy).
+2. **Make macOS shortcuts configurable** (⌃⌘L/M instead of ⌃⌥L/M).
+3. **Test Linux global hotkeys** (pynput backend, untested).
+4. Keep unified settings and migration stable.
+5. Continue reducing monolith pressure in `Supervertaler.py`.
+6. Maintain release reliability (PyPI + Windows core/full artifacts).
+7. Keep this file short and operationally focused.
 
 ---
 

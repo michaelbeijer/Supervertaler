@@ -818,7 +818,13 @@ class DOCXHandler:
             row_cells[0].text = str(seg.get('id', ''))
             row_cells[1].text = strip_tags(seg.get('source', ''))
             row_cells[2].text = strip_tags(seg.get('target', ''))
-        
+
+        # Set column widths — narrow # column, maximize source/target
+        for row in table.rows:
+            row.cells[0].width = Inches(0.35)
+            row.cells[1].width = Inches(3.3)
+            row.cells[2].width = Inches(3.3)
+
         doc.save(output_path)
         print(f"[DOCX Handler] Bilingual export complete")
     
