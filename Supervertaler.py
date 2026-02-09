@@ -4855,13 +4855,14 @@ class DetachedLogWindow(QWidget):
 class TermMetadataDialog(QDialog):
     """Dialog for adding/editing term metadata before saving to termbase"""
     
-    def __init__(self, source_term: str, target_term: str, active_termbases: list, parent=None, user_data_path=None):
+    def __init__(self, source_term: str, target_term: str, active_termbases: list, parent=None, user_data_path=None, default_selected_termbase_ids=None):
         super().__init__(parent)
         self.source_term = source_term
         self.target_term = target_term
         self.active_termbases = active_termbases
         self.termbase_checkboxes = {}  # Store checkbox references
         self.user_data_path = user_data_path
+        self.default_selected_termbase_ids = set(default_selected_termbase_ids or [])
         self.saved_selections = self._load_termbase_selections()
         self.setup_ui()
     
@@ -4980,8 +4981,10 @@ class TermMetadataDialog(QDialog):
                 else:
                     cb = CheckmarkCheckBox(tb['name'])
                 
-                # Use saved selection if available, otherwise default to all selected
-                if self.saved_selections is not None:
+                # Priority: active project glossaries -> saved manual selections -> legacy default all
+                if self.default_selected_termbase_ids:
+                    cb.setChecked(tb['id'] in self.default_selected_termbase_ids)
+                elif self.saved_selections is not None:
                     cb.setChecked(tb['id'] in self.saved_selections)
                 else:
                     cb.setChecked(True)  # Default: all selected
@@ -13063,24 +13066,33 @@ class SupervertalerQt(QMainWindow):
             QMessageBox.critical(self, "Error", "Glossary manager not initialized")
             return
         
-        # Generate a simple project ID from the project file path (use hash of path)
-        import hashlib
-        project_id = None
-        if hasattr(self, 'project_file_path') and self.project_file_path:
-            project_id = int(hashlib.md5(self.project_file_path.encode()).hexdigest()[:8], 16)
-        else:
-            # Use project name as fallback
-            project_id = int(hashlib.md5(self.current_project.name.encode()).hexdigest()[:8], 16)
-        
-        # Get all termbases (not just active) so newly created ones appear in the dialog
+        # Resolve project ID (prefer persistent project.id from loaded project)
+        project_id = getattr(self.current_project, 'id', None)
+        if not project_id:
+            # Fallback for legacy projects without id
+            import hashlib
+            if hasattr(self, 'project_file_path') and self.project_file_path:
+                project_id = int(hashlib.md5(self.project_file_path.encode()).hexdigest()[:8], 16)
+            else:
+                project_id = int(hashlib.md5(self.current_project.name.encode()).hexdigest()[:8], 16)
+
+        # Get all termbases for dialog visibility, but preselect only active ones for this project
         active_termbases = self.termbase_mgr.get_all_termbases()
+        active_termbase_ids = set(self.termbase_mgr.get_active_termbase_ids(project_id)) if project_id else set()
         
         if not active_termbases:
             QMessageBox.warning(self, "No Glossary", "Please create or activate at least one glossary in Resources → Glossaries tab.")
             return
         
         # Show metadata dialog with termbase selection
-        dialog = TermMetadataDialog(source_text, target_text, active_termbases, self, user_data_path=self.user_data_path)
+        dialog = TermMetadataDialog(
+            source_text,
+            target_text,
+            active_termbases,
+            self,
+            user_data_path=self.user_data_path,
+            default_selected_termbase_ids=active_termbase_ids,
+        )
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return  # User cancelled
         
@@ -13191,7 +13203,15 @@ class SupervertalerQt(QMainWindow):
 
             QMessageBox.information(self, "Term Added", f"Successfully added term pair to {success_count} glossary(s):\\n\\nSource: {source_text}\\nTarget: {target_text}\\n\\nDomain: {metadata['domain'] or '(none)'}")
             
-            # Refresh termbase display (NOT TM - that would be wasteful)
+            # Keep in-memory termbase search/index in sync with DB so new term appears immediately
+            try:
+                with self.termbase_cache_lock:
+                    self.termbase_cache.clear()
+                self._build_termbase_index()
+            except Exception as e:
+                self.log(f"WARNING: Failed to rebuild termbase index after add: {e}")
+
+# Refresh termbase display (NOT TM - that would be wasteful)
             self._refresh_termbase_display_for_current_segment()
             
             # IMPORTANT: Refresh the termbase list UI if it's currently open to update term counts
@@ -13312,6 +13332,14 @@ class SupervertalerQt(QMainWindow):
                 else:
                     self.statusBar().showMessage(f"✓ Added: {source_text} → {target_text} (to {success_count} termbases)", 3000)
             
+            # Keep in-memory termbase search/index in sync with DB so new term appears immediately
+            try:
+                with self.termbase_cache_lock:
+                    self.termbase_cache.clear()
+                self._build_termbase_index()
+            except Exception as e:
+                self.log(f"WARNING: Failed to rebuild termbase index after quick add: {e}")
+
             # Refresh termbase display (NOT TM - that would be wasteful)
             self._refresh_termbase_display_for_current_segment()
             
