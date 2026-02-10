@@ -2,8 +2,16 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.246 (February 9, 2026)
+**Current Version:** v1.9.247 (February 10, 2026)
 
+
+## v1.9.247 - February 10, 2026
+
+### Bug Fixes
+
+- **Trados/SDLXLIFF tag insertion (Ctrl+,) fixed** — The "Insert next tag" shortcut now recognizes Trados Studio numeric tags (`<92>`, `</92>`, etc.) from imported SDLXLIFF packages. Previously the tag extraction regexes only matched letter-starting tags (`<b>`, `</i>`) and silently ignored numeric tags. Wrapping selected text with Trados tag pairs also works now.
+
+---
 
 ## v1.9.246 - February 9, 2026
 

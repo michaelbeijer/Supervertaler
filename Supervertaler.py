@@ -959,39 +959,42 @@ def extract_memoq_tags(text: str) -> list:
 def extract_html_tags(text: str) -> list:
     """
     Extract all HTML/XML tags from text in order of appearance.
-    
+
     Supports common formatting tags used in translation:
     - Opening tags: <b>, <i>, <u>, <li>, <p>, <span>, etc.
     - Closing tags: </b>, </i>, </u>, </li>, </p>, </span>, etc.
     - Self-closing tags: <br/>, <hr/>, etc.
-    
+    - Trados/SDLXLIFF numeric tags: <92>, </92>, etc.
+
     Args:
         text: Source text containing HTML tags
-        
+
     Returns:
         List of tag strings in order of appearance: ['<li>', '</li>', '<b>', '</b>', ...]
     """
     import re
     # Match HTML/XML tags: <tagname>, </tagname>, <tagname/>, <tagname attr="value">
-    pattern = r'(</?[a-zA-Z][a-zA-Z0-9]*(?:\s+[^>]*)?>)'
+    # Also match Trados/SDLXLIFF numeric tags: <N>, </N>
+    pattern = r'(</?[a-zA-Z][a-zA-Z0-9]*(?:\s+[^>]*)?>|</?\d+>)'
     return re.findall(pattern, text)
 
 
 def extract_all_tags(text: str) -> list:
     """
-    Extract all tags (memoQ and HTML) from text in order of appearance.
-    
+    Extract all tags (memoQ, HTML, and Trados numeric) from text in order of appearance.
+
     Args:
         text: Source text containing tags
-        
+
     Returns:
         List of all tag strings in order of appearance
     """
     import re
-    # Combined pattern for both memoQ tags and HTML tags
+    # Combined pattern for memoQ tags, HTML tags, and Trados/SDLXLIFF numeric tags
     # memoQ: [N}, {N], [N]
     # HTML: <tag>, </tag>, <tag/>, <tag attr="value"> - includes hyphenated tags like li-o, li-b
-    pattern = r'(\[\d+\}|\{\d+\]|\[\d+\]|</?[a-zA-Z][a-zA-Z0-9-]*(?:\s+[^>]*)?>)'
+    # Trados/SDLXLIFF: <N>, </N> (numeric tags from SDLXLIFF paired elements)
+    pattern = r'(\[\d+\}|\{\d+\]|\[\d+\]|</?[a-zA-Z][a-zA-Z0-9-]*(?:\s+[^>]*)?>|</?\d+>)'
     return re.findall(pattern, text)
 
 
@@ -1108,7 +1111,8 @@ def get_html_wrapping_tag_pair(source_text: str, target_text: str) -> tuple:
 
     Finds paired HTML tags (opening + closing) from source that are not yet
     complete in target. Supports common formatting tags: b, i, u, em, strong,
-    span, li, p, a, sub, sup, etc.
+    span, li, p, a, sub, sup, etc. Also supports Trados/SDLXLIFF numeric tags
+    like <92>...</92>.
 
     Args:
         source_text: Source segment text with HTML tags
@@ -1120,8 +1124,8 @@ def get_html_wrapping_tag_pair(source_text: str, target_text: str) -> tuple:
     import re
 
     # Find all HTML tags in source
-    # Match: <tag>, <tag attr="...">, </tag>
-    tag_pattern = r'<(/?)([a-zA-Z][a-zA-Z0-9-]*)(?:\s+[^>]*)?>'
+    # Match: <tag>, <tag attr="...">, </tag>, and Trados numeric tags <N>, </N>
+    tag_pattern = r'<(/?)([a-zA-Z][a-zA-Z0-9-]*|\d+)(?:\s+[^>]*)?>'
     source_matches = re.findall(tag_pattern, source_text)
     target_matches = re.findall(tag_pattern, target_text)
 
