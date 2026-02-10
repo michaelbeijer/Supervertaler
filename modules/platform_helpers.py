@@ -195,6 +195,96 @@ def activate_window_by_title(title: str) -> bool:
         return False
 
 
+def get_foreground_window():
+    """Return an opaque handle for the current foreground window.
+
+    On Windows returns HWND (int), on macOS/Linux returns the window title
+    (str) or None if detection fails.  Pass the result to
+    ``activate_foreground_window()`` to restore focus later.
+    """
+    try:
+        if IS_WINDOWS:
+            import ctypes
+            return ctypes.windll.user32.GetForegroundWindow()
+        elif IS_MACOS:
+            result = subprocess.run(
+                ['osascript', '-e',
+                 'tell application "System Events" to get name of '
+                 'first process whose frontmost is true'],
+                capture_output=True, text=True
+            )
+            name = result.stdout.strip()
+            return name if name else None
+        else:
+            xdotool = shutil.which('xdotool')
+            if xdotool:
+                result = subprocess.run(
+                    [xdotool, 'getactivewindow'], capture_output=True, text=True
+                )
+                wid = result.stdout.strip()
+                return wid if wid else None
+            return None
+    except Exception:
+        return None
+
+
+def activate_foreground_window(handle):
+    """Re-activate a window previously captured by ``get_foreground_window()``.
+
+    Uses the same AttachThreadInput trick on Windows for reliable activation.
+    Does NOT call ShowWindow(SW_RESTORE) — that would un-maximize a maximized
+    window.  The target window is already visible; we just need to give it focus.
+    """
+    if handle is None:
+        return False
+    try:
+        if IS_WINDOWS:
+            import ctypes
+            user32 = ctypes.windll.user32
+            kernel32 = ctypes.windll.kernel32
+
+            # Attach to current foreground thread so SetForegroundWindow succeeds
+            fg_hwnd = user32.GetForegroundWindow()
+            fg_thread = user32.GetWindowThreadProcessId(fg_hwnd, None)
+            our_thread = kernel32.GetCurrentThreadId()
+            attached = False
+            if fg_thread != our_thread:
+                attached = user32.AttachThreadInput(fg_thread, our_thread, True)
+
+            # Only SetForegroundWindow — don't call ShowWindow(SW_RESTORE)
+            # as that would un-maximize a maximized browser/editor window
+            user32.SetForegroundWindow(handle)
+
+            if attached:
+                user32.AttachThreadInput(fg_thread, our_thread, False)
+            return True
+
+        elif IS_MACOS:
+            # handle is the process name
+            subprocess.run(
+                ['osascript', '-e',
+                 f'tell application "System Events" to set frontmost of '
+                 f'(first process whose name is "{handle}") to true'],
+                capture_output=True
+            )
+            return True
+
+        else:
+            # handle is xdotool window ID
+            xdotool = shutil.which('xdotool')
+            if xdotool:
+                subprocess.run(
+                    [xdotool, 'windowactivate', str(handle)],
+                    capture_output=True
+                )
+                return True
+            return False
+
+    except Exception as e:
+        print(f"[platform_helpers] activate_foreground_window failed: {e}")
+        return False
+
+
 # ---------------------------------------------------------------------------
 # Cross-platform Global Hotkey Manager
 # ---------------------------------------------------------------------------
@@ -650,13 +740,84 @@ class CrossPlatformKeySender:
             print(f"[CrossPlatformKeySender] PowerShell SendKeys failed: {e}")
 
     def send_paste(self):
-        """Send Ctrl+V (or Cmd+V on macOS) to paste."""
-        if not self._controller:
-            return
-        Key = self._Key
-        modifier = Key.cmd if IS_MACOS else Key.ctrl
-        with self._controller.pressed(modifier):
-            self._controller.tap('v')
+        """Send Ctrl+V (or Cmd+V on macOS) to paste.
+
+        Uses the same platform-native approach as ``send_copy()``:
+        - Windows: AHK subprocess (or PowerShell fallback)
+        - macOS: osascript (AppleScript via System Events)
+        - Linux: pynput Controller
+        """
+        if IS_WINDOWS:
+            self._send_paste_win32()
+        elif IS_MACOS:
+            self._send_paste_macos()
+        elif self._controller:
+            Key = self._Key
+            with self._controller.pressed(Key.ctrl):
+                self._controller.tap('v')
+
+    def _send_paste_win32(self):
+        """Send Ctrl+V on Windows via AHK or PowerShell.
+
+        Uses the same temp-file approach as ``_send_copy_via_ahk`` because
+        AHK does not reliably accept scripts via stdin.
+        """
+        ahk = self._find_ahk()
+        if ahk:
+            try:
+                import tempfile
+                is_v2 = 'v2' in ahk.lower()
+                if is_v2:
+                    script = 'Send "^v"\nSleep 100'
+                else:
+                    script = 'Send, ^v\nSleep, 100'
+
+                with tempfile.NamedTemporaryFile(
+                    mode='w', suffix='.ahk', delete=False, encoding='utf-8'
+                ) as f:
+                    f.write(script + '\n')
+                    tmp_path = f.name
+
+                subprocess.run(
+                    [ahk, '/ErrorStdOut', tmp_path],
+                    timeout=5,
+                    creationflags=subprocess.CREATE_NO_WINDOW,
+                )
+
+                try:
+                    os.unlink(tmp_path)
+                except OSError:
+                    pass
+                return
+            except Exception as e:
+                print(f"[CrossPlatformKeySender] AHK paste failed: {e}")
+
+        # Fallback: PowerShell SendKeys
+        try:
+            subprocess.run(
+                [
+                    'powershell', '-NoProfile', '-NonInteractive', '-Command',
+                    'Add-Type -AssemblyName System.Windows.Forms; '
+                    '[System.Windows.Forms.SendKeys]::SendWait("^v")'
+                ],
+                timeout=5,
+                creationflags=subprocess.CREATE_NO_WINDOW,
+            )
+        except Exception as e:
+            print(f"[CrossPlatformKeySender] PowerShell paste failed: {e}")
+
+    @staticmethod
+    def _send_paste_macos():
+        """Send Cmd+V via osascript (macOS)."""
+        try:
+            subprocess.run(
+                ['osascript', '-e',
+                 'tell application "System Events" to keystroke "v" '
+                 'using command down'],
+                capture_output=True, timeout=5,
+            )
+        except Exception as e:
+            print(f"[CrossPlatformKeySender] macOS paste failed: {e}")
 
     def send_keystroke(self, keystroke: str):
         """Send a compound keystroke like ``'ctrl+s'``, ``'ctrl+shift+l'``,

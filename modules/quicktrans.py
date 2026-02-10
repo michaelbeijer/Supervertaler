@@ -204,12 +204,13 @@ class MTQuickPopup(QDialog):
     translation_selected = pyqtSignal(str)  # Emitted when user selects a translation
 
     def __init__(self, parent_app, source_text: str, source_lang: str = None,
-                 target_lang: str = None, parent=None):
+                 target_lang: str = None, parent=None, external_mode: bool = False):
         super().__init__(parent)
         self.parent_app = parent_app
         self.source_text = source_text
         self.source_lang = source_lang or getattr(parent_app, 'source_language', 'en')
         self.target_lang = target_lang or getattr(parent_app, 'target_language', 'nl')
+        self._external_mode = external_mode  # True when invoked from global hotkey
 
         self.suggestions: List[MTSuggestion] = []
         self.suggestion_items: List[MTSuggestionItem] = []
@@ -223,12 +224,23 @@ class MTQuickPopup(QDialog):
     def setup_ui(self):
         """Setup the popup UI"""
         self.setWindowTitle("⚡ Supervertaler QuickTrans")
-        # Use standard dialog with title bar for resize/move support
-        self.setWindowFlags(
-            Qt.WindowType.Dialog |
-            Qt.WindowType.WindowCloseButtonHint |
-            Qt.WindowType.WindowStaysOnTopHint
-        )
+        if self._external_mode:
+            # External mode (global hotkey): use Tool window type so the
+            # Supervertaler taskbar icon doesn't flash when the popup appears.
+            # Tool windows don't get their own taskbar entry and don't activate
+            # the parent application.
+            self.setWindowFlags(
+                Qt.WindowType.Tool |
+                Qt.WindowType.WindowCloseButtonHint |
+                Qt.WindowType.WindowStaysOnTopHint
+            )
+        else:
+            # In-app mode: standard dialog with title bar for resize/move support
+            self.setWindowFlags(
+                Qt.WindowType.Dialog |
+                Qt.WindowType.WindowCloseButtonHint |
+                Qt.WindowType.WindowStaysOnTopHint
+            )
 
         # Set size - allow resizing
         self.setMinimumWidth(450)

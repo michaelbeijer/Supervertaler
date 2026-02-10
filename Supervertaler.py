@@ -51683,7 +51683,12 @@ class SuperlookupTab(QWidget):
     def _handle_quicktrans_hotkey(self):
         """Runs on Qt main thread after the QuickTrans global hotkey fires."""
         try:
-            from modules.platform_helpers import CrossPlatformKeySender
+            # Capture the foreground window BEFORE we do anything —
+            # this is the app the user was working in (browser, Trados, etc.)
+            from modules.platform_helpers import CrossPlatformKeySender, get_foreground_window
+            self._quicktrans_source_window = get_foreground_window()
+            print(f"[QuickTrans] Captured source window: {self._quicktrans_source_window}")
+
             sender = CrossPlatformKeySender()
             sender.send_copy()
             QTimer.singleShot(250, self._read_clipboard_for_quicktrans)
@@ -51774,13 +51779,21 @@ class SuperlookupTab(QWidget):
                 source_text=text,
                 source_lang=source_lang,
                 target_lang=target_lang,
-                parent=None  # No Qt parent - allows independent window
+                parent=None,  # No Qt parent - allows independent window
+                external_mode=True  # Tool window: no taskbar flash
+            )
+
+            # Connect signal: when user selects a translation, copy to clipboard
+            # and paste at cursor in the external app (browser, Trados, etc.)
+            popup.translation_selected.connect(
+                lambda translation: self._paste_translation_to_external_app(translation)
             )
 
             # Store reference to prevent garbage collection
             self._ahk_mt_popup = popup
 
-            # Show and ensure it's on top
+            # Show popup on top — Tool window type prevents the main
+            # Supervertaler icon from flashing in the taskbar
             popup.show()
             popup.raise_()
             popup.activateWindow()
@@ -51790,6 +51803,45 @@ class SuperlookupTab(QWidget):
             print(f"[QuickTrans] Error showing popup: {e}")
             import traceback
             traceback.print_exc()
+
+    def _paste_translation_to_external_app(self, translation: str):
+        """Copy translation to clipboard and paste at cursor in the external app.
+
+        Called when the user selects a translation in the QuickTrans popup that
+        was invoked via the global hotkey (Ctrl+Alt+M) from another application.
+        """
+        try:
+            print(f"[QuickTrans] Pasting translation to external app: {translation[:50]}...")
+
+            # 1. Copy translation to clipboard
+            pyperclip.copy(translation)
+            print(f"[QuickTrans] Translation copied to clipboard")
+
+            # 2. Re-activate the original app window (browser, Trados, etc.)
+            #    that was captured when the hotkey was pressed
+            source_window = getattr(self, '_quicktrans_source_window', None)
+            if source_window:
+                from modules.platform_helpers import activate_foreground_window
+                activate_foreground_window(source_window)
+                print(f"[QuickTrans] Re-activated source window: {source_window}")
+
+            # 3. After a short delay (let OS process the focus switch),
+            #    send Ctrl+V / Cmd+V to paste at cursor
+            def _do_paste():
+                try:
+                    from modules.platform_helpers import CrossPlatformKeySender
+                    sender = CrossPlatformKeySender()
+                    sender.send_paste()
+                    print(f"[QuickTrans] Ctrl+V sent to external app")
+                except Exception as e:
+                    print(f"[QuickTrans] Error sending paste: {e}")
+
+            # 500ms delay: let the OS complete the focus switch before
+            # sending Ctrl+V via AHK to the now-foreground app
+            QTimer.singleShot(500, _do_paste)
+
+        except Exception as e:
+            print(f"[QuickTrans] Error pasting translation: {e}")
 
     def show_superlookup(self, text):
         """Show Superlookup with pre-filled text"""
