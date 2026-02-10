@@ -2,8 +2,20 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.248 (February 10, 2026)
+**Current Version:** v1.9.249 (February 10, 2026)
 
+
+## v1.9.249 - February 10, 2026
+
+### Improvements
+
+- **Trados return package now matches Studio output** — Compared against a genuine Trados Studio return package and aligned Supervertaler's output:
+  - **Byte-perfect SDLXLIFF preservation** — Switched from ElementTree round-trip to text-based regex replacement. Preserves UTF-8 BOM, double-quote XML declaration, original namespace prefixes, and all whitespace exactly as in the original file. Only `<target>` content and `sdl:seg` attributes are modified.
+  - **Source language SDLXLIFF included** — Return package now includes the `en-gb/` source SDLXLIFF (unchanged) alongside the translated `nl-nl/` target, matching Studio's structure.
+  - **CreatedBy scoped correctly** — `PackageCreatedBy` is updated without clobbering `ManualTask.CreatedBy`, `FileVersion.CreatedBy`, and other unrelated `CreatedBy` attributes in the `.sdlproj`.
+  - **AutomaticTask and TermbaseConfiguration stripped** — Removed from `.sdlproj` as Studio does, keeping return packages lean.
+
+---
 
 ## v1.9.248 - February 10, 2026
 

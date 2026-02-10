@@ -647,35 +647,188 @@ class TradosPackageHandler:
     
     def save_xliff_files(self) -> bool:
         """
-        Save all modified SDLXLIFF files.
-        
+        Save all modified SDLXLIFF files using text-based replacement.
+
+        Instead of round-tripping through ElementTree.write() (which mangles
+        BOM, XML declaration quotes, namespace prefixes, and whitespace), we
+        read the original file as raw text and do targeted regex replacements
+        for <target> content and sdl:seg attributes. This preserves the
+        original file byte-for-byte except for the changed segments.
+
         Returns:
             True if all files saved successfully
         """
         if not self.package:
             return False
-        
-        # TODO: Implement proper XLIFF modification
-        # This requires updating the XML tree with new translations
-        # while preserving all SDL-specific attributes
-        
+
         self.log("Saving SDLXLIFF files...")
-        
+
         for xliff_file in self.package.xliff_files:
-            if xliff_file.tree and xliff_file.root:
-                # Update segments in the XML tree
-                self._update_xliff_tree(xliff_file)
-                
-                # Save the file
-                xliff_file.tree.write(
-                    xliff_file.file_path,
-                    encoding='utf-8',
-                    xml_declaration=True
-                )
-                self.log(f"  Saved: {Path(xliff_file.file_path).name}")
-        
+            if not xliff_file.file_path:
+                continue
+
+            # Build segment map for quick lookup
+            segment_map = {s.segment_id: s for s in xliff_file.segments}
+
+            # Read the original file as raw bytes to preserve BOM
+            file_path = Path(xliff_file.file_path)
+            raw_bytes = file_path.read_bytes()
+
+            # Detect and preserve BOM
+            bom = b''
+            if raw_bytes.startswith(b'\xef\xbb\xbf'):
+                bom = b'\xef\xbb\xbf'
+                raw_bytes = raw_bytes[3:]
+
+            content = raw_bytes.decode('utf-8')
+
+            # Apply text-based replacements
+            content = self._replace_target_content(content, xliff_file, segment_map)
+            content = self._replace_seg_attributes(content, xliff_file, segment_map)
+
+            # Write back with original BOM
+            file_path.write_bytes(bom + content.encode('utf-8'))
+            self.log(f"  Saved: {file_path.name}")
+
         return True
     
+    def _markers_to_xml(self, text: str) -> str:
+        """
+        Convert Supervertaler marker tags in text to SDLXLIFF XML elements.
+
+        <N>content</N>  → <g id="N">content</g>
+        <N/>            → <x id="N"/>
+
+        Uses the XLIFF default namespace (no prefix needed since <g> and <x>
+        live in the default xliff namespace in SDLXLIFF files).
+        """
+        if not text or not re.search(r'<[A-Za-z0-9_]+[>/]', text):
+            return text
+
+        _tid = _TAG_ID
+
+        # Repeatedly resolve innermost paired tags until none remain
+        prev = None
+        result = text
+        while prev != result:
+            prev = result
+            result = re.sub(
+                rf'<({_tid})>(.*?)</\1>',
+                r'<g id="\1">\2</g>',
+                result,
+                flags=re.DOTALL
+            )
+
+        # Convert standalone tags
+        result = re.sub(rf'<({_tid})/>', r'<x id="\1"/>', result)
+
+        return result
+
+    def _replace_target_content(self, content: str, xliff_file: SDLXLIFFFile,
+                                segment_map: Dict[str, 'SDLSegment']) -> str:
+        """
+        Replace <mrk> content inside <target> elements with translated text.
+
+        Strategy: find each <trans-unit>, locate its <target> block, then
+        replace <mrk mtype="seg" mid="N"> content within it.
+        """
+        def _replace_tu_target(tu_match):
+            tu_block = tu_match.group(0)
+            tu_id_m = re.search(r'<trans-unit\s+[^>]*?id="([^"]+)"', tu_block)
+            if not tu_id_m:
+                return tu_block
+            tu_id = tu_id_m.group(1)
+
+            # Find <target>...</target> within this TU
+            target_m = re.search(r'(<target[^>]*>)(.*?)(</target>)', tu_block, re.DOTALL)
+            if not target_m:
+                return tu_block
+
+            target_open = target_m.group(1)
+            target_inner = target_m.group(2)
+            target_close = target_m.group(3)
+
+            # Replace each <mrk mtype="seg" mid="N">...</mrk> in the target
+            def _replace_mrk(mrk_match):
+                mrk_open = mrk_match.group(1)  # <mrk mtype="seg" mid="N">
+                mid = mrk_match.group(2)        # N
+                mrk_close = '</mrk>'
+
+                segment_id = f"{tu_id}_{mid}"
+                segment = segment_map.get(segment_id)
+                if segment and segment.target_text:
+                    new_content = self._markers_to_xml(segment.target_text)
+                    return f'{mrk_open}{new_content}{mrk_close}'
+                return mrk_match.group(0)
+
+            new_target_inner = re.sub(
+                r'(<mrk\s+mtype="seg"\s+mid="(\d+)"[^>]*>)(.*?)(</mrk>)',
+                lambda m: _replace_mrk(m),
+                target_inner,
+                flags=re.DOTALL
+            )
+
+            new_target = f'{target_open}{new_target_inner}{target_close}'
+            return tu_block[:target_m.start()] + new_target + tu_block[target_m.end():]
+
+        # Process each trans-unit
+        content = re.sub(
+            r'<trans-unit\s[^>]*>.*?</trans-unit>',
+            _replace_tu_target,
+            content,
+            flags=re.DOTALL
+        )
+        return content
+
+    def _replace_seg_attributes(self, content: str, xliff_file: SDLXLIFFFile,
+                                segment_map: Dict[str, 'SDLSegment']) -> str:
+        """
+        Update conf and origin attributes on <sdl:seg> elements.
+
+        For translated segments: set conf="Translated", origin="interactive",
+        and remove stale TM/MT attributes (origin-system, percent, text-match).
+        """
+        def _replace_seg(seg_match):
+            seg_text = seg_match.group(0)
+            seg_id = seg_match.group(1)
+
+            # Try to find this segment in any TU
+            # seg IDs in sdl:seg-defs correspond to mrk mid values
+            # We need to find which TU this belongs to by looking at context
+            # But since we're doing global replacement, we check all possible TU+seg combos
+            matching_segment = None
+            for sid, seg in segment_map.items():
+                if sid.endswith(f'_{seg_id}'):
+                    matching_segment = seg
+                    break
+
+            if not matching_segment or not matching_segment.target_text:
+                return seg_text
+
+            if matching_segment.status in ('translated', 'approved', 'confirmed'):
+                # Update conf
+                seg_text = re.sub(r'conf="[^"]*"', 'conf="Translated"', seg_text)
+
+                # Update origin to interactive
+                if 'origin="' in seg_text:
+                    seg_text = re.sub(r'origin="[^"]*"', 'origin="interactive"', seg_text)
+                else:
+                    seg_text = seg_text.replace('<sdl:seg ', '<sdl:seg origin="interactive" ', 1)
+
+                # Remove stale TM/MT attributes
+                seg_text = re.sub(r'\s+origin-system="[^"]*"', '', seg_text)
+                seg_text = re.sub(r'\s+percent="[^"]*"', '', seg_text)
+                seg_text = re.sub(r'\s+text-match="[^"]*"', '', seg_text)
+
+            return seg_text
+
+        content = re.sub(
+            r'<sdl:seg\s+id="(\d+)"[^>]*(?:/>|>)',
+            _replace_seg,
+            content
+        )
+        return content
+
     def _update_xliff_tree(self, xliff_file: SDLXLIFFFile):
         """Update the XML tree with segment translations."""
         # Build segment map for quick lookup
@@ -916,8 +1069,11 @@ class TradosPackageHandler:
 
             output_path = Path(output_path)
             target_lang = self.package.target_lang.lower()
+            source_lang = self.package.source_lang.lower()
 
-            # Create the return package (ZIP) — only include .sdlproj + target lang folder
+            # Create the return package (ZIP)
+            # Include: .sdlproj + source lang SDLXLIFF (unchanged) + target lang SDLXLIFF
+            # Exclude: Reports/, File Types/, and other non-essential files
             self.log(f"Creating return package: {output_path.name}")
 
             with zipfile.ZipFile(output_path, 'w', zipfile.ZIP_DEFLATED) as zf:
@@ -933,12 +1089,17 @@ class TradosPackageHandler:
                         zf.write(file_path, rel_path)
                         continue
 
-                    # Include files in target language folder only
+                    # Include files in source language folder (unchanged)
+                    if parts and parts[0].lower() == source_lang:
+                        zf.write(file_path, rel_path)
+                        continue
+
+                    # Include files in target language folder
                     if parts and parts[0].lower() == target_lang:
                         zf.write(file_path, rel_path)
                         continue
 
-                    # Skip everything else (source lang folder, Reports, etc.)
+                    # Skip everything else (Reports/, File Types/, etc.)
 
             self.log(f"Created return package: {output_path}")
             return str(output_path)
@@ -982,18 +1143,12 @@ class TradosPackageHandler:
             content
         )
 
-        # 3. Update PackageCreatedBy (or add CreatedBy if missing)
-        if 'CreatedBy="' in content:
-            content = re.sub(
-                r'CreatedBy="[^"]*"',
-                f'CreatedBy="{username}"',
-                content
-            )
-        else:
-            content = content.replace(
-                'PackageType="ReturnPackage"',
-                f'PackageType="ReturnPackage" CreatedBy="{username}"'
-            )
+        # 3. Update PackageCreatedBy only (not other CreatedBy attributes!)
+        content = re.sub(
+            r'PackageCreatedBy="[^"]*"',
+            f'PackageCreatedBy="{username}"',
+            content
+        )
 
         # 4. ConfirmationStatistics: move Draft counts to Translated
         def _swap_draft_to_translated(match):
@@ -1040,6 +1195,22 @@ class TradosPackageHandler:
         content = re.sub(
             r'<ManualTask\s.*?</ManualTask>',
             _complete_manual_task,
+            content,
+            flags=re.DOTALL
+        )
+
+        # 6. Remove AutomaticTask sections (not needed in return package)
+        content = re.sub(
+            r'\s*<AutomaticTask\s.*?</AutomaticTask>',
+            '',
+            content,
+            flags=re.DOTALL
+        )
+
+        # 7. Remove TermbaseConfiguration section (not needed in return package)
+        content = re.sub(
+            r'\s*<TermbaseConfiguration[^>]*>.*?</TermbaseConfiguration>',
+            '',
             content,
             flags=re.DOTALL
         )
