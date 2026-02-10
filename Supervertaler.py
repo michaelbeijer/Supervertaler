@@ -8606,7 +8606,10 @@ class SupervertalerQt(QMainWindow):
         
         # Superlookup
         superlookup_action = QAction("🔍 &Superlookup...", self)
-        superlookup_action.setShortcut("Ctrl+Alt+L")
+        if IS_MACOS:
+            superlookup_action.setShortcut("Meta+Ctrl+L")  # Ctrl+Cmd+L on Mac
+        else:
+            superlookup_action.setShortcut("Ctrl+Alt+L")
         # Tab indices: Grid=0, Project resources=1, Tools=2, Settings=3
         superlookup_action.triggered.connect(lambda: self._go_to_superlookup() if hasattr(self, 'main_tabs') else None)  # Navigate to Superlookup
         edit_menu.addAction(superlookup_action)
@@ -48052,11 +48055,18 @@ class SuperlookupTab(QWidget):
                 f"Press {format_shortcut_for_display('Ctrl+Alt+L')} or paste text manually to search your TMs and Termbases.\n"
                 "Perfect for translating in other CAT tools while accessing Supervertaler resources!"
             )
-        else:
-            # Mac/Linux - manual mode only
+        elif IS_MACOS:
             description_text = (
-                "Look up translations in your TMs and Termbases.\n"
-                "⚠️ Global hotkey not available on this platform. Paste text manually to search."
+                "Look up translations anywhere on your computer.\n"
+                f"Press {format_shortcut_for_display('Meta+Ctrl+L')} or paste text manually to search your TMs and Termbases.\n"
+                "Note: Requires Accessibility permission in System Settings → Privacy & Security."
+            )
+        else:
+            # Linux
+            description_text = (
+                "Look up translations anywhere on your computer.\n"
+                f"Press {format_shortcut_for_display('Ctrl+Alt+L')} or paste text manually to search your TMs and Termbases.\n"
+                "Note: Requires pynput installed (pip install pynput)."
             )
         
         description = QLabel(description_text)
@@ -51403,8 +51413,14 @@ class SuperlookupTab(QWidget):
             from modules.platform_helpers import GlobalHotkeyManager, CrossPlatformKeySender
             manager = GlobalHotkeyManager()
             if manager.is_available:
-                manager.register('ctrl+alt+l', self._on_pynput_superlookup)
-                manager.register('ctrl+alt+m', self._on_pynput_quicktrans)
+                if IS_MACOS:
+                    # macOS: Ctrl+Cmd+L / Ctrl+Cmd+M
+                    manager.register('ctrl+cmd+l', self._on_pynput_superlookup)
+                    manager.register('ctrl+cmd+m', self._on_pynput_quicktrans)
+                else:
+                    # Windows/Linux: Ctrl+Alt+L / Ctrl+Alt+M
+                    manager.register('ctrl+alt+l', self._on_pynput_superlookup)
+                    manager.register('ctrl+alt+m', self._on_pynput_quicktrans)
                 started = manager.start()
                 if started:
                     self._hotkey_manager = manager
@@ -51415,6 +51431,10 @@ class SuperlookupTab(QWidget):
                     return
         except Exception as e:
             print(f"[Superlookup] Global hotkey registration failed: {e}")
+            if IS_MACOS:
+                print("[Superlookup] macOS: Ensure Supervertaler (or Terminal/Python) has "
+                      "Accessibility permission in System Settings → Privacy & Security → "
+                      "Accessibility. Without it, global hotkeys cannot be detected.")
 
         # --- Attempt 2: AHK external script (Windows only) ---
         if IS_WINDOWS:

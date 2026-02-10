@@ -2,8 +2,18 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.252 (February 11, 2026)
+**Current Version:** v1.9.253 (February 11, 2026)
 
+
+## v1.9.253 - February 11, 2026
+
+### Improvements
+
+- **macOS global hotkeys: Ctrl+Cmd+L / Ctrl+Cmd+M** — Global hotkeys for Superlookup and QuickTrans now use ⌃⌘L and ⌃⌘M on macOS (previously tried to register Ctrl+Alt which didn't work). Uses pynput with the correct key mapping. The in-app Superlookup shortcut also updated to ⌃⌘L on Mac.
+- **macOS Accessibility permission guidance** — When global hotkeys fail to register on macOS, Supervertaler now prints a clear message directing users to grant Accessibility permission in System Settings → Privacy & Security → Accessibility.
+- **Fixed Meta symbol display on macOS** — The `Meta` modifier now correctly displays as ⌃ (Control) instead of ⌘ (Command) in shortcut labels.
+
+---
 
 ## v1.9.252 - February 11, 2026
 

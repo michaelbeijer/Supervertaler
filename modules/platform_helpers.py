@@ -523,9 +523,16 @@ class GlobalHotkeyManager:
             self._backend = 'pynput'
             registered = ', '.join(self._pynput_hotkeys.keys())
             print(f"[GlobalHotkeyManager] Started (pynput) — hotkeys: {registered}")
+            if IS_MACOS:
+                print("[GlobalHotkeyManager] macOS note: global hotkeys require "
+                      "Accessibility permission (System Settings → Privacy & Security "
+                      "→ Accessibility). If hotkeys don't work, check this setting.")
             return True
         except Exception as e:
             print(f"[GlobalHotkeyManager] pynput failed to start: {e}")
+            if IS_MACOS:
+                print("[GlobalHotkeyManager] macOS: grant Accessibility permission "
+                      "to this app in System Settings → Privacy & Security → Accessibility")
             return False
 
     def _stop_pynput(self):

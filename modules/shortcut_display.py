@@ -5,10 +5,10 @@ import re
 
 
 _MAC_SYMBOLS = {
-    "Ctrl": "⌘",
-    "Alt": "⌥",
+    "Ctrl": "⌘",      # Qt Ctrl = Mac Cmd
+    "Alt": "⌥",       # Qt Alt = Mac Option
     "Shift": "⇧",
-    "Meta": "⌘",
+    "Meta": "⌃",      # Qt Meta = Mac Control
 }
 
 _SHORTCUT_PATTERN = re.compile(
