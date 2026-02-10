@@ -2,8 +2,20 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.249 (February 10, 2026)
+**Current Version:** v1.9.250 (February 10, 2026)
 
+
+## v1.9.250 - February 10, 2026
+
+### Bug Fixes
+
+- **TM and Glossary preselection fixed for new projects** — When creating a new project (via any import method, including Trados bilingual DOCX), TMs and glossaries from the previous project were still shown as selected in the UI. The database was correctly deactivated but the TM/Glossary tab checkboxes were not refreshed. Now properly refreshes both panels after deactivation.
+
+### Improvements
+
+- **Trados Bilingual Review dialog updated** — Improved preparation instructions: replaced incorrect Ctrl+A shortcut (which doesn't work in Trados) with proper segment selection method (click first segment number, Shift+click last). Added new step explaining that Supervertaler's exported file must be renamed to match the original Trados export name for re-import.
+
+---
 
 ## v1.9.249 - February 10, 2026
 

@@ -29490,7 +29490,8 @@ class SupervertalerQt(QMainWindow):
         workflow_dialog.setInformativeText(
             "<b>Required Preparation Steps in Trados Studio:</b><br><br>"
             "1. Import your document into Trados Studio<br>"
-            f"2. Select all segments ({format_shortcut_for_display('Ctrl+A')})<br>"
+            "2. Select all segments: click the first segment <i>number</i>, "
+            "scroll to the bottom, then <b>Shift+click</b> the last segment number<br>"
             "3. Copy source to target for all segments<br>"
             "4. Save project<br>"
             "5. Export → Bilingual Review (DOCX)<br>"
@@ -29499,7 +29500,10 @@ class SupervertalerQt(QMainWindow):
             "7. Import the prepared bilingual review DOCX<br>"
             "8. Translate with AI<br>"
             "9. Export → Trados Studio → Bilingual Review<br>"
-            "10. Update from bilingual review in Trados<br><br>"
+            "10. <b>Rename</b> the exported file to match the original Trados export name<br>"
+            "&nbsp;&nbsp;&nbsp;&nbsp;<i>Supervertaler adds \"_translated\" to the filename, e.g.:<br>"
+            "&nbsp;&nbsp;&nbsp;&nbsp;MyFile_review<b>_translated</b>.docx → rename to MyFile_review.docx</i><br>"
+            "11. Update from bilingual review in Trados<br><br>"
             "<i>See Help → CAT Tool Workflow Guide for details.</i>"
         )
         workflow_dialog.setStandardButtons(
@@ -36681,6 +36685,12 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         if hasattr(self, 'nt_manager') and self.nt_manager:
             for list_name in list(self.nt_manager.lists.keys()):
                 self.nt_manager.set_list_active(list_name, False)
+
+        # Refresh TM and termbase UI to reflect the deactivations
+        if hasattr(self, 'tm_tab_refresh_callback') and self.tm_tab_refresh_callback:
+            self.tm_tab_refresh_callback()
+        if hasattr(self, 'termbase_tab_refresh_callback') and self.termbase_tab_refresh_callback:
+            self.termbase_tab_refresh_callback()
 
     def search_and_display_tm_matches(self, source_text: str):
         """Search TM and Termbases and display matches with visual diff for fuzzy matches.
