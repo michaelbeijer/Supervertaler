@@ -376,9 +376,15 @@ class KeyboardShortcutsWidget(QWidget):
         hotkey_group = QGroupBox("⌨️ Global Hotkeys (Superlookup && QuickTrans)")
         hotkey_layout = QVBoxLayout()
 
+        if IS_MACOS:
+            sl_key = format_shortcut_for_display('Meta+Ctrl+L')   # ⌃⌘L
+            qt_key = format_shortcut_for_display('Meta+Ctrl+M')   # ⌃⌘M
+        else:
+            sl_key = format_shortcut_for_display('Ctrl+Alt+L')
+            qt_key = format_shortcut_for_display('Ctrl+Alt+M')
         hotkey_info = QLabel(
-            f"Global hotkeys allow {format_shortcut_for_display('Ctrl+Alt+L')} (Superlookup) and "
-            f"{format_shortcut_for_display('Ctrl+Alt+M')} (QuickTrans) to work from any application."
+            f"Global hotkeys allow {sl_key} (Superlookup) and "
+            f"{qt_key} (QuickTrans) to work from any application."
         )
         hotkey_info.setWordWrap(True)
         hotkey_info.setStyleSheet("color: #666; font-size: 9pt; padding: 5px;")

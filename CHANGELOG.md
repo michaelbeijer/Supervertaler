@@ -2,8 +2,16 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.253 (February 11, 2026)
+**Current Version:** v1.9.254 (February 11, 2026)
 
+
+## v1.9.254 - February 11, 2026
+
+### Bug Fixes
+
+- **Settings: macOS global hotkey labels corrected** — The Keyboard Shortcuts settings tab and QuickTrans settings now display the correct ⌃⌘L / ⌃⌘M (Ctrl+Cmd) instead of the old ⌘⌥L / ⌘⌥M (Cmd+Option) on macOS.
+
+---
 
 ## v1.9.253 - February 11, 2026
 

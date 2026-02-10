@@ -17527,7 +17527,7 @@ class SupervertalerQt(QMainWindow):
 
         # Header info
         header_info = QLabel(
-            f"⚡ <b>QuickTrans</b> - Configure which providers appear in the QuickTrans popup ({format_shortcut_for_display('Ctrl+M')} / {format_shortcut_for_display('Ctrl+Alt+M')}).<br>"
+            f"⚡ <b>QuickTrans</b> - Configure which providers appear in the QuickTrans popup ({format_shortcut_for_display('Ctrl+M')} / {format_shortcut_for_display('Meta+Ctrl+M') if IS_MACOS else format_shortcut_for_display('Ctrl+Alt+M')}).<br>"
             "Enable MT engines and/or LLMs to get instant translation suggestions."
         )
         header_info.setTextFormat(Qt.TextFormat.RichText)
