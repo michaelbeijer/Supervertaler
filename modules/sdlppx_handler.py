@@ -46,6 +46,17 @@ NAMESPACES = {
 for prefix, uri in NAMESPACES.items():
     ET.register_namespace(prefix if prefix != 'xliff' else '', uri)
 
+# XLIFF namespace URI (for creating elements)
+XLIFF_NS = NAMESPACES['xliff']
+
+# Regex for Supervertaler inline tag markers:
+#   <ID>...</ID>  = paired tag (maps to <g id="ID">...</g>)
+#   <ID/>         = standalone tag (maps to <x id="ID"/>)
+# Tag IDs can be numeric (e.g. "14") or alphanumeric (e.g. "qSuperscript").
+_TAG_ID = r'[A-Za-z0-9_]+'
+_PAIRED_TAG_RE = re.compile(rf'<({_TAG_ID})>(.*?)</\1>', re.DOTALL)
+_STANDALONE_TAG_RE = re.compile(rf'<({_TAG_ID})/>')
+
 
 @dataclass
 class SDLSegment:
@@ -772,68 +783,269 @@ class TradosPackageHandler:
                 # If segment has target text and is translated/approved, set to Translated
                 if segment.target_text and segment.status in ('translated', 'approved', 'confirmed'):
                     new_conf = 'Translated'
-                
+
                 # Update the conf attribute
                 current_conf = seg_elem.get('conf', '')
                 if current_conf != new_conf:
                     seg_elem.set('conf', new_conf)
 
+                # Update origin to 'interactive' for translated segments
+                # (translator takes responsibility for the content)
+                if new_conf in ('Translated', 'ApprovedTranslation') and segment.target_text:
+                    seg_elem.set('origin', 'interactive')
+                    # Remove stale TM/MT match attributes
+                    for attr in ('origin-system', 'percent', 'text-match'):
+                        if attr in seg_elem.attrib:
+                            del seg_elem.attrib[attr]
+
     def _set_element_text(self, elem: ET.Element, text: str):
-        """Set element text, handling tags appropriately."""
-        # For now, just set the text
-        # TODO: Convert Supervertaler tags back to XLIFF format
-        elem.text = text
-        # Clear child elements (simple approach)
+        """
+        Set element text, converting Supervertaler marker tags back to SDLXLIFF
+        XML elements.
+
+        Marker format (from import):
+          <N>content</N>  → <g id="N">content</g>  (paired formatting tag)
+          <N/>            → <x id="N"/>             (standalone tag)
+        """
+        # Clear existing children (we rebuild from marker text)
         for child in list(elem):
-            if child.tag.endswith('mrk') and child.get('mtype') != 'seg':
-                # Keep non-segment markers
-                pass
+            elem.remove(child)
+        elem.text = None
+
+        if not text:
+            elem.text = ''
+            return
+
+        # Check if text contains any marker tags at all (fast path)
+        if not re.search(r'<[A-Za-z0-9_]+[>/]', text):
+            elem.text = text
+            return
+
+        # Resolve paired tags from innermost outward by repeatedly
+        # replacing the innermost match until none remain
+        self._build_element_content(elem, text)
+
+    def _build_element_content(self, parent: ET.Element, text: str):
+        """
+        Parse marker text and build mixed XML content on parent element.
+
+        Handles nested paired tags by resolving innermost first.
+        E.g. "before <14>177</14>Lu after" becomes:
+          parent.text = "before "
+          <g id="14"> with text "177" and tail "Lu after"
+        """
+        g_tag = f'{{{XLIFF_NS}}}g'
+        x_tag = f'{{{XLIFF_NS}}}x'
+
+        # Tokenize: split text into plain-text and tag tokens
+        # Pattern matches: <ID>  </ID>  <ID/>  (numeric or alphanumeric IDs)
+        _tid = _TAG_ID
+        token_re = re.compile(rf'(<{_tid}>|</{_tid}>|<{_tid}/>)')
+        tokens = token_re.split(text)
+
+        # Build a tree using a stack approach
+        # Each stack frame is (element, tag_id or None for root)
+        stack = [(parent, None)]
+
+        for token in tokens:
+            if not token:
+                continue
+
+            # Opening paired tag: <ID>
+            m_open = re.fullmatch(rf'<({_tid})>', token)
+            if m_open:
+                tag_id = m_open.group(1)
+                g_elem = ET.SubElement(stack[-1][0], g_tag)
+                g_elem.set('id', tag_id)
+                stack.append((g_elem, tag_id))
+                continue
+
+            # Closing paired tag: </ID>
+            m_close = re.fullmatch(rf'</({_tid})>', token)
+            if m_close:
+                tag_id = m_close.group(1)
+                # Pop matching frame (or ignore if mismatched)
+                if len(stack) > 1 and stack[-1][1] == tag_id:
+                    stack.pop()
+                continue
+
+            # Standalone tag: <ID/>
+            m_standalone = re.fullmatch(rf'<({_tid})/>',  token)
+            if m_standalone:
+                tag_id = m_standalone.group(1)
+                x_elem = ET.SubElement(stack[-1][0], x_tag)
+                x_elem.set('id', tag_id)
+                continue
+
+            # Plain text — append to the current element
+            current_elem = stack[-1][0]
+            children = list(current_elem)
+            if children:
+                # Append as tail of the last child
+                last_child = children[-1]
+                last_child.tail = (last_child.tail or '') + token
             else:
-                elem.remove(child)
-    
+                # Append to element's own text
+                current_elem.text = (current_elem.text or '') + token
+
     def create_return_package(self, output_path: str = None) -> Optional[str]:
         """
         Create a return package (SDLRPX) with translations.
-        
+
         Args:
             output_path: Path for the return package (auto-generated if not specified)
-            
+
         Returns:
             Path to the created package
         """
         if not self.package or not self.extract_dir:
             self.log("ERROR: No package loaded")
             return None
-        
+
         try:
             # Save all XLIFF files first
             self.save_xliff_files()
-            
+
+            # Update .sdlproj for return package
+            self._update_project_file_for_return()
+
             # Generate output path if not specified
             if not output_path:
                 original = Path(self.package.package_path)
                 output_path = original.parent / f"{original.stem}_translated.sdlrpx"
-            
+
             output_path = Path(output_path)
-            
-            # Create the return package (ZIP)
+            target_lang = self.package.target_lang.lower()
+
+            # Create the return package (ZIP) — only include .sdlproj + target lang folder
             self.log(f"Creating return package: {output_path.name}")
-            
+
             with zipfile.ZipFile(output_path, 'w', zipfile.ZIP_DEFLATED) as zf:
-                # Add all files from extracted directory
                 extract_path = Path(self.extract_dir)
                 for file_path in extract_path.rglob('*'):
-                    if file_path.is_file():
-                        arcname = file_path.relative_to(extract_path)
-                        zf.write(file_path, arcname)
-            
+                    if not file_path.is_file():
+                        continue
+                    rel_path = file_path.relative_to(extract_path)
+                    parts = rel_path.parts
+
+                    # Include .sdlproj files at root level
+                    if len(parts) == 1 and file_path.suffix.lower() == '.sdlproj':
+                        zf.write(file_path, rel_path)
+                        continue
+
+                    # Include files in target language folder only
+                    if parts and parts[0].lower() == target_lang:
+                        zf.write(file_path, rel_path)
+                        continue
+
+                    # Skip everything else (source lang folder, Reports, etc.)
+
             self.log(f"Created return package: {output_path}")
             return str(output_path)
-            
+
         except Exception as e:
             self.log(f"ERROR creating return package: {e}")
             traceback.print_exc()
             return None
+
+    def _update_project_file_for_return(self):
+        """
+        Modify the .sdlproj XML for a return package.
+
+        Uses regex-based string replacement to preserve exact XML formatting
+        while changing key attributes that Trados Studio expects in a return package.
+        """
+        proj_files = list(Path(self.extract_dir).glob('*.sdlproj'))
+        if not proj_files:
+            self.log("Warning: No .sdlproj found to update")
+            return
+
+        proj_path = proj_files[0]
+        try:
+            content = proj_path.read_text(encoding='utf-8')
+        except UnicodeDecodeError:
+            content = proj_path.read_text(encoding='utf-8-sig')
+
+        now = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.0000000Z')
+        username = os.environ.get('USERNAME', os.environ.get('USER', 'Supervertaler'))
+
+        # 1. PackageType → ReturnPackage
+        content = content.replace(
+            'PackageType="ProjectPackage"',
+            'PackageType="ReturnPackage"'
+        )
+
+        # 2. Update PackageCreatedAt timestamp
+        content = re.sub(
+            r'PackageCreatedAt="[^"]*"',
+            f'PackageCreatedAt="{now}"',
+            content
+        )
+
+        # 3. Update PackageCreatedBy (or add CreatedBy if missing)
+        if 'CreatedBy="' in content:
+            content = re.sub(
+                r'CreatedBy="[^"]*"',
+                f'CreatedBy="{username}"',
+                content
+            )
+        else:
+            content = content.replace(
+                'PackageType="ReturnPackage"',
+                f'PackageType="ReturnPackage" CreatedBy="{username}"'
+            )
+
+        # 4. ConfirmationStatistics: move Draft counts to Translated
+        def _swap_draft_to_translated(match):
+            block = match.group(0)
+            draft_m = re.search(r'<Draft\s+([^/]*)/>', block)
+            translated_m = re.search(r'<Translated\s+([^/]*)/>', block)
+            if draft_m and translated_m:
+                draft_attrs = draft_m.group(1).strip()
+                block = re.sub(
+                    r'<Draft\s+[^/]*/>',
+                    '<Draft Words="0" Characters="0" Segments="0" Placeables="0" Tags="0" />',
+                    block
+                )
+                block = re.sub(
+                    r'<Translated\s+[^/]*/>',
+                    f'<Translated {draft_attrs}/>',
+                    block
+                )
+            return block
+
+        content = re.sub(
+            r'<ConfirmationStatistics[^>]*>.*?</ConfirmationStatistics>',
+            _swap_draft_to_translated,
+            content,
+            flags=re.DOTALL
+        )
+
+        # 5. ManualTask: mark as completed
+        def _complete_manual_task(match):
+            block = match.group(0)
+            block = re.sub(r'PercentComplete="\d+"', 'PercentComplete="100"', block)
+            block = re.sub(r'Status="[^"]*"', 'Status="Completed"', block)
+            # Add CompletedAt if not present
+            if 'CompletedAt=' not in block:
+                block = re.sub(
+                    r'(<ManualTask\s[^>]*?)(>)',
+                    rf'\1 CompletedAt="{now}"\2',
+                    block
+                )
+            # Mark TaskFile(s) as completed
+            block = block.replace('Completed="false"', 'Completed="true"')
+            return block
+
+        content = re.sub(
+            r'<ManualTask\s.*?</ManualTask>',
+            _complete_manual_task,
+            content,
+            flags=re.DOTALL
+        )
+
+        proj_path.write_text(content, encoding='utf-8')
+        self.log(f"  Updated .sdlproj: PackageType=ReturnPackage, CreatedBy={username}")
     
     def cleanup(self):
         """Clean up extracted files."""

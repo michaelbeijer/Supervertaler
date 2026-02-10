@@ -2,8 +2,20 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.247 (February 10, 2026)
+**Current Version:** v1.9.248 (February 10, 2026)
 
+
+## v1.9.248 - February 10, 2026
+
+### Bug Fixes
+
+- **Trados return package (SDLRPX) overhaul** — Fixed four issues with return package generation:
+  - **Inline tags corrupted on export** — `<g>` formatting tags (e.g. superscript ¹⁷⁷Lu) were escaped as literal text (`&lt;14&gt;177&lt;/14&gt;`) instead of proper XML elements. Tags are now correctly reconstructed, including alphanumeric IDs like `qSuperscript`.
+  - **PackageType wrong** — `.sdlproj` was copied verbatim with `PackageType="ProjectPackage"` instead of `"ReturnPackage"`. Now correctly sets ReturnPackage, updates timestamps, CreatedBy, ConfirmationStatistics (Draft→Translated), and marks the ManualTask as Completed.
+  - **Extra files in package** — Source language folder (`en-gb/`) and `Reports/` were included. Return packages now only contain `.sdlproj` + target language SDLXLIFF.
+  - **Segment origin not updated** — Translated segments now get `origin="interactive"` with stale TM/MT attributes removed.
+
+---
 
 ## v1.9.247 - February 10, 2026
 
