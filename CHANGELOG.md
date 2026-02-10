@@ -2,8 +2,17 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.250 (February 10, 2026)
+**Current Version:** v1.9.251 (February 11, 2026)
 
+
+## v1.9.251 - February 11, 2026
+
+### Bug Fixes
+
+- **Trados bilingual review: self-closing tags now exported correctly** — Self-closing tags like `<255/>` (standalone elements such as page breaks) were written as plain text instead of with the Tag character style when exporting to Trados bilingual DOCX. Trados flagged these as tag errors on re-import. The tag regex now matches all three tag forms: opening (`<11>`), closing (`</11>`), and self-closing (`<255/>`).
+- **Superlookup (Ctrl+Alt+L) now brings window to foreground** — When pressing Ctrl+Alt+L from another application (e.g. Trados Studio), the Supervertaler window now reliably comes to the foreground instead of just flashing in the taskbar. Uses platform-native window activation: `AttachThreadInput` + `SetForegroundWindow` on Windows, `osascript` on macOS, `wmctrl`/`xdotool` on Linux.
+
+---
 
 ## v1.9.250 - February 10, 2026
 

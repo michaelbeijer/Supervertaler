@@ -281,7 +281,8 @@ class TradosDOCXHandler:
         
         # Use finditer to find all tags and their positions
         # This avoids the complexity of split() with capturing groups
-        tag_pattern = re.compile(r'</?(\d+)>')
+        # Matches: <11>, </11>, <255/> (opening, closing, and self-closing tags)
+        tag_pattern = re.compile(r'</?\d+/?>')
         
         last_end = 0
         for match in tag_pattern.finditer(text):
@@ -294,7 +295,7 @@ class TradosDOCXHandler:
                     self._set_xml_space_preserve(run)
             
             # Add the tag itself with Tag style
-            tag_text = match.group(0)  # e.g., "<11>" or "</11>"
+            tag_text = match.group(0)  # e.g., "<11>", "</11>", or "<255/>"
             run = para.add_run(tag_text)
             self._apply_tag_style(run)
             self._set_xml_space_preserve(run)

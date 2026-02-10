@@ -105,18 +105,30 @@ def activate_window_by_title(title: str) -> bool:
     """
     try:
         if IS_WINDOWS:
-            # Use ctypes to find and activate the window
+            # Use ctypes to find and activate the window.
+            # Plain SetForegroundWindow fails when our app is in the background
+            # (Windows prevents background apps from stealing focus).  The
+            # workaround is AttachThreadInput: temporarily attach our thread to
+            # the foreground window's thread so the OS treats our call as coming
+            # from the foreground process.
             import ctypes
             from ctypes import wintypes
 
             user32 = ctypes.windll.user32
+            kernel32 = ctypes.windll.kernel32
             EnumWindows = user32.EnumWindows
             GetWindowTextW = user32.GetWindowTextW
             GetWindowTextLengthW = user32.GetWindowTextLengthW
             IsWindowVisible = user32.IsWindowVisible
             SetForegroundWindow = user32.SetForegroundWindow
             ShowWindow = user32.ShowWindow
+            GetForegroundWindow = user32.GetForegroundWindow
+            GetWindowThreadProcessId = user32.GetWindowThreadProcessId
+            GetCurrentThreadId = kernel32.GetCurrentThreadId
+            AttachThreadInput = user32.AttachThreadInput
+            BringWindowToTop = user32.BringWindowToTop
             SW_RESTORE = 9
+            SW_SHOW = 5
 
             WNDENUMPROC = ctypes.WINFUNCTYPE(
                 ctypes.c_bool, wintypes.HWND, wintypes.LPARAM
@@ -137,8 +149,20 @@ def activate_window_by_title(title: str) -> bool:
 
             EnumWindows(WNDENUMPROC(_enum_cb), 0)
             if target_hwnd:
+                # Attach to the foreground thread so SetForegroundWindow succeeds
+                fg_hwnd = GetForegroundWindow()
+                fg_thread = GetWindowThreadProcessId(fg_hwnd, None)
+                our_thread = GetCurrentThreadId()
+                attached = False
+                if fg_thread != our_thread:
+                    attached = AttachThreadInput(fg_thread, our_thread, True)
+
                 ShowWindow(target_hwnd, SW_RESTORE)
+                BringWindowToTop(target_hwnd)
                 SetForegroundWindow(target_hwnd)
+
+                if attached:
+                    AttachThreadInput(fg_thread, our_thread, False)
                 return True
             return False
 

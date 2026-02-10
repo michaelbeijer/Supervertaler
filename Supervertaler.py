@@ -51700,34 +51700,33 @@ class SuperlookupTab(QWidget):
         """Handle text captured by AHK"""
         try:
             print(f"[Superlookup] on_ahk_capture called with text: {text[:50]}...")
-            
-            # Bring Supervertaler to foreground
+
+            # Bring Supervertaler to foreground using platform-native method
+            # On Windows: AttachThreadInput + SetForegroundWindow (reliable)
+            # On macOS: osascript
+            # On Linux: wmctrl / xdotool
+            from modules.platform_helpers import activate_window_by_title
+
             main_window = self.window()
             if main_window:
-                # Check if window was maximized before restoring
-                was_maximized = main_window.isMaximized()
-                
-                # Restore if minimized or hidden
+                # Restore if minimized first (Qt side)
                 if main_window.isMinimized():
                     main_window.showNormal()
                 elif main_window.isHidden():
                     main_window.show()
-                else:
-                    # If already visible, just activate
-                    main_window.show()
-                
-                # Restore maximized state if it was maximized
-                if was_maximized:
-                    main_window.showMaximized()
-                    
-                # Bring to front and activate
+
+                # Use native API to bring window to foreground
+                # This uses the window title, which always contains "Supervertaler"
+                activate_window_by_title("Supervertaler")
+
+                # Qt side: raise + activate as fallback
                 main_window.raise_()
                 main_window.activateWindow()
-                
+
             # Longer delay to allow all window focus events to settle
             # Window activation triggers focus restoration which takes time
             QTimer.singleShot(250, lambda: self.show_superlookup(text))
-            
+
         except Exception as e:
             print(f"[Superlookup] Error handling capture: {e}")
 
