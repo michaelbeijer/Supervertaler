@@ -66,14 +66,15 @@ python Supervertaler.py
 - [Report bugs](https://github.com/michaelbeijer/Supervertaler/issues)
 - [Request features](https://github.com/michaelbeijer/Supervertaler/discussions)
 - [Contributing guide](CONTRIBUTING.md)
-- [Stargazers](https://github.com/michaelbeijer/Supervertaler/stargazers) - See who's starred the project
-- [Gitstalk](https://gitstalk.netlify.app/michaelbeijer) - See what I'm up to on GitHub
 
 ---
 
 ## About
 
 **Supervertaler** is maintained by [Michael Beijer](https://michaelbeijer.co.uk), a professional translator with 30 years of experience in technical and patent translation.
+
+- [Stargazers](https://github.com/michaelbeijer/Supervertaler/stargazers) - See who's starred the project
+- [Gitstalk](https://gitstalk.netlify.app/michaelbeijer) - See what I'm up to on GitHub
 
 **License:** MIT - Free for personal and commercial use.
 
