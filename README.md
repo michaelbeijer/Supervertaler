@@ -48,6 +48,7 @@ python Supervertaler.py
 | [Changelog](CHANGELOG.md) | Complete version history |
 | [Keyboard Shortcuts](docs/guides/KEYBOARD_SHORTCUTS.md) | Shortcut reference |
 | [FAQ](FAQ.md) | Common questions |
+| [Similar Apps](docs/SIMILAR_APPS.md) | CotranslatorAI, TransAIde, TWAS Suite, and other translation tools |
 | [Website](https://supervertaler.com) | Project homepage |
 
 ---
