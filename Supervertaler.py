@@ -6270,7 +6270,8 @@ class PreTranslationWorker(QThread):
                         source_lang=source_lang,
                         target_lang=target_lang,
                         mode="single",
-                        glossary_terms=self.glossary_terms
+                        glossary_terms=self.glossary_terms,
+                        target_text=segment.target or ""
                     )
                     # Extract just the instruction part (without the source text section)
                     if "**SOURCE TEXT:**" in full_prompt:
@@ -6342,7 +6343,8 @@ class PreTranslationWorker(QThread):
                         source_lang=source_lang,
                         target_lang=target_lang,
                         mode="single",
-                        glossary_terms=self.glossary_terms
+                        glossary_terms=self.glossary_terms,
+                        target_text=first_segment.target or ""
                     )
                     # Extract just the instruction part
                     if "**SOURCE TEXT:**" in full_prompt:
@@ -34784,15 +34786,17 @@ class SupervertalerQt(QMainWindow):
         source_lang = getattr(self.current_project, 'source_lang', 'Source Language')
         target_lang = getattr(self.current_project, 'target_lang', 'Target Language')
         
-        # Get source text
+        # Get source and target text
         source_text = current_segment.source
+        target_text = current_segment.target or ""
 
         # Get glossary terms for AI injection
         glossary_terms = self.get_ai_inject_glossary_terms()
 
         # Build combined prompt
         combined = self.prompt_manager_qt.build_final_prompt(
-            source_text, source_lang, target_lang, glossary_terms=glossary_terms
+            source_text, source_lang, target_lang, glossary_terms=glossary_terms,
+            target_text=target_text
         )
         
         # Check for figure/image context
@@ -44351,7 +44355,8 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                         source_lang=self.current_project.source_lang,
                         target_lang=self.current_project.target_lang,
                         mode="single",
-                        glossary_terms=glossary_terms
+                        glossary_terms=glossary_terms,
+                        target_text=segment.target or ""
                     )
 
                     # Add surrounding context before the translation delimiter
@@ -44483,14 +44488,15 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
 
         return text.strip()
 
-    def _quickmenu_build_custom_prompt(self, prompt_relative_path: str, source_text: str, source_lang: str, target_lang: str) -> str:
+    def _quickmenu_build_custom_prompt(self, prompt_relative_path: str, source_text: str, source_lang: str, target_lang: str, target_text: str = "") -> str:
         """Build a prompt for QuickMenu using the selected prompt as instructions.
-        
+
         This is a GENERIC prompt builder (not translation-specific) that allows QuickMenu prompts
         to do anything: explain, define, search, translate, analyze, etc.
-        
+
         Supports placeholders:
         - {{SELECTION}} or {{SOURCE_TEXT}} - The selected text
+        - {{TARGET_TEXT}} - Current target (translation) of the active segment
         - {{SOURCE_LANGUAGE}} - Source language name
         - {{TARGET_LANGUAGE}} - Target language name
         - {{SOURCE+TARGET_CONTEXT}} - Project segments with both source and target (for proofreading)
@@ -44544,6 +44550,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         prompt_content = prompt_content.replace("{{SOURCE_LANGUAGE}}", source_lang)
         prompt_content = prompt_content.replace("{{TARGET_LANGUAGE}}", target_lang)
         prompt_content = prompt_content.replace("{{SOURCE_TEXT}}", source_text)
+        prompt_content = prompt_content.replace("{{TARGET_TEXT}}", target_text or "")
         prompt_content = prompt_content.replace("{{SELECTION}}", source_text)  # Alternative placeholder
         prompt_content = prompt_content.replace("{{SOURCE+TARGET_CONTEXT}}", source_target_context)
         prompt_content = prompt_content.replace("{{SOURCE_CONTEXT}}", source_only_context)
@@ -44662,6 +44669,13 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             QMessageBox.information(self, "QuickMenu", "Please select some text first (or click inside a non-empty cell).")
             return
 
+        # Get current segment's target text for {{TARGET_TEXT}} placeholder
+        current_target_text = ""
+        if hasattr(self, 'table') and self.table and hasattr(self, 'current_project') and self.current_project:
+            current_row = self.table.currentRow()
+            if 0 <= current_row < len(self.current_project.segments):
+                current_target_text = self.current_project.segments[current_row].target or ""
+
         # Determine project languages
         source_lang = "English"
         target_lang = "Dutch"
@@ -44700,7 +44714,8 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                 prompt_relative_path=prompt_relative_path,
                 source_text=input_text,
                 source_lang=source_lang,
-                target_lang=target_lang
+                target_lang=target_lang,
+                target_text=current_target_text
             )
 
             base_url = None
@@ -45958,7 +45973,8 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                                 source_lang=source_lang,
                                 target_lang=target_lang,
                                 mode="single",
-                                glossary_terms=glossary_terms
+                                glossary_terms=glossary_terms,
+                                target_text=first_segment.target or ""
                             )
                             if "**SOURCE TEXT:**" in base_prompt:
                                 base_prompt = base_prompt.split("**SOURCE TEXT:**")[0].strip()
@@ -46386,7 +46402,8 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                             source_lang=source_lang,
                             target_lang=target_lang,
                             mode="single",
-                            glossary_terms=glossary_terms
+                            glossary_terms=glossary_terms,
+                            target_text=getattr(segment, 'target', '') or ""
                         )
                 except Exception as e:
                     self.log(f"⚠ Could not build LLM prompt from manager: {e}")

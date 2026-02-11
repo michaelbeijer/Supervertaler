@@ -2,8 +2,16 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.255 (February 11, 2026)
+**Current Version:** v1.9.256 (February 11, 2026)
 
+
+## v1.9.256 - February 11, 2026
+
+### New Features
+
+- **`{{TARGET_TEXT}}` placeholder in Prompt Manager** — A new placeholder is now available in the Placeholders tab. Use `{{TARGET_TEXT}}` in your prompts to reference the current segment's existing translation. Ideal for review/proofreading prompts, e.g. *"Review this translation: {{SOURCE_TEXT}} → {{TARGET_TEXT}}"*. Works in system prompts, library prompts, and QuickMenu custom prompts. Empty string if the segment has no translation yet.
+
+---
 
 ## v1.9.255 - February 11, 2026
 

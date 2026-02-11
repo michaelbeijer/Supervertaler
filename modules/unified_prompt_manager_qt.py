@@ -906,6 +906,11 @@ class UnifiedPromptManagerQt:
                 "The complete source sentence/paragraph from the active segment"
             ),
             (
+                "{{TARGET_TEXT}}",
+                "Current target (translation) of the active segment. Empty if not yet translated.",
+                "Use in review/proofreading prompts: 'Review: {{SOURCE_TEXT}} → {{TARGET_TEXT}}'"
+            ),
+            (
                 "{{SOURCE_LANGUAGE}}",
                 "Project's source language",
                 "Dutch, English, German, French, etc."
@@ -984,8 +989,8 @@ class UnifiedPromptManagerQt:
             "• Placeholders are case-sensitive (use UPPERCASE)\n\n"
             "• Surround placeholders with double curly braces: {{ }}\n\n"
             "• You can combine multiple placeholders in one prompt\n\n"
-            "• Use {{DOCUMENT_CONTEXT}} for context-aware translations\n\n"
-            "• Configure {{DOCUMENT_CONTEXT}} percentage in Settings → AI Settings"
+            "• {{TARGET_TEXT}} is useful for review/proofreading prompts\n\n"
+            "• Context placeholders (SOURCE_CONTEXT etc.) use the percentage set in Settings → AI Settings"
         )
         tips_text.setWordWrap(True)
         tips_text.setStyleSheet("color: #666; line-height: 1.6;")
@@ -3125,7 +3130,8 @@ If the text refers to figures (e.g., 'Figure 1A'), relevant images may be provid
     # === Prompt Composition (for translation) ===
     
     def build_final_prompt(self, source_text: str, source_lang: str, target_lang: str,
-                           mode: str = None, glossary_terms: list = None) -> str:
+                           mode: str = None, glossary_terms: list = None,
+                           target_text: str = "") -> str:
         """
         Build final prompt for translation using 2-layer architecture:
         1. System Prompt (auto-selected by mode)
@@ -3138,6 +3144,7 @@ If the text refers to figures (e.g., 'Figure 1A'), relevant images may be provid
             target_lang: Target language
             mode: Override mode (if None, uses self.current_mode)
             glossary_terms: Optional list of term dicts with 'source_term' and 'target_term' keys
+            target_text: Optional current target text (for {{TARGET_TEXT}} placeholder)
 
         Returns:
             Complete prompt ready for LLM
@@ -3152,6 +3159,7 @@ If the text refers to figures (e.g., 'Figure 1A'), relevant images may be provid
         system_template = system_template.replace("{{SOURCE_LANGUAGE}}", source_lang)
         system_template = system_template.replace("{{TARGET_LANGUAGE}}", target_lang)
         system_template = system_template.replace("{{SOURCE_TEXT}}", source_text)
+        system_template = system_template.replace("{{TARGET_TEXT}}", target_text or "")
 
         # Layer 2: Library prompts (primary + attached)
         library_prompts = ""
