@@ -2,8 +2,16 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.254 (February 11, 2026)
+**Current Version:** v1.9.255 (February 11, 2026)
 
+
+## v1.9.255 - February 11, 2026
+
+### Improvements
+
+- **Copy Source to Target now works on selected segments** — The Ctrl+Shift+S shortcut (Cmd+Shift+S on macOS) now supports multi-segment selection. Select multiple segments (Ctrl+Click or Shift+Click), press the shortcut, and source text is copied to target for all selected segments at once. Single-segment behavior is unchanged. ([#141](https://github.com/michaelbeijer/Supervertaler/issues/141))
+
+---
 
 ## v1.9.254 - February 11, 2026
 

@@ -4075,30 +4075,40 @@ class EditableGridTextEditor(QTextEdit):
 
     def _copy_source_to_target(self):
         """
-        Copy source text to target cell.
-        
-        Shortcut: Ctrl+Shift+S
+        Copy source text to target cell(s).
+
+        Shortcut: Ctrl+Shift+S (macOS: Cmd+Shift+S)
+
+        Smart behavior:
+        - Multiple segments selected → copy source to target for all selected
+        - Single segment → copy source to target for current segment only
         """
         if not self.table or self.row < 0:
             return
-        
+
         # Navigate up to find main window
-        main_window = self.table.parent()
-        while main_window and not hasattr(main_window, 'current_project'):
-            main_window = main_window.parent()
-        
+        main_window = self._get_main_window()
+
         if not main_window or not hasattr(main_window, 'current_project'):
             return
-        
+
         if not main_window.current_project or self.row >= len(main_window.current_project.segments):
             return
-        
+
+        # Check if multiple segments are selected — if so, delegate to bulk
+        if hasattr(main_window, 'get_selected_segments_from_grid'):
+            selected = main_window.get_selected_segments_from_grid()
+            if len(selected) > 1 and hasattr(main_window, '_copy_source_to_target_selected'):
+                main_window._copy_source_to_target_selected(selected)
+                return
+
+        # Single segment: copy source to target for current cell
         segment = main_window.current_project.segments[self.row]
         source_text = segment.source
-        
+
         # Set the target text
         self.setPlainText(source_text)
-        
+
         if hasattr(main_window, 'log'):
             main_window.log(f"📋 Copied source to target (segment {self.row + 1})")
 
@@ -35181,6 +35191,41 @@ class SupervertalerQt(QMainWindow):
         
         self.log(f"✓ Copied source to target for {copied_count} segment(s)")
         QMessageBox.information(self, "Copy Complete", f"Copied source to target for {copied_count} segment(s).")
+
+    def _copy_source_to_target_selected(self, selected_segments):
+        """Copy source to target for the given selected segments (keyboard shortcut path).
+
+        Called from EditableGridTextEditor when Ctrl+Shift+S is pressed with
+        multiple segments selected.  Unlike the menu bulk version, this skips
+        the confirmation dialog for a snappy keyboard-driven workflow.
+        """
+        copied_count = 0
+        for segment in selected_segments:
+            row = self._find_row_for_segment(segment.id)
+            if row >= 0:
+                source_widget = self.table.cellWidget(row, 2)
+                if source_widget:
+                    source_text = source_widget.toPlainText()
+
+                    # Update segment object
+                    segment.target = source_text
+
+                    # Update target widget
+                    target_widget = self.table.cellWidget(row, 3)
+                    if target_widget:
+                        target_widget.blockSignals(True)
+                        target_widget.setPlainText(source_text)
+                        target_widget.blockSignals(False)
+
+                    copied_count += 1
+
+        if copied_count:
+            self.auto_resize_rows()
+            self.update_progress_stats()
+            self.project_modified = True
+            self.update_window_title()
+
+        self.log(f"📋 Copied source to target for {copied_count} segment(s)")
 
     def show_clean_tags_dialog(self):
         """Show dialog to clean formatting tags from project segments"""
