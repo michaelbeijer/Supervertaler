@@ -56,11 +56,15 @@ class ModelVersionChecker:
                 "gpt-4"
             ],
             "claude": [
+                "claude-opus-4-6",
                 "claude-sonnet-4-5-20250929",
                 "claude-haiku-4-5-20251001",
+                "claude-sonnet-4-20250514",
+                "claude-opus-4-20250514",
                 "claude-opus-4-1-20250805",
                 "claude-3-5-sonnet-20241022",
                 "claude-3-5-sonnet-20240620",
+                "claude-3-5-haiku-20241022",
                 "claude-3-opus-20240229",
                 "claude-3-sonnet-20240229",
                 "claude-3-haiku-20240307"
@@ -155,10 +159,10 @@ class ModelVersionChecker:
 
     def check_claude_models(self, api_key: str) -> Tuple[List[str], Optional[str]]:
         """
-        Check for new Claude models
+        Check for new Claude models using the Anthropic Models API.
 
-        Note: Anthropic doesn't provide a models.list() endpoint, so we try
-        to call the API with common model naming patterns and see what works.
+        Uses the /v1/models endpoint to list all available models and compares
+        against the known models list to find new ones.
 
         Args:
             api_key: Anthropic API key
@@ -173,40 +177,21 @@ class ModelVersionChecker:
             from anthropic import Anthropic
             client = Anthropic(api_key=api_key)
 
-            # Anthropic doesn't have a list endpoint, so we'll try common patterns
-            # This is a limitation - we can only detect models we explicitly test for
-            test_patterns = [
-                # Claude 5 potential patterns
-                "claude-sonnet-5",
-                "claude-haiku-5",
-                "claude-opus-5",
-                # Claude 4 with newer dates
-                "claude-sonnet-4-5-20260101",
-                "claude-haiku-4-5-20260101",
-                "claude-opus-4-5-20260101",
-            ]
+            # Use the models list endpoint to discover available models
+            available_models = []
+            try:
+                response = client.models.list(limit=1000)
+                for model in response.data:
+                    model_id = model.id
+                    # Only include Claude models (filter out any non-Claude entries)
+                    if model_id.startswith('claude'):
+                        available_models.append(model_id)
+            except Exception as list_error:
+                # If models.list() is not available (older SDK), fall back to probing
+                return self._check_claude_models_fallback(client)
 
-            new_models = []
-
-            # Test each pattern with a minimal API call
-            for pattern in test_patterns:
-                if pattern in self.known_models["claude"]:
-                    continue
-
-                try:
-                    # Try a minimal API call
-                    response = client.messages.create(
-                        model=pattern,
-                        max_tokens=1,
-                        messages=[{"role": "user", "content": "test"}]
-                    )
-                    # If we got here, the model exists
-                    new_models.append(pattern)
-                except Exception as model_error:
-                    # Model doesn't exist or other error - skip it
-                    if "model" not in str(model_error).lower():
-                        # Not a model error, might be real issue
-                        pass
+            # Find new models not in our known list
+            new_models = [m for m in available_models if m not in self.known_models["claude"]]
 
             return new_models, None
 
@@ -214,6 +199,48 @@ class ModelVersionChecker:
             return [], "Anthropic library not installed (pip install anthropic)"
         except Exception as e:
             return [], f"Error checking Claude models: {str(e)}"
+
+    def _check_claude_models_fallback(self, client) -> Tuple[List[str], Optional[str]]:
+        """
+        Fallback method for checking Claude models when models.list() is unavailable.
+
+        Probes the API with common model naming patterns to discover new models.
+        This is less reliable than the models list endpoint but works with older SDK versions.
+
+        Args:
+            client: Initialized Anthropic client
+
+        Returns:
+            (list of new model IDs, error message if any)
+        """
+        # Generate test patterns for potential new models
+        test_patterns = [
+            # Claude 5 potential patterns
+            "claude-sonnet-5", "claude-haiku-5", "claude-opus-5",
+            # Claude 4.6+ potential patterns
+            "claude-opus-4-6", "claude-sonnet-4-6", "claude-haiku-4-6",
+            # Claude 4.5 with newer dates
+            "claude-sonnet-4-5-20260101", "claude-haiku-4-5-20260101",
+            "claude-opus-4-5-20260101",
+        ]
+
+        new_models = []
+
+        for pattern in test_patterns:
+            if pattern in self.known_models["claude"]:
+                continue
+
+            try:
+                response = client.messages.create(
+                    model=pattern,
+                    max_tokens=1,
+                    messages=[{"role": "user", "content": "test"}]
+                )
+                new_models.append(pattern)
+            except Exception:
+                pass
+
+        return new_models, None
 
     def check_gemini_models(self, api_key: str) -> Tuple[List[str], Optional[str]]:
         """

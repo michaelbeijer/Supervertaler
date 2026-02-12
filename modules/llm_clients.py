@@ -230,6 +230,7 @@ class LLMClient:
             "claude-3-5-sonnet-20241022",
             "claude-sonnet-4-5-20250929",
             "claude-haiku-4-5-20251001",
+            "claude-opus-4-6",
             "claude-opus-4-1-20250805"
         ],
         "gemini": [
@@ -244,14 +245,22 @@ class LLMClient:
         ]
     }
 
-    # Available Claude 4 models with descriptions
+    # Available Claude models with descriptions
     CLAUDE_MODELS = {
+        "claude-opus-4-6": {
+            "name": "Claude Opus 4.6",
+            "description": "Latest premium - Exceptional coding and reasoning",
+            "released": "2026-02-04",
+            "strengths": ["Legal translation", "Technical documents", "Complex reasoning", "Highest accuracy"],
+            "pricing": {"input": 15, "output": 75},  # USD per million tokens
+            "use_case": "Best for specialized legal/technical translation requiring deep reasoning"
+        },
         "claude-sonnet-4-5-20250929": {
             "name": "Claude Sonnet 4.5",
             "description": "Best balance - Flagship model for general translation",
             "released": "2025-09-29",
             "strengths": ["General translation", "Multilingual", "Fast", "Cost-effective"],
-            "pricing": {"input": 3, "output": 15},  # USD per million tokens
+            "pricing": {"input": 3, "output": 15},
             "use_case": "Recommended for most translation tasks"
         },
         "claude-haiku-4-5-20251001": {
@@ -268,7 +277,7 @@ class LLMClient:
             "released": "2025-08-05",
             "strengths": ["Legal translation", "Technical documents", "Complex reasoning", "Highest accuracy"],
             "pricing": {"input": 15, "output": 75},
-            "use_case": "Best for specialized legal/technical translation requiring deep reasoning"
+            "use_case": "For specialized legal/technical translation requiring deep reasoning"
         }
     }
 

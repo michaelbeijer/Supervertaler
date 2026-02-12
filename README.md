@@ -6,7 +6,7 @@
 
 **Professional AI-enhanced translation workbench** with multi-LLM support (GPT-4, Claude, Gemini, Ollama), translation memory, glossary management, and seamless CAT tool integration (memoQ, Trados, CafeTran, Phrase, Déjà Vu).
 
-**Latest release:** v1.9.261 - TM fuzzy matching rewritten for massive speedup, proper TM match status icons (✅/🔶) with percentages, Match Panel displays batch TM results.
+**Latest release:** v1.9.262 - Model version checker now uses Anthropic's /v1/models API for dynamic model discovery, added Claude Opus 4.6 support, fixed incorrect model ID bug.
 
 ---
 

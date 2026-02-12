@@ -16721,12 +16721,14 @@ class SupervertalerQt(QMainWindow):
         claude_combo.addItems([
             "claude-sonnet-4-5-20250929 (Recommended - Best Balance)",
             "claude-haiku-4-5-20251001 (Fast & Affordable)",
+            "claude-opus-4-6 (Latest Premium - Exceptional Reasoning)",
             "claude-opus-4-1-20250805 (Premium - Complex Reasoning)"
         ])
         claude_combo.setToolTip(
             "Claude Sonnet 4.5: Best balance of speed, quality, and cost.\n"
             "Claude Haiku 4.5: 2x faster, 1/3 the cost.\n"
-            "Claude Opus 4.1: Premium model for complex reasoning."
+            "Claude Opus 4.6: Latest premium model with exceptional reasoning.\n"
+            "Claude Opus 4.1: Previous premium model for complex reasoning."
         )
         current_claude_model = settings.get('claude_model', 'claude-sonnet-4-5-20250929')
         for i in range(claude_combo.count()):
@@ -17610,7 +17612,8 @@ class SupervertalerQt(QMainWindow):
             ("claude", "Claude", "claude", [
                 ("claude-sonnet-4-5-20250929", "Claude Sonnet 4.5 (Recommended)"),
                 ("claude-haiku-4-5-20251001", "Claude Haiku 4.5 (Fast)"),
-                ("claude-opus-4-1-20250924", "Claude Opus 4.1 (Premium)"),
+                ("claude-opus-4-6", "Claude Opus 4.6 (Latest Premium)"),
+                ("claude-opus-4-1-20250805", "Claude Opus 4.1 (Premium)"),
             ]),
             ("openai", "OpenAI", "openai", [
                 ("gpt-4o", "GPT-4o (Recommended)"),

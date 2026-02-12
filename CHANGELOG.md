@@ -2,8 +2,22 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.261 (February 12, 2026)
+**Current Version:** v1.9.262 (February 12, 2026)
 
+
+## v1.9.262 - February 12, 2026
+
+### Improvements
+
+- **Model version checker now uses Anthropic's /v1/models API** — The "Check for New Models" feature previously used a hardcoded probe approach that tried guessing model names, which is why it never found anything new. It now uses the official Anthropic Models API endpoint (`/v1/models`) to dynamically discover all available models. Falls back to the old probe method if the SDK is too old.
+- **Added Claude Opus 4.6** — Claude Opus 4.6 (released February 4, 2026) is now available as a model option in all model selection dropdowns, the Superbench benchmarking system, and the vision-capable models list.
+- **Updated known Claude models list** — Added Claude Sonnet 4, Claude Opus 4, and Claude 3.5 Haiku to the known models list so the version checker correctly identifies them as existing models.
+
+### Bug Fixes
+
+- **Fixed incorrect Claude Opus 4.1 model ID** — The MTQL provider configuration had `claude-opus-4-1-20250924` (wrong date) instead of the correct `claude-opus-4-1-20250805`.
+
+---
 
 ## v1.9.261 - February 12, 2026
 
