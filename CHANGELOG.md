@@ -2,8 +2,18 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.262 (February 12, 2026)
+**Current Version:** v1.9.263 (February 12, 2026)
 
+
+## v1.9.263 - February 12, 2026
+
+### Bug Fixes
+
+- **Fixed voice command keystroke sending on Windows** — The `CrossPlatformKeySender.send_keystroke()` method had no Windows implementation (only Linux/pynput), so all voice commands of type "keystroke" silently did nothing. It now routes to AHK on Windows, matching the proven pattern used by `send_copy()`/`send_paste()`.
+- **Fixed AHK v1/v2 syntax mismatch in voice commands** — All inline AHK voice commands (memoQ confirm, glossary, tag next, Trados confirm) used AHK v1 syntax (`Send, ^{Enter}`) but the script runner wrapped them in `#Requires AutoHotkey v2.0`, causing silent failures. Updated all defaults and saved commands to AHK v2 syntax (`Send "^{Enter}"`). Added a v1→v2 auto-converter as a safety net for user-created commands.
+- **Added AutoFingers voice command support** — The "fingers" voice command now directly calls AutoFingers' `process_single_safe()` method as an internal handler, instead of trying to simulate the `Ctrl+Alt+P` hotkey via AHK (which was intercepted by Supervertaler's own global hotkey registration). Also registered `autofingers_loop` and `autofingers_stop` internal handlers.
+
+---
 
 ## v1.9.262 - February 12, 2026
 

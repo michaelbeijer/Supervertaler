@@ -833,7 +833,20 @@ class CrossPlatformKeySender:
         Supports modifiers: ctrl, alt, shift, cmd/win.
         Supports special keys: enter, tab, escape, backspace, delete,
         f1–f12, arrow keys, home, end, page up/down, space, insert.
+
+        Uses the same platform-native approach as ``send_copy()``:
+        - Windows: AHK subprocess (or PowerShell fallback)
+        - macOS: osascript (AppleScript via System Events)
+        - Linux: pynput Controller
         """
+        if IS_WINDOWS:
+            self._send_keystroke_win32(keystroke)
+            return
+        if IS_MACOS:
+            self._send_keystroke_macos(keystroke)
+            return
+
+        # Linux: use pynput
         if not self._controller:
             return
         Key = self._Key
@@ -884,3 +897,176 @@ class CrossPlatformKeySender:
                     self._controller.tap(key)
                 else:
                     self._controller.tap(key)
+
+    def _keystroke_to_ahk(self, keystroke: str) -> str:
+        """Convert a keystroke string like ``'ctrl+alt+p'`` to AHK Send format."""
+        modifiers = {
+            'ctrl': '^', 'control': '^',
+            'alt': '!',
+            'shift': '+',
+            'win': '#', 'windows': '#',
+        }
+        special_keys = {
+            'enter': '{Enter}', 'return': '{Enter}',
+            'tab': '{Tab}',
+            'escape': '{Esc}', 'esc': '{Esc}',
+            'space': '{Space}',
+            'backspace': '{Backspace}',
+            'delete': '{Delete}', 'del': '{Delete}',
+            'insert': '{Insert}', 'ins': '{Insert}',
+            'home': '{Home}', 'end': '{End}',
+            'pageup': '{PgUp}', 'pgup': '{PgUp}',
+            'pagedown': '{PgDn}', 'pgdn': '{PgDn}',
+            'up': '{Up}', 'down': '{Down}',
+            'left': '{Left}', 'right': '{Right}',
+            'f1': '{F1}', 'f2': '{F2}', 'f3': '{F3}', 'f4': '{F4}',
+            'f5': '{F5}', 'f6': '{F6}', 'f7': '{F7}', 'f8': '{F8}',
+            'f9': '{F9}', 'f10': '{F10}', 'f11': '{F11}', 'f12': '{F12}',
+        }
+        parts = keystroke.lower().replace(' ', '').split('+')
+        result = ''
+        for part in parts:
+            if part in modifiers:
+                result += modifiers[part]
+            elif part in special_keys:
+                result += special_keys[part]
+            else:
+                result += part
+        return result
+
+    @staticmethod
+    def _keystroke_to_applescript(keystroke: str) -> str:
+        """Convert a keystroke string to an osascript command."""
+        modifier_map = {
+            'ctrl': 'control down', 'control': 'control down',
+            'alt': 'option down',
+            'shift': 'shift down',
+            'cmd': 'command down', 'command': 'command down',
+            'win': 'command down',
+        }
+        special_keys = {
+            'enter': 'return', 'return': 'return',
+            'tab': 'tab', 'escape': 'escape', 'esc': 'escape',
+            'space': 'space', 'delete': 'delete', 'backspace': 'delete',
+            'up': 'up arrow', 'down': 'down arrow',
+            'left': 'left arrow', 'right': 'right arrow',
+            'home': 'home', 'end': 'end',
+            'pageup': 'page up', 'pagedown': 'page down',
+            'f1': 'F1', 'f2': 'F2', 'f3': 'F3', 'f4': 'F4',
+            'f5': 'F5', 'f6': 'F6', 'f7': 'F7', 'f8': 'F8',
+            'f9': 'F9', 'f10': 'F10', 'f11': 'F11', 'f12': 'F12',
+        }
+        parts = keystroke.lower().replace(' ', '').split('+')
+        mods = []
+        key = None
+        for part in parts:
+            if part in modifier_map:
+                mods.append(modifier_map[part])
+            elif part in special_keys:
+                key = special_keys[part]
+            else:
+                key = part
+        if key is None:
+            return ''
+        # Determine if we need 'keystroke' (character) or 'key code' (special)
+        is_special = keystroke.lower().replace(' ', '').split('+')[-1] in special_keys
+        if is_special:
+            action = f'key code (ASCII number of "{key}")'
+            # For special keys, use 'keystroke' with the key name isn't ideal;
+            # AppleScript uses 'keystroke' for characters. For special keys we
+            # still use keystroke with the key name — AppleScript handles most.
+        using = ''
+        if mods:
+            using = ' using {' + ', '.join(mods) + '}'
+        return (f'tell application "System Events" to keystroke "{key}"'
+                f'{using}')
+
+    def _send_keystroke_win32(self, keystroke: str):
+        """Send an arbitrary keystroke on Windows via AHK or PowerShell.
+
+        Uses the same proven pattern as ``VoiceCommandManager._run_ahk_code``:
+        AHK v2 script with ``#Requires``, ``Popen`` (non-blocking).
+        """
+        ahk = self._find_ahk()
+        ahk_keys = self._keystroke_to_ahk(keystroke)
+        if ahk:
+            try:
+                import tempfile
+                # Always use AHK v2 syntax with #Requires header
+                # (matches the proven pattern in voice_commands._run_ahk_code)
+                script = (
+                    f'#Requires AutoHotkey v2.0\n'
+                    f'#SingleInstance Force\n'
+                    f'Send "{ahk_keys}"\n'
+                    f'ExitApp\n'
+                )
+                with tempfile.NamedTemporaryFile(
+                    mode='w', suffix='.ahk', delete=False, encoding='utf-8'
+                ) as f:
+                    f.write(script)
+                    tmp_path = f.name
+                subprocess.Popen(
+                    [ahk, tmp_path],
+                    creationflags=subprocess.CREATE_NO_WINDOW,
+                )
+                return
+            except Exception as e:
+                print(f"[CrossPlatformKeySender] AHK keystroke failed: {e}")
+
+        # Fallback: PowerShell SendKeys (limited — no Alt support)
+        ps_keys = self._keystroke_to_powershell_sendkeys(keystroke)
+        if ps_keys:
+            try:
+                subprocess.run(
+                    [
+                        'powershell', '-NoProfile', '-NonInteractive',
+                        '-Command',
+                        'Add-Type -AssemblyName System.Windows.Forms; '
+                        f'[System.Windows.Forms.SendKeys]::SendWait("{ps_keys}")'
+                    ],
+                    timeout=5,
+                    creationflags=subprocess.CREATE_NO_WINDOW,
+                )
+            except Exception as e:
+                print(f"[CrossPlatformKeySender] PowerShell keystroke failed: {e}")
+
+    @staticmethod
+    def _keystroke_to_powershell_sendkeys(keystroke: str) -> str:
+        """Convert keystroke to PowerShell SendKeys format (best-effort)."""
+        mod_map = {'ctrl': '^', 'control': '^', 'alt': '%', 'shift': '+'}
+        special = {
+            'enter': '{ENTER}', 'return': '{ENTER}', 'tab': '{TAB}',
+            'escape': '{ESC}', 'esc': '{ESC}', 'backspace': '{BACKSPACE}',
+            'delete': '{DELETE}', 'del': '{DELETE}',
+            'up': '{UP}', 'down': '{DOWN}', 'left': '{LEFT}',
+            'right': '{RIGHT}', 'home': '{HOME}', 'end': '{END}',
+            'pageup': '{PGUP}', 'pagedown': '{PGDN}',
+            'f1': '{F1}', 'f2': '{F2}', 'f3': '{F3}', 'f4': '{F4}',
+            'f5': '{F5}', 'f6': '{F6}', 'f7': '{F7}', 'f8': '{F8}',
+            'f9': '{F9}', 'f10': '{F10}', 'f11': '{F11}', 'f12': '{F12}',
+        }
+        parts = keystroke.lower().replace(' ', '').split('+')
+        prefix = ''
+        key = ''
+        for part in parts:
+            if part in mod_map:
+                prefix += mod_map[part]
+            elif part in special:
+                key = special[part]
+            else:
+                key = part
+        if not key:
+            return ''
+        return prefix + key
+
+    def _send_keystroke_macos(self, keystroke: str):
+        """Send an arbitrary keystroke on macOS via osascript."""
+        try:
+            script = self._keystroke_to_applescript(keystroke)
+            if script:
+                subprocess.run(
+                    ['osascript', '-e', script],
+                    capture_output=True, timeout=5,
+                )
+        except Exception as e:
+            print(f"[CrossPlatformKeySender] macOS keystroke failed: {e}")

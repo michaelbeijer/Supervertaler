@@ -15,6 +15,7 @@ from typing import Optional, Dict, List, Callable, Tuple
 from dataclasses import dataclass, field
 from difflib import SequenceMatcher
 from PyQt6.QtCore import QObject, pyqtSignal
+from PyQt6.QtWidgets import QWidget
 from modules.shortcut_display import format_shortcut_for_display
 from modules.platform_helpers import IS_WINDOWS, get_hidden_subprocess_flags
 
@@ -123,20 +124,20 @@ class VoiceCommandManager(QObject):
         VoiceCommand("stop listening", ["stop", "pause"], "internal", "stop_listening",
                     "Stop voice recognition", "dictation"),
         
-        # memoQ-specific (AHK)
-        VoiceCommand("glossary", ["add term", "add to glossary"], "ahk_inline", 
-                    "Send, !{Down}",  # Alt+Down
+        # memoQ-specific (AHK v2)
+        VoiceCommand("glossary", ["add term", "add to glossary"], "ahk_inline",
+                    'Send "!{Down}"',  # Alt+Down
                     "Add term pair to memoQ termbase", "memoq"),
         VoiceCommand("tag next", ["next tag", "insert tag"], "ahk_inline",
-                    "Send, ^{PgDn}\nSleep, 100\nSend, {F9}\nSleep, 100\nSend, ^{Enter}",
+                    'Send "^{PgDn}"\nSleep 100\nSend "{F9}"\nSleep 100\nSend "^{Enter}"',
                     "Go to end, insert next tag, confirm", "memoq"),
         VoiceCommand("confirm memoQ", ["confirm memo"], "ahk_inline",
-                    "Send, ^{Enter}",
+                    'Send "^{Enter}"',
                     "Confirm segment in memoQ", "memoq"),
-        
-        # Trados-specific (AHK)
+
+        # Trados-specific (AHK v2)
         VoiceCommand("confirm trados", ["confirm studio"], "ahk_inline",
-                    "Send, ^{Enter}",
+                    'Send "^{Enter}"',
                     "Confirm segment in Trados Studio", "trados"),
     ]
     
@@ -193,6 +194,11 @@ class VoiceCommandManager(QObject):
             # Dictation
             "start_dictation": lambda: main_window.start_voice_dictation() if hasattr(main_window, 'start_voice_dictation') else self._log_missing('start_voice_dictation'),
             "stop_listening": lambda: self._stop_voice_recognition(),
+
+            # AutoFingers (lives on AutoFingersWidget child, not main_window)
+            "autofingers_single": lambda: self._call_autofingers("process_single_safe"),
+            "autofingers_loop": lambda: self._call_autofingers("toggle_loop_safe"),
+            "autofingers_stop": lambda: self._call_autofingers("stop_loop_safe"),
         }
     
     def _log_missing(self, method_name: str):
@@ -200,6 +206,19 @@ class VoiceCommandManager(QObject):
         print(f"⚠️ Voice command: Method '{method_name}' not found on main window")
         if self.main_window and hasattr(self.main_window, 'log'):
             self.main_window.log(f"⚠️ Voice command: Method '{method_name}' not found")
+
+    def _call_autofingers(self, method_name: str):
+        """Call a method on the AutoFingersWidget (child of main_window)."""
+        if not self.main_window:
+            return
+        # Find the AutoFingersWidget among main_window's children
+        for child in self.main_window.findChildren(QWidget):
+            if type(child).__name__ == "AutoFingersWidget":
+                method = getattr(child, method_name, None)
+                if method:
+                    method()
+                    return
+        self._log_missing(f"AutoFingersWidget.{method_name}")
     
     def _show_tab(self, main_window, tab_name: str):
         """Helper to switch to a specific tab"""
@@ -342,7 +361,23 @@ class VoiceCommandManager(QObject):
             return False
     
     def _execute_keystroke(self, command: VoiceCommand) -> bool:
-        """Execute a keystroke cross-platform using pynput, with AHK fallback on Windows."""
+        """Execute a keystroke command.
+
+        On Windows, converts the keystroke string (e.g. ``ctrl+alt+p``) to
+        AHK ``Send`` syntax and runs it via ``_run_ahk_code`` — the same
+        proven path used by ``ahk_inline`` voice commands.
+
+        On other platforms, delegates to ``CrossPlatformKeySender``.
+        """
+        if IS_WINDOWS:
+            ahk_keys = self._convert_to_ahk_keys(command.action)
+            ahk_code = f'Send "{ahk_keys}"'
+            if self.main_window and hasattr(self.main_window, 'log'):
+                self.main_window.log(
+                    f"⌨️ Keystroke: Sending '{command.action}' to foreground window")
+            return self._run_ahk_code(ahk_code, command)
+
+        # macOS / Linux: use CrossPlatformKeySender
         try:
             from modules.platform_helpers import CrossPlatformKeySender
             sender = CrossPlatformKeySender()
@@ -351,15 +386,10 @@ class VoiceCommandManager(QObject):
                 self.command_executed.emit(command.phrase, f"✓ {command.description}")
                 return True
         except Exception as e:
-            print(f"[VoiceCommands] pynput keystroke failed: {e}")
+            if self.main_window and hasattr(self.main_window, 'log'):
+                self.main_window.log(f"[Keystroke] Error: {e}")
 
-        # Fallback to AHK on Windows
-        if IS_WINDOWS:
-            ahk_keys = self._convert_to_ahk_keys(command.action)
-            ahk_code = f"Send, {ahk_keys}"
-            return self._run_ahk_code(ahk_code, command)
-
-        self.error_occurred.emit("Keystroke sending not available (pynput not installed)")
+        self.error_occurred.emit("Keystroke sending not available")
         return False
     
     def _execute_ahk_script(self, command: VoiceCommand) -> bool:
@@ -394,6 +424,37 @@ class VoiceCommandManager(QObject):
             return False
         return self._run_ahk_code(command.action, command)
     
+    @staticmethod
+    def _ahk_v1_to_v2(code: str) -> str:
+        """Best-effort conversion of AHK v1 command syntax to v2.
+
+        AHK v2 uses function-call syntax: ``Send "keys"`` instead of
+        ``Send, keys``.  This handles the most common commands found in
+        voice-command inline scripts (Send, Sleep, Click, etc.).
+        """
+        import re
+        lines = code.split('\n')
+        converted = []
+        for line in lines:
+            stripped = line.strip()
+            # Send, keys  →  Send "keys"
+            m = re.match(r'^(Send(?:Input|Play|Event)?)\s*,\s*(.+)$', stripped, re.IGNORECASE)
+            if m:
+                converted.append(f'{m.group(1)} "{m.group(2)}"')
+                continue
+            # Sleep, ms  →  Sleep ms
+            m = re.match(r'^(Sleep)\s*,\s*(\d+)$', stripped, re.IGNORECASE)
+            if m:
+                converted.append(f'{m.group(1)} {m.group(2)}')
+                continue
+            # Click, ...  →  Click "..."
+            m = re.match(r'^(Click)\s*,\s*(.+)$', stripped, re.IGNORECASE)
+            if m:
+                converted.append(f'{m.group(1)} "{m.group(2)}"')
+                continue
+            converted.append(line)
+        return '\n'.join(converted)
+
     def _run_ahk_code(self, ahk_code: str, command: VoiceCommand) -> bool:
         """Run arbitrary AHK code"""
         try:
@@ -401,10 +462,13 @@ class VoiceCommandManager(QObject):
             if not ahk_exe:
                 self.error_occurred.emit("AutoHotkey not found. Please install AutoHotkey v2.")
                 return False
-            
+
             # Create temporary script
             temp_script = self.ahk_script_dir / "_temp_voice_cmd.ahk"
-            
+
+            # Convert any v1-style commands to v2 syntax
+            ahk_code = self._ahk_v1_to_v2(ahk_code)
+
             # Wrap code in AHK v2 format
             full_script = f"""#Requires AutoHotkey v2.0
 #SingleInstance Force
