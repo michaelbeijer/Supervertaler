@@ -1041,13 +1041,14 @@ class DatabaseManager:
 
     def search_fuzzy_matches_batch(self, sources: List[str], tm_ids: List[str] = None,
                                     threshold: float = 0.75,
-                                    source_lang: str = None, target_lang: str = None) -> Dict[str, Dict]:
+                                    source_lang: str = None, target_lang: str = None,
+                                    progress_callback=None) -> Dict[str, Dict]:
         """
         Batch fuzzy match lookup for multiple source texts.
 
-        For each source, finds the best fuzzy match above threshold.
-        Pre-computes language filters and tag-stripped texts.
-        Searches all TMs together for speed.
+        Loads all TM candidates into memory once, then compares each source
+        against candidates using word-overlap pre-filtering + SequenceMatcher.
+        This eliminates per-segment SQL overhead which dominates with large TMs.
 
         Args:
             sources: List of source texts to match (should exclude already exact-matched)
@@ -1055,6 +1056,7 @@ class DatabaseManager:
             threshold: Minimum similarity (0.0-1.0)
             source_lang: Filter by source language
             target_lang: Filter by target language
+            progress_callback: Optional callback(current, total) called every N segments
 
         Returns:
             Dict mapping source_text -> best match dict (with 'similarity' and 'match_pct')
@@ -1070,94 +1072,136 @@ class DatabaseManager:
         src_variants = get_lang_match_variants(source_lang) if src_base else []
         tgt_variants = get_lang_match_variants(target_lang) if tgt_base else []
 
-        # Pre-compute cleaned texts for all sources
         tag_re = re.compile(r'<[^>]+>')
-        special_re = re.compile(r'[^\w\s]')
 
-        source_clean_cache = {}
-        for source in sources:
-            text_no_tags = tag_re.sub('', source)
-            source_clean_cache[source] = text_no_tags.lower()
-
-        # Build language filter SQL fragment (shared across all queries)
+        # Build language filter SQL (for single bulk query)
         lang_sql = ""
         lang_params = []
 
         if tm_ids:
             tm_placeholders = ','.join('?' * len(tm_ids))
-            lang_sql += f" AND tu.tm_id IN ({tm_placeholders})"
+            lang_sql += f" AND tm_id IN ({tm_placeholders})"
             lang_params.extend(tm_ids)
 
         if src_base and src_variants:
             src_conditions = []
             for variant in src_variants:
-                src_conditions.append("tu.source_lang = ?")
+                src_conditions.append("source_lang = ?")
                 lang_params.append(variant)
-                src_conditions.append("tu.source_lang LIKE ?")
+                src_conditions.append("source_lang LIKE ?")
                 lang_params.append(f"{variant}-%")
             lang_sql += f" AND ({' OR '.join(src_conditions)})"
 
         if tgt_base and tgt_variants:
             tgt_conditions = []
             for variant in tgt_variants:
-                tgt_conditions.append("tu.target_lang = ?")
+                tgt_conditions.append("target_lang = ?")
                 lang_params.append(variant)
-                tgt_conditions.append("tu.target_lang LIKE ?")
+                tgt_conditions.append("target_lang LIKE ?")
                 lang_params.append(f"{variant}-%")
             lang_sql += f" AND ({' OR '.join(tgt_conditions)})"
 
-        results = {}
+        # === PHASE A: Load all TM candidates into memory (single query) ===
+        query = f"""
+            SELECT id, source_text, target_text, tm_id, usage_count
+            FROM translation_units
+            WHERE 1=1 {lang_sql}
+        """
+        try:
+            self.cursor.execute(query, lang_params)
+            all_rows = self.cursor.fetchall()
+        except Exception:
+            return {}
 
+        if not all_rows:
+            return {}
+
+        # Pre-compute cleaned text + word sets for all TM candidates
+        candidates = []
+        for row in all_rows:
+            source_text = row['source_text']
+            clean = tag_re.sub('', source_text).lower()
+            words = set(clean.split())
+            candidates.append({
+                'id': row['id'],
+                'source_text': source_text,
+                'target_text': row['target_text'],
+                'tm_id': row['tm_id'],
+                'usage_count': row['usage_count'],
+                'clean': clean,
+                'clean_len': len(clean),
+                'words': words,
+            })
+
+        # Pre-compute cleaned texts and word sets for all sources
+        source_data = []
         for source in sources:
-            # Build FTS5 search terms from this source
-            text_no_tags = tag_re.sub('', source)
-            clean_text = special_re.sub(' ', text_no_tags)
-            search_terms = [t for t in clean_text.strip().split() if len(t) > 2]
+            clean = tag_re.sub('', source).lower()
+            words = set(clean.split())
+            source_data.append({
+                'source': source,
+                'clean': clean,
+                'clean_len': len(clean),
+                'words': words,
+            })
 
-            # Also from original source
-            clean_with_tags = special_re.sub(' ', source)
-            search_terms_tags = [t for t in clean_with_tags.strip().split() if len(t) > 2]
+        # === PHASE B: For each source, find best match using pre-filters ===
+        results = {}
+        total = len(sources)
 
-            all_terms = list(dict.fromkeys(search_terms + search_terms_tags))
-            all_terms.sort(key=len, reverse=True)
-            all_terms = all_terms[:20]
+        for idx, sd in enumerate(source_data):
+            # Report progress every 10 segments
+            if progress_callback and idx % 10 == 0:
+                progress_callback(idx, total)
 
-            if not all_terms:
+            source = sd['source']
+            source_clean = sd['clean']
+            source_len = sd['clean_len']
+            source_words = sd['words']
+
+            if source_len == 0:
                 continue
 
-            fts_query = ' OR '.join(f'"{term}"' for term in all_terms)
-
-            query = f"""
-                SELECT tu.*,
-                       bm25(translation_units_fts) as relevance
-                FROM translation_units tu
-                JOIN translation_units_fts ON tu.id = translation_units_fts.rowid
-                WHERE translation_units_fts MATCH ?
-                {lang_sql}
-                ORDER BY relevance DESC LIMIT 500
-            """
-            params = [fts_query] + lang_params
-
-            try:
-                self.cursor.execute(query, params)
-                rows = self.cursor.fetchall()
-            except Exception:
-                continue
-
-            source_clean = source_clean_cache[source]
             best_match = None
             best_similarity = 0.0
 
-            for row in rows:
-                row_dict = dict(row)
-                candidate_clean = tag_re.sub('', row_dict['source_text']).lower()
-                similarity = SequenceMatcher(None, source_clean, candidate_clean).ratio()
+            for cand in candidates:
+                cand_len = cand['clean_len']
+                if cand_len == 0:
+                    continue
+
+                # Pre-filter 1: Length ratio (very cheap)
+                len_ratio = min(source_len, cand_len) / max(source_len, cand_len)
+                if len_ratio < threshold:
+                    continue
+
+                # Pre-filter 2: Word overlap (cheap set intersection)
+                # If word overlap is too low, SequenceMatcher won't hit threshold
+                if source_words and cand['words']:
+                    overlap = len(source_words & cand['words'])
+                    max_words = max(len(source_words), len(cand['words']))
+                    if max_words > 0 and overlap / max_words < threshold * 0.5:
+                        continue
+
+                # Pre-filter 3: quick_ratio (O(n) upper bound)
+                sm = SequenceMatcher(None, source_clean, cand['clean'])
+                if sm.quick_ratio() <= best_similarity:
+                    continue
+
+                # Full similarity (O(n²) but only for promising candidates)
+                similarity = sm.ratio()
 
                 if similarity >= threshold and similarity > best_similarity:
                     best_similarity = similarity
-                    best_match = row_dict
-                    best_match['similarity'] = similarity
-                    best_match['match_pct'] = int(similarity * 100)
+                    best_match = {
+                        'id': cand['id'],
+                        'source_text': cand['source_text'],
+                        'target_text': cand['target_text'],
+                        'tm_id': cand['tm_id'],
+                        'usage_count': cand['usage_count'],
+                        'similarity': similarity,
+                        'match_pct': int(similarity * 100)
+                    }
 
                     # Early exit on perfect match
                     if similarity >= 0.999:

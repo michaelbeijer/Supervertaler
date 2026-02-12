@@ -279,7 +279,7 @@ class TMDatabase:
         )
 
     def search_all_batch(self, sources: List[str], tm_ids: List[str] = None,
-                         enabled_only: bool = True) -> Dict[str, Dict]:
+                         enabled_only: bool = True, progress_callback=None) -> Dict[str, Dict]:
         """
         Batch search across TMs for best match per source text (exact + fuzzy).
 
@@ -289,6 +289,7 @@ class TMDatabase:
             sources: List of source texts to search
             tm_ids: Specific TM IDs to search (None = all enabled)
             enabled_only: Only search enabled TMs
+            progress_callback: Optional callback(current, total) for fuzzy phase progress
 
         Returns:
             Dict mapping source_text -> best match dict with keys:
@@ -328,7 +329,8 @@ class TMDatabase:
                 tm_ids=tm_ids,
                 threshold=self.fuzzy_threshold,
                 source_lang=self.source_lang,
-                target_lang=self.target_lang
+                target_lang=self.target_lang,
+                progress_callback=progress_callback
             )
 
             for source_text, match in fuzzy_matches.items():

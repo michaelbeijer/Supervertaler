@@ -274,7 +274,7 @@ STATUS_ORDER = [
 
 STATUS_CYCLE = STATUS_ORDER
 
-TRANSLATABLE_STATUSES = {"not_started", "pretranslated", "translated"}
+TRANSLATABLE_STATUSES = {"not_started", "pretranslated", "translated", "tm_100", "tm_fuzzy"}
 
 # Check for PyQt6 and offer to install if missing
 try:
@@ -8165,7 +8165,7 @@ class SupervertalerQt(QMainWindow):
             # Statuses that indicate "done" (confirmed or higher)
             confirmed_statuses = {'confirmed', 'tr_confirmed', 'proofread', 'approved'}
             # Statuses that need work
-            unfinished_statuses = {'not_started', 'pretranslated', 'rejected'}
+            unfinished_statuses = {'not_started', 'pretranslated', 'rejected', 'tm_100', 'tm_fuzzy'}
 
             for segment in segments:
                 # Count words in source (simple split on whitespace)
@@ -22727,7 +22727,7 @@ class SupervertalerQt(QMainWindow):
         self.table.setColumnWidth(1, 40)   # Type - narrower
         self.table.setColumnWidth(2, 400)  # Source
         self.table.setColumnWidth(3, 400)  # Target
-        self.table.setColumnWidth(4, 50)   # Status - compact width
+        self.table.setColumnWidth(4, 75)   # Status - wide enough for icon + match %
         
         # Enable word wrap in cells (both display and edit mode)
         self.table.setWordWrap(True)
@@ -32931,8 +32931,8 @@ class SupervertalerQt(QMainWindow):
     def _create_status_cell_widget(self, segment: Segment) -> QWidget:
         widget = QWidget()
         layout = QHBoxLayout(widget)
-        layout.setContentsMargins(4, 2, 4, 2)  # Slightly more vertical padding
-        layout.setSpacing(6)
+        layout.setContentsMargins(2, 2, 2, 2)  # Compact margins
+        layout.setSpacing(1)
         layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)  # Center content vertically
         # Remove fixed minimum height - let it adapt to row height
         widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
@@ -32974,19 +32974,18 @@ class SupervertalerQt(QMainWindow):
             match_text = f"{segment.match_percent}%"
             match_label = QLabel(match_text)
             match_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            match_label.setMinimumWidth(40)
-            match_label.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Preferred)
+            match_label.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
             if segment.match_percent >= 101:
-                match_label.setStyleSheet("color: #1b5e20; font-weight: bold; padding-left: 4px; padding-right: 4px;")
-                match_label.setProperty("status_tooltip", "Context match from memoQ (101% or better)")
+                match_label.setStyleSheet("color: #1b5e20; font-weight: bold; font-size: 11px; padding: 0px;")
+                match_label.setProperty("status_tooltip", "Context match (101% or better)")
             elif segment.match_percent >= 100:
-                match_label.setStyleSheet("color: #2e7d32; font-weight: bold; padding-left: 4px; padding-right: 4px;")
-                match_label.setProperty("status_tooltip", "Exact match from memoQ (100%)")
+                match_label.setStyleSheet("color: #2e7d32; font-weight: bold; font-size: 11px; padding: 0px;")
+                match_label.setProperty("status_tooltip", "Exact match (100%)")
             elif segment.match_percent >= 90:
-                match_label.setStyleSheet("color: #1565C0; font-weight: bold; padding-left: 4px; padding-right: 4px;")
+                match_label.setStyleSheet("color: #1565C0; font-weight: bold; font-size: 11px; padding: 0px;")
                 match_label.setProperty("status_tooltip", f"High fuzzy match {segment.match_percent}%")
             else:
-                match_label.setStyleSheet("color: #0d47a1; padding-left: 4px; padding-right: 4px;")
+                match_label.setStyleSheet("color: #0d47a1; font-size: 11px; padding: 0px;")
                 match_label.setProperty("status_tooltip", f"Fuzzy match {segment.match_percent}%")
             match_label.installEventFilter(self)
             layout.addWidget(match_label)
@@ -34232,9 +34231,23 @@ class SupervertalerQt(QMainWindow):
                     self.log(f"⚠️ Could not find segment with ID {segment_id} in project")
                     return
                 
+                # If segment has a batch TM match, display it in the Match Panel immediately
+                batch_match = getattr(segment, '_batch_tm_match', None)
+                if batch_match:
+                    search_source = segment.source
+                    if self.hide_outer_wrapping_tags:
+                        search_source, _ = strip_outer_wrapping_tags(search_source)
+                    tm_matches = [{
+                        'source': batch_match.get('source', search_source),
+                        'target': batch_match.get('target', ''),
+                        'tm_name': batch_match.get('tm_name', 'TM'),
+                        'match_pct': batch_match.get('match_pct', 100)
+                    }]
+                    self.set_compare_panel_matches(segment.id, search_source, tm_matches, [])
+
                 # Update Preview panel - scroll to and highlight this segment
                 self._scroll_preview_to_segment(segment_id)
-                
+
                 # Update Translation Results panel header with segment info
                 if hasattr(self, 'results_panels'):
                     for panel in self.results_panels:
@@ -34389,8 +34402,10 @@ class SupervertalerQt(QMainWindow):
                     matches_dict = cached_matches  # Set for later use
 
                     # v1.9.182: Schedule TM lookup even on cache hit (prefetch skips TM - not thread-safe)
+                    # v1.9.261: Skip if segment already has batch TM match data from pre-translation
                     tm_count = len(cached_matches.get("TM", []))
-                    if tm_count == 0 and self.enable_tm_matching:
+                    has_batch_match = getattr(segment, '_batch_tm_match', None)
+                    if tm_count == 0 and self.enable_tm_matching and not has_batch_match:
                         find_replace_active = getattr(self, 'find_replace_active', False)
                         if not find_replace_active:
                             # Get termbase matches for the lookup
@@ -34633,9 +34648,11 @@ class SupervertalerQt(QMainWindow):
                             # v1.9.182: Check if TM matches exist - prefetch worker skips TM lookups
                             needs_tm_lookup = len(cached.get("TM", [])) == 0
 
+                    # v1.9.261: Skip background TM lookup if segment has batch match data from pre-translation
+                    has_batch_match = getattr(segment, '_batch_tm_match', None)
                     find_replace_active = getattr(self, 'find_replace_active', False)
 
-                    if needs_tm_lookup and self.enable_tm_matching and not find_replace_active:
+                    if needs_tm_lookup and not has_batch_match and self.enable_tm_matching and not find_replace_active:
                         # Get termbase matches if they exist (could be None or empty)
                         termbase_matches = matches_dict.get('Termbases', []) if matches_dict else []
                         self._schedule_mt_and_llm_matches(segment, termbase_matches)
@@ -45375,15 +45392,29 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                 else:
                     progress.setLabelText(
                         f"Batch matching {unique_count} unique segments (exact + fuzzy)...\n\n"
-                        f"Phase 1: Exact matching, Phase 2: Fuzzy matching for remainder."
+                        f"Phase 1: Exact matching..."
                     )
                     progress.setValue(20)
                     QApplication.processEvents()
 
+                    def fuzzy_progress(current, total):
+                        """Update progress during fuzzy matching phase (20% to 80%)."""
+                        if total > 0:
+                            pct = 20 + int(60 * current / total)
+                            progress.setValue(pct)
+                            progress.setLabelText(
+                                f"Fuzzy matching {current}/{total} unmatched segments...\n\n"
+                                f"Phase 2: Finding best fuzzy matches (≥75%)."
+                            )
+                        QApplication.processEvents()
+                        if progress.wasCanceled():
+                            raise InterruptedError("Canceled by user")
+
                     batch_results = self.tm_database.search_all_batch(
                         sources=unique_sources,
                         tm_ids=tm_ids,
-                        enabled_only=False
+                        enabled_only=False,
+                        progress_callback=fuzzy_progress
                     )
 
                     match_results = {}
@@ -45392,7 +45423,10 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                         if match_pct >= 75:
                             match_results[source_text] = {
                                 'target': match.get('target', ''),
-                                'match_pct': match_pct
+                                'match_pct': match_pct,
+                                'source': match.get('source', source_text),
+                                'tm_name': match.get('tm_name', ''),
+                                'tm_id': match.get('tm_id', '')
                             }
 
             except Exception as e:
@@ -45416,29 +45450,33 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                 for row_index, segment in seg_list:
                     if match:
                         segment.target = match['target']
-                        segment.status = "Translated"
+                        match_pct = match.get('match_pct', 100)
+                        segment.match_percent = match_pct
+                        if match_pct >= 100:
+                            segment.status = "tm_100"
+                        else:
+                            segment.status = "tm_fuzzy"
+                        # Store batch match info on segment for Match Panel display
+                        segment._batch_tm_match = {
+                            'source': match.get('source', search_source),
+                            'target': match['target'],
+                            'match_pct': match_pct,
+                            'tm_name': match.get('tm_name', ''),
+                            'tm_id': match.get('tm_id', '')
+                        }
                         success_count += 1
                     else:
                         no_match_count += 1
 
-            # Step 4: Bulk update grid UI
+            # Invalidate prefetch cache so Match Panel does fresh lookups
+            if hasattr(self, 'translation_matches_cache') and self.translation_matches_cache:
+                with self.translation_matches_cache_lock:
+                    self.translation_matches_cache.clear()
+                self.log(f"   Cache cleared after batch pre-translation")
+
+            # Step 4: Reload entire grid from updated segment data
             progress.setLabelText(f"Updating grid ({success_count} translated)...")
             progress.setValue(90)
-            QApplication.processEvents()
-
-            for search_source, seg_list in source_to_segments.items():
-                match = match_results.get(search_source)
-                if not match:
-                    continue
-                for row_index, segment in seg_list:
-                    target_widget = self.table.cellWidget(row_index, 3)
-                    if target_widget and isinstance(target_widget, EditableGridTextEditor):
-                        display_text = segment.target
-                        if self.hide_outer_wrapping_tags:
-                            display_text, _ = strip_outer_wrapping_tags(display_text)
-                        target_widget.setPlainText(display_text)
-                    self.update_status_icon(row_index, segment.status)
-
             QApplication.processEvents()
 
             elapsed = time.time() - start_time
@@ -45446,6 +45484,10 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
 
             progress.setValue(100)
             progress.close()
+
+            # Full grid reload ensures all status icons, match percentages,
+            # and target texts are correctly displayed
+            self.load_segments_to_grid()
 
             # Show completion message
             self.log(f"═══════════════════════════════════════════════════════════")
@@ -45463,7 +45505,6 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
 
             self.project_modified = True
             self.update_window_title()
-            self.auto_resize_rows()
             self.update_progress_stats()
             return  # Exit - TM pre-translation is complete
         
@@ -45723,7 +45764,15 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                             if exact_match:
                                 tm_match = exact_match.get('target_text', '')
                                 segment.target = tm_match
-                                segment.status = "translated"
+                                segment.match_percent = 100
+                                segment.status = "tm_100"
+                                segment._batch_tm_match = {
+                                    'source': exact_match.get('source_text', search_source),
+                                    'target': tm_match,
+                                    'match_pct': 100,
+                                    'tm_name': self.tm_metadata.get(exact_match.get('tm_id', ''), {}).get('name', '') if hasattr(self, 'tm_metadata') else '',
+                                    'tm_id': exact_match.get('tm_id', '')
+                                }
                                 tm_matches_found += 1
                                 translated_count += 1
 
@@ -45733,7 +45782,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                                         target_widget.setPlainText(tm_match)
                                     else:
                                         self.table.setItem(row_index, 3, QTableWidgetItem(tm_match))
-                                    self.update_status_icon(row_index, "translated")
+                                    self.update_status_icon(row_index, "tm_100")
                             else:
                                 segments_needing_translation.append((row_index, segment))
 
@@ -45799,11 +45848,18 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                 unique_tm_sources = list(source_to_tm_segs.keys())
                 self.log(f"   {len(segments_needing_translation)} segments → {len(unique_tm_sources)} unique sources")
 
+                def tm_only_fuzzy_progress(current, total):
+                    """Update progress during fuzzy matching in TM-only mode."""
+                    if total > 0:
+                        current_label.setText(f"Fuzzy matching {current}/{total} unmatched segments...")
+                    QApplication.processEvents()
+
                 try:
                     batch_tm_results = self.tm_database.search_all_batch(
                         sources=unique_tm_sources,
                         tm_ids=tm_ids,
-                        enabled_only=False
+                        enabled_only=False,
+                        progress_callback=tm_only_fuzzy_progress
                     )
                 except Exception as e:
                     self.log(f"   ✗ Batch TM search error: {e}")
@@ -45815,27 +45871,39 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                     for row_index, segment in seg_list:
                         if match and match.get('match_pct', 0) >= 75:
                             tm_match = match.get('target', '')
+                            match_pct = match.get('match_pct', 100)
                             segment.target = tm_match
-                            segment.status = "pretranslated"
+                            segment.match_percent = match_pct
+                            if match_pct >= 100:
+                                segment.status = "tm_100"
+                            else:
+                                segment.status = "tm_fuzzy"
+                            segment._batch_tm_match = {
+                                'source': match.get('source', search_source),
+                                'target': tm_match,
+                                'match_pct': match_pct,
+                                'tm_name': match.get('tm_name', ''),
+                                'tm_id': match.get('tm_id', '')
+                            }
                             translated_count += 1
 
-                            if row_index < self.table.rowCount():
-                                target_widget = self.table.cellWidget(row_index, 3)
-                                if target_widget and isinstance(target_widget, EditableGridTextEditor):
-                                    target_widget.setPlainText(tm_match)
-                                else:
-                                    self.table.setItem(row_index, 3, QTableWidgetItem(tm_match))
-                                self.update_status_icon(row_index, segment.status)
                         else:
                             failed_count += 1
 
                         segment_idx += 1
 
+                # Invalidate prefetch cache
+                if hasattr(self, 'translation_matches_cache') and self.translation_matches_cache:
+                    with self.translation_matches_cache_lock:
+                        self.translation_matches_cache.clear()
+
                 progress_bar.setValue(segment_idx)
                 stats_label.setText(f"Translated: {translated_count} | Skipped: {failed_count}")
                 QApplication.processEvents()
-                
-                # TM-only translation complete
+
+                # TM-only translation complete — full grid reload
+                self.load_segments_to_grid()
+
                 self.project_modified = True
                 self.update_window_title()
                 current_label.setText(f"✓ Complete! {translated_count} segments translated from TM, {failed_count} skipped (no match/low match)")
@@ -45844,8 +45912,6 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                 self.log(f"✓ TM-Only Batch Translation Complete")
                 self.log(f"   Translated: {translated_count} | Skipped: {failed_count}")
                 self.log(f"═══════════════════════════════════════════════════════════")
-                # Auto-resize rows to fit inserted translations
-                self.auto_resize_rows()
                 self.update_progress_stats()
                 return
             

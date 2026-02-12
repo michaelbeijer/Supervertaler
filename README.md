@@ -6,7 +6,7 @@
 
 **Professional AI-enhanced translation workbench** with multi-LLM support (GPT-4, Claude, Gemini, Ollama), translation memory, glossary management, and seamless CAT tool integration (memoQ, Trados, CafeTran, Phrase, Déjà Vu).
 
-**Latest release:** v1.9.260 - TM batch pre-translation up to 30× faster (2 min → 4 sec for exact matches). Batch SQL queries, source deduplication, and single-commit optimization.
+**Latest release:** v1.9.261 - TM fuzzy matching rewritten for massive speedup, proper TM match status icons (✅/🔶) with percentages, Match Panel displays batch TM results.
 
 ---
 

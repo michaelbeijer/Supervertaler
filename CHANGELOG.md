@@ -2,8 +2,27 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.260 (February 12, 2026)
+**Current Version:** v1.9.261 (February 12, 2026)
 
+
+## v1.9.261 - February 12, 2026
+
+### Performance
+
+- **TM fuzzy matching completely rewritten for massive speedup** — Fuzzy matching during batch pre-translation now loads all TM candidates into memory with a single SQL query instead of running individual FTS5 queries per segment. A three-tier pre-filter cascade (length ratio → word overlap → `quick_ratio()`) eliminates most candidates before the expensive `SequenceMatcher.ratio()` is called. Result: fuzzy matching that previously took 5–7 minutes now completes in seconds.
+- **Progress feedback during fuzzy matching** — Added `progress_callback` throughout the fuzzy matching pipeline (`database_manager` → `translation_memory` → main UI) with `processEvents()` every 10 segments, preventing "Not Responding" dialogs during large batch operations.
+
+### Improvements
+
+- **TM match status icons in grid** — After batch pre-translation, segments now show proper status icons: ✅ for exact TM matches (100%) and 🔶 for fuzzy TM matches (<100%), with the match percentage displayed next to the icon. Previously all pre-translated segments showed ❌ (not started).
+- **Match Panel shows batch TM results** — Clicking a pre-translated segment now immediately displays the TM source/target match in the Match Panel. The batch match data is stored on each segment and displayed without waiting for a background TM lookup.
+- **Compact status column layout** — Reduced spacing between status icon and match percentage for a cleaner, less distracting grid appearance.
+
+### Bug Fixes
+
+- **Match Panel no longer overwrites batch TM data** — Fixed an issue where the background TM lookup (`_schedule_mt_and_llm_matches`) would overwrite the Match Panel's batch match data with empty results. Segments with batch TM match data now skip the redundant background lookup.
+
+---
 
 ## v1.9.260 - February 12, 2026
 
