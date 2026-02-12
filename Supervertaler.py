@@ -52,7 +52,7 @@ def _read_version():
 
 __version__ = _read_version()
 __phase__ = "0.9"
-__release_date__ = "2026-02-06"
+__release_date__ = "2026-02-12"
 __edition__ = "Qt"
 
 import sys
@@ -45061,16 +45061,16 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             provider_layout = QVBoxLayout()
 
             # Translation Memory option
-            tm_checkbox = CheckmarkCheckBox("📖 TM (Translation Memory) - Pre-translate from activated TMs")
+            tm_checkbox = CheckmarkCheckBox("📖 TM (Translation Memory) - Pre-translate from activated TMs (exact + fuzzy ≥75%)")
             tm_checkbox.setChecked(False)
             provider_layout.addWidget(tm_checkbox)
-            
+
             # TM Exact Matches Only sub-option (indented to show it's related to TM)
-            tm_exact_only_checkbox = CheckmarkCheckBox("       ⚡ Exact matches only (faster - skips fuzzy matching)")
+            tm_exact_only_checkbox = CheckmarkCheckBox("       ⚡ Exact matches only (100% matches only - fastest)")
             tm_exact_only_checkbox.setEnabled(False)  # Disabled until TM is selected
             tm_exact_only_checkbox.setToolTip(
                 "Only search for 100% exact matches using fast hash lookup.\n"
-                "Skips fuzzy matching which can take several seconds per segment.\n"
+                "Skips fuzzy matching (75–99% similar segments).\n"
                 "Recommended for large documents when you have a good TM."
             )
             # Add left margin to create visual hierarchy
@@ -45312,117 +45312,155 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                 return
             
             self.log(f"📖 Pre-translate from TM: Using activated TMs: {tm_ids}")
-            
-            # Create progress dialog for TM pre-translation
+
+            # ── Batch TM pre-translation (optimized) ──
             import time
             start_time = time.time()
             total_segments = len(segments_needing_translation)
 
             progress = QProgressDialog(
                 f"Pre-translating {total_segments} segments from TM...",
-                "Cancel", 0, total_segments, self
+                "Cancel", 0, 100, self
             )
             progress.setWindowTitle("🔍 TM Pre-Translation")
             progress.setWindowModality(Qt.WindowModality.WindowModal)
-            progress.setMinimumDuration(0)  # Show immediately
-            progress.setMinimumWidth(450)  # Wider dialog for more info
+            progress.setMinimumDuration(0)
+            progress.setMinimumWidth(450)
             progress.show()
+            QApplication.processEvents()
+
+            # Step 1: Prepare search sources (strip outer tags if needed, deduplicate)
+            progress.setLabelText(f"Preparing {total_segments} segments...")
+            progress.setValue(5)
+            QApplication.processEvents()
+
+            # Build mapping: search_source -> list of (row_index, segment) pairs
+            source_to_segments = {}
+            for row_index, segment in segments_needing_translation:
+                search_source = segment.source
+                if self.hide_outer_wrapping_tags:
+                    search_source, _ = strip_outer_wrapping_tags(search_source)
+                source_to_segments.setdefault(search_source, []).append((row_index, segment))
+
+            unique_sources = list(source_to_segments.keys())
+            unique_count = len(unique_sources)
+            self.log(f"   {total_segments} segments → {unique_count} unique source texts")
+
+            if progress.wasCanceled():
+                progress.close()
+                return
+
+            # Step 2: Batch TM lookup
+            try:
+                if tm_exact_only:
+                    progress.setLabelText(
+                        f"Batch exact-matching {unique_count} unique segments...\n\n"
+                        f"This uses a single optimized database query."
+                    )
+                    progress.setValue(20)
+                    QApplication.processEvents()
+
+                    batch_results = self.tm_database.get_exact_matches_batch(
+                        sources=unique_sources,
+                        tm_ids=tm_ids
+                    )
+
+                    # Convert to common format: source -> {target, match_pct}
+                    match_results = {}
+                    for source_text, match in batch_results.items():
+                        match_results[source_text] = {
+                            'target': match.get('target_text', ''),
+                            'match_pct': 100
+                        }
+                else:
+                    progress.setLabelText(
+                        f"Batch matching {unique_count} unique segments (exact + fuzzy)...\n\n"
+                        f"Phase 1: Exact matching, Phase 2: Fuzzy matching for remainder."
+                    )
+                    progress.setValue(20)
+                    QApplication.processEvents()
+
+                    batch_results = self.tm_database.search_all_batch(
+                        sources=unique_sources,
+                        tm_ids=tm_ids,
+                        enabled_only=False
+                    )
+
+                    match_results = {}
+                    for source_text, match in batch_results.items():
+                        match_pct = match.get('match_pct', 0)
+                        if match_pct >= 75:
+                            match_results[source_text] = {
+                                'target': match.get('target', ''),
+                                'match_pct': match_pct
+                            }
+
+            except Exception as e:
+                self.log(f"   ✗ Batch TM search error: {e}")
+                match_results = {}
+
+            if progress.wasCanceled():
+                progress.close()
+                return
+
+            # Step 3: Apply results to segments and update grid
+            progress.setLabelText(f"Applying {len(match_results)} matches to segments...")
+            progress.setValue(80)
             QApplication.processEvents()
 
             success_count = 0
             no_match_count = 0
 
-            for idx, (row_index, segment) in enumerate(segments_needing_translation):
-                if progress.wasCanceled():
-                    break
-
-                progress.setValue(idx)
-
-                # Build informative progress label
-                elapsed = time.time() - start_time
-                elapsed_str = f"{int(elapsed // 60)}:{int(elapsed % 60):02d}"
-                source_preview = segment.source[:50] + "..." if len(segment.source) > 50 else segment.source
-                label_text = (
-                    f"Searching TM for segment {idx + 1} of {total_segments}...\n\n"
-                    f"Current: \"{source_preview}\"\n"
-                    f"Matches found: {success_count}  |  Elapsed: {elapsed_str}\n\n"
-                    f"ℹ️ This may take a while for large documents."
-                )
-                progress.setLabelText(label_text)
-                QApplication.processEvents()
-                
-                try:
-                    match = None
-
-                    # Strip outer structural tags if setting is enabled (for cleaner TM matching)
-                    search_source = segment.source
-                    if self.hide_outer_wrapping_tags:
-                        search_source, _ = strip_outer_wrapping_tags(search_source)
-
-                    if tm_exact_only:
-                        # Exact match only - use hash lookup (fast)
-                        match = self.tm_database.get_exact_match(search_source, tm_ids=tm_ids)
-                        print(f"DEBUG get_exact_match returned: type={type(match)}, value={match}")
-                        if match and isinstance(match, dict):
-                            segment.target = match.get('target_text', '')
-                            segment.status = "Translated"
-                            success_count += 1
-                            self.log(f"   ✓ Segment {row_index + 1}: 100% exact match found")
-                        else:
-                            no_match_count += 1
+            for search_source, seg_list in source_to_segments.items():
+                match = match_results.get(search_source)
+                for row_index, segment in seg_list:
+                    if match:
+                        segment.target = match['target']
+                        segment.status = "Translated"
+                        success_count += 1
                     else:
-                        # Fuzzy matching enabled - get best match ≥75%
-                        matches = self.tm_database.search_all(
-                            search_source,
-                            tm_ids=tm_ids,
-                            enabled_only=False,
-                            max_matches=1
-                        )
-                        if matches and len(matches) > 0:
-                            best_match = matches[0]
-                            match_pct = best_match.get('match_pct', 0)
-                            if match_pct >= 75:
-                                segment.target = best_match.get('target', '')
-                                segment.status = "Translated"
-                                success_count += 1
-                                self.log(f"   ✓ Segment {row_index + 1}: {match_pct}% match found")
-                            else:
-                                no_match_count += 1
-                        else:
-                            no_match_count += 1
-                    
-                    # Update grid immediately
-                    if segment.target:
-                        target_widget = self.table.cellWidget(row_index, 3)
-                        if target_widget and isinstance(target_widget, EditableGridTextEditor):
-                            # Strip outer wrapping tags if setting is enabled
-                            display_text = segment.target
-                            if self.hide_outer_wrapping_tags:
-                                display_text, _ = strip_outer_wrapping_tags(display_text)
-                            target_widget.setPlainText(display_text)
-                        self.update_status_icon(row_index, segment.status)
-                        QApplication.processEvents()
-                        
-                except Exception as e:
-                    self.log(f"   ✗ Segment {row_index + 1}: Error - {str(e)}")
-                    no_match_count += 1
-            
-            progress.setValue(len(segments_needing_translation))
+                        no_match_count += 1
+
+            # Step 4: Bulk update grid UI
+            progress.setLabelText(f"Updating grid ({success_count} translated)...")
+            progress.setValue(90)
+            QApplication.processEvents()
+
+            for search_source, seg_list in source_to_segments.items():
+                match = match_results.get(search_source)
+                if not match:
+                    continue
+                for row_index, segment in seg_list:
+                    target_widget = self.table.cellWidget(row_index, 3)
+                    if target_widget and isinstance(target_widget, EditableGridTextEditor):
+                        display_text = segment.target
+                        if self.hide_outer_wrapping_tags:
+                            display_text, _ = strip_outer_wrapping_tags(display_text)
+                        target_widget.setPlainText(display_text)
+                    self.update_status_icon(row_index, segment.status)
+
+            QApplication.processEvents()
+
+            elapsed = time.time() - start_time
+            elapsed_str = f"{elapsed:.1f}s"
+
+            progress.setValue(100)
             progress.close()
-            
+
             # Show completion message
             self.log(f"═══════════════════════════════════════════════════════════")
-            self.log(f"✓ TM Pre-Translation Complete")
+            self.log(f"✓ TM Pre-Translation Complete ({elapsed_str})")
             self.log(f"   Translated: {success_count} | No match: {no_match_count}")
+            self.log(f"   Unique sources: {unique_count} | Total segments: {total_segments}")
             self.log(f"═══════════════════════════════════════════════════════════")
-            
+
             QMessageBox.information(
                 self, "TM Pre-Translation Complete",
-                f"Pre-translation from TM complete.\n\n"
+                f"Pre-translation from TM complete in {elapsed_str}.\n\n"
                 f"✓ Translated: {success_count}\n"
                 f"⊘ No match: {no_match_count}"
             )
-            
+
             self.project_modified = True
             self.update_window_title()
             self.auto_resize_rows()
@@ -45658,66 +45696,48 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                     self.log(f"   Skipping TM pre-check (no activated TMs)")
                     segments_needing_translation = segments_to_translate
                 else:
-                    # Check each segment against TM
+                    # Batch TM pre-check: prepare sources, deduplicate, single query
+                    source_to_precheck_segs = {}
                     for row_index, segment in segments_to_translate:
-                        try:
-                            # Strip outer structural tags if setting is enabled (for cleaner TM matching)
-                            search_source = segment.source
-                            if self.hide_outer_wrapping_tags:
-                                search_source, _ = strip_outer_wrapping_tags(search_source)
+                        search_source = segment.source
+                        if self.hide_outer_wrapping_tags:
+                            search_source, _ = strip_outer_wrapping_tags(search_source)
+                        source_to_precheck_segs.setdefault(search_source, []).append((row_index, segment))
 
-                            if check_tm_exact_only:
-                                # Use exact match only (faster - O(1) hash lookup)
-                                exact_match = self.tm_database.get_exact_match(search_source, tm_ids=tm_ids)
-                                if exact_match:
-                                    # Found 100% exact match - auto-insert it
-                                    tm_match = exact_match.get('target_text', '')
-                                    segment.target = tm_match
-                                    segment.status = "translated"
-                                    tm_matches_found += 1
-                                    
-                                    # Update grid immediately
-                                    if row_index < self.table.rowCount():
-                                        target_widget = self.table.cellWidget(row_index, 3)
-                                        if target_widget and isinstance(target_widget, EditableGridTextEditor):
-                                            target_widget.setPlainText(tm_match)
-                                        else:
-                                            self.table.setItem(row_index, 3, QTableWidgetItem(tm_match))
-                                        self.update_status_icon(row_index, "translated")
-                                    
-                                    translated_count += 1
-                                    self.log(f"   ✓ TM 100%: Segment #{segment.id}")
-                                else:
-                                    # No exact match - needs translation
-                                    segments_needing_translation.append((row_index, segment))
+                    unique_precheck = list(source_to_precheck_segs.keys())
+
+                    try:
+                        # Batch exact match lookup (single SQL query)
+                        precheck_results = self.tm_database.get_exact_matches_batch(
+                            sources=unique_precheck,
+                            tm_ids=tm_ids
+                        )
+                    except Exception as e:
+                        self.log(f"   ⚠ Batch TM pre-check error: {e}")
+                        precheck_results = {}
+
+                    # Apply results
+                    for search_source, seg_list in source_to_precheck_segs.items():
+                        exact_match = precheck_results.get(search_source)
+                        for row_index, segment in seg_list:
+                            if exact_match:
+                                tm_match = exact_match.get('target_text', '')
+                                segment.target = tm_match
+                                segment.status = "translated"
+                                tm_matches_found += 1
+                                translated_count += 1
+
+                                if row_index < self.table.rowCount():
+                                    target_widget = self.table.cellWidget(row_index, 3)
+                                    if target_widget and isinstance(target_widget, EditableGridTextEditor):
+                                        target_widget.setPlainText(tm_match)
+                                    else:
+                                        self.table.setItem(row_index, 3, QTableWidgetItem(tm_match))
+                                    self.update_status_icon(row_index, "translated")
                             else:
-                                # Use fuzzy search (includes 100% matches)
-                                matches = self.tm_database.search_all(search_source, tm_ids=tm_ids, enabled_only=False, max_matches=1)
-                                if matches and matches[0].get('match_pct', 0) == 100:
-                                    # Found 100% match - auto-insert it
-                                    tm_match = matches[0].get('target', '')
-                                    segment.target = tm_match
-                                    segment.status = "translated"
-                                    tm_matches_found += 1
-                                    
-                                    # Update grid immediately
-                                    if row_index < self.table.rowCount():
-                                        target_widget = self.table.cellWidget(row_index, 3)
-                                        if target_widget and isinstance(target_widget, EditableGridTextEditor):
-                                            target_widget.setPlainText(tm_match)
-                                        else:
-                                            self.table.setItem(row_index, 3, QTableWidgetItem(tm_match))
-                                        self.update_status_icon(row_index, "translated")
-                                    
-                                    translated_count += 1
-                                    self.log(f"   ✓ TM 100%: Segment #{segment.id}")
-                                else:
-                                    # No 100% match - needs translation
-                                    segments_needing_translation.append((row_index, segment))
-                        except Exception as e:
-                            # TM check failed - add to translation queue
-                            segments_needing_translation.append((row_index, segment))
-                            self.log(f"   ⚠ TM check error for segment #{segment.id}: {e}")
+                                segments_needing_translation.append((row_index, segment))
+
+                    QApplication.processEvents()
                 
                 self.log(f"✓ TM pre-check complete: {tm_matches_found} 100% matches found, {len(segments_needing_translation)} segments need translation")
                 self.log(f"   API calls saved: {tm_matches_found} (cost savings!)")
@@ -45768,57 +45788,52 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                         if tm_ids:
                             self.log(f"   Using activated TMs: {tm_ids}")
                 
-                # Translate each segment from TM
+                # Batch TM-only translation: prepare, deduplicate, batch query
+                source_to_tm_segs = {}
                 for row_index, segment in segments_needing_translation:
-                    try:
-                        # Strip outer structural tags if setting is enabled (for cleaner TM matching)
-                        search_source = segment.source
-                        if self.hide_outer_wrapping_tags:
-                            search_source, _ = strip_outer_wrapping_tags(search_source)
+                    search_source = segment.source
+                    if self.hide_outer_wrapping_tags:
+                        search_source, _ = strip_outer_wrapping_tags(search_source)
+                    source_to_tm_segs.setdefault(search_source, []).append((row_index, segment))
 
-                        # Search TM for best match
-                        matches = self.tm_database.search_all(search_source, tm_ids=tm_ids, enabled_only=False, max_matches=1)
-                        
-                        if matches and len(matches) > 0:
-                            match = matches[0]
-                            match_pct = match.get('match_pct', 0)
+                unique_tm_sources = list(source_to_tm_segs.keys())
+                self.log(f"   {len(segments_needing_translation)} segments → {len(unique_tm_sources)} unique sources")
+
+                try:
+                    batch_tm_results = self.tm_database.search_all_batch(
+                        sources=unique_tm_sources,
+                        tm_ids=tm_ids,
+                        enabled_only=False
+                    )
+                except Exception as e:
+                    self.log(f"   ✗ Batch TM search error: {e}")
+                    batch_tm_results = {}
+
+                # Apply results to all segments
+                for search_source, seg_list in source_to_tm_segs.items():
+                    match = batch_tm_results.get(search_source)
+                    for row_index, segment in seg_list:
+                        if match and match.get('match_pct', 0) >= 75:
                             tm_match = match.get('target', '')
-                            
-                            if match_pct >= 75:  # Accept matches 75% and above
-                                segment.target = tm_match
-                                segment.status = "pretranslated"
-                                translated_count += 1
-                                
-                                # Update grid immediately
-                                if row_index < self.table.rowCount():
-                                    target_widget = self.table.cellWidget(row_index, 3)
-                                    if target_widget and isinstance(target_widget, EditableGridTextEditor):
-                                        target_widget.setPlainText(tm_match)
-                                    else:
-                                        self.table.setItem(row_index, 3, QTableWidgetItem(tm_match))
-                                    self.update_status_icon(row_index, segment.status)
-                                
-                                self.log(f"   ✓ TM {match_pct}%: Segment #{segment.id}")
-                            else:
-                                # Match below threshold - skip
-                                failed_count += 1
-                                self.log(f"   ⊘ TM {match_pct}% (below 70%): Segment #{segment.id} - skipped")
+                            segment.target = tm_match
+                            segment.status = "pretranslated"
+                            translated_count += 1
+
+                            if row_index < self.table.rowCount():
+                                target_widget = self.table.cellWidget(row_index, 3)
+                                if target_widget and isinstance(target_widget, EditableGridTextEditor):
+                                    target_widget.setPlainText(tm_match)
+                                else:
+                                    self.table.setItem(row_index, 3, QTableWidgetItem(tm_match))
+                                self.update_status_icon(row_index, segment.status)
                         else:
-                            # No match found
                             failed_count += 1
-                            self.log(f"   ⊘ No TM match: Segment #{segment.id} - skipped")
-                        
+
                         segment_idx += 1
-                        progress_bar.setValue(segment_idx)
-                        stats_label.setText(f"Translated: {translated_count} | Skipped: {failed_count} | Remaining: {len(segments_needing_translation) - segment_idx}")
-                        QApplication.processEvents()
-                        
-                    except Exception as e:
-                        failed_count += 1
-                        self.log(f"   ✗ Error translating segment #{segment.id}: {e}")
-                        segment_idx += 1
-                        progress_bar.setValue(segment_idx)
-                        QApplication.processEvents()
+
+                progress_bar.setValue(segment_idx)
+                stats_label.setText(f"Translated: {translated_count} | Skipped: {failed_count}")
+                QApplication.processEvents()
                 
                 # TM-only translation complete
                 self.project_modified = True

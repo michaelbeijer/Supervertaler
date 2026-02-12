@@ -2,8 +2,53 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.256 (February 11, 2026)
+**Current Version:** v1.9.260 (February 12, 2026)
 
+
+## v1.9.260 - February 12, 2026
+
+### Performance
+
+- **TM batch pre-translation is up to 30× faster** — Batch pre-translation from Translation Memory has been completely rewritten to use batch SQL queries instead of per-segment lookups. A 912-segment document that previously took ~2 minutes now completes in ~4 seconds (exact match mode) or ~12 seconds (fuzzy matching mode). Key optimizations:
+  - **Batch exact matching** — All source-text hashes are pre-computed and looked up in a single SQL query with `IN` clause, replacing 900+ individual queries. Language variant filters are computed once instead of per segment.
+  - **Single commit** — Usage-count updates are batched into a single `COMMIT` instead of one per match, eliminating fsync overhead.
+  - **Source deduplication** — Repeated segments (headers, footers, boilerplate) are looked up only once and the result is applied to all duplicates.
+  - **Batch fuzzy matching** — Exact matches are found first (via batch), then only unmatched segments go through fuzzy matching with pre-computed language filters and pre-compiled tag-stripping regex.
+  - **Reduced UI overhead** — `QApplication.processEvents()` is now called every 20 segments instead of every segment; grid updates are deferred until the batch completes.
+  - All three TM code paths optimized: primary batch dialog, TM pre-check before API calls, and secondary TM-only path.
+
+### Improvements
+
+- **Batch translate dialog labels clarified** — The TM checkbox now reads "Pre-translate from activated TMs (exact + fuzzy ≥75%)" and the exact-only sub-option reads "Exact matches only (100% matches only — fastest)" to make the distinction between fuzzy and exact matching modes clearer.
+
+---
+
+## v1.9.259 - February 12, 2026
+
+### Bug Fixes
+
+- **Editing confirmed segments now always resets status** — Fixed a bug where certain edits to a confirmed (or T&R confirmed / proofread / approved) segment did not reset the status back to "translated". Two sub-issues were resolved:
+  - **Copy Source to Target** (Ctrl+Shift+S, bulk menu, and grid context button) now correctly resets confirmed-like statuses. Previously, these code paths used `blockSignals()` or set the segment data before the widget update, both of which bypassed the change-detection handler. ([#154](https://github.com/michaelbeijer/Supervertaler/issues/154))
+  - **All confirmed-like statuses covered** — The status-reset check now covers `confirmed`, `tr_confirmed`, `proofread`, and `approved` (previously only `confirmed` was checked), so edits to segments in any of these higher statuses are properly detected. ([#154](https://github.com/michaelbeijer/Supervertaler/issues/154))
+- **Fixed `.strip()` mismatch between confirm and edit paths** — The Ctrl+Enter confirm handler and bulk-confirm sync previously applied `.strip()` to the target text before storing it, while the text-change handler compared against the unstripped widget text. This could cause false status resets or missed resets. Both paths now store the text consistently without stripping.
+
+---
+
+## v1.9.258 - February 12, 2026
+
+### Bug Fixes
+
+- **Title bar now shows correct version when installed via pip** — Fixed the version display showing a stale "v1.9.227" in the title bar (and About dialog) when running a pip-installed copy. The version reader now falls back to `importlib.metadata` when `pyproject.toml` is not present (i.e. pip installs), so the title bar correctly reflects the installed package version. ([#157](https://github.com/michaelbeijer/Supervertaler/issues/157))
+
+---
+
+## v1.9.257 - February 12, 2026
+
+### Bug Fixes
+
+- **Batch translation with Custom OpenAI provider now works** — Fixed a bug where batch pre-translation (Translate All / Translate Empty) failed with *"Please configure your Custom_Openai API key in Settings"* even though the API key was correctly configured in the custom profile. Single-segment translation (Ctrl+T / Cmd+T) was not affected. The batch code path now correctly reads the API key from the active custom endpoint profile instead of requiring a top-level `api_keys.txt` entry. ([#157](https://github.com/michaelbeijer/Supervertaler/issues/157))
+
+---
 
 ## v1.9.256 - February 11, 2026
 

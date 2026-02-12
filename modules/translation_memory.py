@@ -256,7 +256,93 @@ class TMDatabase:
             })
         
         return formatted_matches
-    
+
+    def get_exact_matches_batch(self, sources: List[str], tm_ids: List[str] = None) -> Dict[str, Dict]:
+        """
+        Batch exact match lookup for multiple source texts.
+
+        Args:
+            sources: List of source texts to match
+            tm_ids: List of TM IDs to search (None = all enabled)
+
+        Returns:
+            Dict mapping source_text -> match dict (with 'target_text', 'tm_id', etc.)
+        """
+        if tm_ids is None:
+            tm_ids = [tm_id for tm_id, meta in self.tm_metadata.items() if meta.get('enabled', True)]
+
+        return self.db.get_exact_matches_batch(
+            sources=sources,
+            tm_ids=tm_ids,
+            source_lang=self.source_lang,
+            target_lang=self.target_lang
+        )
+
+    def search_all_batch(self, sources: List[str], tm_ids: List[str] = None,
+                         enabled_only: bool = True) -> Dict[str, Dict]:
+        """
+        Batch search across TMs for best match per source text (exact + fuzzy).
+
+        First runs batch exact matching, then fuzzy matching on remaining unmatched.
+
+        Args:
+            sources: List of source texts to search
+            tm_ids: Specific TM IDs to search (None = all enabled)
+            enabled_only: Only search enabled TMs
+
+        Returns:
+            Dict mapping source_text -> best match dict with keys:
+                'source', 'target', 'similarity', 'match_pct', 'tm_name', 'tm_id'
+        """
+        if tm_ids is None and enabled_only:
+            tm_ids = [tm_id for tm_id, meta in self.tm_metadata.items() if meta.get('enabled', True)]
+        if tm_ids is not None and len(tm_ids) == 0:
+            tm_ids = None
+
+        results = {}
+
+        # Phase 1: Batch exact matching
+        exact_matches = self.db.get_exact_matches_batch(
+            sources=sources,
+            tm_ids=tm_ids,
+            source_lang=self.source_lang,
+            target_lang=self.target_lang
+        )
+
+        for source_text, match in exact_matches.items():
+            results[source_text] = {
+                'source': match['source_text'],
+                'target': match['target_text'],
+                'similarity': 1.0,
+                'match_pct': 100,
+                'tm_name': self.tm_metadata.get(match['tm_id'], {}).get('name', match['tm_id']),
+                'tm_id': match['tm_id']
+            }
+
+        # Phase 2: Fuzzy matching for unmatched sources
+        unmatched = [s for s in sources if s not in results]
+
+        if unmatched:
+            fuzzy_matches = self.db.search_fuzzy_matches_batch(
+                sources=unmatched,
+                tm_ids=tm_ids,
+                threshold=self.fuzzy_threshold,
+                source_lang=self.source_lang,
+                target_lang=self.target_lang
+            )
+
+            for source_text, match in fuzzy_matches.items():
+                results[source_text] = {
+                    'source': match['source_text'],
+                    'target': match['target_text'],
+                    'similarity': match.get('similarity', 0.75),
+                    'match_pct': match.get('match_pct', 75),
+                    'tm_name': self.tm_metadata.get(match['tm_id'], {}).get('name', match['tm_id']),
+                    'tm_id': match['tm_id']
+                }
+
+        return results
+
     def concordance_search(self, query: str, tm_ids: List[str] = None, direction: str = 'both',
                             source_lang: str = None, target_lang: str = None) -> List[Dict]:
         """

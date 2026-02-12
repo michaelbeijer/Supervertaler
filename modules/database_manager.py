@@ -880,12 +880,299 @@ class DatabaseManager:
                 return result
         
         return None
-    
+
+    def get_exact_matches_batch(self, sources: List[str], tm_ids: List[str] = None,
+                                source_lang: str = None, target_lang: str = None) -> Dict[str, Dict]:
+        """
+        Batch exact match lookup for multiple source texts in a single operation.
+
+        Strategy: compute all hashes upfront, query per-hash-variant in bulk using
+        a single SQL query per chunk. Uses only the source_hash index for speed.
+
+        Args:
+            sources: List of source texts to match
+            tm_ids: List of TM IDs to search (None = all)
+            source_lang: Filter by source language
+            target_lang: Filter by target language
+
+        Returns:
+            Dict mapping source_text -> match dict (only for sources that had matches)
+        """
+        if not sources:
+            return {}
+
+        from modules.tmx_generator import get_base_lang_code, get_lang_match_variants
+
+        # Pre-compute language filters ONCE (not per segment)
+        src_base = get_base_lang_code(source_lang) if source_lang else None
+        tgt_base = get_base_lang_code(target_lang) if target_lang else None
+        src_variants = get_lang_match_variants(source_lang) if src_base else []
+        tgt_variants = get_lang_match_variants(target_lang) if tgt_base else []
+
+        # Build the language filter SQL once (reused for every chunk)
+        lang_sql = ""
+        lang_params = []
+
+        if tm_ids:
+            tm_placeholders = ','.join('?' * len(tm_ids))
+            lang_sql += f" AND tm_id IN ({tm_placeholders})"
+            lang_params.extend(tm_ids)
+
+        if src_base and src_variants:
+            src_conditions = []
+            for variant in src_variants:
+                src_conditions.append("source_lang = ?")
+                lang_params.append(variant)
+                src_conditions.append("source_lang LIKE ?")
+                lang_params.append(f"{variant}-%")
+            lang_sql += f" AND ({' OR '.join(src_conditions)})"
+
+        if tgt_base and tgt_variants:
+            tgt_conditions = []
+            for variant in tgt_variants:
+                tgt_conditions.append("target_lang = ?")
+                lang_params.append(variant)
+                tgt_conditions.append("target_lang LIKE ?")
+                lang_params.append(f"{variant}-%")
+            lang_sql += f" AND ({' OR '.join(tgt_conditions)})"
+
+        # Pre-compile tag-stripping regex
+        tag_re = re.compile(r'<[^>]+>')
+
+        # Pre-compute all hash variants for all sources
+        # For efficiency: try the simplest hash first (original text), only compute
+        # more expensive variants (normalized, tag-stripped) if not all matched.
+        # Group by hash for reverse lookup.
+        source_to_hashes = {}  # source_text -> [hash1, hash2, ...]
+        hash_to_sources = {}   # hash -> [source_text, ...]
+
+        for source in sources:
+            hashes = []
+            # Variant 1: original text hash
+            h1 = hashlib.md5(source.encode('utf-8')).hexdigest()
+            hashes.append(h1)
+            # Variant 2: normalized hash
+            normalized = _normalize_for_matching(source)
+            h2 = hashlib.md5(normalized.encode('utf-8')).hexdigest()
+            if h2 != h1:
+                hashes.append(h2)
+            # Variant 3: tag-stripped hash
+            no_tags = tag_re.sub('', source)
+            h3 = hashlib.md5(no_tags.encode('utf-8')).hexdigest()
+            if h3 != h1 and h3 != h2:
+                hashes.append(h3)
+            # Variant 4: tag-stripped + normalized hash
+            norm_no_tags = _normalize_for_matching(no_tags)
+            h4 = hashlib.md5(norm_no_tags.encode('utf-8')).hexdigest()
+            if h4 != h1 and h4 != h2 and h4 != h3:
+                hashes.append(h4)
+
+            source_to_hashes[source] = hashes
+            for h in hashes:
+                hash_to_sources.setdefault(h, []).append(source)
+
+        # Collect all unique hashes
+        all_hashes_list = list(hash_to_sources.keys())
+
+        if not all_hashes_list:
+            return {}
+
+        # Query in chunks (SQLite variable limit ~999, leave room for lang params)
+        max_hash_params = 900 - len(lang_params)
+        if max_hash_params < 50:
+            max_hash_params = 50  # Safety floor
+
+        results = {}
+        matched_ids = []
+
+        for i in range(0, len(all_hashes_list), max_hash_params):
+            chunk = all_hashes_list[i:i + max_hash_params]
+
+            placeholders = ','.join('?' * len(chunk))
+            query = (
+                f"SELECT id, source_text, target_text, source_lang, target_lang, "
+                f"tm_id, source_hash, usage_count "
+                f"FROM translation_units "
+                f"WHERE source_hash IN ({placeholders})"
+                f"{lang_sql}"
+            )
+            params = list(chunk) + lang_params
+
+            try:
+                self.cursor.execute(query, params)
+                rows = self.cursor.fetchall()
+            except Exception as e:
+                print(f"[DEBUG] get_exact_matches_batch: SQL ERROR: {e}")
+                continue
+
+            # Group rows by hash for efficient lookup
+            rows_by_hash = {}
+            for row in rows:
+                row_dict = dict(row)
+                h = row_dict['source_hash']
+                # Keep the row with highest usage_count per hash
+                if h not in rows_by_hash or row_dict.get('usage_count', 0) > rows_by_hash[h].get('usage_count', 0):
+                    rows_by_hash[h] = row_dict
+
+            # Map results back to original source texts
+            for h, row_dict in rows_by_hash.items():
+                matched_ids.append(row_dict['id'])
+                if h in hash_to_sources:
+                    for original_source in hash_to_sources[h]:
+                        if original_source not in results:
+                            results[original_source] = row_dict
+
+        # Batch update usage counts in a single operation
+        if matched_ids:
+            unique_ids = list(set(matched_ids))
+            for i in range(0, len(unique_ids), 900):
+                chunk = unique_ids[i:i + 900]
+                placeholders = ','.join('?' * len(chunk))
+                try:
+                    self.cursor.execute(
+                        f"UPDATE translation_units SET usage_count = usage_count + 1 WHERE id IN ({placeholders})",
+                        chunk
+                    )
+                except Exception:
+                    pass
+            self.connection.commit()
+
+        return results
+
+    def search_fuzzy_matches_batch(self, sources: List[str], tm_ids: List[str] = None,
+                                    threshold: float = 0.75,
+                                    source_lang: str = None, target_lang: str = None) -> Dict[str, Dict]:
+        """
+        Batch fuzzy match lookup for multiple source texts.
+
+        For each source, finds the best fuzzy match above threshold.
+        Pre-computes language filters and tag-stripped texts.
+        Searches all TMs together for speed.
+
+        Args:
+            sources: List of source texts to match (should exclude already exact-matched)
+            tm_ids: List of TM IDs to search (None = all)
+            threshold: Minimum similarity (0.0-1.0)
+            source_lang: Filter by source language
+            target_lang: Filter by target language
+
+        Returns:
+            Dict mapping source_text -> best match dict (with 'similarity' and 'match_pct')
+        """
+        if not sources:
+            return {}
+
+        from modules.tmx_generator import get_base_lang_code, get_lang_match_variants
+
+        # Pre-compute language filters ONCE
+        src_base = get_base_lang_code(source_lang) if source_lang else None
+        tgt_base = get_base_lang_code(target_lang) if target_lang else None
+        src_variants = get_lang_match_variants(source_lang) if src_base else []
+        tgt_variants = get_lang_match_variants(target_lang) if tgt_base else []
+
+        # Pre-compute cleaned texts for all sources
+        tag_re = re.compile(r'<[^>]+>')
+        special_re = re.compile(r'[^\w\s]')
+
+        source_clean_cache = {}
+        for source in sources:
+            text_no_tags = tag_re.sub('', source)
+            source_clean_cache[source] = text_no_tags.lower()
+
+        # Build language filter SQL fragment (shared across all queries)
+        lang_sql = ""
+        lang_params = []
+
+        if tm_ids:
+            tm_placeholders = ','.join('?' * len(tm_ids))
+            lang_sql += f" AND tu.tm_id IN ({tm_placeholders})"
+            lang_params.extend(tm_ids)
+
+        if src_base and src_variants:
+            src_conditions = []
+            for variant in src_variants:
+                src_conditions.append("tu.source_lang = ?")
+                lang_params.append(variant)
+                src_conditions.append("tu.source_lang LIKE ?")
+                lang_params.append(f"{variant}-%")
+            lang_sql += f" AND ({' OR '.join(src_conditions)})"
+
+        if tgt_base and tgt_variants:
+            tgt_conditions = []
+            for variant in tgt_variants:
+                tgt_conditions.append("tu.target_lang = ?")
+                lang_params.append(variant)
+                tgt_conditions.append("tu.target_lang LIKE ?")
+                lang_params.append(f"{variant}-%")
+            lang_sql += f" AND ({' OR '.join(tgt_conditions)})"
+
+        results = {}
+
+        for source in sources:
+            # Build FTS5 search terms from this source
+            text_no_tags = tag_re.sub('', source)
+            clean_text = special_re.sub(' ', text_no_tags)
+            search_terms = [t for t in clean_text.strip().split() if len(t) > 2]
+
+            # Also from original source
+            clean_with_tags = special_re.sub(' ', source)
+            search_terms_tags = [t for t in clean_with_tags.strip().split() if len(t) > 2]
+
+            all_terms = list(dict.fromkeys(search_terms + search_terms_tags))
+            all_terms.sort(key=len, reverse=True)
+            all_terms = all_terms[:20]
+
+            if not all_terms:
+                continue
+
+            fts_query = ' OR '.join(f'"{term}"' for term in all_terms)
+
+            query = f"""
+                SELECT tu.*,
+                       bm25(translation_units_fts) as relevance
+                FROM translation_units tu
+                JOIN translation_units_fts ON tu.id = translation_units_fts.rowid
+                WHERE translation_units_fts MATCH ?
+                {lang_sql}
+                ORDER BY relevance DESC LIMIT 500
+            """
+            params = [fts_query] + lang_params
+
+            try:
+                self.cursor.execute(query, params)
+                rows = self.cursor.fetchall()
+            except Exception:
+                continue
+
+            source_clean = source_clean_cache[source]
+            best_match = None
+            best_similarity = 0.0
+
+            for row in rows:
+                row_dict = dict(row)
+                candidate_clean = tag_re.sub('', row_dict['source_text']).lower()
+                similarity = SequenceMatcher(None, source_clean, candidate_clean).ratio()
+
+                if similarity >= threshold and similarity > best_similarity:
+                    best_similarity = similarity
+                    best_match = row_dict
+                    best_match['similarity'] = similarity
+                    best_match['match_pct'] = int(similarity * 100)
+
+                    # Early exit on perfect match
+                    if similarity >= 0.999:
+                        break
+
+            if best_match:
+                results[source] = best_match
+
+        return results
+
     def calculate_similarity(self, text1: str, text2: str) -> float:
         """
         Calculate similarity ratio between two texts using SequenceMatcher.
         Tags are stripped before comparison for better matching accuracy.
-        
+
         Returns: Similarity score from 0.0 to 1.0
         """
         import re
@@ -893,7 +1180,7 @@ class DatabaseManager:
         clean1 = re.sub(r'<[^>]+>', '', text1).lower()
         clean2 = re.sub(r'<[^>]+>', '', text2).lower()
         return SequenceMatcher(None, clean1, clean2).ratio()
-    
+
     def search_fuzzy_matches(self, source: str, tm_ids: List[str] = None,
                             threshold: float = 0.75, max_results: int = 5,
                             source_lang: str = None, target_lang: str = None,
