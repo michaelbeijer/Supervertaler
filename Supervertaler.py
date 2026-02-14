@@ -25748,17 +25748,30 @@ class SupervertalerQt(QMainWindow):
 
         layout.addSpacing(10)
 
-        # Empty line handling option
-        empty_checkbox = CheckmarkCheckBox("Skip empty lines (remove blank segments)")
-        empty_checkbox.setChecked(False)  # Default: preserve empty lines
-        empty_checkbox.setToolTip(
-            "When checked, empty lines in the file will be skipped.\n"
-            "When unchecked, empty lines become empty segments to preserve structure."
+        # Sentence segmentation option
+        last_segment_setting = general_settings.get('last_import_sentence_segment', False)
+        segment_checkbox = CheckmarkCheckBox("Split lines into sentences")
+        segment_checkbox.setChecked(last_segment_setting)
+        segment_checkbox.setToolTip(
+            "When checked, long lines will be split into individual sentences\n"
+            "for easier translation. Sentences are automatically rejoined on export."
         )
-        layout.addWidget(empty_checkbox)
-        
+        layout.addWidget(segment_checkbox)
+
+        # Markdown caveat (shown/hidden based on checkbox state)
+        if is_markdown:
+            md_note = QLabel(
+                "<i>Markdown syntax (links, code spans, URLs) is protected during splitting.\n"
+                "Complex formatting may still need review after export.</i>"
+            )
+            md_note.setStyleSheet("color: #FF9800; font-size: 11px; margin-left: 22px;")
+            md_note.setWordWrap(True)
+            md_note.setVisible(segment_checkbox.isChecked())
+            segment_checkbox.toggled.connect(md_note.setVisible)
+            layout.addWidget(md_note)
+
         layout.addSpacing(20)
-        
+
         # Buttons
         button_layout = QHBoxLayout()
         ok_btn = QPushButton("Import")
@@ -25786,12 +25799,13 @@ class SupervertalerQt(QMainWindow):
         # Store selected options
         source_lang = source_combo.currentData()
         target_lang = target_combo.currentData()
-        skip_empty = empty_checkbox.isChecked()
+        use_sentence_segmentation = segment_checkbox.isChecked()
 
-        # Save selected languages to settings for next time
+        # Save selected settings for next time
         general_settings = self.load_general_settings()
         general_settings['last_import_source_lang'] = source_lang
         general_settings['last_import_target_lang'] = target_lang
+        general_settings['last_import_sentence_segment'] = use_sentence_segmentation
         self.save_general_settings(general_settings)
 
         try:
@@ -25803,25 +25817,38 @@ class SupervertalerQt(QMainWindow):
             
             # Create segments from lines
             segments = []
-            for line_num, line in enumerate(lines, 1):
-                # Strip trailing newline but preserve the text
-                text = line.rstrip('\r\n')
-                
-                # Skip empty lines if requested
-                if skip_empty and not text.strip():
-                    continue
-                
-                segment = Segment(
-                    id=len(segments) + 1,
-                    source=text,
-                    target="",
-                    status="untranslated",
-                    notes="",
-                    type="para",
-                    paragraph_id=line_num,
-                    document_position=line_num
-                )
-                segments.append(segment)
+            if use_sentence_segmentation:
+                if is_markdown:
+                    from modules.simple_segmenter import MarkdownSegmenter
+                    segmenter = MarkdownSegmenter()
+                else:
+                    from modules.simple_segmenter import SimpleSegmenter
+                    segmenter = SimpleSegmenter()
+                for line_num, line in enumerate(lines, 1):
+                    text = line.rstrip('\r\n')
+                    if not text.strip():
+                        # Empty line → empty segment (hidden in grid, preserved for export)
+                        segments.append(Segment(
+                            id=len(segments) + 1, source=text, target="",
+                            status="untranslated", notes="", type="para",
+                            paragraph_id=line_num, document_position=line_num
+                        ))
+                    else:
+                        sentences = segmenter.segment_text(text)
+                        for sentence in sentences:
+                            segments.append(Segment(
+                                id=len(segments) + 1, source=sentence, target="",
+                                status="untranslated", notes="", type="para",
+                                paragraph_id=line_num, document_position=line_num
+                            ))
+            else:
+                for line_num, line in enumerate(lines, 1):
+                    text = line.rstrip('\r\n')
+                    segments.append(Segment(
+                        id=len(segments) + 1, source=text, target="",
+                        status="untranslated", notes="", type="para",
+                        paragraph_id=line_num, document_position=line_num
+                    ))
             
             if not segments:
                 QMessageBox.warning(
@@ -25873,7 +25900,10 @@ class SupervertalerQt(QMainWindow):
             # Update status
             empty_count = sum(1 for seg in segments if not seg.source.strip())
             file_type = "Markdown file" if is_markdown else "text file"
-            self.log(f"✓ Loaded {len(segments)} lines from {file_type}")
+            line_count = len(lines)
+            self.log(f"✓ Loaded {len(segments)} segments from {line_count} lines ({file_type})")
+            if use_sentence_segmentation:
+                self.log(f"  ✂️ Sentence segmentation applied")
             if is_markdown:
                 self.log(f"  📝 Markdown syntax highlighting enabled")
             if empty_count > 0:
@@ -25901,23 +25931,37 @@ class SupervertalerQt(QMainWindow):
                         lines = f.readlines()
                     self.log(f"✓ Successfully read file with {encoding} encoding")
                     # Re-run import with this encoding
-                    # (simplified - just create segments directly)
                     segments = []
-                    for line_num, line in enumerate(lines, 1):
-                        text = line.rstrip('\r\n')
-                        if skip_empty and not text.strip():
-                            continue
-                        segment = Segment(
-                            id=len(segments) + 1,
-                            source=text,
-                            target="",
-                            status="untranslated",
-                            notes="",
-                            type="para",
-                            paragraph_id=line_num,
-                            document_position=line_num
-                        )
-                        segments.append(segment)
+                    if use_sentence_segmentation:
+                        if is_markdown:
+                            from modules.simple_segmenter import MarkdownSegmenter
+                            segmenter = MarkdownSegmenter()
+                        else:
+                            from modules.simple_segmenter import SimpleSegmenter
+                            segmenter = SimpleSegmenter()
+                        for line_num, line in enumerate(lines, 1):
+                            text = line.rstrip('\r\n')
+                            if not text.strip():
+                                segments.append(Segment(
+                                    id=len(segments) + 1, source=text, target="",
+                                    status="untranslated", notes="", type="para",
+                                    paragraph_id=line_num, document_position=line_num
+                                ))
+                            else:
+                                for sentence in segmenter.segment_text(text):
+                                    segments.append(Segment(
+                                        id=len(segments) + 1, source=sentence, target="",
+                                        status="untranslated", notes="", type="para",
+                                        paragraph_id=line_num, document_position=line_num
+                                    ))
+                    else:
+                        for line_num, line in enumerate(lines, 1):
+                            text = line.rstrip('\r\n')
+                            segments.append(Segment(
+                                id=len(segments) + 1, source=text, target="",
+                                status="untranslated", notes="", type="para",
+                                paragraph_id=line_num, document_position=line_num
+                            ))
                     
                     if segments:
                         project = Project(
@@ -26066,53 +26110,70 @@ class SupervertalerQt(QMainWindow):
             use_source_fallback = use_source_radio.isChecked()
             encoding = encoding_combo.currentData()
             
-            # Get save path
+            # Get save path - detect if source was a markdown file
+            is_markdown = (hasattr(self.current_project, 'original_txt_path')
+                          and self.current_project.original_txt_path
+                          and self.current_project.original_txt_path.lower().endswith('.md'))
+
             default_name = ""
+            default_ext = ".md" if is_markdown else ".txt"
             if hasattr(self.current_project, 'original_txt_path') and self.current_project.original_txt_path:
                 base = os.path.splitext(os.path.basename(self.current_project.original_txt_path))[0]
-                default_name = f"{base}_translated.txt"
+                default_name = f"{base}_translated{default_ext}"
             elif self.current_project.name:
-                default_name = self.current_project.name.replace(" ", "_") + "_translated.txt"
-            
+                default_name = self.current_project.name.replace(" ", "_") + f"_translated{default_ext}"
+
+            if is_markdown:
+                file_filter = "Markdown Files (*.md);;Text Files (*.txt);;All Files (*.*)"
+            else:
+                file_filter = "Text Files (*.txt);;Markdown Files (*.md);;All Files (*.*)"
+
             file_path, _ = QFileDialog.getSaveFileName(
                 self,
-                "Export Simple Text File",
+                "Export Text / Markdown File",
                 default_name,
-                "Text Files (*.txt);;All Files (*.*)"
+                file_filter
             )
-            
+
             if not file_path:
                 return
+
+            # Ensure valid extension
+            if not file_path.lower().endswith(('.txt', '.md')):
+                file_path += default_ext
             
-            # Ensure .txt extension
-            if not file_path.lower().endswith('.txt'):
-                file_path += '.txt'
-            
-            # Build output lines
+            # Build output lines, grouping segments by paragraph_id
+            # (when sentence segmentation was used, multiple segments share a paragraph_id)
+            from itertools import groupby
             output_lines = []
-            for segment in segments:
-                if segment.target and segment.target.strip():
-                    # Use translation
-                    output_lines.append(segment.target)
-                elif use_source_fallback:
-                    # Use source text as fallback
-                    output_lines.append(segment.source)
+            for _para_id, group in groupby(segments, key=lambda s: s.paragraph_id):
+                parts = []
+                for seg in group:
+                    if seg.target and seg.target.strip():
+                        parts.append(seg.target)
+                    elif use_source_fallback:
+                        parts.append(seg.source)
+                    else:
+                        parts.append("")
+                # Join sentence segments with space; empty segments produce empty lines
+                if any(p.strip() for p in parts):
+                    line = ' '.join(p for p in parts if p.strip())
                 else:
-                    # Leave empty
-                    output_lines.append("")
-            
+                    line = ""
+                output_lines.append(line)
+
             # Write file
             with open(file_path, 'w', encoding=encoding, newline='\n') as f:
                 for line in output_lines:
                     f.write(line + '\n')
             
-            self.log(f"✓ Exported {len(segments)} lines to: {os.path.basename(file_path)}")
+            self.log(f"✓ Exported {len(output_lines)} lines ({len(segments)} segments) to: {os.path.basename(file_path)}")
             self.log(f"  Encoding: {encoding}")
-            
+
             QMessageBox.information(
                 self,
                 "Export Complete",
-                f"Successfully exported {len(segments)} lines to:\n{os.path.basename(file_path)}\n\n"
+                f"Successfully exported {len(output_lines)} lines to:\n{os.path.basename(file_path)}\n\n"
                 f"Translated: {translated_count} / {total_count} segments"
             )
             
@@ -27083,7 +27144,17 @@ class SupervertalerQt(QMainWindow):
         memoq_checkbox.setChecked(False)
         memoq_checkbox.setToolTip("If checked, DOCX files with bilingual tables will be imported as memoQ bilingual format")
         format_layout.addWidget(memoq_checkbox)
-        
+
+        # Sentence segmentation for TXT/MD files
+        last_segment_setting = general_settings.get('last_import_sentence_segment', False)
+        segment_checkbox = CheckmarkCheckBox("Split lines into sentences (TXT/MD files)")
+        segment_checkbox.setChecked(last_segment_setting)
+        segment_checkbox.setToolTip(
+            "When checked, long lines in TXT/MD files will be split into individual\n"
+            "sentences for easier translation. Sentences are automatically rejoined on export."
+        )
+        format_layout.addWidget(segment_checkbox)
+
         layout.addWidget(format_group)
         
         layout.addSpacing(10)
@@ -27118,26 +27189,29 @@ class SupervertalerQt(QMainWindow):
         source_lang = source_combo.currentData()
         target_lang = target_combo.currentData()
         detect_memoq = memoq_checkbox.isChecked()
+        use_sentence_segmentation = segment_checkbox.isChecked()
 
-        # Save selected languages to settings for next time
+        # Save selected settings for next time
         general_settings = self.load_general_settings()
         general_settings['last_import_source_lang'] = source_lang
         general_settings['last_import_target_lang'] = target_lang
+        general_settings['last_import_sentence_segment'] = use_sentence_segmentation
         self.save_general_settings(general_settings)
 
         # Import files
-        self._import_multifile_project(folder_path, selected_files, source_lang, target_lang, detect_memoq)
+        self._import_multifile_project(folder_path, selected_files, source_lang, target_lang, detect_memoq, use_sentence_segmentation)
     
-    def _import_multifile_project(self, folder_path: str, files: list, source_lang: str, target_lang: str, detect_memoq: bool):
+    def _import_multifile_project(self, folder_path: str, files: list, source_lang: str, target_lang: str, detect_memoq: bool, sentence_segment: bool = False):
         """
         Import multiple files into a single project.
-        
+
         Args:
             folder_path: Path to the folder containing files
             files: List of file dictionaries with 'name', 'path', 'type'
             source_lang: Source language code
             target_lang: Target language code
             detect_memoq: Whether to detect memoQ bilingual format
+            sentence_segment: Whether to split TXT/MD lines into sentences
         """
         from datetime import datetime
         import shutil
@@ -27205,22 +27279,47 @@ class SupervertalerQt(QMainWindow):
                         backup_path = None
                 
                 if file_type in ('txt', 'md'):
-                    # Simple text / Markdown file: each line is a segment
+                    # Simple text / Markdown file
+                    # Empty lines are preserved as empty segments for structure
+                    # (they are hidden in the grid but kept for export fidelity)
                     with open(file_path, 'r', encoding='utf-8') as f:
                         lines = f.readlines()
-                    
-                    for line in lines:
-                        text = line.rstrip('\n\r')
-                        if text.strip():  # Skip empty lines for segments, but could preserve them
-                            segment = Segment(
-                                id=current_segment_id,
-                                source=text,
-                                target="",
-                                status=DEFAULT_STATUS.key,
-                                file_id=file_id,
-                                file_name=file_name
-                            )
-                            file_segments.append(segment)
+
+                    if sentence_segment:
+                        if file_type == 'md':
+                            from modules.simple_segmenter import MarkdownSegmenter
+                            txt_segmenter = MarkdownSegmenter()
+                        else:
+                            from modules.simple_segmenter import SimpleSegmenter
+                            txt_segmenter = SimpleSegmenter()
+                        for line_num, line in enumerate(lines, 1):
+                            text = line.rstrip('\n\r')
+                            if not text.strip():
+                                file_segments.append(Segment(
+                                    id=current_segment_id, source=text, target="",
+                                    status=DEFAULT_STATUS.key, file_id=file_id,
+                                    file_name=file_name, paragraph_id=line_num,
+                                    document_position=line_num
+                                ))
+                                current_segment_id += 1
+                            else:
+                                for sentence in txt_segmenter.segment_text(text):
+                                    file_segments.append(Segment(
+                                        id=current_segment_id, source=sentence, target="",
+                                        status=DEFAULT_STATUS.key, file_id=file_id,
+                                        file_name=file_name, paragraph_id=line_num,
+                                        document_position=line_num
+                                    ))
+                                    current_segment_id += 1
+                    else:
+                        for line_num, line in enumerate(lines, 1):
+                            text = line.rstrip('\n\r')
+                            file_segments.append(Segment(
+                                id=current_segment_id, source=text, target="",
+                                status=DEFAULT_STATUS.key, file_id=file_id,
+                                file_name=file_name, paragraph_id=line_num,
+                                document_position=line_num
+                            ))
                             current_segment_id += 1
                 
                 elif file_type == 'docx':
@@ -27769,9 +27868,10 @@ class SupervertalerQt(QMainWindow):
         )
     
     def _export_file_as_txt(self, segments: list, output_path: str):
-        """Export segments to a plain text file (one segment per line)."""
+        """Export segments to a plain text file, grouping by paragraph_id."""
         import re
-        
+        from itertools import groupby
+
         def strip_tags(text: str) -> str:
             """Remove formatting tags from text."""
             if not text:
@@ -27781,12 +27881,19 @@ class SupervertalerQt(QMainWindow):
             text = re.sub(r'</?u>', '', text)
             text = re.sub(r'</?li-[ob]>', '', text)
             return text
-        
+
         with open(output_path, 'w', encoding='utf-8') as f:
-            for segment in segments:
-                # Use target if available, otherwise use source
-                text = segment.target if segment.target and segment.target.strip() else segment.source
-                f.write(strip_tags(text) + '\n')
+            for _para_id, group in groupby(segments, key=lambda s: s.paragraph_id):
+                parts = []
+                for seg in group:
+                    text = seg.target if seg.target and seg.target.strip() else seg.source
+                    parts.append(strip_tags(text))
+                # Join sentence segments with space; empty segments produce empty lines
+                if any(p.strip() for p in parts):
+                    line = ' '.join(p for p in parts if p.strip())
+                else:
+                    line = ""
+                f.write(line + '\n')
     
     def _export_file_as_docx(self, segments: list, output_path: str, original_path: str = None):
         """
@@ -31609,6 +31716,10 @@ class SupervertalerQt(QMainWindow):
                         target_editor.set_file_boundary(True)
                         # Re-apply row color so the border-top takes effect in the stylesheet
                         self._apply_row_color(row, source_editor, target_editor)
+
+                # Hide empty structural segments (preserved for export fidelity)
+                if not segment.source.strip():
+                    self.table.setRowHidden(row, True)
 
             # Apply current font
             self.apply_font_to_grid()
@@ -42009,6 +42120,11 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             current_row = self.table.currentRow()
             if current_row > 0:
                 new_row = current_row - 1
+                # Skip hidden rows (empty structural segments, filtered rows)
+                while new_row > 0 and self.table.isRowHidden(new_row):
+                    new_row -= 1
+                if self.table.isRowHidden(new_row):
+                    return  # No visible row above
                 self.table.clearSelection()
                 self.table.setCurrentCell(new_row, 3)  # Column 3 = Target (widget column)
                 # Get the target cell widget and set focus to it
@@ -42021,7 +42137,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                         doc = target_widget.document()
                         last_block = doc.lastBlock()
                         layout = last_block.layout()
-                        
+
                         if layout and layout.lineCount() > 0:
                             # Get the last VISUAL line within this block
                             last_visual_line = layout.lineAt(layout.lineCount() - 1)
@@ -42036,25 +42152,30 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                             line_length = last_block.length() - 1
                             target_pos = min(target_column, max(0, line_length))
                             cursor.movePosition(QTextCursor.MoveOperation.Right, QTextCursor.MoveMode.MoveAnchor, target_pos)
-                        
+
                         target_widget.setTextCursor(cursor)
                     else:
                         # Default: move cursor to end of text
                         target_widget.moveCursor(QTextCursor.MoveOperation.End)
-    
+
     def go_to_next_segment(self, target_column: int = None, to_first_line: bool = False):
         """Navigate to next segment (Alt+Down)
-        
+
         Args:
             target_column: If provided, position cursor at this column (for arrow key nav)
             to_first_line: If True with target_column, go to first line at that column
         """
         from PyQt6.QtGui import QTextCursor
-        
+
         if hasattr(self, 'table') and self.table:
             current_row = self.table.currentRow()
             if current_row < self.table.rowCount() - 1:
                 new_row = current_row + 1
+                # Skip hidden rows (empty structural segments, filtered rows)
+                while new_row < self.table.rowCount() - 1 and self.table.isRowHidden(new_row):
+                    new_row += 1
+                if self.table.isRowHidden(new_row):
+                    return  # No visible row below
                 self.table.clearSelection()
                 self.table.setCurrentCell(new_row, 3)  # Column 3 = Target (widget column)
                 # Get the target cell widget and set focus to it
@@ -44975,12 +45096,13 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             # Users must ensure memoQ export has completely empty target column
             segments_with_rows = [
                 (idx, seg) for idx, seg in enumerate(self.current_project.segments)
+                if seg.source.strip()  # Skip empty structural segments
             ]
             scope_description = scope_description or "segment(s)"
         else:
             valid_segments: List[Tuple[int, Segment]] = []
             for row_index, segment in segments_with_rows:
-                if 0 <= row_index < len(self.current_project.segments):
+                if 0 <= row_index < len(self.current_project.segments) and segment.source.strip():
                     valid_segments.append((row_index, segment))
             segments_with_rows = valid_segments
             scope_description = scope_description or "segment(s)"

@@ -111,18 +111,98 @@ class SimpleSegmenter:
         return all_segments
 
 
+class MarkdownSegmenter(SimpleSegmenter):
+    """Markdown-aware sentence segmenter.
+
+    Protects markdown constructs (links, images, inline code, code spans,
+    reference-style links, HTML tags) from being incorrectly split by the
+    sentence boundary detector, then restores them after splitting.
+    """
+
+    # Patterns ordered from most specific to least specific to avoid
+    # partial matches.  Each pattern is compiled once at class level.
+    _MD_PATTERNS = [
+        # Fenced code blocks (``` ... ```) — should not appear mid-line but
+        # protect just in case (non-greedy across backticks)
+        re.compile(r'```.*?```', re.DOTALL),
+        # Inline code spans with double backticks (`` ... ``)
+        re.compile(r'``[^`]+``'),
+        # Inline code spans with single backticks (` ... `)
+        re.compile(r'`[^`]+`'),
+        # Images: ![alt](url "optional title")
+        re.compile(r'!\[[^\]]*\]\([^)]+\)'),
+        # Inline links: [text](url "optional title")
+        re.compile(r'\[[^\]]*\]\([^)]+\)'),
+        # Reference-style links/images: [text][ref] or ![alt][ref]
+        re.compile(r'!?\[[^\]]*\]\[[^\]]*\]'),
+        # Autolinks: <https://...> or <user@example.com>
+        re.compile(r'<(?:https?://[^>]+|[^>]+@[^>]+)>'),
+        # Bare URLs (http/https) — common in markdown even without angle brackets
+        re.compile(r'https?://\S+'),
+        # HTML tags: <tag attr="val"> or </tag> or <br/> etc.
+        re.compile(r'</?[a-zA-Z][a-zA-Z0-9]*(?:\s+[^>]*)?>'),
+    ]
+
+    def segment_text(self, text: str) -> list:
+        """Segment text into sentences, protecting markdown constructs."""
+        if not text or not text.strip():
+            return []
+
+        # Phase 1: Replace markdown constructs with placeholders
+        placeholders = {}
+        protected = text
+
+        def _make_placeholder(match):
+            idx = len(placeholders)
+            key = f'\x00MD{idx}\x00'
+            placeholders[key] = match.group(0)
+            return key
+
+        for pattern in self._MD_PATTERNS:
+            protected = pattern.sub(_make_placeholder, protected)
+
+        # Phase 2: Run normal sentence segmentation on protected text
+        sentences = super().segment_text(protected)
+
+        # Phase 3: Restore placeholders in each sentence
+        restored = []
+        for sentence in sentences:
+            for key, original in placeholders.items():
+                sentence = sentence.replace(key, original)
+            restored.append(sentence)
+
+        return restored
+
+
 # Quick test
 if __name__ == "__main__":
+    print("=== SimpleSegmenter ===")
     segmenter = SimpleSegmenter()
-    
+
     test_text = """
-    This is a test sentence. This is another sentence! 
+    This is a test sentence. This is another sentence!
     Dr. Smith works at Inc. Corp. The company has many employees.
     What about questions? They work too. And exclamations!
     """
-    
+
     segments = segmenter.segment_text(test_text)
-    
     print(f"Found {len(segments)} segments:")
     for i, seg in enumerate(segments, 1):
-        print(f"{i}. {seg}")
+        print(f"  {i}. {seg}")
+
+    print("\n=== MarkdownSegmenter ===")
+    md_segmenter = MarkdownSegmenter()
+
+    md_tests = [
+        "See [the docs](https://example.com/page.html) for details. This is the next sentence.",
+        "Use `str.split()` to tokenize. Then call `re.match()` to validate. Finally return the result.",
+        "Check the ![logo](img/logo.png) image. It should render correctly.",
+        "Visit https://example.com/path.html for more info. The site has good docs.",
+        "Read the <a href=\"https://example.com\">documentation</a> first. Then try the examples.",
+    ]
+
+    for test in md_tests:
+        print(f"\n  Input: {test}")
+        segments = md_segmenter.segment_text(test)
+        for i, seg in enumerate(segments, 1):
+            print(f"    {i}. {seg}")

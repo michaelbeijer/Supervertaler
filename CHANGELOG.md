@@ -2,8 +2,32 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.263 (February 12, 2026)
+**Current Version:** v1.9.265 (February 14, 2026)
 
+
+## v1.9.265 - February 14, 2026
+
+### Improvements
+
+- **Sentence segmentation for TXT/MD imports** — New "Split lines into sentences" checkbox in both single-file and multi-file import dialogs. When enabled, long lines are split into individual sentences for easier translation, and automatically rejoined on export. Setting is persisted between imports. Partially addresses [#149](https://github.com/michaelbeijer/Supervertaler/issues/149).
+- **Markdown-aware sentence segmenter** — When importing `.md` files with sentence segmentation enabled, a specialized `MarkdownSegmenter` protects markdown constructs (links, images, code spans, bare URLs, HTML tags) from being incorrectly split. A subtle note in the import dialog informs users about this.
+
+### Bug Fixes
+
+- **Empty lines now always preserved in TXT/MD imports** — Removed the "Skip empty lines" checkbox. Empty lines are now always imported as structural segments (preserving file structure for export fidelity) but hidden from the translation grid. Previously, the multi-file import always stripped empty lines with no option — this is now fixed. Resolves [#149](https://github.com/michaelbeijer/Supervertaler/issues/149).
+- **Navigation skips hidden rows** — Alt+Up/Down now correctly skips over hidden rows (empty structural segments, filtered rows) instead of landing on invisible segments.
+- **Pre-translation skips empty segments** — Batch translation no longer wastes API calls on empty structural segments.
+- **Multi-file TXT import now tracks line metadata** — `paragraph_id` and `document_position` are now set for TXT/MD files in multi-file imports, matching single-file import behavior.
+
+---
+
+## v1.9.264 - February 14, 2026
+
+### Improvements
+
+- **Direct Markdown (.md) export support** — When exporting a project that was imported from a `.md` file, the save dialog now defaults to Markdown format with the correct `.md` extension. Both `.md` and `.txt` are available as export options for all text-based projects. Resolves [#150](https://github.com/michaelbeijer/Supervertaler/issues/150).
+
+---
 
 ## v1.9.263 - February 12, 2026
 
