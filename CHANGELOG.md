@@ -2,8 +2,16 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.265 (February 14, 2026)
+**Current Version:** v1.9.266 (February 14, 2026)
 
+
+## v1.9.266 - February 14, 2026
+
+### Bug Fixes
+
+- **Fixed empty segments still showing in grid** — Empty structural segments (from blank lines in TXT/MD imports) were appearing in the translation grid despite being marked as hidden. The root cause was that `_apply_pagination_to_grid()` overrode the hiding on every page change, filter, or grid reload. Empty segments are now consistently hidden across all visibility control paths: pagination, text filters, file filters, find/replace, empty targets filter, and advanced filters.
+
+---
 
 ## v1.9.265 - February 14, 2026
 

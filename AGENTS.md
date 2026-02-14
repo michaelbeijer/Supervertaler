@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation (Compact)
 
 > **Purpose:** Fast, reliable handoff when context is low or chats reset.
-> **Last Updated:** February 9, 2026 | **Version:** v1.9.246
+> **Last Updated:** February 14, 2026 | **Version:** v1.9.266
 
 ---
 
@@ -18,14 +18,19 @@
 
 ## 🎯 Current State
 
-- **Current version:** `v1.9.246`
+- **Current version:** `v1.9.266`
 - **Main app:** `Supervertaler.py` (large monolithic PyQt6 file)
 - **Latest major completed work:**
+  - TXT/MD sentence segmentation with "Split lines into sentences" checkbox (v1.9.265)
+  - Markdown-aware segmenter (`modules/simple_segmenter.py::MarkdownSegmenter`) (v1.9.265)
+  - Empty line handling: always preserved for export, hidden in grid (v1.9.265–266)
+  - Export regroups segments by `paragraph_id` via `itertools.groupby` (v1.9.265)
+  - Direct Markdown (.md) export support (v1.9.264)
+  - Voice command AHK v2 syntax fix, AutoFingers support (v1.9.263)
+  - Claude Opus 4.6 model + Anthropic /v1/models API discovery (v1.9.262)
   - Cross-platform support: macOS/Linux via `modules/platform_helpers.py` (v1.9.246)
   - Native global hotkey system replacing AHK-only approach (v1.9.246)
   - Unified settings system in `settings/settings.json`
-  - Inline API key editing in Settings UI
-  - One-time migration from legacy settings files (`.migrated`)
   - Custom OpenAI-compatible provider (`custom_openai`)
 
 ---
@@ -34,6 +39,7 @@
 
 - Main app: `Supervertaler.py`
 - Modules: `modules/`
+- Sentence segmenter: `modules/simple_segmenter.py` (`SimpleSegmenter`, `MarkdownSegmenter`)
 - Platform helpers: `modules/platform_helpers.py`
 - Tests: `tests/`
 - Changelog: `CHANGELOG.md`
@@ -199,15 +205,26 @@ Windows EXE packaging:
 
 ---
 
+## 📝 TXT/MD Import Architecture (v1.9.265+)
+
+- Import dialog offers "Split lines into sentences" checkbox (persisted in `general_settings.json` as `last_import_sentence_segment`)
+- TXT files use `SimpleSegmenter`, MD files use `MarkdownSegmenter` (protects links, code, URLs via placeholder pattern)
+- Multiple sentences from one line share the same `paragraph_id`
+- Export regroups by `paragraph_id` using `itertools.groupby`, joining sentences with spaces
+- Empty lines are imported as empty segments (hidden in grid, preserved for export round-trip)
+- Empty segments are hidden by `_apply_pagination_to_grid()` and all filter/visibility functions
+- Language settings: `general_settings.json` stores `last_import_source_lang`/`last_import_target_lang` (shared across DOCX, TXT/MD, multi-file dialogs)
+
+---
+
 ## 📌 Active Priorities
 
 1. **Fix macOS global hotkey Cmd+C issues** (deletes selection, doesn't copy).
 2. **Make macOS shortcuts configurable** (⌃⌘L/M instead of ⌃⌥L/M).
 3. **Test Linux global hotkeys** (pynput backend, untested).
-4. Keep unified settings and migration stable.
-5. Continue reducing monolith pressure in `Supervertaler.py`.
-6. Maintain release reliability (PyPI + Windows core/full artifacts).
-7. Keep this file short and operationally focused.
+4. Continue reducing monolith pressure in `Supervertaler.py`.
+5. Maintain release reliability (PyPI + Windows core/full artifacts).
+6. Keep this file short and operationally focused.
 
 ---
 

@@ -6,7 +6,7 @@
 
 **Professional AI-enhanced translation workbench** with multi-LLM support (GPT-4, Claude, Gemini, Ollama), translation memory, glossary management, and seamless CAT tool integration (memoQ, Trados, CafeTran, Phrase, Déjà Vu).
 
-**Latest release:** v1.9.265 - Sentence segmentation for TXT/MD imports, markdown-aware segmenter, empty line handling fix (#149).
+**Latest release:** v1.9.266 - Fix empty segments showing in grid despite hiding logic; consistent across all filter/pagination paths.
 
 ---
 

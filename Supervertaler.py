@@ -22393,7 +22393,11 @@ class SupervertalerQt(QMainWindow):
         # If a text filter (Filter Source/Target) is active, it will populate an allowlist
         # of row indices that are allowed to be visible.
         filter_allowlist = getattr(self, '_active_text_filter_rows', None)
-        
+
+        # Build set of empty structural segments (always hidden regardless of pagination/filter)
+        segments = self.current_project.segments
+        empty_rows = {i for i in range(total_segments) if not segments[i].source.strip()}
+
         # When a filter is active, show ALL matching rows (ignore pagination)
         # When no filter is active, apply normal pagination
         if filter_allowlist is not None:
@@ -22401,7 +22405,8 @@ class SupervertalerQt(QMainWindow):
             self.table.setUpdatesEnabled(False)
             try:
                 for row in range(total_segments):
-                    self.table.setRowHidden(row, row not in filter_allowlist)
+                    hidden = row not in filter_allowlist or row in empty_rows
+                    self.table.setRowHidden(row, hidden)
             finally:
                 self.table.setUpdatesEnabled(True)
         else:
@@ -22413,13 +22418,14 @@ class SupervertalerQt(QMainWindow):
             else:
                 start_row = self.grid_current_page * self.grid_page_size
                 end_row = min(start_row + self.grid_page_size, total_segments)
-            
+
             # Batch show/hide for performance
             self.table.setUpdatesEnabled(False)
             try:
                 for row in range(total_segments):
                     in_page = start_row <= row < end_row
-                    self.table.setRowHidden(row, not in_page)
+                    hidden = not in_page or row in empty_rows
+                    self.table.setRowHidden(row, hidden)
             finally:
                 self.table.setUpdatesEnabled(True)
 
@@ -31717,9 +31723,6 @@ class SupervertalerQt(QMainWindow):
                         # Re-apply row color so the border-top takes effect in the stylesheet
                         self._apply_row_color(row, source_editor, target_editor)
 
-                # Hide empty structural segments (preserved for export fidelity)
-                if not segment.source.strip():
-                    self.table.setRowHidden(row, True)
 
             # Apply current font
             self.apply_font_to_grid()
@@ -38113,10 +38116,12 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                 # Get unique rows that have matches
                 matching_rows = set(row for row, col in self.find_matches)
                 
-                # Hide all non-matching rows
-                for row in range(len(self.current_project.segments)):
-                    self.table.setRowHidden(row, row not in matching_rows)
-        
+                # Hide all non-matching rows (empty structural segments always hidden)
+                segments = self.current_project.segments
+                for row in range(len(segments)):
+                    hidden = row not in matching_rows or not segments[row].source.strip()
+                    self.table.setRowHidden(row, hidden)
+
         if not self.find_matches:
             QMessageBox.information(self.find_replace_dialog, "Find", "No matches found.")
             return
@@ -38158,9 +38163,11 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             # Get unique rows that have matches
             matching_rows = set(row for row, col in self.find_matches)
             
-            # Hide all non-matching rows (like filter boxes do)
-            for row in range(len(self.current_project.segments)):
-                self.table.setRowHidden(row, row not in matching_rows)
+            # Hide all non-matching rows (empty structural segments always hidden)
+            segments = self.current_project.segments
+            for row in range(len(segments)):
+                hidden = row not in matching_rows or not segments[row].source.strip()
+                self.table.setRowHidden(row, hidden)
             
             # Highlight all matches with yellow (after grid is loaded)
             for row, col in self.find_matches:
@@ -38519,11 +38526,10 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
     def clear_search_highlights(self):
         """Clear all search highlights and unhide all rows (for Find & Replace dialog)"""
         self.load_segments_to_grid()
-        
-        # Unhide all rows
-        for row in range(self.table.rowCount()):
-            self.table.setRowHidden(row, False)
-        
+
+        # Unhide all rows (empty structural segments stay hidden via pagination)
+        self._apply_pagination_to_grid()
+
         self.find_matches = []
         self.current_match_index = -1
         self.log("Search highlights cleared")
@@ -39598,10 +39604,9 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             return
 
         if data is None:
-            # "All Files" selected - show all rows
-            if hasattr(self, 'table') and self.table:
-                for row in range(self.table.rowCount()):
-                    self.table.setRowHidden(row, False)
+            # "All Files" selected - re-apply pagination (keeps empty segments hidden)
+            if hasattr(self, '_apply_pagination_to_grid'):
+                self._apply_pagination_to_grid()
             self.log("File filter: showing all files")
             return
 
@@ -39616,7 +39621,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                 if row >= self.table.rowCount():
                     break
                 segment_file_id = getattr(segment, 'file_id', None)
-                show_row = segment_file_id in view_file_ids
+                show_row = segment_file_id in view_file_ids and segment.source.strip()
                 self.table.setRowHidden(row, not show_row)
                 if show_row:
                     visible_count += 1
@@ -39630,7 +39635,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             if row >= self.table.rowCount():
                 break
             segment_file_id = getattr(segment, 'file_id', None)
-            show_row = segment_file_id == file_id
+            show_row = segment_file_id == file_id and segment.source.strip()
             self.table.setRowHidden(row, not show_row)
             if show_row:
                 visible_count += 1
@@ -40518,16 +40523,17 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             # Clear any yellow text filter highlights (but preserve termbase/tag formatting)
             self._clear_all_filter_highlights()
             
-            # Hide rows with non-empty target
+            # Hide rows with non-empty target (empty structural segments always hidden)
             visible_count = 0
             for row, segment in enumerate(self.current_project.segments):
                 if row >= self.table.rowCount():
                     break
-                
+
                 has_empty_target = not segment.target or not segment.target.strip()
-                self.table.setRowHidden(row, not has_empty_target)
-                
-                if has_empty_target:
+                show_row = has_empty_target and segment.source.strip()
+                self.table.setRowHidden(row, not show_row)
+
+                if show_row:
                     visible_count += 1
         finally:
             self.table.setUpdatesEnabled(True)
@@ -40684,9 +40690,13 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                 if filters.get('repetitions_only'):
                     # TODO: Implement repetition detection
                     pass
-                
+
+                # Empty structural segments are always hidden
+                if not segment.source.strip():
+                    show_row = False
+
                 self.table.setRowHidden(row, not show_row)
-                
+
                 if show_row:
                     visible_count += 1
         finally:
