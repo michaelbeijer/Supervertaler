@@ -5995,6 +5995,117 @@ class ScratchpadDialog(QDialog):
 # BATCH TRANSLATION WORKER & PROGRESS DIALOG
 # ============================================================================
 
+class TMSearchWorker(QThread):
+    """Background worker thread for TM fuzzy search.
+
+    Runs expensive SequenceMatcher-based fuzzy matching off the main thread
+    to prevent UI freezes, especially with large TMs (1M+ entries).
+    Uses its own SQLite connection since connections can't be shared across threads.
+    """
+
+    # Signal: segment_id, list of match dicts
+    results_ready = pyqtSignal(int, list)
+
+    def __init__(self, db_path: str, source_text: str, segment_id: int,
+                 tm_ids: list = None, source_lang: str = None, target_lang: str = None,
+                 fuzzy_threshold: float = 0.75, max_matches: int = 10,
+                 tm_metadata: dict = None):
+        super().__init__()
+        self.db_path = db_path
+        self.source_text = source_text
+        self.segment_id = segment_id
+        self.tm_ids = tm_ids
+        self.source_lang = source_lang
+        self.target_lang = target_lang
+        self.fuzzy_threshold = fuzzy_threshold
+        self.max_matches = max_matches
+        self.tm_metadata = tm_metadata or {}
+        self._cancelled = False
+
+    def cancel(self):
+        self._cancelled = True
+
+    def run(self):
+        """Run TM search in background thread with thread-local SQLite connection."""
+        import sqlite3
+        try:
+            conn = sqlite3.connect(self.db_path)
+            conn.row_factory = sqlite3.Row
+
+            from modules.database_manager import DatabaseManager
+
+            # Create a lightweight DatabaseManager that uses our thread-local connection
+            db = DatabaseManager.__new__(DatabaseManager)
+            db.connection = conn
+            db.cursor = conn.cursor()
+            db.log = lambda msg: None  # Suppress logging in worker thread
+            db.db_path = self.db_path
+
+            if self._cancelled:
+                conn.close()
+                return
+
+            # First try exact match (fast, hash-based)
+            exact_match = db.get_exact_match(
+                source=self.source_text,
+                tm_ids=self.tm_ids,
+                source_lang=self.source_lang,
+                target_lang=self.target_lang
+            )
+
+            if exact_match:
+                results = [{
+                    'source': exact_match['source_text'],
+                    'target': exact_match['target_text'],
+                    'similarity': 1.0,
+                    'match_pct': 100,
+                    'tm_name': self.tm_metadata.get(exact_match['tm_id'], {}).get('name', exact_match['tm_id']),
+                    'tm_id': exact_match['tm_id']
+                }]
+                if not self._cancelled:
+                    self.results_ready.emit(self.segment_id, results)
+                conn.close()
+                return
+
+            if self._cancelled:
+                conn.close()
+                return
+
+            # Fuzzy matches (expensive - SequenceMatcher on many candidates)
+            fuzzy_matches = db.search_fuzzy_matches(
+                source=self.source_text,
+                tm_ids=self.tm_ids,
+                threshold=self.fuzzy_threshold,
+                max_results=self.max_matches,
+                source_lang=self.source_lang,
+                target_lang=self.target_lang
+            )
+
+            results = []
+            for match in fuzzy_matches:
+                results.append({
+                    'source': match['source_text'],
+                    'target': match['target_text'],
+                    'similarity': match.get('similarity', 0.85),
+                    'match_pct': match.get('match_pct', 85),
+                    'tm_name': self.tm_metadata.get(match['tm_id'], {}).get('name', match['tm_id']),
+                    'tm_id': match['tm_id']
+                })
+
+            if not self._cancelled:
+                self.results_ready.emit(self.segment_id, results)
+
+            conn.close()
+
+        except Exception as e:
+            try:
+                conn.close()
+            except:
+                pass
+            if not self._cancelled:
+                self.results_ready.emit(self.segment_id, [])
+
+
 class PreTranslationWorker(QThread):
     """Background worker thread for batch translation."""
     
@@ -47827,7 +47938,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                 "Termbases": getattr(self, '_pending_termbase_matches', [])
             }
             
-            # 🔥 DELAYED TM SEARCH: Search TM database using new TMDatabase with activated TMs
+            # 🔥 THREADED TM SEARCH: Run expensive fuzzy matching off the main thread
             if self.enable_tm_matching and hasattr(self, 'tm_database') and self.tm_database:
                 try:
                     # Get activated TM IDs for current project
@@ -47836,122 +47947,39 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                         project_id = self.current_project.id if hasattr(self.current_project, 'id') else None
                         if project_id:
                             tm_ids = self.tm_metadata_mgr.get_active_tm_ids(project_id)
-                    
+
                     # Skip TM search if no TMs are activated
                     if tm_ids is not None and isinstance(tm_ids, list) and len(tm_ids) == 0:
-                        all_tm_matches = []
+                        pass  # No TMs active, skip search
                     else:
                         # Strip outer structural tags if setting is enabled (for cleaner TM matching)
                         search_source = segment.source
                         if self.hide_outer_wrapping_tags:
                             search_source, _ = strip_outer_wrapping_tags(search_source)
-                        # Search using TMDatabase (includes bidirectional + base language matching)
-                        all_tm_matches = self.tm_database.search_all(search_source, tm_ids=tm_ids, enabled_only=False, max_matches=10)
-                    
-                    # Single consolidated log message for TM search results
-                    if all_tm_matches:
-                        self.log(f"🔍 TM: Found {len(all_tm_matches)} matches for segment {segment.id}")
-                    
-                    for match in all_tm_matches:
-                        match_obj = TranslationMatch(
-                            source=match.get('source', ''),
-                            target=match.get('target', ''),
-                            relevance=match.get('match_pct', 0),
-                            metadata={
-                                'context': match.get('context', ''),
-                                'tm_name': match.get('tm_name', ''),
-                                'timestamp': match.get('created_at', ''),
-                                'direction': 'reverse' if 'Reverse' in match.get('tm_name', '') else 'primary'
-                            },
-                            match_type='TM',
-                            compare_source=match.get('source', ''),
-                            provider_code='TM'
-                        )
-                        matches_dict["TM"].append(match_obj)
-                    
-                    # Show TM matches immediately (progressive loading)
-                    if matches_dict["TM"]:
-                        # v1.9.182: Re-validate we're still on same segment before displaying
-                        current_row = self.table.currentRow() if hasattr(self, 'table') and self.table else -1
-                        if current_row >= 0:
-                            id_item = self.table.item(current_row, 0)
-                            if id_item:
-                                try:
-                                    current_segment_id = int(id_item.text())
-                                    if current_segment_id != segment.id:
-                                        # User moved - still cache results but don't display
-                                        with self.translation_matches_cache_lock:
-                                            if segment.id in self.translation_matches_cache:
-                                                self.translation_matches_cache[segment.id]["TM"] = matches_dict["TM"]
-                                        return  # Don't display stale results
-                                except (ValueError, AttributeError):
-                                    pass
 
-                        tm_only = {"TM": matches_dict["TM"]}
-                        if hasattr(self, 'results_panels') and self.results_panels:
-                            for panel in self.results_panels:
-                                try:
-                                    panel.add_matches(tm_only)
-                                except Exception as e:
-                                    self.log(f"Error adding TM matches: {e}")
-                        
-                        # 🔄 Update Match Panel with all TM matches (for navigation)
-                        # Convert TranslationMatch objects to dict format for Match Panel
-                        tm_matches_for_panel = []
-                        for tm in matches_dict["TM"]:
-                            tm_name = tm.metadata.get('tm_name', 'TM') if tm.metadata else 'TM'
-                            tm_matches_for_panel.append({
-                                'source': tm.compare_source or tm.source,
-                                'target': tm.target,
-                                'tm_name': tm_name,
-                                'match_pct': int(tm.relevance)
-                            })
-                        # Store for later (MT will be added when available)
-                        self._compare_panel_tm_matches = tm_matches_for_panel
-                        # Update panel with TM data only (MT empty for now)
-                        self.set_compare_panel_matches(
-                            segment.id,
-                            segment.source,
-                            tm_matches=tm_matches_for_panel,
-                            mt_matches=getattr(self, '_compare_panel_mt_matches', [])
-                        )
-                        
-                        # 🎯 AUTO-INSERT 100% TM MATCH (if enabled in settings)
-                        if self.auto_insert_100_percent_matches:
-                            # Check if segment target is empty (don't overwrite existing translations)
-                            target_empty = not segment.target or len(segment.target.strip()) == 0
-                            
-                            if target_empty and matches_dict["TM"]:
-                                # Find first 100% match
-                                best_match = None
-                                for tm_match in matches_dict["TM"]:
-                                    # Use >= 99.5 to handle floating point precision
-                                    if float(tm_match.relevance) >= 99.5:
-                                        best_match = tm_match
-                                        break
-                                
-                                if best_match:
-                                    self._auto_insert_tm_match(segment, best_match.target, None)  # Let function find row
-                                    # Play 100% TM match alert sound
-                                    self._play_sound_effect('tm_100_percent_match')
-                        
-                        # 🔊 Play fuzzy match sound if fuzzy matches found (but not 100%)
-                        has_100_match = any(float(tm.relevance) >= 99.5 for tm in matches_dict["TM"])
-                        has_fuzzy_match = any(float(tm.relevance) < 99.5 and float(tm.relevance) >= 50 for tm in matches_dict["TM"])
-                        if has_fuzzy_match and not has_100_match:
-                            self._play_sound_effect('tm_fuzzy_match')
+                        # Cancel any previous TM search worker
+                        if hasattr(self, '_tm_search_worker') and self._tm_search_worker is not None:
+                            self._tm_search_worker.cancel()
+                            self._tm_search_worker.wait(100)  # Brief wait, don't block UI
 
-                    # v1.9.182: Update cache with TM results so subsequent visits are instant
-                    if matches_dict["TM"]:
-                        with self.translation_matches_cache_lock:
-                            if segment.id in self.translation_matches_cache:
-                                # Merge TM results into existing cache entry
-                                self.translation_matches_cache[segment.id]["TM"] = matches_dict["TM"]
-                            else:
-                                # Create new cache entry with TM results
-                                self.translation_matches_cache[segment.id] = matches_dict
+                        # Launch TM search in background thread
+                        self._tm_search_worker = TMSearchWorker(
+                            db_path=self.tm_database.db.db_path,
+                            source_text=search_source,
+                            segment_id=segment.id,
+                            tm_ids=tm_ids,
+                            source_lang=self.tm_database.source_lang,
+                            target_lang=self.tm_database.target_lang,
+                            fuzzy_threshold=self.tm_database.fuzzy_threshold,
+                            max_matches=10,
+                            tm_metadata=self.tm_database.tm_metadata
+                        )
+                        # Store segment reference for result handler
+                        self._tm_search_pending_segment = segment
+                        self._tm_search_worker.results_ready.connect(self._on_tm_search_results)
+                        self._tm_search_worker.start()
                 except Exception as e:
-                    self.log(f"Error in delayed TM search: {e}")
+                    self.log(f"Error launching TM search worker: {e}")
             
             # Add MT and LLM matches progressively
             self._add_mt_and_llm_matches_progressive(segment, source_lang, target_lang, source_lang_code, target_lang_code)
@@ -47959,6 +47987,113 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         except Exception as e:
             self.log(f"Error in MT/LLM search: {e}")
     
+    def _on_tm_search_results(self, segment_id: int, all_tm_matches: list):
+        """Handle TM search results from background TMSearchWorker thread.
+
+        This runs on the main thread (via signal) so it's safe to update UI.
+        """
+        try:
+            from modules.translation_results_panel import TranslationMatch
+
+            # Validate we're still on the same segment
+            current_row = self.table.currentRow() if hasattr(self, 'table') and self.table else -1
+            current_segment_id = None
+            if current_row >= 0:
+                id_item = self.table.item(current_row, 0)
+                if id_item:
+                    try:
+                        current_segment_id = int(id_item.text())
+                    except (ValueError, AttributeError):
+                        pass
+
+            if all_tm_matches:
+                self.log(f"🔍 TM: Found {len(all_tm_matches)} matches for segment {segment_id}")
+
+            # Convert to TranslationMatch objects
+            tm_match_objects = []
+            for match in all_tm_matches:
+                match_obj = TranslationMatch(
+                    source=match.get('source', ''),
+                    target=match.get('target', ''),
+                    relevance=match.get('match_pct', 0),
+                    metadata={
+                        'context': match.get('context', ''),
+                        'tm_name': match.get('tm_name', ''),
+                        'timestamp': match.get('created_at', ''),
+                        'direction': 'reverse' if 'Reverse' in match.get('tm_name', '') else 'primary'
+                    },
+                    match_type='TM',
+                    compare_source=match.get('source', ''),
+                    provider_code='TM'
+                )
+                tm_match_objects.append(match_obj)
+
+            # Cache results regardless of whether user moved
+            if tm_match_objects:
+                with self.translation_matches_cache_lock:
+                    if segment_id in self.translation_matches_cache:
+                        self.translation_matches_cache[segment_id]["TM"] = tm_match_objects
+                    else:
+                        self.translation_matches_cache[segment_id] = {
+                            "LLM": [], "NT": [], "MT": [], "TM": tm_match_objects,
+                            "Termbases": getattr(self, '_pending_termbase_matches', [])
+                        }
+
+            # If user moved to a different segment, don't update UI
+            if current_segment_id is not None and current_segment_id != segment_id:
+                return
+
+            # Show TM matches in results panels
+            if tm_match_objects:
+                tm_only = {"TM": tm_match_objects}
+                if hasattr(self, 'results_panels') and self.results_panels:
+                    for panel in self.results_panels:
+                        try:
+                            panel.add_matches(tm_only)
+                        except Exception as e:
+                            self.log(f"Error adding TM matches: {e}")
+
+                # Update Match Panel with TM matches
+                tm_matches_for_panel = []
+                for tm in tm_match_objects:
+                    tm_name = tm.metadata.get('tm_name', 'TM') if tm.metadata else 'TM'
+                    tm_matches_for_panel.append({
+                        'source': tm.compare_source or tm.source,
+                        'target': tm.target,
+                        'tm_name': tm_name,
+                        'match_pct': int(tm.relevance)
+                    })
+                self._compare_panel_tm_matches = tm_matches_for_panel
+                self.set_compare_panel_matches(
+                    segment_id,
+                    self._tm_search_pending_segment.source if hasattr(self, '_tm_search_pending_segment') else '',
+                    tm_matches=tm_matches_for_panel,
+                    mt_matches=getattr(self, '_compare_panel_mt_matches', [])
+                )
+
+                # Auto-insert 100% TM match (if enabled)
+                segment = getattr(self, '_tm_search_pending_segment', None)
+                if segment and segment.id == segment_id and self.auto_insert_100_percent_matches:
+                    target_empty = not segment.target or len(segment.target.strip()) == 0
+                    if target_empty:
+                        best_match = None
+                        for tm_match in tm_match_objects:
+                            if float(tm_match.relevance) >= 99.5:
+                                best_match = tm_match
+                                break
+                        if best_match:
+                            self._auto_insert_tm_match(segment, best_match.target, None)
+                            self._play_sound_effect('tm_100_percent_match')
+
+                # Play fuzzy match sound
+                has_100_match = any(float(tm.relevance) >= 99.5 for tm in tm_match_objects)
+                has_fuzzy_match = any(float(tm.relevance) < 99.5 and float(tm.relevance) >= 50 for tm in tm_match_objects)
+                if has_fuzzy_match and not has_100_match:
+                    self._play_sound_effect('tm_fuzzy_match')
+
+        except Exception as e:
+            self.log(f"Error handling TM search results: {e}")
+
     def _auto_insert_tm_match(self, segment, target_text, row=None):
         """
         Auto-insert a 100% TM match into the target field.

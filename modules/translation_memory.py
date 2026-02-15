@@ -511,65 +511,72 @@ class TMDatabase:
         
         return tm_id, loaded_count
     
-    def _load_tmx_into_db(self, filepath: str, src_lang: str, tgt_lang: str, tm_id: str, 
+    def _load_tmx_into_db(self, filepath: str, src_lang: str, tgt_lang: str, tm_id: str,
                           strip_variants: bool = False, progress_callback=None) -> int:
         """
-        Internal: Load TMX content into database with chunked processing
-        
+        Internal: Load TMX content into database with streaming XML and batch commits.
+
+        Uses iterparse to stream the XML instead of loading the entire file into memory,
+        and batch-commits chunks of entries instead of committing per row.
+        This makes importing multi-GB TMX files feasible.
+
         Args:
             filepath: Path to TMX file
             src_lang: Target source language code
-            tgt_lang: Target target language code  
+            tgt_lang: Target target language code
             tm_id: TM identifier
             strip_variants: If True, match base languages ignoring regional variants
             progress_callback: Optional callback function(current, total, message) for progress updates
         """
         loaded_count = 0
-        chunk_size = 1000  # Process in chunks for responsiveness
+        chunk_size = 5000  # Batch commit size (larger = fewer disk syncs)
         chunk_buffer = []
-        
+
         try:
-            # First pass: count total TUs for progress bar
+            # Estimate total TUs from file size (avoid loading entire file just to count)
+            # A typical TMX TU averages ~200-400 bytes; use 300 as estimate
+            import os
+            file_size = os.path.getsize(filepath)
+            estimated_total = max(file_size // 300, 100)  # Rough estimate
+
             if progress_callback:
-                progress_callback(0, 0, "Counting translation units...")
-            
-            tree = ET.parse(filepath)
-            root = tree.getroot()
-            total_tus = len(root.findall('.//tu'))
-            
-            if progress_callback:
-                progress_callback(0, total_tus, f"Processing 0 / {total_tus:,} entries...")
-            
+                progress_callback(0, estimated_total, "Starting import (streaming)...")
+
             xml_ns = "http://www.w3.org/XML/1998/namespace"
-            
+
             # Normalize language codes
             from modules.tmx_generator import get_simple_lang_code, get_base_lang_code
             src_lang_normalized = get_simple_lang_code(src_lang)
             tgt_lang_normalized = get_simple_lang_code(tgt_lang)
-            
+
             # If stripping variants, get base codes for comparison
             if strip_variants:
                 src_base = get_base_lang_code(src_lang_normalized)
                 tgt_base = get_base_lang_code(tgt_lang_normalized)
-            
+
             processed = 0
-            for tu in root.findall('.//tu'):
+
+            # Stream XML with iterparse - never loads entire file into memory
+            for event, elem in ET.iterparse(filepath, events=('end',)):
+                if elem.tag != 'tu':
+                    continue
+
                 src_text, tgt_text = None, None
-                
-                for tuv_node in tu.findall('tuv'):
+
+                for tuv_node in elem.findall('tuv'):
                     lang_attr = tuv_node.get(f'{{{xml_ns}}}lang')
                     if not lang_attr:
                         continue
-                    
+
                     tmx_lang = get_simple_lang_code(lang_attr)
-                    
+
                     seg_node = tuv_node.find('seg')
                     if seg_node is not None:
                         try:
                             text = ET.tostring(seg_node, encoding='unicode', method='text').strip()
                         except:
                             text = "".join(seg_node.itertext()).strip()
-                        
+
                         # Match languages (exact or base code match if stripping variants)
                         if strip_variants:
                             if get_base_lang_code(tmx_lang) == src_base:
@@ -581,64 +588,76 @@ class TMDatabase:
                                 src_text = text
                             elif tmx_lang == tgt_lang_normalized:
                                 tgt_text = text
-                
+
                 if src_text and tgt_text:
                     chunk_buffer.append((src_text, tgt_text))
                     loaded_count += 1
-                    
-                    # Process chunk when buffer is full
+
+                    # Batch commit when buffer is full
                     if len(chunk_buffer) >= chunk_size:
-                        for src, tgt in chunk_buffer:
-                            self.db.add_translation_unit(
-                                source=src,
-                                target=tgt,
-                                source_lang=src_lang_normalized,
-                                target_lang=tgt_lang_normalized,
-                                tm_id=tm_id
-                            )
+                        self.db.add_translation_units_batch(
+                            chunk_buffer,
+                            source_lang=src_lang_normalized,
+                            target_lang=tgt_lang_normalized,
+                            tm_id=tm_id
+                        )
                         chunk_buffer.clear()
-                        
+
                         # Update progress
                         if progress_callback:
-                            progress_callback(processed + 1, total_tus, 
-                                            f"Processing {loaded_count:,} / {total_tus:,} entries...")
-                
+                            progress_callback(loaded_count, estimated_total,
+                                            f"Imported {loaded_count:,} entries...")
+
                 processed += 1
-            
+
+                # Free memory: clear the processed <tu> element and its parent refs
+                elem.clear()
+
             # Process remaining entries in buffer
             if chunk_buffer:
-                for src, tgt in chunk_buffer:
-                    self.db.add_translation_unit(
-                        source=src,
-                        target=tgt,
-                        source_lang=src_lang_normalized,
-                        target_lang=tgt_lang_normalized,
-                        tm_id=tm_id
-                    )
+                self.db.add_translation_units_batch(
+                    chunk_buffer,
+                    source_lang=src_lang_normalized,
+                    target_lang=tgt_lang_normalized,
+                    tm_id=tm_id
+                )
                 chunk_buffer.clear()
-            
+
             # Final progress update
             if progress_callback:
-                progress_callback(total_tus, total_tus, f"Completed: {loaded_count:,} entries imported")
-            
+                progress_callback(loaded_count, loaded_count, f"Completed: {loaded_count:,} entries imported")
+
             return loaded_count
         except Exception as e:
             self.log(f"✗ Error loading TMX: {e}")
-            return 0
+            import traceback
+            self.log(traceback.format_exc())
+            return loaded_count  # Return what we managed to import
     
     def detect_tmx_languages(self, filepath: str) -> List[str]:
-        """Detect all language codes present in a TMX file"""
+        """Detect all language codes present in a TMX file.
+
+        Uses streaming XML parsing so it works on multi-GB files without
+        loading everything into memory. Stops after scanning 100 TUs
+        (languages are consistent across a TMX file).
+        """
         try:
-            tree = ET.parse(filepath)
-            root = tree.getroot()
             xml_ns = "http://www.w3.org/XML/1998/namespace"
-            
             languages = set()
-            for tuv in root.findall('.//tuv'):
-                lang_attr = tuv.get(f'{{{xml_ns}}}lang')
-                if lang_attr:
-                    languages.add(lang_attr)
-            
+            tu_count = 0
+
+            for event, elem in ET.iterparse(filepath, events=('end',)):
+                if elem.tag == 'tuv':
+                    lang_attr = elem.get(f'{{{xml_ns}}}lang')
+                    if lang_attr:
+                        languages.add(lang_attr)
+                elif elem.tag == 'tu':
+                    tu_count += 1
+                    elem.clear()
+                    # Stop early — languages are consistent across the file
+                    if tu_count >= 100:
+                        break
+
             return sorted(list(languages))
         except:
             return []

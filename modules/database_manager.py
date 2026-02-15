@@ -736,6 +736,54 @@ class DatabaseManager:
             self.log(f"Error adding translation unit: {e}")
             return None
     
+    def add_translation_units_batch(self, entries: list, source_lang: str,
+                                    target_lang: str, tm_id: str = 'project') -> int:
+        """
+        Batch-insert translation units with a single commit.
+
+        Much faster than calling add_translation_unit() per row, which commits
+        after every INSERT (millions of disk syncs for large TMX files).
+
+        Args:
+            entries: List of (source_text, target_text) tuples
+            source_lang: Source language code
+            target_lang: Target language code
+            tm_id: TM identifier
+
+        Returns: Number of entries inserted
+        """
+        if not entries:
+            return 0
+
+        inserted = 0
+        try:
+            for source, target in entries:
+                normalized_source = _normalize_for_matching(source)
+                source_hash = hashlib.md5(normalized_source.encode('utf-8')).hexdigest()
+
+                self.cursor.execute("""
+                    INSERT INTO translation_units
+                    (source_text, target_text, source_lang, target_lang, tm_id,
+                     project_id, context_before, context_after, source_hash, notes)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(source_hash, target_text, tm_id) DO UPDATE SET
+                        usage_count = usage_count + 1,
+                        modified_date = CURRENT_TIMESTAMP
+                """, (source, target, source_lang, target_lang, tm_id,
+                      None, None, None, source_hash, None))
+                inserted += 1
+
+            self.connection.commit()
+            return inserted
+
+        except Exception as e:
+            self.log(f"Error in batch insert: {e}")
+            try:
+                self.connection.commit()  # Commit what we have so far
+            except:
+                pass
+            return inserted
+
     def get_exact_match(self, source: str, tm_ids: List[str] = None,
                        source_lang: str = None, target_lang: str = None,
                        bidirectional: bool = True) -> Optional[Dict]:

@@ -2,8 +2,19 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.267 (February 15, 2026)
+**Current Version:** v1.9.268 (February 15, 2026)
 
+
+## v1.9.268 - February 15, 2026
+
+### Performance
+
+- **Threaded TM fuzzy search** — TM fuzzy matching (SequenceMatcher on up to 500 FTS5 candidates) now runs in a background QThread instead of blocking the main UI thread. Eliminates beachball/freeze when navigating segments with very large TMs (1M+ entries). Previous searches are automatically cancelled when moving to a new segment.
+- **Streaming TMX import** — Replaced `ET.parse()` (loads entire file into memory) with `ET.iterparse()` for streaming XML processing. Multi-GB TMX files now import without excessive memory usage. Processed elements are freed immediately.
+- **Batch SQLite commits for TMX import** — New `add_translation_units_batch()` method commits chunks of 5,000 entries at once instead of one `commit()` per row. Dramatically reduces disk I/O for large imports.
+- **Streaming language detection** — `detect_tmx_languages()` now uses `iterparse` and stops after 100 TUs instead of loading the entire TMX file just to find language codes.
+
+---
 
 ## v1.9.267 - February 15, 2026
 
