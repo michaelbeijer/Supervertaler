@@ -2,8 +2,21 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.266 (February 14, 2026)
+**Current Version:** v1.9.267 (February 15, 2026)
 
+
+## v1.9.267 - February 15, 2026
+
+### New Features
+
+- **Standalone SDLXLIFF import/export** — Translators can now import `.sdlxliff` files directly, without needing a Trados package (`.sdlppx`). Supports multi-file selection, full SDL status mapping (PM, CM, 100%, fuzzy, MT, repetitions), and round-trip export with BOM-preserving text-based replacement. Menu items added under File > Import/Export > Trados Studio. Resolves the most requested bilingual format gap.
+
+### Improvements
+
+- **Shared SDLXLIFF status mapping** — Extracted the 13-level SDL segment status mapper (`_map_sdlxliff_segment()`) into a reusable helper, shared by both SDLPPX package import and standalone SDLXLIFF import. Eliminates 50 lines of code duplication.
+- **Refactored SDLXLIFF save engine** — The core save functions (`_markers_to_xml`, `_replace_target_content`, `_replace_seg_attributes`) are now module-level functions in `sdlppx_handler.py`, reusable by both the package handler and the new standalone handler.
+
+---
 
 ## v1.9.266 - February 14, 2026
 

@@ -6,7 +6,7 @@
 
 **Professional AI-enhanced translation workbench** with multi-LLM support (GPT-4, Claude, Gemini, Ollama), translation memory, glossary management, and seamless CAT tool integration (memoQ, Trados, CafeTran, Phrase, Déjà Vu).
 
-**Latest release:** v1.9.266 - Fix empty segments showing in grid despite hiding logic; consistent across all filter/pagination paths.
+**Latest release:** v1.9.267 - Standalone SDLXLIFF import/export (no Trados package needed), shared status mapping, refactored save engine.
 
 ---
 

@@ -1,7 +1,7 @@
 # Supervertaler - AI Agent Documentation (Compact)
 
 > **Purpose:** Fast, reliable handoff when context is low or chats reset.
-> **Last Updated:** February 14, 2026 | **Version:** v1.9.266
+> **Last Updated:** February 15, 2026 | **Version:** v1.9.267
 
 ---
 
@@ -18,9 +18,10 @@
 
 ## 🎯 Current State
 
-- **Current version:** `v1.9.266`
+- **Current version:** `v1.9.267`
 - **Main app:** `Supervertaler.py` (large monolithic PyQt6 file)
 - **Latest major completed work:**
+  - Standalone SDLXLIFF import/export without Trados package (v1.9.267)
   - TXT/MD sentence segmentation with "Split lines into sentences" checkbox (v1.9.265)
   - Markdown-aware segmenter (`modules/simple_segmenter.py::MarkdownSegmenter`) (v1.9.265)
   - Empty line handling: always preserved for export, hidden in grid (v1.9.265–266)

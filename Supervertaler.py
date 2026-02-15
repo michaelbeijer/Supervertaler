@@ -1252,6 +1252,7 @@ class Project:
     mqxliff_source_path: str = None  # Path to original memoQ XLIFF for round-trip export
     cafetran_source_path: str = None  # Path to original CafeTran bilingual DOCX for round-trip export
     sdlppx_source_path: str = None  # Path to original Trados SDLPPX package for SDLRPX export
+    sdlxliff_source_paths: list = None  # Paths to standalone .sdlxliff files for round-trip export
     original_txt_path: str = None  # Path to original simple text file for round-trip export
     dejavu_source_path: str = None  # Path to original Déjà Vu bilingual RTF for round-trip export
     concordance_geometry: Dict[str, int] = None  # Window geometry for Concordance Search {x, y, width, height}
@@ -1341,6 +1342,8 @@ class Project:
             result['cafetran_source_path'] = self.cafetran_source_path
         if self.sdlppx_source_path:
             result['sdlppx_source_path'] = self.sdlppx_source_path
+        if self.sdlxliff_source_paths:
+            result['sdlxliff_source_paths'] = self.sdlxliff_source_paths
         if self.original_txt_path:
             result['original_txt_path'] = self.original_txt_path
         if self.dejavu_source_path:
@@ -1422,6 +1425,9 @@ class Project:
         # Store SDLPPX source path if it exists
         if 'sdlppx_source_path' in data:
             project.sdlppx_source_path = data['sdlppx_source_path']
+        # Store standalone SDLXLIFF source paths if they exist
+        if 'sdlxliff_source_paths' in data:
+            project.sdlxliff_source_paths = data['sdlxliff_source_paths']
         # Store original TXT path if it exists
         if 'original_txt_path' in data:
             project.original_txt_path = data['original_txt_path']
@@ -8325,6 +8331,10 @@ class SupervertalerQt(QMainWindow):
         import_trados_bilingual_action.triggered.connect(self.import_trados_bilingual)
         trados_submenu.addAction(import_trados_bilingual_action)
 
+        import_sdlxliff_action = QAction("Bilingual &XLIFF (.sdlxliff)...", self)
+        import_sdlxliff_action.triggered.connect(self.import_standalone_sdlxliff)
+        trados_submenu.addAction(import_sdlxliff_action)
+
         import_sdlppx_action = QAction("&Package (SDLPPX)...", self)
         import_sdlppx_action.triggered.connect(self.import_sdlppx_package)
         trados_submenu.addAction(import_sdlppx_action)
@@ -8386,6 +8396,10 @@ class SupervertalerQt(QMainWindow):
         export_trados_bilingual_action = QAction("Bilingual &Review - Translated (DOCX)...", self)
         export_trados_bilingual_action.triggered.connect(self.export_trados_bilingual)
         trados_export_submenu.addAction(export_trados_bilingual_action)
+
+        export_sdlxliff_action = QAction("Bilingual &XLIFF - Translated (.sdlxliff)...", self)
+        export_sdlxliff_action.triggered.connect(self.export_standalone_sdlxliff)
+        trados_export_submenu.addAction(export_sdlxliff_action)
 
         export_sdlrpx_action = QAction("Return &Package (SDLRPX)...", self)
         export_sdlrpx_action.triggered.connect(self.export_sdlrpx_package)
@@ -23624,7 +23638,31 @@ class SupervertalerQt(QMainWindow):
                 else:
                     self.log(f"⚠️ SDLPPX package not found: {sdlppx_path}")
                     self.sdlppx_handler = None
-            
+
+            # Restore standalone SDLXLIFF handler
+            sdlxliff_paths = getattr(self.current_project, 'sdlxliff_source_paths', None)
+            if sdlxliff_paths:
+                existing = [p for p in sdlxliff_paths if os.path.exists(p)]
+                if existing:
+                    try:
+                        from modules.sdlppx_handler import StandaloneSDLXLIFFHandler
+                        handler = StandaloneSDLXLIFFHandler(log_callback=self.log)
+                        if handler.load(existing):
+                            self.sdlxliff_handler = handler
+                            self.sdlxliff_source_files = existing
+                            self.log(f"✓ Restored SDLXLIFF handler: {len(existing)} file(s)")
+                            self.log(f"  → SDLXLIFF export enabled for this project")
+                        else:
+                            self.log(f"⚠️ Could not reload SDLXLIFF files")
+                            self.sdlxliff_handler = None
+                    except Exception as e:
+                        self.log(f"⚠️ Could not restore SDLXLIFF handler: {e}")
+                        self.sdlxliff_handler = None
+                else:
+                    missing = [Path(p).name for p in sdlxliff_paths if not os.path.exists(p)]
+                    self.log(f"⚠️ SDLXLIFF source file(s) not found: {', '.join(missing)}")
+                    self.sdlxliff_handler = None
+
             self.load_segments_to_grid()
             self.initialize_tm_database()  # Initialize TM for this project
             self.update_window_title()
@@ -30068,72 +30106,10 @@ class SupervertalerQt(QMainWindow):
                 handler.cleanup()
                 return
             
-            # Convert to internal Segment format with proper status mapping
-            segments = []
-            for i, sdl_seg in enumerate(all_segments):
-                # Determine status based on origin, match percent, and text-match attribute
-                # Match type hierarchy (highest to lowest confidence):
-                # - PM (102%): PerfectMatch or double context (memoQ XLT)
-                # - CM (101%): Context match (text + preceding segment match)
-                # - 100%: Exact text match only
-                # - Fuzzy: 75-99%
-                # - Repetition: document-match or auto-propagated
-                # - MT: machine translation
-                
-                if sdl_seg.target_text:
-                    if sdl_seg.origin == 'tm':
-                        # TM match - check for context match vs regular 100%
-                        if sdl_seg.match_percent >= 100:
-                            # Check text-match attribute for match type
-                            text_match = getattr(sdl_seg, 'text_match', '')
-                            if text_match == 'SourceAndTarget':
-                                status = STATUSES["cm"].key  # Context match (101%)
-                            else:
-                                status = STATUSES["tm_100"].key  # Regular 100% match
-                        elif sdl_seg.match_percent >= 75:
-                            status = STATUSES["tm_fuzzy"].key  # Fuzzy match
-                        else:
-                            status = STATUSES["pretranslated"].key
-                    elif sdl_seg.origin == 'perfect-match':
-                        status = STATUSES["pm"].key  # PerfectMatch (102%)
-                    elif sdl_seg.origin in ('document-match', 'auto-propagated'):
-                        status = STATUSES["repetition"].key  # Internal repetition
-                    elif sdl_seg.origin in ('nmt', 'mt', 'machine-translation', 'auto-translation'):
-                        status = STATUSES["machine_translated"].key  # Machine translation
-                    elif sdl_seg.origin == 'interactive':
-                        status = STATUSES["translated"].key  # Manually translated
-                    else:
-                        status = STATUSES["pretranslated"].key  # Default for other pretranslated
-                else:
-                    status = DEFAULT_STATUS.key  # Not translated
-                
-                # Build notes with origin info
-                origin_info = ""
-                if sdl_seg.origin:
-                    text_match = getattr(sdl_seg, 'text_match', '')
-                    if sdl_seg.origin == 'tm' and sdl_seg.match_percent > 0:
-                        if text_match == 'SourceAndTarget':
-                            origin_info = f" | Origin: CM (101%)"
-                        else:
-                            origin_info = f" | Origin: TM {sdl_seg.match_percent}%"
-                    elif sdl_seg.origin == 'perfect-match':
-                        origin_info = " | Origin: PM (102%)"
-                    elif sdl_seg.origin in ('nmt', 'mt'):
-                        origin_info = " | Origin: MT"
-                    elif sdl_seg.origin in ('document-match', 'auto-propagated'):
-                        origin_info = " | Origin: Repetition"
-                    else:
-                        origin_info = f" | Origin: {sdl_seg.origin}"
-                
-                segment = Segment(
-                    id=i + 1,
-                    source=sdl_seg.source_text,
-                    target=sdl_seg.target_text if sdl_seg.target_text else "",
-                    status=status,
-                    notes=f"SDLXLIFF: {Path(sdl_seg.file_path).name} | Segment: {sdl_seg.segment_id}{origin_info}"
-                )
-                segments.append(segment)
-            
+            # Convert to internal Segment format using shared status mapper
+            segments = [self._map_sdlxliff_segment(sdl_seg, i)
+                        for i, sdl_seg in enumerate(all_segments)]
+
             # Map language codes to full names
             lang_map = {
                 'en': 'English', 'en-us': 'English', 'en-gb': 'English',
@@ -30336,6 +30312,329 @@ class SupervertalerQt(QMainWindow):
         except Exception as e:
             QMessageBox.critical(self, "Export Error", f"Failed to export SDLRPX:\n\n{str(e)}")
             self.log(f"✗ SDLRPX export failed: {str(e)}")
+            import traceback
+            traceback.print_exc()
+
+    # ─── Standalone SDLXLIFF import/export ────────────────────────────────────
+
+    def _map_sdlxliff_segment(self, sdl_seg, index: int) -> 'Segment':
+        """
+        Convert an SDLSegment to an internal Segment with proper status mapping.
+
+        Shared by import_sdlppx_package() and import_standalone_sdlxliff().
+        Maps SDL origin/percent/text-match to the 13-level Supervertaler status hierarchy.
+        """
+        # Determine status based on origin, match percent, and text-match attribute
+        if sdl_seg.target_text:
+            if sdl_seg.origin == 'tm':
+                if sdl_seg.match_percent >= 100:
+                    text_match = getattr(sdl_seg, 'text_match', '')
+                    if text_match == 'SourceAndTarget':
+                        status = STATUSES["cm"].key
+                    else:
+                        status = STATUSES["tm_100"].key
+                elif sdl_seg.match_percent >= 75:
+                    status = STATUSES["tm_fuzzy"].key
+                else:
+                    status = STATUSES["pretranslated"].key
+            elif sdl_seg.origin == 'perfect-match':
+                status = STATUSES["pm"].key
+            elif sdl_seg.origin in ('document-match', 'auto-propagated'):
+                status = STATUSES["repetition"].key
+            elif sdl_seg.origin in ('nmt', 'mt', 'machine-translation', 'auto-translation'):
+                status = STATUSES["machine_translated"].key
+            elif sdl_seg.origin == 'interactive':
+                status = STATUSES["translated"].key
+            else:
+                status = STATUSES["pretranslated"].key
+        else:
+            status = DEFAULT_STATUS.key
+
+        # Build notes with origin info
+        origin_info = ""
+        if sdl_seg.origin:
+            text_match = getattr(sdl_seg, 'text_match', '')
+            if sdl_seg.origin == 'tm' and sdl_seg.match_percent > 0:
+                if text_match == 'SourceAndTarget':
+                    origin_info = f" | Origin: CM (101%)"
+                else:
+                    origin_info = f" | Origin: TM {sdl_seg.match_percent}%"
+            elif sdl_seg.origin == 'perfect-match':
+                origin_info = " | Origin: PM (102%)"
+            elif sdl_seg.origin in ('nmt', 'mt'):
+                origin_info = " | Origin: MT"
+            elif sdl_seg.origin in ('document-match', 'auto-propagated'):
+                origin_info = " | Origin: Repetition"
+            else:
+                origin_info = f" | Origin: {sdl_seg.origin}"
+
+        return Segment(
+            id=index + 1,
+            source=sdl_seg.source_text,
+            target=sdl_seg.target_text if sdl_seg.target_text else "",
+            status=status,
+            notes=f"SDLXLIFF: {Path(sdl_seg.file_path).name} | Segment: {sdl_seg.segment_id}{origin_info}"
+        )
+
+    def import_standalone_sdlxliff(self):
+        """Import standalone SDLXLIFF file(s) directly (without Trados package)."""
+        file_paths, _ = QFileDialog.getOpenFileNames(
+            self,
+            "Select SDLXLIFF File(s)",
+            "",
+            "SDLXLIFF Files (*.sdlxliff);;All Files (*.*)"
+        )
+        if not file_paths:
+            return
+
+        try:
+            from modules.sdlppx_handler import StandaloneSDLXLIFFHandler
+
+            self.log(f"Importing {len(file_paths)} SDLXLIFF file(s)...")
+
+            handler = StandaloneSDLXLIFFHandler(log_callback=self.log)
+            if not handler.load(file_paths):
+                QMessageBox.critical(
+                    self, "Import Error",
+                    "Failed to load the SDLXLIFF file(s). Check the log for details."
+                )
+                return
+
+            all_sdl_segments = handler.get_all_segments()
+            if not all_sdl_segments:
+                QMessageBox.warning(
+                    self, "No Segments",
+                    "No translatable segments found in the selected file(s)."
+                )
+                return
+
+            # Convert SDLSegments to internal Segments using shared status mapper
+            segments = [self._map_sdlxliff_segment(sdl_seg, i)
+                        for i, sdl_seg in enumerate(all_sdl_segments)]
+
+            # Normalize language codes to full names
+            source_lang = self._normalize_language_code(handler.get_source_lang())
+            target_lang = self._normalize_language_code(handler.get_target_lang())
+
+            # Create project name
+            if len(file_paths) == 1:
+                project_name = Path(file_paths[0]).stem
+            else:
+                project_name = f"{Path(file_paths[0]).stem} (+{len(file_paths) - 1} files)"
+
+            # Create new project
+            self.current_project = Project(
+                name=project_name,
+                segments=segments,
+                source_lang=source_lang,
+                target_lang=target_lang
+            )
+
+            # Store handler and source paths for round-trip export
+            self.sdlxliff_handler = handler
+            self.sdlxliff_source_files = file_paths
+            self.current_project.sdlxliff_source_paths = file_paths
+
+            # CRITICAL: Update _original_segment_order for new import
+            self._original_segment_order = self.current_project.segments.copy()
+
+            # Sync global language settings
+            self.source_language = source_lang
+            self.target_language = target_lang
+
+            # Update UI
+            self.project_file_path = None
+            self.project_modified = True
+            self.update_window_title()
+            self.load_segments_to_grid()
+            self.initialize_tm_database()
+            self._clear_caches_after_import()
+            self._deactivate_all_resources_for_new_project()
+            self.auto_resize_rows()
+            self._initialize_spellcheck_for_target_language(target_lang)
+
+            # Count pretranslated segments
+            pretrans_count = sum(1 for s in segments if s.target)
+
+            files_info = f"Files: {len(file_paths)}\n" if len(file_paths) > 1 else ""
+            self.log(f"✓ Imported {len(segments)} segments from {len(file_paths)} SDLXLIFF file(s)")
+            if pretrans_count:
+                self.log(f"  {pretrans_count} segments are pretranslated")
+
+            QMessageBox.information(
+                self, "Import Successful",
+                f"Successfully imported {len(segments)} segment(s) from SDLXLIFF.\n\n"
+                f"{files_info}"
+                f"Languages: {source_lang} → {target_lang}\n"
+                f"Pretranslated: {pretrans_count}\n\n"
+                f"After translation, export back as SDLXLIFF (.sdlxliff) to return to the Trados user."
+            )
+
+        except ImportError as e:
+            QMessageBox.critical(
+                self, "Missing Dependency",
+                f"Failed to import SDLXLIFF handler:\n\n{str(e)}"
+            )
+        except Exception as e:
+            QMessageBox.critical(
+                self, "Import Error",
+                f"Failed to import SDLXLIFF file(s):\n\n{str(e)}"
+            )
+            self.log(f"✗ SDLXLIFF import failed: {str(e)}")
+            import traceback
+            traceback.print_exc()
+
+    def export_standalone_sdlxliff(self):
+        """Export translations back to standalone SDLXLIFF file(s)."""
+        if not self.current_project or not self.current_project.segments:
+            QMessageBox.warning(self, "No Data", "No segments to export.")
+            return
+
+        try:
+            from modules.sdlppx_handler import StandaloneSDLXLIFFHandler
+
+            # Try to find handler and source files
+            handler = getattr(self, 'sdlxliff_handler', None)
+            source_files = getattr(self, 'sdlxliff_source_files', None)
+
+            # Try project-stored paths if instance vars not available
+            if not handler or not source_files:
+                stored_paths = getattr(self.current_project, 'sdlxliff_source_paths', None)
+                if stored_paths:
+                    existing = [p for p in stored_paths if Path(p).exists()]
+                    if existing:
+                        handler = StandaloneSDLXLIFFHandler(log_callback=self.log)
+                        if handler.load(existing):
+                            self.sdlxliff_handler = handler
+                            self.sdlxliff_source_files = existing
+                            source_files = existing
+                        else:
+                            handler = None
+
+            # Prompt user to locate source files if not found
+            if not handler or not source_files:
+                reply = QMessageBox.question(
+                    self, "Source File Not Found",
+                    "The original SDLXLIFF source file(s) could not be found.\n\n"
+                    "Would you like to locate them? This is needed to preserve "
+                    "the original file structure during export.",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+                )
+                if reply != QMessageBox.StandardButton.Yes:
+                    return
+
+                file_paths, _ = QFileDialog.getOpenFileNames(
+                    self,
+                    "Select Original SDLXLIFF File(s)",
+                    "",
+                    "SDLXLIFF Files (*.sdlxliff);;All Files (*.*)"
+                )
+                if not file_paths:
+                    return
+
+                handler = StandaloneSDLXLIFFHandler(log_callback=self.log)
+                if not handler.load(file_paths):
+                    QMessageBox.critical(self, "Error", "Failed to load the selected SDLXLIFF file(s).")
+                    return
+
+                self.sdlxliff_handler = handler
+                self.sdlxliff_source_files = file_paths
+                self.current_project.sdlxliff_source_paths = file_paths
+                source_files = file_paths
+
+            # Sync grid targets to segment objects
+            self._sync_grid_targets_to_segments(self.current_project.segments)
+
+            # Build translations dict by extracting segment_id from notes
+            translations = {}
+            for segment in self.current_project.segments:
+                notes = getattr(segment, 'notes', '') or ''
+                target_text = segment.target.strip() if segment.target else ''
+                if "Segment:" in notes and target_text:
+                    parts = notes.split("|")
+                    for part in parts:
+                        part = part.strip()
+                        if part.startswith("Segment:"):
+                            seg_id = part.replace("Segment:", "").strip()
+                            translations[seg_id] = target_text
+                            break
+
+            if not translations:
+                QMessageBox.warning(
+                    self, "No Translations",
+                    "No translated segments found to export."
+                )
+                return
+
+            # Update handler with translations
+            updated = handler.update_translations(translations)
+            self.log(f"Updated {updated} segment(s) in SDLXLIFF handler")
+
+            # Save file(s)
+            if len(handler.xliff_files) == 1:
+                # Single file — use Save As dialog
+                default_name = Path(source_files[0]).stem + "_translated.sdlxliff"
+                default_dir = str(Path(source_files[0]).parent / default_name)
+
+                output_path, _ = QFileDialog.getSaveFileName(
+                    self,
+                    "Save Translated SDLXLIFF",
+                    default_dir,
+                    "SDLXLIFF Files (*.sdlxliff);;All Files (*.*)"
+                )
+                if not output_path:
+                    return
+
+                # Safety: never overwrite source
+                if Path(output_path).resolve() == Path(source_files[0]).resolve():
+                    QMessageBox.warning(
+                        self, "Cannot Overwrite Source",
+                        "Cannot save to the same path as the source file.\n"
+                        "Please choose a different filename."
+                    )
+                    return
+
+                success = handler.save_file(handler.xliff_files[0], output_path)
+                if success:
+                    QMessageBox.information(
+                        self, "Export Successful",
+                        f"Successfully exported translated SDLXLIFF.\n\n"
+                        f"File: {Path(output_path).name}\n"
+                        f"Translations updated: {updated}\n\n"
+                        f"This file can be opened in Trados Studio."
+                    )
+                    self.log(f"✓ Exported SDLXLIFF: {output_path}")
+                else:
+                    QMessageBox.critical(self, "Export Error", "Failed to save the SDLXLIFF file.")
+            else:
+                # Multi-file — select output directory
+                output_dir = QFileDialog.getExistingDirectory(
+                    self,
+                    "Select Output Folder for Translated SDLXLIFF Files",
+                    str(Path(source_files[0]).parent)
+                )
+                if not output_dir:
+                    return
+
+                saved_paths = handler.save_all(output_dir)
+                if saved_paths:
+                    QMessageBox.information(
+                        self, "Export Successful",
+                        f"Successfully exported {len(saved_paths)} translated SDLXLIFF file(s) to:\n\n"
+                        f"{output_dir}\n\n"
+                        f"Translations updated: {updated}\n\n"
+                        f"These files can be opened in Trados Studio."
+                    )
+                    self.log(f"✓ Exported {len(saved_paths)} SDLXLIFF files to {output_dir}")
+                else:
+                    QMessageBox.critical(self, "Export Error", "Failed to save the SDLXLIFF files.")
+
+        except Exception as e:
+            QMessageBox.critical(
+                self, "Export Error",
+                f"Failed to export SDLXLIFF:\n\n{str(e)}"
+            )
+            self.log(f"✗ SDLXLIFF export failed: {str(e)}")
             import traceback
             traceback.print_exc()
 
@@ -38934,7 +39233,8 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         # ─── Source Files ───
         has_sources = any([
             proj.original_docx_path, proj.memoq_source_path, proj.cafetran_source_path,
-            proj.trados_source_path, proj.sdlppx_source_path, proj.original_txt_path,
+            proj.trados_source_path, proj.sdlppx_source_path,
+            getattr(proj, 'sdlxliff_source_paths', None), proj.original_txt_path,
             proj.is_multifile
         ])
 
@@ -38959,6 +39259,16 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                     source_layout.addWidget(QLabel(f"<b>Trados DOCX:</b> {proj.trados_source_path}"))
                 if proj.sdlppx_source_path:
                     source_layout.addWidget(QLabel(f"<b>Trados Package:</b> {proj.sdlppx_source_path}"))
+                sdlxliff_paths = getattr(proj, 'sdlxliff_source_paths', None)
+                if sdlxliff_paths:
+                    if len(sdlxliff_paths) == 1:
+                        source_layout.addWidget(QLabel(f"<b>SDLXLIFF:</b> {sdlxliff_paths[0]}"))
+                    else:
+                        source_layout.addWidget(QLabel(f"<b>SDLXLIFF:</b> {len(sdlxliff_paths)} files"))
+                        for p in sdlxliff_paths[:3]:
+                            source_layout.addWidget(QLabel(f"  - {Path(p).name}"))
+                        if len(sdlxliff_paths) > 3:
+                            source_layout.addWidget(QLabel(f"  ... and {len(sdlxliff_paths) - 3} more"))
                 if proj.original_txt_path:
                     source_layout.addWidget(QLabel(f"<b>Text File:</b> {proj.original_txt_path}"))
 

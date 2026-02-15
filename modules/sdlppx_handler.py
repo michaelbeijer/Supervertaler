@@ -423,6 +423,312 @@ class SDLXLIFFParser:
         return False
 
 
+# ─── Module-level save helpers (used by both Standalone and Package handlers) ───
+
+def _markers_to_xml(text: str) -> str:
+    """
+    Convert Supervertaler marker tags in text to SDLXLIFF XML elements.
+
+    <N>content</N>  → <g id="N">content</g>
+    <N/>            → <x id="N"/>
+
+    Uses the XLIFF default namespace (no prefix needed since <g> and <x>
+    live in the default xliff namespace in SDLXLIFF files).
+    """
+    if not text or not re.search(r'<[A-Za-z0-9_]+[>/]', text):
+        return text
+
+    _tid = _TAG_ID
+
+    # Repeatedly resolve innermost paired tags until none remain
+    prev = None
+    result = text
+    while prev != result:
+        prev = result
+        result = re.sub(
+            rf'<({_tid})>(.*?)</\1>',
+            r'<g id="\1">\2</g>',
+            result,
+            flags=re.DOTALL
+        )
+
+    # Convert standalone tags
+    result = re.sub(rf'<({_tid})/>', r'<x id="\1"/>', result)
+
+    return result
+
+
+def _replace_target_content(content: str, xliff_file: SDLXLIFFFile,
+                            segment_map: Dict[str, 'SDLSegment']) -> str:
+    """
+    Replace <mrk> content inside <target> elements with translated text.
+
+    Strategy: find each <trans-unit>, locate its <target> block, then
+    replace <mrk mtype="seg" mid="N"> content within it.
+    """
+    def _replace_tu_target(tu_match):
+        tu_block = tu_match.group(0)
+        tu_id_m = re.search(r'<trans-unit\s+[^>]*?id="([^"]+)"', tu_block)
+        if not tu_id_m:
+            return tu_block
+        tu_id = tu_id_m.group(1)
+
+        # Find <target>...</target> within this TU
+        target_m = re.search(r'(<target[^>]*>)(.*?)(</target>)', tu_block, re.DOTALL)
+        if not target_m:
+            return tu_block
+
+        target_open = target_m.group(1)
+        target_inner = target_m.group(2)
+        target_close = target_m.group(3)
+
+        # Replace each <mrk mtype="seg" mid="N">...</mrk> in the target
+        def _replace_mrk(mrk_match):
+            mrk_open = mrk_match.group(1)  # <mrk mtype="seg" mid="N">
+            mid = mrk_match.group(2)        # N
+            mrk_close = '</mrk>'
+
+            segment_id = f"{tu_id}_{mid}"
+            segment = segment_map.get(segment_id)
+            if segment and segment.target_text:
+                new_content = _markers_to_xml(segment.target_text)
+                return f'{mrk_open}{new_content}{mrk_close}'
+            return mrk_match.group(0)
+
+        new_target_inner = re.sub(
+            r'(<mrk\s+mtype="seg"\s+mid="(\d+)"[^>]*>)(.*?)(</mrk>)',
+            lambda m: _replace_mrk(m),
+            target_inner,
+            flags=re.DOTALL
+        )
+
+        new_target = f'{target_open}{new_target_inner}{target_close}'
+        return tu_block[:target_m.start()] + new_target + tu_block[target_m.end():]
+
+    # Process each trans-unit
+    content = re.sub(
+        r'<trans-unit\s[^>]*>.*?</trans-unit>',
+        _replace_tu_target,
+        content,
+        flags=re.DOTALL
+    )
+    return content
+
+
+def _replace_seg_attributes(content: str, xliff_file: SDLXLIFFFile,
+                            segment_map: Dict[str, 'SDLSegment']) -> str:
+    """
+    Update conf and origin attributes on <sdl:seg> elements.
+
+    For translated segments: set conf="Translated", origin="interactive",
+    and remove stale TM/MT attributes (origin-system, percent, text-match).
+    """
+    def _replace_seg(seg_match):
+        seg_text = seg_match.group(0)
+        seg_id = seg_match.group(1)
+
+        # Try to find this segment in any TU
+        # seg IDs in sdl:seg-defs correspond to mrk mid values
+        # We need to find which TU this belongs to by looking at context
+        # But since we're doing global replacement, we check all possible TU+seg combos
+        matching_segment = None
+        for sid, seg in segment_map.items():
+            if sid.endswith(f'_{seg_id}'):
+                matching_segment = seg
+                break
+
+        if not matching_segment or not matching_segment.target_text:
+            return seg_text
+
+        if matching_segment.status in ('translated', 'approved', 'confirmed'):
+            # Update conf
+            seg_text = re.sub(r'conf="[^"]*"', 'conf="Translated"', seg_text)
+
+            # Update origin to interactive
+            if 'origin="' in seg_text:
+                seg_text = re.sub(r'origin="[^"]*"', 'origin="interactive"', seg_text)
+            else:
+                seg_text = seg_text.replace('<sdl:seg ', '<sdl:seg origin="interactive" ', 1)
+
+            # Remove stale TM/MT attributes
+            seg_text = re.sub(r'\s+origin-system="[^"]*"', '', seg_text)
+            seg_text = re.sub(r'\s+percent="[^"]*"', '', seg_text)
+            seg_text = re.sub(r'\s+text-match="[^"]*"', '', seg_text)
+
+        return seg_text
+
+    content = re.sub(
+        r'<sdl:seg\s+id="(\d+)"[^>]*(?:/>|>)',
+        _replace_seg,
+        content
+    )
+    return content
+
+
+def _save_sdlxliff_file(xliff_file: SDLXLIFFFile, output_path: str,
+                         log_callback=None) -> bool:
+    """
+    Save a single SDLXLIFF file using text-based replacement.
+
+    Reads the original source file as raw bytes (preserving BOM),
+    applies regex replacements for translated content and status
+    attributes, then writes to output_path.
+
+    Args:
+        xliff_file: Parsed SDLXLIFF file with updated segments
+        output_path: Path to write the output file
+        log_callback: Optional logging function
+
+    Returns:
+        True if saved successfully
+    """
+    log = log_callback or (lambda msg: None)
+
+    if not xliff_file.file_path:
+        return False
+
+    try:
+        # Build segment map for quick lookup
+        segment_map = {s.segment_id: s for s in xliff_file.segments}
+
+        # Read the original file as raw bytes to preserve BOM
+        source_path = Path(xliff_file.file_path)
+        raw_bytes = source_path.read_bytes()
+
+        # Detect and preserve BOM
+        bom = b''
+        if raw_bytes.startswith(b'\xef\xbb\xbf'):
+            bom = b'\xef\xbb\xbf'
+            raw_bytes = raw_bytes[3:]
+
+        content = raw_bytes.decode('utf-8')
+
+        # Apply text-based replacements
+        content = _replace_target_content(content, xliff_file, segment_map)
+        content = _replace_seg_attributes(content, xliff_file, segment_map)
+
+        # Write to output path with original BOM
+        out = Path(output_path)
+        out.write_bytes(bom + content.encode('utf-8'))
+        log(f"  Saved: {out.name}")
+        return True
+    except Exception as e:
+        log(f"  Error saving {xliff_file.file_path}: {e}")
+        return False
+
+
+# ─── Standalone SDLXLIFF Handler ───────────────────────────────────────────────
+
+class StandaloneSDLXLIFFHandler:
+    """
+    Handler for standalone .sdlxliff files (without a Trados package wrapper).
+
+    Supports loading one or more .sdlxliff files, extracting segments,
+    updating translations, and saving back with text-based replacement
+    (preserving BOM, XML formatting, and namespaces).
+    """
+
+    def __init__(self, log_callback=None):
+        self.log = log_callback or print
+        self.parser = SDLXLIFFParser(log_callback)
+        self.xliff_files: List[SDLXLIFFFile] = []
+        self.source_paths: List[str] = []
+
+    def load(self, file_paths: List[str]) -> bool:
+        """
+        Load one or more .sdlxliff files.
+
+        Validates that all files share the same language pair.
+
+        Returns:
+            True if at least one file loaded successfully
+        """
+        self.xliff_files = []
+        self.source_paths = []
+
+        for file_path in file_paths:
+            try:
+                xliff_file = self.parser.parse_file(file_path)
+                if xliff_file and xliff_file.segments:
+                    self.xliff_files.append(xliff_file)
+                    self.source_paths.append(file_path)
+                    self.log(f"  Loaded: {Path(file_path).name} ({len(xliff_file.segments)} segments)")
+                else:
+                    self.log(f"  Warning: No segments found in {Path(file_path).name}")
+            except Exception as e:
+                self.log(f"  Error loading {Path(file_path).name}: {e}")
+                traceback.print_exc()
+
+        if not self.xliff_files:
+            return False
+
+        # Validate language consistency across files
+        if len(self.xliff_files) > 1:
+            ref_src = self.xliff_files[0].source_lang
+            ref_tgt = self.xliff_files[0].target_lang
+            for xf in self.xliff_files[1:]:
+                if xf.source_lang != ref_src or xf.target_lang != ref_tgt:
+                    self.log(f"  Warning: Language mismatch in {Path(xf.file_path).name} "
+                             f"({xf.source_lang}→{xf.target_lang} vs {ref_src}→{ref_tgt})")
+
+        total = sum(len(xf.segments) for xf in self.xliff_files)
+        self.log(f"Loaded {len(self.xliff_files)} file(s), {total} segments total")
+        return True
+
+    def get_all_segments(self) -> List[SDLSegment]:
+        """Get all segments from all loaded files as a flat list."""
+        segments = []
+        for xliff_file in self.xliff_files:
+            segments.extend(xliff_file.segments)
+        return segments
+
+    def get_source_lang(self) -> str:
+        """Return source language from first loaded file."""
+        return self.xliff_files[0].source_lang if self.xliff_files else ''
+
+    def get_target_lang(self) -> str:
+        """Return target language from first loaded file."""
+        return self.xliff_files[0].target_lang if self.xliff_files else ''
+
+    def update_translations(self, translations: Dict[str, str]) -> int:
+        """
+        Batch update translations by segment_id → target_text.
+
+        Returns:
+            Number of segments updated
+        """
+        count = 0
+        for xliff_file in self.xliff_files:
+            for segment in xliff_file.segments:
+                if segment.segment_id in translations:
+                    segment.target_text = translations[segment.segment_id]
+                    segment.status = 'translated'
+                    count += 1
+        return count
+
+    def save_file(self, xliff_file: SDLXLIFFFile, output_path: str) -> bool:
+        """Save a single SDLXLIFF file to the given path."""
+        return _save_sdlxliff_file(xliff_file, output_path, self.log)
+
+    def save_all(self, output_dir: str) -> List[str]:
+        """
+        Save all modified SDLXLIFF files to output_dir with '_translated' suffix.
+
+        Returns:
+            List of saved file paths
+        """
+        saved = []
+        for xliff_file in self.xliff_files:
+            stem = Path(xliff_file.file_path).stem
+            ext = Path(xliff_file.file_path).suffix
+            output_path = str(Path(output_dir) / f"{stem}_translated{ext}")
+            if self.save_file(xliff_file, output_path):
+                saved.append(output_path)
+        return saved
+
+
+# ─── Trados Package Handler ────────────────────────────────────────────────────
+
 class TradosPackageHandler:
     """
     Handler for Trados Studio project packages (SDLPPX/SDLRPX).
@@ -693,141 +999,18 @@ class TradosPackageHandler:
         return True
     
     def _markers_to_xml(self, text: str) -> str:
-        """
-        Convert Supervertaler marker tags in text to SDLXLIFF XML elements.
-
-        <N>content</N>  → <g id="N">content</g>
-        <N/>            → <x id="N"/>
-
-        Uses the XLIFF default namespace (no prefix needed since <g> and <x>
-        live in the default xliff namespace in SDLXLIFF files).
-        """
-        if not text or not re.search(r'<[A-Za-z0-9_]+[>/]', text):
-            return text
-
-        _tid = _TAG_ID
-
-        # Repeatedly resolve innermost paired tags until none remain
-        prev = None
-        result = text
-        while prev != result:
-            prev = result
-            result = re.sub(
-                rf'<({_tid})>(.*?)</\1>',
-                r'<g id="\1">\2</g>',
-                result,
-                flags=re.DOTALL
-            )
-
-        # Convert standalone tags
-        result = re.sub(rf'<({_tid})/>', r'<x id="\1"/>', result)
-
-        return result
+        """Delegate to module-level function (backward compatibility)."""
+        return _markers_to_xml(text)
 
     def _replace_target_content(self, content: str, xliff_file: SDLXLIFFFile,
                                 segment_map: Dict[str, 'SDLSegment']) -> str:
-        """
-        Replace <mrk> content inside <target> elements with translated text.
-
-        Strategy: find each <trans-unit>, locate its <target> block, then
-        replace <mrk mtype="seg" mid="N"> content within it.
-        """
-        def _replace_tu_target(tu_match):
-            tu_block = tu_match.group(0)
-            tu_id_m = re.search(r'<trans-unit\s+[^>]*?id="([^"]+)"', tu_block)
-            if not tu_id_m:
-                return tu_block
-            tu_id = tu_id_m.group(1)
-
-            # Find <target>...</target> within this TU
-            target_m = re.search(r'(<target[^>]*>)(.*?)(</target>)', tu_block, re.DOTALL)
-            if not target_m:
-                return tu_block
-
-            target_open = target_m.group(1)
-            target_inner = target_m.group(2)
-            target_close = target_m.group(3)
-
-            # Replace each <mrk mtype="seg" mid="N">...</mrk> in the target
-            def _replace_mrk(mrk_match):
-                mrk_open = mrk_match.group(1)  # <mrk mtype="seg" mid="N">
-                mid = mrk_match.group(2)        # N
-                mrk_close = '</mrk>'
-
-                segment_id = f"{tu_id}_{mid}"
-                segment = segment_map.get(segment_id)
-                if segment and segment.target_text:
-                    new_content = self._markers_to_xml(segment.target_text)
-                    return f'{mrk_open}{new_content}{mrk_close}'
-                return mrk_match.group(0)
-
-            new_target_inner = re.sub(
-                r'(<mrk\s+mtype="seg"\s+mid="(\d+)"[^>]*>)(.*?)(</mrk>)',
-                lambda m: _replace_mrk(m),
-                target_inner,
-                flags=re.DOTALL
-            )
-
-            new_target = f'{target_open}{new_target_inner}{target_close}'
-            return tu_block[:target_m.start()] + new_target + tu_block[target_m.end():]
-
-        # Process each trans-unit
-        content = re.sub(
-            r'<trans-unit\s[^>]*>.*?</trans-unit>',
-            _replace_tu_target,
-            content,
-            flags=re.DOTALL
-        )
-        return content
+        """Delegate to module-level function (backward compatibility)."""
+        return _replace_target_content(content, xliff_file, segment_map)
 
     def _replace_seg_attributes(self, content: str, xliff_file: SDLXLIFFFile,
                                 segment_map: Dict[str, 'SDLSegment']) -> str:
-        """
-        Update conf and origin attributes on <sdl:seg> elements.
-
-        For translated segments: set conf="Translated", origin="interactive",
-        and remove stale TM/MT attributes (origin-system, percent, text-match).
-        """
-        def _replace_seg(seg_match):
-            seg_text = seg_match.group(0)
-            seg_id = seg_match.group(1)
-
-            # Try to find this segment in any TU
-            # seg IDs in sdl:seg-defs correspond to mrk mid values
-            # We need to find which TU this belongs to by looking at context
-            # But since we're doing global replacement, we check all possible TU+seg combos
-            matching_segment = None
-            for sid, seg in segment_map.items():
-                if sid.endswith(f'_{seg_id}'):
-                    matching_segment = seg
-                    break
-
-            if not matching_segment or not matching_segment.target_text:
-                return seg_text
-
-            if matching_segment.status in ('translated', 'approved', 'confirmed'):
-                # Update conf
-                seg_text = re.sub(r'conf="[^"]*"', 'conf="Translated"', seg_text)
-
-                # Update origin to interactive
-                if 'origin="' in seg_text:
-                    seg_text = re.sub(r'origin="[^"]*"', 'origin="interactive"', seg_text)
-                else:
-                    seg_text = seg_text.replace('<sdl:seg ', '<sdl:seg origin="interactive" ', 1)
-
-                # Remove stale TM/MT attributes
-                seg_text = re.sub(r'\s+origin-system="[^"]*"', '', seg_text)
-                seg_text = re.sub(r'\s+percent="[^"]*"', '', seg_text)
-                seg_text = re.sub(r'\s+text-match="[^"]*"', '', seg_text)
-
-            return seg_text
-
-        content = re.sub(
-            r'<sdl:seg\s+id="(\d+)"[^>]*(?:/>|>)',
-            _replace_seg,
-            content
-        )
-        return content
+        """Delegate to module-level function (backward compatibility)."""
+        return _replace_seg_attributes(content, xliff_file, segment_map)
 
     def _update_xliff_tree(self, xliff_file: SDLXLIFFFile):
         """Update the XML tree with segment translations."""
