@@ -2,8 +2,18 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.270 (February 16, 2026)
+**Current Version:** v1.9.271 (February 16, 2026)
 
+
+## v1.9.271 - February 16, 2026
+
+### Bug Fixes
+
+- **Termbase highlighting now appears immediately on segment navigation** — When navigating to a segment with cached termbase matches (the common path after the background batch processor runs), the source cell was not highlighted with glossary term formatting. The TermView panel showed the matches correctly, but the bold/colored highlighting in the source column was missing until an F5 refresh. Root cause: the cache-hit code path updated the TermView and Match Panel but skipped the `highlight_source_with_termbase()` call that the cache-miss path had.
+- **Termbase highlighting now refreshes immediately after adding a term** — After adding a glossary term (Ctrl+E or Ctrl+Q quick-add), the source cell highlighting was not updated because the re-highlight code was commented out as a performance optimization. Replaced the expensive `rehighlight()` call with the lightweight `highlight_source_with_termbase()` which only applies termbase + NT formatting without re-running spellcheck or tag detection.
+- **Green checkmark icons sized to match red X icons** — The confirmed-status checkmark (✔) was noticeably smaller than the not-started emoji (❌) because it used the archaic `<font size="2">` HTML attribute. Replaced with CSS `font-size:14px` and `line-height:1`, zeroed out vertical margins and label padding to prevent clipping on single-line rows.
+
+---
 
 ## v1.9.270 - February 16, 2026
 

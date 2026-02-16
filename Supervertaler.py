@@ -13302,16 +13302,12 @@ class SupervertalerQt(QMainWindow):
                 except Exception as e:
                     self.log(f"Error updating results panel termbases: {e}")
         
-        # OPTIMIZATION: Skip full rehighlight for quick-add performance
-        # The TermView widget already shows the updated matches, and full rehighlight
-        # is expensive for long segments (runs spellcheck, tag detection, termbase highlighting)
-        # The highlighting will update automatically on next segment navigation
-        # 
-        # Re-highlight termbase matches in the source cell
-        # source_widget = self.table.cellWidget(current_row, 2)
-        # if source_widget and hasattr(source_widget, 'rehighlight'):
-        #     source_widget.rehighlight()
-        
+        # Re-highlight termbase matches in the source cell.
+        # We call highlight_source_with_termbase() directly (NOT rehighlight()),
+        # because rehighlight() is expensive (spellcheck + tag detection + termbase).
+        # This only applies the lightweight termbase + NT formatting pass.
+        self.highlight_source_with_termbase(current_row, segment.source, termbase_matches)
+
         self.log(f"🔄 Refreshed termbase display for segment {segment.id} (TM untouched)")
     
     def add_term_pair_to_termbase(self, source_text: str, target_text: str):
@@ -34972,6 +34968,13 @@ class SupervertalerQt(QMainWindow):
                         if has_fuzzy_match and not has_100_match:
                             self._play_sound_effect('tm_fuzzy_match')
                     
+                    # Highlight termbase matches in source cell (from termbase_cache, dict format)
+                    if self.enable_termbase_grid_highlighting:
+                        with self.termbase_cache_lock:
+                            tb_dict = self.termbase_cache.get(segment_id, {})
+                        if tb_dict:
+                            self.highlight_source_with_termbase(current_row, segment.source, tb_dict)
+
                     # Skip the slow TERMBASE lookup below, we already have termbase matches cached
                     # But TM lookup was skipped in prefetch (not thread-safe), so schedule it now
                     matches_dict = cached_matches  # Set for later use
