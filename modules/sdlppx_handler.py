@@ -465,6 +465,9 @@ def _replace_target_content(content: str, xliff_file: SDLXLIFFFile,
 
     Strategy: find each <trans-unit>, locate its <target> block, then
     replace <mrk mtype="seg" mid="N"> content within it.
+
+    The mrk regex handles any attribute order (mtype before mid or vice versa)
+    since XML does not guarantee attribute ordering.
     """
     def _replace_tu_target(tu_match):
         tu_block = tu_match.group(0)
@@ -482,25 +485,51 @@ def _replace_target_content(content: str, xliff_file: SDLXLIFFFile,
         target_inner = target_m.group(2)
         target_close = target_m.group(3)
 
-        # Replace each <mrk mtype="seg" mid="N">...</mrk> in the target
+        # Replace each <mrk mtype="seg" mid="N">...</mrk> in the target.
+        # Match any <mrk> tag that contains both mtype="seg" and mid="N"
+        # regardless of attribute order (XML doesn't guarantee order).
         def _replace_mrk(mrk_match):
-            mrk_open = mrk_match.group(1)  # <mrk mtype="seg" mid="N">
-            mid = mrk_match.group(2)        # N
-            mrk_close = '</mrk>'
+            mrk_open = mrk_match.group(1)   # full opening tag
+            mrk_content = mrk_match.group(2)  # content between tags
+            # Extract mid value from the opening tag
+            mid_m = re.search(r'\bmid="(\d+)"', mrk_open)
+            if not mid_m:
+                return mrk_match.group(0)
+            mid = mid_m.group(1)
 
             segment_id = f"{tu_id}_{mid}"
             segment = segment_map.get(segment_id)
             if segment and segment.target_text:
                 new_content = _markers_to_xml(segment.target_text)
-                return f'{mrk_open}{new_content}{mrk_close}'
+                return f'{mrk_open}{new_content}</mrk>'
             return mrk_match.group(0)
 
+        # Flexible mrk pattern: match <mrk ...> where both mtype="seg" and
+        # mid="N" appear as attributes (in any order), then content, then </mrk>.
+        # Lookaheads ensure both attributes are present without assuming order.
+        mrk_pattern = (
+            r'(<mrk\s+'                  # opening <mrk + space
+            r'(?=[^>]*\bmtype="seg")'    # lookahead: mtype="seg" present
+            r'(?=[^>]*\bmid="\d+")'      # lookahead: mid="N" present
+            r'[^>]*>)'                   # consume all attributes + >
+            r'(.*?)'                     # content (non-greedy)
+            r'(</mrk>)'                  # closing tag
+        )
+
         new_target_inner = re.sub(
-            r'(<mrk\s+mtype="seg"\s+mid="(\d+)"[^>]*>)(.*?)(</mrk>)',
-            lambda m: _replace_mrk(m),
+            mrk_pattern,
+            _replace_mrk,
             target_inner,
             flags=re.DOTALL
         )
+
+        # If no mrk replacements happened, check for unsegmented trans-units
+        # (segment_id = tu_id, no _mid suffix)
+        if new_target_inner == target_inner:
+            segment = segment_map.get(tu_id)
+            if segment and segment.target_text:
+                new_content = _markers_to_xml(segment.target_text)
+                new_target_inner = new_content
 
         new_target = f'{target_open}{new_target_inner}{target_close}'
         return tu_block[:target_m.start()] + new_target + tu_block[target_m.end():]
@@ -557,8 +586,9 @@ def _replace_seg_attributes(content: str, xliff_file: SDLXLIFFFile,
 
         return seg_text
 
+    # Match <sdl:seg> elements with id attribute in any position
     content = re.sub(
-        r'<sdl:seg\s+id="(\d+)"[^>]*(?:/>|>)',
+        r'<sdl:seg\s+(?=[^>]*\bid="(\d+)")[^>]*(?:/>|>)',
         _replace_seg,
         content
     )
@@ -975,9 +1005,14 @@ class TradosPackageHandler:
 
             # Build segment map for quick lookup
             segment_map = {s.segment_id: s for s in xliff_file.segments}
+            translated_count = sum(1 for s in xliff_file.segments if s.target_text)
+            self.log(f"  {Path(xliff_file.file_path).name}: {len(segment_map)} segments, {translated_count} with translations")
 
             # Read the original file as raw bytes to preserve BOM
             file_path = Path(xliff_file.file_path)
+            if not file_path.exists():
+                self.log(f"  WARNING: File not found: {file_path}")
+                continue
             raw_bytes = file_path.read_bytes()
 
             # Detect and preserve BOM

@@ -30391,19 +30391,43 @@ class SupervertalerQt(QMainWindow):
             for idx, segment in enumerate(self.current_project.segments):
                 notes = getattr(segment, 'notes', '') or ''
                 target_text = segment.target.strip() if segment.target else ''
-                
+
                 # Extract segment_id from notes
                 # Format: "SDLXLIFF: filename.sdlxliff | Segment: {segment_id} | Origin: ..."
-                if "Segment:" in notes:
+                if "Segment:" in notes and target_text:
                     parts = notes.split("|")
-                    if len(parts) >= 2:
-                        seg_part = parts[1].replace("Segment:", "").strip()
-                        if target_text:
-                            translations[seg_part] = target_text
+                    for part in parts:
+                        part = part.strip()
+                        if part.startswith("Segment:"):
+                            seg_id = part.replace("Segment:", "").strip()
+                            translations[seg_id] = target_text
+                            break
             
+            self.log(f"  Built translations dict: {len(translations)} segments with target text")
+            if not translations:
+                self.log("  WARNING: No translations found! Check that segments have target text and notes with 'Segment:' IDs.")
+                # Log a few segments for diagnosis
+                for seg in self.current_project.segments[:5]:
+                    notes = getattr(seg, 'notes', '') or ''
+                    has_target = bool(seg.target and seg.target.strip())
+                    has_seg_id = 'Segment:' in notes
+                    self.log(f"    Seg {seg.id}: target={'yes' if has_target else 'NO'}, notes_has_id={'yes' if has_seg_id else 'NO'}, notes='{notes[:80]}'")
+
             # Update the handler with translations
             updated = self.sdlppx_handler.update_translations(translations)
-            
+            self.log(f"  Handler updated: {updated} of {len(translations)} segments matched")
+
+            if updated == 0 and translations:
+                # Translations exist but handler couldn't match any - log segment IDs for diagnosis
+                self.log("  WARNING: Handler matched 0 segments! Possible segment ID mismatch.")
+                handler_ids = set()
+                for xf in self.sdlppx_handler.package.xliff_files:
+                    for s in xf.segments:
+                        handler_ids.add(s.segment_id)
+                trans_keys = set(translations.keys())
+                self.log(f"    Translation keys sample: {list(trans_keys)[:3]}")
+                self.log(f"    Handler segment IDs sample: {list(handler_ids)[:3]}")
+
             # Export return package
             result_path = self.sdlppx_handler.create_return_package(file_path)
             

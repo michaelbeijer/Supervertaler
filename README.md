@@ -6,7 +6,7 @@
 
 **Professional AI-enhanced translation workbench** with multi-LLM support (GPT-4, Claude, Gemini, Ollama), translation memory, glossary management, and seamless CAT tool integration (memoQ, Trados, CafeTran, Phrase, Déjà Vu).
 
-**Latest release:** v1.9.268 - Threaded TM fuzzy search, streaming TMX import for multi-GB files, batch SQLite commits.
+**Latest release:** v1.9.269 - Fix empty Trados return package export, flexible SDLXLIFF attribute handling.
 
 ---
 

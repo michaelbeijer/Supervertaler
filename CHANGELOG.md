@@ -2,8 +2,22 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.268 (February 15, 2026)
+**Current Version:** v1.9.269 (February 16, 2026)
 
+
+## v1.9.269 - February 16, 2026
+
+### Bug Fixes
+
+- **Fixed Trados return package exporting empty SDLXLIFF** — The regex-based SDLXLIFF save engine assumed a fixed XML attribute order (`mtype` before `mid`) on `<mrk>` segment markers. If Trados Studio produced attributes in a different order, translations were silently dropped during export. The regex now uses lookaheads to match both `mtype="seg"` and `mid="N"` in any attribute position. Also fixed `<sdl:seg>` attribute matching for the same issue. Resolves [#161](https://github.com/michaelbeijer/Supervertaler/issues/161).
+- **Unsegmented trans-unit support in SDLXLIFF export** — Trans-units without `<seg-source>` / `<mrk>` elements (rare but valid) now have their `<target>` content correctly replaced during export.
+- **More robust segment ID extraction** — The SDLRPX export now iterates through all pipe-separated note fields to find the `Segment:` part, instead of assuming it's always at index 1. Matches the approach already used by standalone SDLXLIFF export.
+
+### Improvements
+
+- **Diagnostic logging for Trados export** — The SDLRPX export pipeline now logs translation dict size, handler match counts, and per-file segment/translation counts. When zero matches occur, sample segment IDs are logged for diagnosis.
+
+---
 
 ## v1.9.268 - February 15, 2026
 
