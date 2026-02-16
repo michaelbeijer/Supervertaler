@@ -16538,39 +16538,36 @@ class SupervertalerQt(QMainWindow):
     # ========================================================================
     
     def create_settings_tab(self):
-        """Create the Settings tab - moved from Tools > Options dialog"""
-        from PyQt6.QtWidgets import QTabWidget, QScrollArea
-        
+        """Create the Settings tab with vertical sidebar navigation"""
+        from PyQt6.QtWidgets import QScrollArea
+        from modules.settings_sidebar import SettingsSidebar
+
         tab = QWidget()
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
-        
-        # Create nested tab widget
-        settings_tabs = QTabWidget()
-        settings_tabs.tabBar().setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        settings_tabs.tabBar().setDrawBase(False)
-        settings_tabs.tabBar().setExpanding(False)
-        settings_tabs.setStyleSheet("QTabBar::tab { outline: 0; } QTabBar::tab:focus { outline: none; } QTabBar::tab:selected { border-bottom: 1px solid #2196F3; background-color: rgba(33, 150, 243, 0.08); }")
+
+        # Create sidebar navigation (replaces horizontal QTabWidget)
+        settings_tabs = SettingsSidebar()
         self.settings_tabs = settings_tabs  # Store for reference
-        
+
         # Scroll area wrapper for each tab (for long content)
         scroll_area_wrapper = lambda widget: self._wrap_in_scroll(widget)
-        
+
         # ===== TAB 1: General Settings =====
         general_tab = self._create_general_settings_tab()
         settings_tabs.addTab(scroll_area_wrapper(general_tab), "⚙️ General")
-        
+
         # ===== TAB 2: AI Settings (LLM, Ollama) =====
         ai_tab = self._create_ai_settings_tab()
         ai_scroll = scroll_area_wrapper(ai_tab)
         settings_tabs.addTab(ai_scroll, "🤖 AI Settings")
         self.ai_settings_scroll = ai_scroll  # Store reference for scrolling to API keys
-        
+
         # ===== TAB 3: Language Pair Settings =====
         lang_tab = self._create_language_pair_tab()
         settings_tabs.addTab(scroll_area_wrapper(lang_tab), "🌐 Language Pair")
-        
+
         # ===== TAB 4: MT Settings =====
         mt_tab = self._create_mt_settings_tab()
         settings_tabs.addTab(scroll_area_wrapper(mt_tab), "🌐 MT Settings")
@@ -16584,44 +16581,47 @@ class SupervertalerQt(QMainWindow):
         view_tab = self._create_view_settings_tab()
         settings_tabs.addTab(scroll_area_wrapper(view_tab), "🔍 View Settings")
 
-        # ===== TAB 6: System Prompts (Layer 1) =====
+        # ===== TAB 7: System Prompts (Layer 1) =====
         system_prompts_tab = self._create_system_prompts_tab()
         settings_tabs.addTab(scroll_area_wrapper(system_prompts_tab), "📝 System Prompts")
 
-        # ===== TAB 7: Debug Settings =====
+        # ===== TAB 8: Debug Settings =====
         debug_tab = self._create_debug_settings_tab()
         settings_tabs.addTab(scroll_area_wrapper(debug_tab), "🐛 Debug")
 
-        # ===== TAB 8: Features (Optional Modules) =====
+        # ===== TAB 9: Features (Optional Modules) =====
         features_tab = self._create_features_settings_tab()
         settings_tabs.addTab(scroll_area_wrapper(features_tab), "📦 Features")
 
-        # ===== TAB 9: Domain Detection Keywords =====
+        # ===== TAB 10: Domain Detection Keywords =====
         domain_keywords_tab = self._create_domain_keywords_tab()
         settings_tabs.addTab(scroll_area_wrapper(domain_keywords_tab), "🎯 Domain Detection")
 
-        # ===== TAB 10: Segmentation Rules =====
+        # ===== TAB 11: Segmentation Rules =====
         seg_tab = self.create_segmentation_rules_tab()
         settings_tabs.addTab(scroll_area_wrapper(seg_tab), "📏 Segmentation Rules")
 
-        # ===== TAB 11: Keyboard Shortcuts =====
+        # ===== TAB 12: Keyboard Shortcuts =====
         from modules.keyboard_shortcuts_widget import KeyboardShortcutsWidget
         shortcuts_tab = KeyboardShortcutsWidget(self)
         settings_tabs.addTab(shortcuts_tab, "⌨️ Keyboard Shortcuts")
 
-        # ===== TAB 12: Log (moved from main tabs) =====
+        # ===== TAB 13: Log (moved from main tabs) =====
         log_tab = self.create_log_tab()
         settings_tabs.addTab(log_tab, "📋 Log")
-        
+
         layout.addWidget(settings_tabs)
-        
+
         # Apply saved UI font scale on startup
         saved_scale = self._get_global_ui_font_scale()
         if saved_scale != 100:
             # Defer application to ensure widgets are fully created
             from PyQt6.QtCore import QTimer
             QTimer.singleShot(100, lambda: self._apply_global_ui_font_scale(saved_scale))
-        
+
+        # Apply dark sidebar style if current theme is dark
+        self._update_settings_sidebar_theme()
+
         return tab
     
     def _wrap_in_scroll(self, widget):
@@ -16631,7 +16631,21 @@ class SupervertalerQt(QMainWindow):
         scroll.setWidget(widget)
         scroll.setStyleSheet("QScrollArea { border: none; }")
         return scroll
-    
+
+    def _update_settings_sidebar_theme(self):
+        """Update the settings sidebar styling based on the current theme."""
+        if not hasattr(self, 'settings_tabs'):
+            return
+        from modules.settings_sidebar import SettingsSidebar
+        if not isinstance(self.settings_tabs, SettingsSidebar):
+            return
+        is_dark = (hasattr(self, 'theme_manager') and self.theme_manager
+                   and 'dark' in self.theme_manager.current_theme.name.lower())
+        if is_dark:
+            self.settings_tabs.apply_dark_style()
+        else:
+            self.settings_tabs._apply_style()
+
     def _create_language_pair_tab(self):
         """Create Language Pair Settings tab content"""
         tab = QWidget()
@@ -21570,10 +21584,15 @@ class SupervertalerQt(QMainWindow):
                     label.setStyleSheet(style)
 
     def _update_main_tabs_fonts(self, scale_percent: int):
-        """Update main tab bar fonts based on scale percentage"""
+        """Update main tab bar and settings sidebar fonts based on scale percentage"""
         base_size = int(10 * scale_percent / 100)
         if hasattr(self, 'main_tabs') and self.main_tabs is not None:
             self.main_tabs.tabBar().setStyleSheet(f"font-size: {base_size}pt;")
+        # Also scale the settings sidebar list font
+        if hasattr(self, 'settings_tabs') and self.settings_tabs is not None:
+            from modules.settings_sidebar import SettingsSidebar
+            if isinstance(self.settings_tabs, SettingsSidebar):
+                self.settings_tabs.set_font_size(base_size)
 
     def _get_global_ui_font_scale(self) -> int:
         """Get the current global UI font scale percentage"""
@@ -47761,6 +47780,9 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         if hasattr(self, 'termview_widget_match') and self.termview_widget_match:
             if hasattr(self.termview_widget_match, 'apply_theme'):
                 self.termview_widget_match.apply_theme()
+
+        # Refresh settings sidebar theme
+        self._update_settings_sidebar_theme()
 
     def show_file_progress_dialog(self):
         """Show file progress - redirects to Project Info dialog, File Progress tab."""

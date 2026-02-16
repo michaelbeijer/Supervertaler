@@ -2,8 +2,16 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.269 (February 16, 2026)
+**Current Version:** v1.9.270 (February 16, 2026)
 
+
+## v1.9.270 - February 16, 2026
+
+### New Features
+
+- **Vertical sidebar navigation for Settings panel** — The 13 Settings sub-tabs are now displayed as a vertical sidebar list instead of horizontal tabs. Tab labels are no longer truncated on smaller screens or at larger font scales. The sidebar supports light/dark theme switching, hover/selected states, and respects the global UI font scale. All existing keyboard shortcut and programmatic navigation to Settings tabs continues to work unchanged. Resolves [#144](https://github.com/michaelbeijer/Supervertaler/issues/144).
+
+---
 
 ## v1.9.269 - February 16, 2026
 
