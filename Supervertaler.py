@@ -33501,7 +33501,7 @@ class SupervertalerQt(QMainWindow):
     def _create_status_cell_widget(self, segment: Segment) -> QWidget:
         widget = QWidget()
         layout = QHBoxLayout(widget)
-        layout.setContentsMargins(2, 2, 2, 2)  # Compact margins
+        layout.setContentsMargins(2, 0, 2, 0)  # Zero vertical margins to prevent icon clipping on single-line rows
         layout.setSpacing(1)
         layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)  # Center content vertically
         # Remove fixed minimum height - let it adapt to row height
@@ -33518,17 +33518,22 @@ class SupervertalerQt(QMainWindow):
             
         status_def = get_status(segment.status)
 
-        # Status icons: ✔ (green) and ❌ (naturally red emoji)
+        # Status icons: ✔ (green text glyph) and ❌ (native emoji, ~16px on Windows)
+        # Use CSS font-size for the checkmark to match the emoji size visually.
+        # The ✔ is a text character so font-size controls it; emojis ignore font-size.
+        # IMPORTANT: On single-line rows, vertical space is very tight (~20-24px).
+        # The icon + container margins + QLabel internal padding must fit within that.
         icon_text = status_def.icon
         if segment.status == "confirmed":
-            icon_html = f'<font color="#2e7d32" size="2">{icon_text}</font>'  # Green checkmark
+            icon_html = f'<span style="color:#2e7d32; font-size:14px; line-height:1;">{icon_text}</span>'
         else:
-            icon_html = f'<font size="2">{icon_text}</font>'  # Other icons (including ❌ emoji)
+            icon_html = f'<span style="font-size:14px; line-height:1;">{icon_text}</span>'
 
         status_label = QLabel(icon_html)
         status_label.setTextFormat(Qt.TextFormat.RichText)  # Enable HTML rendering
         status_label.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
         status_label.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)  # Expand vertically to match row height
+        status_label.setContentsMargins(0, 0, 0, 0)  # No internal padding to prevent clipping in tight rows
         # Store tooltip text as property - we'll show it manually to avoid black tooltip bug
         status_label.setProperty("status_tooltip", status_def.label)
         status_label.installEventFilter(self)
