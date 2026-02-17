@@ -6057,8 +6057,9 @@ class TMSearchWorker(QThread):
         """Run TM search in background thread with thread-local SQLite connection."""
         import sqlite3
         try:
-            conn = sqlite3.connect(self.db_path)
+            conn = sqlite3.connect(self.db_path, timeout=15)
             conn.row_factory = sqlite3.Row
+            conn.execute("PRAGMA journal_mode=WAL")
 
             from modules.database_manager import DatabaseManager
 
@@ -6175,8 +6176,9 @@ class PreTranslationWorker(QThread):
             try:
                 import sqlite3
                 db_path = self.parent_app.tm_database.db_path
-                self._thread_local_db = sqlite3.connect(db_path)
+                self._thread_local_db = sqlite3.connect(db_path, timeout=15)
                 self._thread_local_db.row_factory = sqlite3.Row
+                self._thread_local_db.execute("PRAGMA journal_mode=WAL")
                 print(f"✓ Created thread-local database connection for TM pre-translation")
             except Exception as e:
                 print(f"❌ Failed to create thread-local DB connection: {e}")
@@ -12938,7 +12940,8 @@ class SupervertalerQt(QMainWindow):
                     # Clear TM entries
                     import sqlite3
                     db_path = self.user_data_path / "resources" / "supervertaler.db"
-                    conn = sqlite3.connect(str(db_path))
+                    conn = sqlite3.connect(str(db_path), timeout=15)
+                    conn.execute("PRAGMA journal_mode=WAL")
                     cursor = conn.cursor()
                     cursor.execute("DELETE FROM translation_units")
                     conn.commit()
@@ -24582,8 +24585,9 @@ class SupervertalerQt(QMainWindow):
         thread_db_connection = None
         try:
             if hasattr(self, 'db_manager') and self.db_manager and hasattr(self.db_manager, 'db_path'):
-                thread_db_connection = sqlite3.connect(self.db_manager.db_path)
+                thread_db_connection = sqlite3.connect(self.db_manager.db_path, timeout=15)
                 thread_db_connection.row_factory = sqlite3.Row
+                thread_db_connection.execute("PRAGMA journal_mode=WAL")
                 thread_db_cursor = thread_db_connection.cursor()
         except Exception:
             pass  # Continue without thread-local connection - will use cache only

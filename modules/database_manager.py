@@ -78,11 +78,15 @@ class DatabaseManager:
             # Create directory if it doesn't exist
             os.makedirs(os.path.dirname(self.db_path) if os.path.dirname(self.db_path) else ".", exist_ok=True)
             
-            # Connect to database
-            self.connection = sqlite3.connect(self.db_path)
+            # Connect to database with busy timeout to handle concurrent access
+            self.connection = sqlite3.connect(self.db_path, timeout=15)
             self.connection.row_factory = sqlite3.Row  # Access columns by name
             self.cursor = self.connection.cursor()
-            
+
+            # Enable WAL mode for better concurrent read/write performance
+            # WAL allows readers to proceed while a writer is active
+            self.cursor.execute("PRAGMA journal_mode=WAL")
+
             # Enable foreign keys
             self.cursor.execute("PRAGMA foreign_keys = ON")
             

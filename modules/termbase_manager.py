@@ -367,8 +367,12 @@ class TermbaseManager:
             self.log(f"✗ Error activating termbase: {e}")
             import traceback
             self.log(f"Traceback: {traceback.format_exc()}")
+            try:
+                self.db_manager.connection.rollback()
+            except Exception:
+                pass
             return False
-    
+
     def deactivate_termbase(self, termbase_id: int, project_id: int) -> bool:
         """Deactivate termbase for project and reassign rankings"""
         try:
@@ -393,6 +397,10 @@ class TermbaseManager:
             self.log(f"✗ Error deactivating termbase: {e}")
             import traceback
             self.log(f"Traceback: {traceback.format_exc()}")
+            try:
+                self.db_manager.connection.rollback()
+            except Exception:
+                pass
             return False
     
     def set_termbase_read_only(self, termbase_id: int, read_only: bool) -> bool:
@@ -408,6 +416,10 @@ class TermbaseManager:
             return True
         except Exception as e:
             self.log(f"✗ Error setting termbase read_only: {e}")
+            try:
+                self.db_manager.connection.rollback()
+            except Exception:
+                pass
             return False
 
     def get_termbase_ai_inject(self, termbase_id: int) -> bool:
