@@ -146,6 +146,7 @@ class HistoryComboBox(QComboBox):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setEditable(True)
+        self.setCompleter(None)  # Disable auto-complete (fixes #163: uppercase history overwriting lowercase input)
         self.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
         self.setMaxVisibleItems(15)
         self.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)

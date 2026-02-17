@@ -2,8 +2,17 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.273 (February 17, 2026)
+**Current Version:** v1.9.274 (February 17, 2026)
 
+
+## v1.9.274 - February 17, 2026
+
+### Bug Fixes
+
+- **Find & Replace: uppercase history no longer overwrites lowercase input** — The `HistoryComboBox` in the F&R dialog had an auto-created `QCompleter` with case-insensitive matching, which forced previously searched uppercase terms (e.g. "COMMISSIONING") over lowercase input. Disabled the completer; the dropdown history is still accessible via the arrow button. Resolves [#163](https://github.com/michaelbeijer/Supervertaler/issues/163).
+- **Standalone builds now show the correct version number** — PyInstaller `.exe` builds always displayed "v1.9.227" because `pyproject.toml` was not bundled, causing `_read_version()` to fall back to a hardcoded string. Fixed by: (1) adding `pyproject.toml` to the `datas` list in both Windows and macOS `.spec` files, (2) adding an `importlib.metadata` fallback for `pip install` users, (3) fixing `create_release_zip.py` to read the version from `pyproject.toml` instead of regex-parsing `Supervertaler.py`, and (4) making the macOS `.spec` read `CFBundleVersion` dynamically from `pyproject.toml` instead of a hardcoded stale value. Resolves [#165](https://github.com/michaelbeijer/Supervertaler/issues/165).
+
+---
 
 ## v1.9.273 - February 17, 2026
 

@@ -6,6 +6,7 @@ a = Analysis(
     pathex=[],
     binaries=[],
     datas=[
+        ('pyproject.toml', '.'),
         ('docs', 'docs'),
         ('modules', 'modules'),
         ('assets', 'assets'),

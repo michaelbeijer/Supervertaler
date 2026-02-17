@@ -49,11 +49,17 @@ def _ensure_readme_first(dist_dir: Path, version: str, flavor: str | None = None
     readme_path.write_text(text, encoding="utf-8")
 
 def get_version():
-    """Extract version from Supervertaler.py"""
-    with open("Supervertaler.py", "r", encoding="utf-8") as f:
-        content = f.read()
-    match = re.search(r'__version__\s*=\s*["\']([^"\']+)["\']', content)
-    return match.group(1) if match else "unknown"
+    """Extract version from pyproject.toml (single source of truth)."""
+    try:
+        try:
+            import tomllib
+        except ImportError:
+            import tomli as tomllib
+        with open("pyproject.toml", "rb") as f:
+            data = tomllib.load(f)
+        return data["project"]["version"]
+    except Exception:
+        return "unknown"
 
 def create_release_zip(
     dist_dir: Path,

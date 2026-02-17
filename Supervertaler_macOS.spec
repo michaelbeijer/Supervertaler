@@ -2,11 +2,20 @@
 # macOS build spec for Supervertaler
 # Usage: pyinstaller Supervertaler_macOS.spec --noconfirm --clean
 
+# Read version from pyproject.toml at build time
+try:
+    import tomllib
+except ImportError:
+    import tomli as tomllib
+with open('pyproject.toml', 'rb') as _f:
+    _version = tomllib.load(_f)['project']['version']
+
 a = Analysis(
     ['Supervertaler.py'],
     pathex=[],
     binaries=[],
     datas=[
+        ('pyproject.toml', '.'),
         ('docs', 'docs'),
         ('modules', 'modules'),
         ('assets', 'assets'),
@@ -84,8 +93,8 @@ app = BUNDLE(
     info_plist={
         'CFBundleName': 'Supervertaler',
         'CFBundleDisplayName': 'Supervertaler',
-        'CFBundleVersion': '1.9.254',
-        'CFBundleShortVersionString': '1.9.254',
+        'CFBundleVersion': _version,
+        'CFBundleShortVersionString': _version,
         'NSHighResolutionCapable': True,
         'NSMicrophoneUsageDescription':
             'Supervertaler uses the microphone for voice dictation.',

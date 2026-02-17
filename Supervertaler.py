@@ -33,22 +33,28 @@ License: MIT
 
 # Version Information — read from pyproject.toml (single source of truth)
 def _read_version():
-    """Read version from pyproject.toml so there's only one place to update."""
+    """Read version from pyproject.toml, importlib.metadata, or hardcoded fallback."""
     import os as _os
+    # 1. Try pyproject.toml (works in dev mode and PyInstaller builds that bundle it)
     try:
-        import tomllib
-    except ImportError:
         try:
-            import tomli as tomllib  # Python < 3.11
+            import tomllib
         except ImportError:
-            return "1.9.227"  # Fallback
-    try:
+            import tomli as tomllib  # Python < 3.11
         _toml_path = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "pyproject.toml")
         with open(_toml_path, "rb") as f:
             _data = tomllib.load(f)
         return _data["project"]["version"]
     except Exception:
-        return "1.9.227"  # Fallback if running from dist without pyproject.toml
+        pass
+    # 2. Try importlib.metadata (works for pip install)
+    try:
+        from importlib.metadata import version
+        return version("supervertaler")
+    except Exception:
+        pass
+    # 3. Last-resort hardcoded fallback
+    return "1.9.227"
 
 __version__ = _read_version()
 __phase__ = "0.9"
