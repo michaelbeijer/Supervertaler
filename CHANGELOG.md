@@ -2,8 +2,16 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.272 (February 17, 2026)
+**Current Version:** v1.9.273 (February 17, 2026)
 
+
+## v1.9.273 - February 17, 2026
+
+### Bug Fixes
+
+- **TM matches now shown consistently when revisiting segments** — When navigating back to a previously visited segment, the Match Panel (TM Source/Target comparison boxes) showed no TM hits despite the matches being cached. Root cause: on first visit, TM results were fetched on-demand (prefetch skips TM for thread-safety) and cached; on revisit, the cache-hit path updated the Translation Results panel but never called `set_compare_panel_matches()` to update the Match Panel. The cache-hit path now converts cached `TranslationMatch` objects to the Match Panel format and displays them immediately. Resolves [#164](https://github.com/michaelbeijer/Supervertaler/issues/164).
+
+---
 
 ## v1.9.272 - February 17, 2026
 

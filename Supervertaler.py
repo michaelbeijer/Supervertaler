@@ -34995,6 +34995,27 @@ class SupervertalerQt(QMainWindow):
                     # v1.9.261: Skip if segment already has batch TM match data from pre-translation
                     tm_count = len(cached_matches.get("TM", []))
                     has_batch_match = getattr(segment, '_batch_tm_match', None)
+
+                    # v1.9.273: Update Match Panel from cached TM matches (fixes #164)
+                    # On revisit, tm_count > 0 so _schedule_mt_and_llm_matches is skipped,
+                    # but the Match Panel still needs to be updated with cached TM results.
+                    if tm_count > 0:
+                        tm_matches_for_panel = []
+                        for tm in cached_matches.get("TM", []):
+                            tm_name = tm.metadata.get('tm_name', 'TM') if tm.metadata else 'TM'
+                            tm_matches_for_panel.append({
+                                'source': tm.compare_source or tm.source,
+                                'target': tm.target,
+                                'tm_name': tm_name,
+                                'match_pct': int(tm.relevance)
+                            })
+                        self.set_compare_panel_matches(
+                            segment_id,
+                            segment.source,
+                            tm_matches=tm_matches_for_panel,
+                            mt_matches=getattr(self, '_compare_panel_mt_matches', [])
+                        )
+
                     if tm_count == 0 and self.enable_tm_matching and not has_batch_match:
                         find_replace_active = getattr(self, 'find_replace_active', False)
                         if not find_replace_active:
