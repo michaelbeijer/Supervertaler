@@ -7017,20 +7017,8 @@ class SupervertalerQt(QMainWindow):
             # Also update class-level theme_manager for CompactMatchItem
             from modules.translation_results_panel import CompactMatchItem
             CompactMatchItem.theme_manager = self.theme_manager
-            print(f"🎨 DEBUG: Calling apply_theme on translation_results_panel", flush=True)
-            # Write to file for debugging
-            with open("theme_debug.txt", "w") as f:
-                f.write(f"apply_theme called, theme={self.theme_manager.current_theme.name}\n")
-                f.write(f"compare_text_edits count: {len(self.translation_results_panel.compare_text_edits)}\n")
-                f.flush()
             if hasattr(self.translation_results_panel, 'apply_theme'):
                 self.translation_results_panel.apply_theme()
-                print(f"🎨 DEBUG: apply_theme() called successfully", flush=True)
-        else:
-            print(f"🎨 DEBUG: translation_results_panel NOT FOUND!", flush=True)
-            with open("theme_debug.txt", "w") as f:
-                f.write("translation_results_panel NOT FOUND!\n")
-                f.flush()
         
         # Schedule theme refresh after UI is fully initialized
         # This ensures all widgets are properly themed at startup
@@ -47794,10 +47782,6 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
     def refresh_theme_colors(self):
         """Refresh all theme-dependent UI elements when theme changes"""
         theme = self.theme_manager.current_theme
-        print(f"🎨 refresh_theme_colors() called, theme={theme.name}", flush=True)
-        with open("theme_debug.txt", "a") as f:
-            f.write(f"refresh_theme_colors() called, theme={theme.name}\n")
-        
         # Clear row color cache to force refresh with new theme colors
         # Remove all theme-specific caches
         for attr in list(vars(self).keys()):
@@ -47835,10 +47819,6 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         # Refresh TranslationResultsPanel
         if hasattr(self, 'translation_results_panel') and self.translation_results_panel:
             if hasattr(self.translation_results_panel, 'apply_theme'):
-                print(f"🎨 refresh_theme_colors: calling apply_theme on translation_results_panel", flush=True)
-                with open("theme_debug.txt", "a") as f:
-                    f.write(f"refresh_theme_colors: calling apply_theme on translation_results_panel\n")
-                    f.write(f"  compare_text_edits count: {len(self.translation_results_panel.compare_text_edits)}\n")
                 self.translation_results_panel.apply_theme()
         
         # Refresh Compare Panel colors
@@ -50993,12 +50973,7 @@ class SuperlookupTab(QWidget):
         
         Uses Superlookup's OWN checkbox selections (independent from Resources tab).
         """
-        # Write to file for reliable debugging
-        with open('superlookup_debug.txt', 'a') as f:
-            f.write(f"\n=== perform_lookup() CALLED at {__import__('datetime').datetime.now()} ===\n")
-        print(f"[DEBUG] perform_lookup() CALLED!", flush=True)
         text = self.source_text.currentText().strip()
-        print(f"[DEBUG] perform_lookup() text='{text[:50] if text else '(empty)'}...'", flush=True)
         
         if not text:
             self.status_label.setText("⚠️ No text to search. Enter or capture text first.")
