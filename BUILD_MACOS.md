@@ -238,6 +238,20 @@ create-dmg \
     "dist/Supervertaler.app"
 ```
 
+## Step 9b: Ad-hoc Code Sign (Recommended)
+
+Ad-hoc signing is **free** (no Apple Developer account needed) and helps macOS
+treat the app as a legitimate application rather than an untrusted download:
+
+
+
+This makes the app much more likely to launch correctly when double-clicked from
+Finder, especially on macOS 15+ (Sequoia) which has stricter Gatekeeper policies.
+
+**Note:** Users who download the DMG will still need to run
+ to clear the quarantine flag,
+unless you have a paid Apple Developer certificate for proper notarization.
+
 ## Step 10: Grant Permissions
 
 On first launch, macOS will ask for several permissions:

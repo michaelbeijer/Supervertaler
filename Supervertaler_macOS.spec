@@ -1,4 +1,4 @@
-# -*- mode: python ; coding: utf-8 -*-
+﻿# -*- mode: python ; coding: utf-8 -*-
 # macOS build spec for Supervertaler
 # Usage: pyinstaller Supervertaler_macOS.spec --noconfirm --clean
 
@@ -103,5 +103,11 @@ app = BUNDLE(
         'LSMinimumSystemVersion': '13.0',
         'CFBundleDocumentTypes': [],
         'NSRequiresAquaSystemAppearance': False,
+        # Fix: Finder launches apps with minimal env (no LANG/LC_CTYPE),
+        # causing locale-dependent code to crash silently.
+        'LSEnvironment': {
+            'LANG': 'en_US.UTF-8',
+            'LC_CTYPE': 'en_US.UTF-8',
+        },
     },
 )

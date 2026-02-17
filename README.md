@@ -6,7 +6,7 @@
 
 **Professional AI-enhanced translation workbench** with multi-LLM support (GPT-4, Claude, Gemini, Ollama), translation memory, glossary management, and seamless CAT tool integration (memoQ, Trados, CafeTran, Phrase, Déjà Vu).
 
-**Latest release:** v1.9.274 - Fix F&R case handling, correct version display in standalone builds.
+**Latest release:** v1.9.275 - Fix F&R case handling, correct version display in standalone builds.
 
 ---
 

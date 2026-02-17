@@ -2,8 +2,17 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.274 (February 17, 2026)
+**Current Version:** v1.9.275 (February 17, 2026)
 
+
+## v1.9.275 - February 17, 2026
+
+### Bug Fixes
+
+- **macOS: app now launches when double-clicked from Finder** — PyInstaller-built  bundles would bounce in the dock and close when launched via Finder (double-click or right-click > Open), while working perfectly from Terminal. Root cause: macOS Finder launches apps with a minimal environment where  and  are not set, causing locale-dependent code to fail silently. Fixed by adding  to the  in  to ensure UTF-8 locale is always available. Also added diagnostic crash logging to  for frozen macOS builds, since Finder-launched apps have no stdout/stderr.
+- **macOS build: added ad-hoc code signing instructions** — Updated  with a free ad-hoc  step that helps macOS treat the app as legitimate without requiring a paid Apple Developer account.
+
+---
 
 ## v1.9.274 - February 17, 2026
 

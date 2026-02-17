@@ -61,6 +61,28 @@ __phase__ = "0.9"
 __release_date__ = "2026-02-12"
 __edition__ = "Qt"
 
+# --- macOS Finder crash logging (v1.9.275) ---
+# When launched via Finder, stdout/stderr go nowhere; write to Desktop log.
+import sys as _sys
+import os as _os
+if getattr(_sys, 'frozen', False) and _sys.platform == 'darwin':
+    _crash_log = _os.path.expanduser('~/Desktop/supervertaler_crash.log')
+    try:
+        with open(_crash_log, 'w') as _f:
+            _f.write(f"Launch time: {__import__('datetime').datetime.now()}\n")
+            _f.write(f"Version: {__version__}\n")
+            _f.write(f"CWD: {_os.getcwd()}\n")
+            _f.write(f"sys.executable: {_sys.executable}\n")
+            _f.write(f"sys._MEIPASS: {getattr(_sys, '_MEIPASS', 'N/A')}\n")
+            _f.write(f"__file__: {__file__}\n")
+            _f.write(f"LANG: {_os.environ.get('LANG', 'NOT SET')}\n")
+            _f.write(f"LC_CTYPE: {_os.environ.get('LC_CTYPE', 'NOT SET')}\n")
+            _f.write("--- Starting app ---\n")
+    except Exception:
+        pass
+del _sys, _os
+# --- end crash logging ---
+
 import sys
 import json
 import os
@@ -54127,4 +54149,19 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    # Wrap main() in crash handler for macOS Finder launches (stdout/stderr go nowhere)
+    if getattr(sys, 'frozen', False) and sys.platform == 'darwin':
+        try:
+            main()
+        except Exception:
+            import traceback
+            _crash_log = os.path.expanduser('~/Desktop/supervertaler_crash.log')
+            try:
+                with open(_crash_log, 'a') as _f:
+                    _f.write('\n--- CRASH ---\n')
+                    traceback.print_exc(file=_f)
+            except Exception:
+                pass
+            raise
+    else:
+        main()
