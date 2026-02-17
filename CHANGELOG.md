@@ -2,8 +2,17 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.275 (February 17, 2026)
+**Current Version:** v1.9.276 (February 17, 2026)
 
+
+## v1.9.276 - February 17, 2026
+
+### Bug Fixes
+
+- **Fixed SQLite "database is locked" errors during termbase operations** — Activating, deactivating, or changing read-only status of termbases would intermittently fail with `sqlite3.OperationalError: database is locked`. Root cause: multiple SQLite connections to the same database file (main thread, TM search threads, prefetch worker, pre-translation worker) competing for locks under the default DELETE journal mode, which blocks all readers while a writer is active. Fixed by enabling WAL (Write-Ahead Logging) journal mode and setting a 15-second busy timeout on all connections. Also added rollback on error in termbase manager to release locks after failed commits.
+- **Removed leftover debug file writes that crashed macOS Finder launch** — `theme_debug.txt` and `superlookup_debug.txt` were being written to the current working directory, which is `/` (read-only) when launched from Finder, causing an immediate `OSError: [Errno 30] Read-only file system` crash.
+
+---
 
 ## v1.9.275 - February 17, 2026
 

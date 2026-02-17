@@ -6,7 +6,7 @@
 
 **Professional AI-enhanced translation workbench** with multi-LLM support (GPT-4, Claude, Gemini, Ollama), translation memory, glossary management, and seamless CAT tool integration (memoQ, Trados, CafeTran, Phrase, Déjà Vu).
 
-**Latest release:** v1.9.275 - Fix F&R case handling, correct version display in standalone builds.
+**Latest release:** v1.9.276 - Fix SQLite database locking errors, fix macOS Finder launch crash.
 
 ---
 
@@ -25,6 +25,15 @@ cd Supervertaler
 pip install -r requirements.txt
 python Supervertaler.py
 ```
+
+### macOS Standalone App (.dmg)
+
+macOS will block the app on first launch because it is not signed with an Apple Developer certificate. To allow it:
+
+1. **Double-click** `Supervertaler.app` — macOS will show a warning
+2. Open **System Settings > Privacy & Security**
+3. Scroll down and click **"Open Anyway"** next to the Supervertaler message
+4. Confirm when prompted — the app will launch normally from now on
 
 ---
 
