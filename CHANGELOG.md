@@ -2,8 +2,23 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.271 (February 16, 2026)
+**Current Version:** v1.9.272 (February 17, 2026)
 
+
+## v1.9.272 - February 17, 2026
+
+### Bug Fixes
+
+- **Fixed Trados return package with missing `<target>` elements** — Trados Studio 2024 creates SDLXLIFF files where untranslated segments have no `<target>` element at all (not even an empty one). The export engine now detects this and creates `<target>` by cloning the `<seg-source>` structure with translations inserted into each `<mrk>` marker. Also handles the case where `<target>` exists but contains no `<mrk>` tags. Resolves [#161](https://github.com/michaelbeijer/Supervertaler/issues/161).
+- **Fixed XML entity escaping in SDLXLIFF export** — Source text containing `&`, `<`, or `>` characters (e.g. "AT&T", "A<B") was written unescaped into the XML output, causing Trados Studio to reject the return package with "An error occurred while parsing EntityName". The `_markers_to_xml()` function now properly escapes XML entities in text content while preserving marker tags.
+- **`conf="Translated"` attribute now added when missing** — The `<sdl:seg>` element in Trados SDLXLIFF sometimes lacks a `conf` attribute entirely (not just an empty value). Previously only existing `conf` values were updated; now the attribute is added if absent, ensuring Trados Studio recognizes segments as translated.
+- **Grid-to-segment sync now reverses invisible characters** — The `_sync_grid_targets_to_segments()` function now calls `reverse_invisible_replacements()` before export, converting display characters (middle dots, arrows) back to actual whitespace. Also restores stripped outer wrapping tags when `hide_outer_wrapping_tags` is enabled.
+
+### Improvements
+
+- **Enhanced Trados export diagnostics** — The export pipeline now logs segment counts, translation counts, and warns when file content is unchanged after replacement (indicating translations may not have been inserted).
+
+---
 
 ## v1.9.271 - February 16, 2026
 

@@ -30418,19 +30418,31 @@ class SupervertalerQt(QMainWindow):
                             translations[seg_id] = target_text
                             break
             
-            self.log(f"  Built translations dict: {len(translations)} segments with target text")
+            total_segs = len(self.current_project.segments)
+            segs_with_target = sum(1 for s in self.current_project.segments if s.target and s.target.strip())
+            segs_with_notes = sum(1 for s in self.current_project.segments if getattr(s, 'notes', '') and 'Segment:' in s.notes)
+            self.log(f"  Project: {total_segs} segments, {segs_with_target} with target text, {segs_with_notes} with SDLXLIFF segment IDs")
+            self.log(f"  Translations to export: {len(translations)}")
             if not translations:
-                self.log("  WARNING: No translations found! Check that segments have target text and notes with 'Segment:' IDs.")
+                self.log("  WARNING: No translations found to export!")
+                if segs_with_target == 0:
+                    self.log("    → No segments have target text. Translate segments before exporting.")
+                elif segs_with_notes == 0:
+                    self.log("    → No segments have SDLXLIFF segment IDs in their notes. "
+                             "This project may not have been imported from an SDLPPX package.")
+                else:
+                    self.log("    → Segments have targets and notes, but IDs couldn't be extracted.")
                 # Log a few segments for diagnosis
                 for seg in self.current_project.segments[:5]:
                     notes = getattr(seg, 'notes', '') or ''
                     has_target = bool(seg.target and seg.target.strip())
                     has_seg_id = 'Segment:' in notes
-                    self.log(f"    Seg {seg.id}: target={'yes' if has_target else 'NO'}, notes_has_id={'yes' if has_seg_id else 'NO'}, notes='{notes[:80]}'")
+                    self.log(f"    Seg {seg.id}: target={'yes' if has_target else 'NO'}, "
+                             f"notes_has_id={'yes' if has_seg_id else 'NO'}, notes='{notes[:100]}'")
 
             # Update the handler with translations
             updated = self.sdlppx_handler.update_translations(translations)
-            self.log(f"  Handler updated: {updated} of {len(translations)} segments matched")
+            self.log(f"  Handler matched: {updated} of {len(translations)} segments")
 
             if updated == 0 and translations:
                 # Translations exist but handler couldn't match any - log segment IDs for diagnosis
@@ -43202,15 +43214,25 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
 
     def _sync_grid_targets_to_segments(self, segments):
         """Sync target text from grid widgets to segment objects.
-        
+
         This ensures any edits in the grid are captured before confirming.
+        Reverses invisible character display replacements and restores
+        stripped outer wrapping tags to get clean text for export.
         """
         for segment in segments:
             row = self._find_row_for_segment(segment.id)
             if row >= 0:
                 target_widget = self.table.cellWidget(row, 3)
                 if target_widget:
-                    segment.target = target_widget.toPlainText().strip()
+                    text = target_widget.toPlainText().strip()
+                    # Reverse invisible character display replacements (·→space, →→tab, etc.)
+                    text = self.reverse_invisible_replacements(text)
+                    # Re-add stripped outer wrapping tag if applicable
+                    stripped_tag = getattr(target_widget, '_stripped_outer_tag', None)
+                    if stripped_tag and self.hide_outer_wrapping_tags:
+                        if text and not text.strip().startswith(f'<{stripped_tag}'):
+                            text = f'<{stripped_tag}>{text}</{stripped_tag}>'
+                    segment.target = text
     
     def _find_row_for_segment(self, segment_id: int) -> int:
         """Find the grid row index for a segment by ID."""

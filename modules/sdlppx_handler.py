@@ -432,17 +432,41 @@ def _markers_to_xml(text: str) -> str:
     <N>content</N>  → <g id="N">content</g>
     <N/>            → <x id="N"/>
 
+    Also escapes XML special characters (&, <, >) in text content so the
+    output is valid XML.  Marker tags are preserved as-is since they will
+    be converted to proper XML elements.
+
     Uses the XLIFF default namespace (no prefix needed since <g> and <x>
     live in the default xliff namespace in SDLXLIFF files).
     """
-    if not text or not re.search(r'<[A-Za-z0-9_]+[>/]', text):
+    if not text:
         return text
 
     _tid = _TAG_ID
 
+    # First, escape XML entities in the text portions only.
+    # Split on marker tags, escape the text parts, then rejoin.
+    tag_pattern = rf'(<{_tid}>|</{_tid}>|<{_tid}/>)'
+    parts = re.split(tag_pattern, text)
+    escaped_parts = []
+    for part in parts:
+        if re.match(tag_pattern, part):
+            # This is a marker tag — keep as-is
+            escaped_parts.append(part)
+        else:
+            # This is text content — escape XML entities
+            part = part.replace('&', '&amp;')
+            part = part.replace('<', '&lt;')
+            part = part.replace('>', '&gt;')
+            escaped_parts.append(part)
+    result = ''.join(escaped_parts)
+
+    # Now convert marker tags to SDLXLIFF XML elements
+    if not re.search(rf'<{_tid}[>/]', result):
+        return result
+
     # Repeatedly resolve innermost paired tags until none remain
     prev = None
-    result = text
     while prev != result:
         prev = result
         result = re.sub(
@@ -466,6 +490,12 @@ def _replace_target_content(content: str, xliff_file: SDLXLIFFFile,
     Strategy: find each <trans-unit>, locate its <target> block, then
     replace <mrk mtype="seg" mid="N"> content within it.
 
+    Handles several Trados SDLXLIFF structures:
+    1. Standard: <target> has <mrk mtype="seg" mid="N"> — replace content
+    2. Empty target: <target> exists but has no <mrk> tags — rebuild from seg-source
+    3. Missing target: no <target> element — create one from seg-source structure
+    4. Unsegmented: no mrk tags at all — use tu_id as segment_id
+
     The mrk regex handles any attribute order (mtype before mid or vice versa)
     since XML does not guarantee attribute ordering.
     """
@@ -476,9 +506,30 @@ def _replace_target_content(content: str, xliff_file: SDLXLIFFFile,
             return tu_block
         tu_id = tu_id_m.group(1)
 
+        # Collect all translations for segments in this TU
+        tu_translations = {}
+        for sid, seg in segment_map.items():
+            if seg.target_text and (sid.startswith(f"{tu_id}_") or sid == tu_id):
+                tu_translations[sid] = seg
+        if not tu_translations:
+            return tu_block
+
         # Find <target>...</target> within this TU
         target_m = re.search(r'(<target[^>]*>)(.*?)(</target>)', tu_block, re.DOTALL)
+
         if not target_m:
+            # No <target> element — create one by cloning seg-source structure
+            new_target = _build_target_from_seg_source(tu_block, tu_id, segment_map)
+            if new_target:
+                # Insert <target> after </seg-source> or </source>
+                insert_after = '</seg-source>'
+                insert_pos = tu_block.find(insert_after)
+                if insert_pos == -1:
+                    insert_after = '</source>'
+                    insert_pos = tu_block.find(insert_after)
+                if insert_pos != -1:
+                    insert_pos += len(insert_after)
+                    return tu_block[:insert_pos] + new_target + tu_block[insert_pos:]
             return tu_block
 
         target_open = target_m.group(1)
@@ -488,7 +539,10 @@ def _replace_target_content(content: str, xliff_file: SDLXLIFFFile,
         # Replace each <mrk mtype="seg" mid="N">...</mrk> in the target.
         # Match any <mrk> tag that contains both mtype="seg" and mid="N"
         # regardless of attribute order (XML doesn't guarantee order).
+        replaced_count = 0
+
         def _replace_mrk(mrk_match):
+            nonlocal replaced_count
             mrk_open = mrk_match.group(1)   # full opening tag
             mrk_content = mrk_match.group(2)  # content between tags
             # Extract mid value from the opening tag
@@ -501,6 +555,7 @@ def _replace_target_content(content: str, xliff_file: SDLXLIFFFile,
             segment = segment_map.get(segment_id)
             if segment and segment.target_text:
                 new_content = _markers_to_xml(segment.target_text)
+                replaced_count += 1
                 return f'{mrk_open}{new_content}</mrk>'
             return mrk_match.group(0)
 
@@ -523,13 +578,25 @@ def _replace_target_content(content: str, xliff_file: SDLXLIFFFile,
             flags=re.DOTALL
         )
 
-        # If no mrk replacements happened, check for unsegmented trans-units
-        # (segment_id = tu_id, no _mid suffix)
-        if new_target_inner == target_inner:
+        if replaced_count == 0:
+            # No mrk replacements happened — either:
+            # a) target has no <mrk mtype="seg"> tags at all, or
+            # b) segment_ids didn't match
+
+            # First: check for unsegmented TU (segment_id = tu_id, no _mid suffix)
             segment = segment_map.get(tu_id)
             if segment and segment.target_text:
                 new_content = _markers_to_xml(segment.target_text)
                 new_target_inner = new_content
+            else:
+                # Second: target has no mrk tags but translations exist with _mid suffix.
+                # Rebuild target content from seg-source structure with translations.
+                rebuilt = _build_target_from_seg_source(tu_block, tu_id, segment_map)
+                if rebuilt:
+                    # Extract inner content from the rebuilt <target>...</target>
+                    rebuilt_m = re.match(r'<target[^>]*>(.*)</target>', rebuilt, re.DOTALL)
+                    if rebuilt_m:
+                        new_target_inner = rebuilt_m.group(1)
 
         new_target = f'{target_open}{new_target_inner}{target_close}'
         return tu_block[:target_m.start()] + new_target + tu_block[target_m.end():]
@@ -542,6 +609,63 @@ def _replace_target_content(content: str, xliff_file: SDLXLIFFFile,
         flags=re.DOTALL
     )
     return content
+
+
+def _build_target_from_seg_source(tu_block: str, tu_id: str,
+                                   segment_map: Dict[str, 'SDLSegment']) -> Optional[str]:
+    """
+    Build a <target> element by cloning the <seg-source> structure and
+    replacing each <mrk mtype="seg" mid="N"> content with translations.
+
+    Returns the full <target>...</target> string, or None if no translations
+    are available for this TU.
+    """
+    # Extract seg-source inner content
+    seg_source_m = re.search(r'<seg-source[^>]*>(.*?)</seg-source>', tu_block, re.DOTALL)
+    if not seg_source_m:
+        # No seg-source — try <source> as fallback for unsegmented TUs
+        source_m = re.search(r'<source[^>]*>(.*?)</source>', tu_block, re.DOTALL)
+        if source_m:
+            segment = segment_map.get(tu_id)
+            if segment and segment.target_text:
+                new_content = _markers_to_xml(segment.target_text)
+                return f'<target>{new_content}</target>'
+        return None
+
+    seg_source_inner = seg_source_m.group(1)
+    any_replaced = False
+
+    def _replace_seg_source_mrk(mrk_match):
+        nonlocal any_replaced
+        mrk_open = mrk_match.group(1)
+        mid_m = re.search(r'\bmid="(\d+)"', mrk_open)
+        if not mid_m:
+            return mrk_match.group(0)
+        mid = mid_m.group(1)
+        segment_id = f"{tu_id}_{mid}"
+        segment = segment_map.get(segment_id)
+        if segment and segment.target_text:
+            new_content = _markers_to_xml(segment.target_text)
+            any_replaced = True
+            return f'{mrk_open}{new_content}</mrk>'
+        return mrk_match.group(0)
+
+    mrk_pattern = (
+        r'(<mrk\s+'
+        r'(?=[^>]*\bmtype="seg")'
+        r'(?=[^>]*\bmid="\d+")'
+        r'[^>]*>)'
+        r'(.*?)'
+        r'(</mrk>)'
+    )
+
+    target_inner = re.sub(mrk_pattern, _replace_seg_source_mrk,
+                          seg_source_inner, flags=re.DOTALL)
+
+    if not any_replaced:
+        return None
+
+    return f'<target>{target_inner}</target>'
 
 
 def _replace_seg_attributes(content: str, xliff_file: SDLXLIFFFile,
@@ -570,10 +694,13 @@ def _replace_seg_attributes(content: str, xliff_file: SDLXLIFFFile,
             return seg_text
 
         if matching_segment.status in ('translated', 'approved', 'confirmed'):
-            # Update conf
-            seg_text = re.sub(r'conf="[^"]*"', 'conf="Translated"', seg_text)
+            # Update conf — replace existing or add if missing
+            if 'conf="' in seg_text:
+                seg_text = re.sub(r'conf="[^"]*"', 'conf="Translated"', seg_text)
+            else:
+                seg_text = seg_text.replace('<sdl:seg ', '<sdl:seg conf="Translated" ', 1)
 
-            # Update origin to interactive
+            # Update origin to interactive — replace existing or add if missing
             if 'origin="' in seg_text:
                 seg_text = re.sub(r'origin="[^"]*"', 'origin="interactive"', seg_text)
             else:
@@ -620,6 +747,9 @@ def _save_sdlxliff_file(xliff_file: SDLXLIFFFile, output_path: str,
     try:
         # Build segment map for quick lookup
         segment_map = {s.segment_id: s for s in xliff_file.segments}
+        translated_count = sum(1 for s in xliff_file.segments if s.target_text)
+        log(f"  {Path(xliff_file.file_path).name}: {len(segment_map)} segments, "
+            f"{translated_count} with translations")
 
         # Read the original file as raw bytes to preserve BOM
         source_path = Path(xliff_file.file_path)
@@ -634,8 +764,13 @@ def _save_sdlxliff_file(xliff_file: SDLXLIFFFile, output_path: str,
         content = raw_bytes.decode('utf-8')
 
         # Apply text-based replacements
+        original_content = content
         content = _replace_target_content(content, xliff_file, segment_map)
         content = _replace_seg_attributes(content, xliff_file, segment_map)
+
+        if content == original_content and translated_count > 0:
+            log(f"  WARNING: File content unchanged after replacement! "
+                f"({translated_count} translations may not have been inserted)")
 
         # Write to output path with original BOM
         out = Path(output_path)
@@ -1024,15 +1159,24 @@ class TradosPackageHandler:
             content = raw_bytes.decode('utf-8')
 
             # Apply text-based replacements
+            original_content = content
             content = self._replace_target_content(content, xliff_file, segment_map)
             content = self._replace_seg_attributes(content, xliff_file, segment_map)
+
+            # Verify that changes were actually made
+            if content == original_content and translated_count > 0:
+                self.log(f"  WARNING: File content unchanged after replacement! "
+                         f"({translated_count} translations may not have been inserted)")
+                # Log sample segment IDs for diagnosis
+                sample = list(segment_map.keys())[:3]
+                self.log(f"    Segment ID samples: {sample}")
 
             # Write back with original BOM
             file_path.write_bytes(bom + content.encode('utf-8'))
             self.log(f"  Saved: {file_path.name}")
 
         return True
-    
+
     def _markers_to_xml(self, text: str) -> str:
         """Delegate to module-level function (backward compatibility)."""
         return _markers_to_xml(text)
