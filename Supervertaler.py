@@ -22372,6 +22372,15 @@ class SupervertalerQt(QMainWindow):
         # Add left side to main horizontal splitter
         main_horizontal_splitter.addWidget(left_container)
 
+        # Pre-load match panel font size so _create_match_panel() uses the saved value
+        try:
+            _pre_settings = self.load_general_settings()
+            _mp_size = _pre_settings.get('match_panel_font_size', 10)
+            if 7 <= _mp_size <= 18:
+                SupervertalerQt.match_panel_font_size = _mp_size
+        except Exception:
+            pass
+
         # Create tabbed container for right panel
         right_tabs = QTabWidget()
         right_tabs.tabBar().setFocusPolicy(Qt.FocusPolicy.NoFocus)
@@ -32576,11 +32585,12 @@ class SupervertalerQt(QMainWindow):
         # Text area
         text_edit = QTextEdit()
         text_edit.setReadOnly(True)
+        _mp_font_size = SupervertalerQt.match_panel_font_size  # Use live value so saved zoom is respected
         text_edit.setStyleSheet(f"""
             QTextEdit {{
                 background-color: transparent;
                 border: none;
-                font-size: 10px;
+                font-size: {_mp_font_size}px;
                 padding: 2px;
                 color: {text_color};
             }}

@@ -2,8 +2,16 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.279 (February 18, 2026)
+**Current Version:** v1.9.280 (February 18, 2026)
 
+
+## v1.9.280 - February 18, 2026
+
+### Bug Fixes
+
+- **Fixed: Match Panel zoom level not remembered across restarts** — The zoom level (set via View → Match Panel → Zoom In/Out, or Ctrl+Alt+=/−) was correctly saved to `general_settings.json`, but lost on restart. Root cause: the right-panel UI was constructed with `font-size: 10px` hardcoded in the QTextEdit stylesheet, before the saved font size was loaded from disk. The later `_apply_match_panel_font_size()` call (which patches the stylesheet via regex) was a fragile fallback that could silently fail. Fixed by: (1) pre-loading the saved `match_panel_font_size` from preferences *before* `_create_match_panel()` runs, so the stylesheet is baked with the correct size from the start; (2) making the stylesheet use the live `SupervertalerQt.match_panel_font_size` class variable instead of a hardcoded `10`.
+
+---
 
 ## v1.9.279 - February 18, 2026
 
