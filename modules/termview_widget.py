@@ -1097,17 +1097,32 @@ class TermviewWidget(QWidget):
         # Use (?<!\w) and (?!\w) instead of \b to handle punctuation properly
         # Includes / for unit-style terms like kg/l, m/s, etc.
         token_pattern = re.compile(r'(?<!\w)[\w.,%-/]+(?!\w)', re.UNICODE)
-        
+
+        PUNCT_CHARS_FOR_KEY = '.,;:!?\"\'\u201C\u201D\u201E\u00AB\u00BB\u2018\u2019\u201A\u2039\u203A()[]'
+
         for match in token_pattern.finditer(text):
             word_start = match.start()
             word_end = match.end()
             word_positions = set(range(word_start, word_end))
-            
-            # Only add if not already covered by a multi-word term
+            token = match.group()
+
+            # Check if this word has its own glossary entry
+            token_key = token.lower().strip(PUNCT_CHARS_FOR_KEY)
+            has_own_match = token_key in matches
+
+            # Add if: (a) not already covered by a multi-word term, OR
+            #         (b) it has its own glossary entry — even if it's inside a multi-word token.
+            # This ensures e.g. "gekarakteriseerde" shows even when it is part of a longer
+            # project-glossary phrase that was matched first.
+            if not word_positions.intersection(used_positions) or has_own_match:
+                # Only add once — skip if this exact (start, token) is already present
+                if not any(p == word_start and t == token for p, _, t in tokens_with_positions):
+                    # Include ALL tokens - no filtering by length
+                    tokens_with_positions.append((word_start, len(token), token))
+
+            # Only mark positions as used when the word is NOT already inside a multi-word match
+            # (so other non-glossary words that coincide with the phrase aren't duplicated)
             if not word_positions.intersection(used_positions):
-                token = match.group()
-                # Include ALL tokens - no filtering by length
-                tokens_with_positions.append((word_start, len(token), token))
                 used_positions.update(word_positions)
         
         # Sort by position and extract tokens

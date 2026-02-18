@@ -2195,18 +2195,17 @@ class ReadOnlyGridTextEditor(QTextEdit):
                 
                 end_idx = idx + len(term)
                 
-                # Check if this range overlaps with already highlighted text
-                overlaps = any(
-                    (idx < h_end and end_idx > h_start)
-                    for h_start, h_end in highlighted_ranges
-                )
-                
-                if not overlaps:
+                # Check if this exact range was already highlighted (exact duplicate)
+                # We still allow shorter glossary terms to highlight even if they're inside
+                # a longer already-highlighted phrase — each glossary entry gets its own highlight.
+                exact_duplicate = (idx, end_idx) in highlighted_ranges
+
+                if not exact_duplicate:
                     # Create cursor for this position
                     cursor = QTextCursor(doc)
                     cursor.setPosition(idx)
                     cursor.setPosition(end_idx, QTextCursor.MoveMode.KeepAnchor)
-                    
+
                     # Create format based on style
                     fmt = QTextCharFormat()
                     
