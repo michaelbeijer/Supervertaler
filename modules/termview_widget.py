@@ -1092,6 +1092,15 @@ class TermviewWidget(QWidget):
             self.log(f"🔍 After first pass: {len(used_positions)} positions marked as used")
             self.log(f"    Used positions: {sorted(list(used_positions))[:20]}...")
         
+        # Read the "hide shorter matches" setting from the parent app (respects Settings checkbox)
+        hide_shorter = False
+        p = self.parent()
+        while p:
+            if hasattr(p, 'termbase_hide_shorter_matches'):
+                hide_shorter = p.termbase_hide_shorter_matches
+                break
+            p = p.parent() if callable(getattr(p, 'parent', None)) else None
+
         # Second pass: fill in gaps with ALL words/numbers/punctuation combos
         # Enhanced pattern to capture words, numbers, and combinations like "gew.%", "0,1", "kg/l", etc.
         # Use (?<!\w) and (?!\w) instead of \b to handle punctuation properly
@@ -1110,19 +1119,19 @@ class TermviewWidget(QWidget):
             token_key = token.lower().strip(PUNCT_CHARS_FOR_KEY)
             has_own_match = token_key in matches
 
-            # Add if: (a) not already covered by a multi-word term, OR
-            #         (b) it has its own glossary entry — even if it's inside a multi-word token.
-            # This ensures e.g. "gekarakteriseerde" shows even when it is part of a longer
-            # project-glossary phrase that was matched first.
-            if not word_positions.intersection(used_positions) or has_own_match:
+            already_covered = bool(word_positions.intersection(used_positions))
+
+            # When hide_shorter is OFF (default): always show a word that has its own glossary
+            # entry, even if it sits inside a longer matched phrase.
+            # When hide_shorter is ON: honour the overlap suppression unconditionally.
+            if not already_covered or (has_own_match and not hide_shorter):
                 # Only add once — skip if this exact (start, token) is already present
                 if not any(p == word_start and t == token for p, _, t in tokens_with_positions):
-                    # Include ALL tokens - no filtering by length
                     tokens_with_positions.append((word_start, len(token), token))
 
-            # Only mark positions as used when the word is NOT already inside a multi-word match
-            # (so other non-glossary words that coincide with the phrase aren't duplicated)
-            if not word_positions.intersection(used_positions):
+            # Mark positions as used only when first claimed (keeps non-glossary filler
+            # words inside a long phrase from being duplicated)
+            if not already_covered:
                 used_positions.update(word_positions)
         
         # Sort by position and extract tokens

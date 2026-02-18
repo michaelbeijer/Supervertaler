@@ -2132,19 +2132,22 @@ class ReadOnlyGridTextEditor(QTextEdit):
         if not matches_dict:
             return
         
-        # Get highlight style from main window settings
+        # Get highlight style and hide_shorter setting from main window
         highlight_style = 'background'  # default
         dotted_color = '#808080'  # default medium gray (more visible)
+        hide_shorter = False  # default: show all glossary matches
         parent = self.parent()
         while parent:
             if hasattr(parent, 'termbase_highlight_style'):
                 highlight_style = getattr(parent, 'termbase_highlight_style', 'background')
                 dotted_color = getattr(parent, 'termbase_dotted_color', '#808080')
+                hide_shorter = getattr(parent, 'termbase_hide_shorter_matches', False)
                 break
             elif hasattr(parent, 'load_general_settings'):
                 settings = parent.load_general_settings()
                 highlight_style = settings.get('termbase_highlight_style', 'semibold')
                 dotted_color = settings.get('termbase_dotted_color', '#808080')
+                hide_shorter = settings.get('termbase_hide_shorter_matches', False)
                 break
             parent = parent.parent() if hasattr(parent, 'parent') else None
 
@@ -2195,12 +2198,18 @@ class ReadOnlyGridTextEditor(QTextEdit):
                 
                 end_idx = idx + len(term)
                 
-                # Check if this exact range was already highlighted (exact duplicate)
-                # We still allow shorter glossary terms to highlight even if they're inside
-                # a longer already-highlighted phrase — each glossary entry gets its own highlight.
+                # Decide whether to skip this occurrence based on overlap and the
+                # "Hide shorter glossary matches" setting (General Settings checkbox).
+                # hide_shorter OFF (default): shorter terms highlight even inside a longer phrase.
+                # hide_shorter ON: any overlap with an already-highlighted range → skip.
+                overlaps = any(
+                    (idx < h_end and end_idx > h_start)
+                    for h_start, h_end in highlighted_ranges
+                )
                 exact_duplicate = (idx, end_idx) in highlighted_ranges
+                skip = exact_duplicate or (hide_shorter and overlaps)
 
-                if not exact_duplicate:
+                if not skip:
                     # Create cursor for this position
                     cursor = QTextCursor(doc)
                     cursor.setPosition(idx)
