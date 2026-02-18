@@ -16807,7 +16807,7 @@ class SupervertalerQt(QMainWindow):
         provider_button_group.addButton(openai_radio)
         provider_layout.addWidget(openai_radio)
         
-        claude_radio = CustomRadioButton("Anthropic Claude (Claude Sonnet 4.5)")
+        claude_radio = CustomRadioButton("Anthropic Claude (Claude Sonnet 4.6)")
         claude_radio.setChecked(settings.get('provider', 'openai') == 'claude')
         provider_button_group.addButton(claude_radio)
         provider_layout.addWidget(claude_radio)
@@ -16873,18 +16873,20 @@ class SupervertalerQt(QMainWindow):
         
         claude_combo = QComboBox()
         claude_combo.addItems([
-            "claude-sonnet-4-5-20250929 (Recommended - Best Balance)",
-            "claude-haiku-4-5-20251001 (Fast & Affordable)",
+            "claude-sonnet-4-6 (Recommended - Latest Flagship)",
             "claude-opus-4-6 (Latest Premium - Exceptional Reasoning)",
+            "claude-sonnet-4-5-20250929 (Sonnet 4.5 - Best Balance)",
+            "claude-haiku-4-5-20251001 (Fast & Affordable)",
             "claude-opus-4-1-20250805 (Premium - Complex Reasoning)"
         ])
         claude_combo.setToolTip(
-            "Claude Sonnet 4.5: Best balance of speed, quality, and cost.\n"
-            "Claude Haiku 4.5: 2x faster, 1/3 the cost.\n"
+            "Claude Sonnet 4.6: Latest flagship model, best balance of speed, quality, and cost.\n"
             "Claude Opus 4.6: Latest premium model with exceptional reasoning.\n"
+            "Claude Sonnet 4.5: Previous flagship model.\n"
+            "Claude Haiku 4.5: 2x faster, 1/3 the cost.\n"
             "Claude Opus 4.1: Previous premium model for complex reasoning."
         )
-        current_claude_model = settings.get('claude_model', 'claude-sonnet-4-5-20250929')
+        current_claude_model = settings.get('claude_model', 'claude-sonnet-4-6')
         for i in range(claude_combo.count()):
             if current_claude_model in claude_combo.itemText(i):
                 claude_combo.setCurrentIndex(i)
@@ -17764,9 +17766,10 @@ class SupervertalerQt(QMainWindow):
 
         llm_providers = [
             ("claude", "Claude", "claude", [
-                ("claude-sonnet-4-5-20250929", "Claude Sonnet 4.5 (Recommended)"),
-                ("claude-haiku-4-5-20251001", "Claude Haiku 4.5 (Fast)"),
+                ("claude-sonnet-4-6", "Claude Sonnet 4.6 (Recommended)"),
                 ("claude-opus-4-6", "Claude Opus 4.6 (Latest Premium)"),
+                ("claude-sonnet-4-5-20250929", "Claude Sonnet 4.5"),
+                ("claude-haiku-4-5-20251001", "Claude Haiku 4.5 (Fast)"),
                 ("claude-opus-4-1-20250805", "Claude Opus 4.1 (Premium)"),
             ]),
             ("openai", "OpenAI", "openai", [
@@ -43665,7 +43668,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         defaults = {
             'provider': 'openai',
             'openai_model': 'gpt-4o',
-            'claude_model': 'claude-sonnet-4-5-20250929',
+            'claude_model': 'claude-sonnet-4-6',
             'gemini_model': 'gemini-2.5-flash',
             'ollama_model': 'qwen2.5:7b',
             'custom_openai_model': '',
@@ -48671,7 +48674,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                     try:
                         from modules.llm_clients import LLMClient
                         
-                        claude_model = settings.get('claude_model', 'claude-sonnet-4-5-20250929')
+                        claude_model = settings.get('claude_model', 'claude-sonnet-4-6')
                         client = LLMClient(
                             api_key=api_keys['claude'],
                             provider='claude',

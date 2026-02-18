@@ -2,8 +2,20 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.276 (February 17, 2026)
+**Current Version:** v1.9.277 (February 18, 2026)
 
+
+## v1.9.277 - February 18, 2026
+
+### New Features
+
+- **Added Claude Sonnet 4.6 support** — Claude Sonnet 4.6 (`claude-sonnet-4-6`) is now available across all model selectors and is set as the new default Claude model. Pricing is identical to Sonnet 4.5 ($3/$15 per million tokens). The model version checker's known-models list has been updated so it won't flag Sonnet 4.6 as a "new model" on next check.
+
+### Improvements
+
+- **Updated startup banner** — Terminal launch message now reads "Supervertaler - AI-enhanced CAT tool" instead of "AI Translation Tool".
+
+---
 
 ## v1.9.276 - February 17, 2026
 

@@ -3,7 +3,7 @@ REM Supervertaler Quick Launch Script
 REM Double-click to run Supervertaler with terminal window visible
 
 echo ========================================
-echo   Supervertaler - AI Translation Tool
+echo   Supervertaler - AI-enhanced CAT tool
 echo ========================================
 echo.
 echo Starting Supervertaler...

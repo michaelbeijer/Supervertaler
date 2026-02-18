@@ -139,7 +139,7 @@ class LLMClient:
     # Default models for each provider
     DEFAULT_MODELS = {
         "openai": "gpt-4o",
-        "claude": "claude-sonnet-4-5-20250929",  # Claude Sonnet 4.5 (Sept 2025)
+        "claude": "claude-sonnet-4-6",  # Claude Sonnet 4.6 (Feb 2026)
         "gemini": "gemini-2.5-flash",  # Gemini 2.5 Flash (2025)
         "ollama": "qwen2.5:7b",  # Local LLM via Ollama - excellent multilingual quality
         "custom_openai": "custom-model"  # Custom OpenAI-compatible endpoint
@@ -230,6 +230,7 @@ class LLMClient:
             "claude-3-5-sonnet-20241022",
             "claude-sonnet-4-5-20250929",
             "claude-haiku-4-5-20251001",
+            "claude-sonnet-4-6",
             "claude-opus-4-6",
             "claude-opus-4-1-20250805"
         ],
@@ -247,6 +248,14 @@ class LLMClient:
 
     # Available Claude models with descriptions
     CLAUDE_MODELS = {
+        "claude-sonnet-4-6": {
+            "name": "Claude Sonnet 4.6",
+            "description": "Latest flagship - Best balance of speed, quality, and cost",
+            "released": "2026-02-18",
+            "strengths": ["General translation", "Multilingual", "Fast", "Cost-effective"],
+            "pricing": {"input": 3, "output": 15},  # USD per million tokens
+            "use_case": "Recommended for most translation tasks"
+        },
         "claude-opus-4-6": {
             "name": "Claude Opus 4.6",
             "description": "Latest premium - Exceptional coding and reasoning",
