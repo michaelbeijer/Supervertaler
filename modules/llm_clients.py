@@ -401,7 +401,7 @@ class LLMClient:
         vision_models = cls.VISION_MODELS.get(provider, [])
         return model_name in vision_models
 
-    def __init__(self, api_key: str = None, provider: str = "openai", model: Optional[str] = None, max_tokens: int = 16384, base_url: Optional[str] = None):
+    def __init__(self, api_key: str = None, provider: str = "openai", model: Optional[str] = None, max_tokens: int = 16384, base_url: Optional[str] = None, http_proxy: Optional[str] = None):
         """
         Initialize LLM client
 
@@ -411,12 +411,14 @@ class LLMClient:
             model: Model name (uses default if None)
             max_tokens: Maximum tokens for responses (default: 16384)
             base_url: Custom API base URL (for custom_openai provider)
+            http_proxy: Optional HTTP/HTTPS proxy URL, e.g. "http://user:pass@host:8080"
         """
         self.provider = provider.lower()
         self.api_key = api_key
         self.model = model or self.DEFAULT_MODELS.get(self.provider)
         self.max_tokens = max_tokens
         self.base_url = base_url
+        self.http_proxy = http_proxy  # e.g. "http://user:pass@127.0.0.1:8080"
 
         if not self.model:
             raise ValueError(f"Unknown provider: {provider}")
@@ -693,6 +695,9 @@ class LLMClient:
         client_kwargs = {"api_key": self.api_key, "timeout": timeout_seconds}
         if self.base_url:
             client_kwargs["base_url"] = self.base_url
+        if self.http_proxy:
+            import httpx
+            client_kwargs["http_client"] = httpx.Client(proxy=self.http_proxy, timeout=timeout_seconds)
         client = OpenAI(**client_kwargs)
         print(f"🔵 OpenAI client created successfully (timeout: {timeout_seconds}s)")
 
@@ -807,7 +812,11 @@ class LLMClient:
         else:
             timeout_seconds = 120.0  # 2 minutes for normal operations
         
-        client = anthropic.Anthropic(api_key=self.api_key, timeout=timeout_seconds)
+        claude_kwargs = {"api_key": self.api_key, "timeout": timeout_seconds}
+        if self.http_proxy:
+            import httpx
+            claude_kwargs["http_client"] = httpx.Client(proxy=self.http_proxy, timeout=timeout_seconds)
+        client = anthropic.Anthropic(**claude_kwargs)
         
         # Use provided max_tokens or default (Claude uses 4096 as default)
         tokens_to_use = max_tokens if max_tokens is not None else self.max_tokens
@@ -960,10 +969,12 @@ class LLMClient:
             else:
                 timeout_seconds = 180  # 3 minutes for small models
             
+            proxies = {"http": self.http_proxy, "https": self.http_proxy} if self.http_proxy else None
             response = requests.post(
                 f"{endpoint}/api/chat",
                 json=payload,
-                timeout=timeout_seconds
+                timeout=timeout_seconds,
+                proxies=proxies
             )
             
             if response.status_code == 404:

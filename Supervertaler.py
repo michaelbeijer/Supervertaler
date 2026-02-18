@@ -7058,6 +7058,9 @@ class SupervertalerQt(QMainWindow):
         self.last_backup_time = None
         self.restart_auto_backup_timer()
 
+        # Apply proxy env vars for Gemini before any API calls are made
+        self._apply_gemini_proxy()
+
         # Load font sizes from preferences (after UI is fully initialized)
         QApplication.instance().processEvents()  # Allow UI to finish initializing
         self.load_font_sizes_from_preferences()
@@ -17288,7 +17291,74 @@ class SupervertalerQt(QMainWindow):
 
         provider_enable_group.setLayout(provider_enable_layout)
         layout.addWidget(provider_enable_group)
-        
+
+        # ========== SECTION 3b: HTTP Proxy Settings ==========
+        proxy_settings = self.load_proxy_settings()
+
+        proxy_group = QGroupBox("🌐 HTTP Proxy Settings")
+        proxy_layout = QVBoxLayout()
+        proxy_layout.setSpacing(8)
+
+        proxy_info = QLabel(
+            "Route all AI and MT API requests through an HTTP proxy.\n"
+            "Useful if direct access to AI/MT services is restricted in your region."
+        )
+        proxy_info.setWordWrap(True)
+        proxy_info.setStyleSheet("font-size: 9pt; color: #666; padding: 5px;")
+        proxy_layout.addWidget(proxy_info)
+
+        self.proxy_enabled_cb = CheckmarkCheckBox("Enable HTTP proxy")
+        self.proxy_enabled_cb.setChecked(proxy_settings.get('enabled', False))
+        proxy_layout.addWidget(self.proxy_enabled_cb)
+
+        # Host + port row
+        proxy_addr_row = QHBoxLayout()
+        proxy_addr_row.addWidget(QLabel("Host:"))
+        self.proxy_host_input = QLineEdit()
+        self.proxy_host_input.setPlaceholderText("e.g. 127.0.0.1")
+        self.proxy_host_input.setText(proxy_settings.get('host', ''))
+        self.proxy_host_input.setMinimumWidth(180)
+        proxy_addr_row.addWidget(self.proxy_host_input)
+        proxy_addr_row.addSpacing(12)
+        proxy_addr_row.addWidget(QLabel("Port:"))
+        self.proxy_port_spin = QSpinBox()
+        self.proxy_port_spin.setMinimum(1)
+        self.proxy_port_spin.setMaximum(65535)
+        self.proxy_port_spin.setValue(proxy_settings.get('port', 8080))
+        self.proxy_port_spin.setFixedWidth(80)
+        proxy_addr_row.addWidget(self.proxy_port_spin)
+        proxy_addr_row.addStretch()
+        proxy_layout.addLayout(proxy_addr_row)
+
+        # Optional credentials row
+        proxy_cred_row = QHBoxLayout()
+        proxy_cred_row.addWidget(QLabel("Username (optional):"))
+        self.proxy_user_input = QLineEdit()
+        self.proxy_user_input.setPlaceholderText("leave blank if not required")
+        self.proxy_user_input.setText(proxy_settings.get('username', ''))
+        self.proxy_user_input.setMinimumWidth(150)
+        proxy_cred_row.addWidget(self.proxy_user_input)
+        proxy_cred_row.addSpacing(12)
+        proxy_cred_row.addWidget(QLabel("Password:"))
+        self.proxy_pass_input = QLineEdit()
+        self.proxy_pass_input.setEchoMode(QLineEdit.EchoMode.Password)
+        self.proxy_pass_input.setPlaceholderText("leave blank if not required")
+        self.proxy_pass_input.setText(proxy_settings.get('password', ''))
+        self.proxy_pass_input.setMinimumWidth(130)
+        proxy_cred_row.addWidget(self.proxy_pass_input)
+        proxy_cred_row.addStretch()
+        proxy_layout.addLayout(proxy_cred_row)
+
+        proxy_note = QLabel(
+            "ⓘ  Applies to: OpenAI, Claude, Gemini, Ollama, Google Translate, DeepL,\n"
+            "    Microsoft Translator, ModernMT, and MyMemory."
+        )
+        proxy_note.setStyleSheet("font-size: 9pt; color: #888; padding-left: 4px;")
+        proxy_layout.addWidget(proxy_note)
+
+        proxy_group.setLayout(proxy_layout)
+        layout.addWidget(proxy_group)
+
         # ========== SECTION 4: Local LLM (Ollama) Advanced Settings ==========
         ollama_group = QGroupBox("🖥️ Local LLM (Ollama) Advanced Settings")
         ollama_layout = QVBoxLayout()
@@ -21089,6 +21159,19 @@ class SupervertalerQt(QMainWindow):
         
         # Save API keys from inline fields
         self._save_api_keys_from_ui()
+
+        # Save proxy settings
+        if hasattr(self, 'proxy_enabled_cb'):
+            proxy_settings = {
+                'enabled': self.proxy_enabled_cb.isChecked(),
+                'host': self.proxy_host_input.text().strip(),
+                'port': self.proxy_port_spin.value(),
+                'username': self.proxy_user_input.text().strip(),
+                'password': self.proxy_pass_input.text().strip(),
+            }
+            self.save_proxy_settings(proxy_settings)
+            # Re-apply Gemini env vars immediately
+            self._apply_gemini_proxy()
 
         self.log(f"✓ AI settings saved: Provider={provider}, Model={self.current_model}")
         QMessageBox.information(self, "Settings Saved", "AI settings have been saved successfully.")
@@ -43764,6 +43847,88 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         except Exception as e:
             self.log(f"⚠ Could not save LLM settings: {str(e)}")
 
+    # -----------------------------------------------------------------------
+    # PROXY SETTINGS
+    # -----------------------------------------------------------------------
+
+    def load_proxy_settings(self) -> Dict[str, Any]:
+        """Load HTTP proxy settings from unified settings store."""
+        defaults = {
+            'enabled': False,
+            'host': '',
+            'port': 8080,
+            'username': '',
+            'password': '',
+        }
+        try:
+            ui = self._load_settings_section("ui")
+            saved = ui.get('proxy_settings', defaults)
+            for k, v in defaults.items():
+                saved.setdefault(k, v)
+            return saved
+        except Exception:
+            return defaults
+
+    def save_proxy_settings(self, proxy_settings: Dict[str, Any]):
+        """Save HTTP proxy settings to unified settings store."""
+        try:
+            all_settings = self._load_unified_settings()
+            all_settings.setdefault("ui", {})['proxy_settings'] = proxy_settings
+            self._save_unified_settings(all_settings)
+        except Exception as e:
+            self.log(f"⚠ Could not save proxy settings: {str(e)}")
+
+    def _get_proxy_url(self) -> Optional[str]:
+        """
+        Return a fully-formed proxy URL string for use with requests/httpx, or None
+        if the proxy is disabled or not configured.
+
+        Format:  http://[user:pass@]host:port
+        """
+        try:
+            ps = self.load_proxy_settings()
+            if not ps.get('enabled'):
+                return None
+            host = ps.get('host', '').strip()
+            port = ps.get('port', 8080)
+            if not host:
+                return None
+            username = ps.get('username', '').strip()
+            password = ps.get('password', '').strip()
+            if username:
+                from urllib.parse import quote
+                creds = f"{quote(username, safe='')}:{quote(password, safe='')}@"
+            else:
+                creds = ''
+            return f"http://{creds}{host}:{port}"
+        except Exception:
+            return None
+
+    def _get_proxy_dict(self) -> Optional[Dict[str, str]]:
+        """
+        Return a requests-style proxies dict {"http": ..., "https": ...}, or None.
+        Used by MT service calls that use the requests library.
+        """
+        url = self._get_proxy_url()
+        if not url:
+            return None
+        return {"http": url, "https": url}
+
+    def _apply_gemini_proxy(self):
+        """
+        Apply (or clear) the proxy for Google Gemini by setting/unsetting the
+        HTTPS_PROXY environment variable for this process.
+        Called on startup and whenever proxy settings are saved.
+        """
+        import os
+        url = self._get_proxy_url()
+        if url:
+            os.environ["HTTPS_PROXY"] = url
+            os.environ["HTTP_PROXY"] = url
+        else:
+            os.environ.pop("HTTPS_PROXY", None)
+            os.environ.pop("HTTP_PROXY", None)
+
     def _get_active_custom_profile(self, settings=None):
         """Get the active custom_openai profile dict (endpoint, model, api_key).
 
@@ -43793,7 +43958,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         return None
 
     def create_llm_client(self, provider, model, api_keys, settings=None):
-        """Create an LLMClient with proper base_url handling for custom_openai."""
+        """Create an LLMClient with proper base_url and proxy handling."""
         from modules.llm_clients import LLMClient
         api_key = api_keys.get(provider) or (api_keys.get('google') if provider == 'gemini' else None)
         base_url = None
@@ -43809,7 +43974,10 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                 api_key = profile_key or api_keys.get('custom_openai', '') or 'not-needed'
             elif not api_key:
                 api_key = api_keys.get('custom_openai', '') or 'not-needed'
-        return LLMClient(api_key=api_key, provider=provider, model=model, base_url=base_url)
+        # Pass proxy URL to client (None if proxy disabled or not configured)
+        # Gemini uses env vars instead (set by _apply_gemini_proxy at startup/settings save)
+        http_proxy = self._get_proxy_url() if provider != 'gemini' else None
+        return LLMClient(api_key=api_key, provider=provider, model=model, base_url=base_url, http_proxy=http_proxy)
 
     def load_provider_enabled_states(self) -> Dict[str, bool]:
         """Load provider enable/disable states from user preferences"""
@@ -47443,14 +47611,14 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                 'format': 'text'
             }
             
-            response = requests.post(url, params=params, timeout=10)
+            response = requests.post(url, params=params, timeout=10, proxies=self._get_proxy_dict())
             response.raise_for_status()
-            
+
             result = response.json()
             translated_text = result['data']['translations'][0]['translatedText']
             # Unescape HTML entities like &quot; &amp; etc.
             return html.unescape(translated_text)
-            
+
         except ImportError:
             return "[Google Translate requires: pip install requests]"
         except Exception as e:
@@ -47468,7 +47636,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             if not api_key:
                 return "[DeepL requires API key]"
 
-            translator = deepl.Translator(api_key)
+            translator = deepl.Translator(api_key, proxy=self._get_proxy_dict())
 
             # Map full language names to ISO codes
             lang_name_to_code = {
@@ -47576,12 +47744,12 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             }
             body = [{'text': text}]
             
-            response = requests.post(endpoint, params=params, headers=headers, json=body, timeout=10)
+            response = requests.post(endpoint, params=params, headers=headers, json=body, timeout=10, proxies=self._get_proxy_dict())
             response.raise_for_status()
-            
+
             result = response.json()
             return result[0]['translations'][0]['text']
-            
+
         except ImportError:
             return "[Microsoft Translator requires: pip install requests]"
         except Exception as e:
@@ -47685,12 +47853,12 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                 'target': tgt_code
             }
             
-            response = requests.post(url, headers=headers, json=data, timeout=10)
+            response = requests.post(url, headers=headers, json=data, timeout=10, proxies=self._get_proxy_dict())
             response.raise_for_status()
-            
+
             result = response.json()
             return result['data']['translation']
-            
+
         except ImportError:
             return "[ModernMT requires: pip install requests]"
         except Exception as e:
@@ -47733,9 +47901,9 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             if api_key:
                 params['key'] = api_key
             
-            response = requests.get(url, params=params, timeout=10)
+            response = requests.get(url, params=params, timeout=10, proxies=self._get_proxy_dict())
             response.raise_for_status()
-            
+
             result = response.json()
             if result.get('responseStatus') == 200:
                 return result['responseData']['translatedText']

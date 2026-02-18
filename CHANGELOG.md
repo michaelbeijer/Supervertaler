@@ -2,8 +2,22 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.280 (February 18, 2026)
+**Current Version:** v1.9.281 (February 18, 2026)
 
+
+## v1.9.281 - February 18, 2026
+
+### New Features
+
+- **HTTP proxy support for all AI and MT service connections** (GitHub issue #168) — A new "🌐 HTTP Proxy Settings" section has been added to the AI Settings tab. Users can enter a proxy host, port, and optional username/password. When enabled, all outbound API requests are routed through the configured proxy:
+  - **OpenAI & Claude**: custom `httpx.Client(proxy=...)` passed to each SDK constructor
+  - **Ollama**: `proxies=` dict passed to `requests.post()`
+  - **Gemini**: `HTTPS_PROXY` / `HTTP_PROXY` environment variables set at startup and on every settings save (the Gemini SDK does not support per-client proxy configuration)
+  - **Google Translate, Microsoft Translator, ModernMT, MyMemory**: `proxies=` passed to every `requests` call
+  - **DeepL**: `proxy=` passed to `deepl.Translator()` constructor
+  - Settings persist between sessions in `settings/settings.json`. If no proxy is configured, all behaviour is unchanged.
+
+---
 
 ## v1.9.280 - February 18, 2026
 
