@@ -6805,7 +6805,6 @@ class SupervertalerQt(QMainWindow):
         self.enable_termbase_grid_highlighting = True  # Highlight termbase matches in source cells
 
         # Termbase display settings
-        self.termbase_display_order = 'appearance'  # Options: 'alphabetical', 'appearance', 'length'
         self.termbase_hide_shorter_matches = False  # Hide shorter terms included in longer ones
 
         # Invisible character display settings
@@ -18311,27 +18310,6 @@ class SupervertalerQt(QMainWindow):
         )
         tm_termbase_layout.addWidget(tb_highlight_cb)
 
-        # Glossary display order
-        tb_order_label = QLabel("Glossary match display order:")
-        tb_order_combo = QComboBox()
-        tb_order_combo.addItem("Order of appearance in source text", "appearance")
-        tb_order_combo.addItem("Alphabetical (A-Z)", "alphabetical")
-        tb_order_combo.addItem("By length (longest first)", "length")
-        current_order = general_settings.get('termbase_display_order', 'appearance')
-        order_index = {'appearance': 0, 'alphabetical': 1, 'length': 2}.get(current_order, 0)
-        tb_order_combo.setCurrentIndex(order_index)
-        tb_order_combo.setToolTip(
-            "Choose how glossary matches are sorted in the translation results panel:\n\n"
-            "• Order of appearance: Matches appear in the order they occur in the source text (default)\n"
-            "• Alphabetical: Matches are sorted alphabetically by source term (A-Z)\n"
-            "• By length: Longer matches appear first (useful for prioritizing multi-word terms)"
-        )
-        tb_order_layout = QHBoxLayout()
-        tb_order_layout.addWidget(tb_order_label)
-        tb_order_layout.addWidget(tb_order_combo)
-        tb_order_layout.addStretch()
-        tm_termbase_layout.addLayout(tb_order_layout)
-
         # Hide shorter matches checkbox
         tb_hide_shorter_cb = CheckmarkCheckBox("Hide shorter glossary matches included in longer ones")
         tb_hide_shorter_cb.setChecked(general_settings.get('termbase_hide_shorter_matches', False))
@@ -18572,7 +18550,7 @@ class SupervertalerQt(QMainWindow):
             llm_spin, mt_spin, tm_limit_spin, tb_spin,
             auto_open_log_cb, auto_insert_100_cb, tm_save_mode_combo, tb_highlight_cb,
             enable_backup_cb, backup_interval_spin,
-            tb_order_combo, tb_hide_shorter_cb, smart_selection_cb,
+            tb_hide_shorter_cb, smart_selection_cb,
             ahk_path_edit=getattr(self, 'ahk_path_edit', None),
             auto_center_cb=auto_center_cb,
             auto_confirm_100_cb=auto_confirm_100_cb,
@@ -21155,7 +21133,7 @@ class SupervertalerQt(QMainWindow):
                                        llm_spin=None, mt_spin=None, tm_limit_spin=None, tb_spin=None,
                                        auto_open_log_cb=None, auto_insert_100_cb=None, tm_save_mode_combo=None, tb_highlight_cb=None,
                                        enable_backup_cb=None, backup_interval_spin=None,
-                                       tb_order_combo=None, tb_hide_shorter_cb=None, smart_selection_cb=None,
+                                       tb_hide_shorter_cb=None, smart_selection_cb=None,
                                        ahk_path_edit=None, auto_center_cb=None, auto_confirm_100_cb=None,
                                        auto_confirm_overwrite_cb=None, sound_effects_cb=None, sound_event_combos=None,
                                        disable_cache_cb=None):
@@ -21188,8 +21166,6 @@ class SupervertalerQt(QMainWindow):
             self.enable_termbase_grid_highlighting = tb_highlight_cb.isChecked()
 
         # Update termbase display settings
-        if tb_order_combo is not None:
-            self.termbase_display_order = tb_order_combo.currentData()
         if tb_hide_shorter_cb is not None:
             self.termbase_hide_shorter_matches = tb_hide_shorter_cb.isChecked()
 
@@ -21207,7 +21183,6 @@ class SupervertalerQt(QMainWindow):
             'auto_generate_markdown': existing_settings.get('auto_generate_markdown', False),  # Preserve AI setting
             'enable_termbase_grid_highlighting': tb_highlight_cb.isChecked() if tb_highlight_cb is not None else True,
             'enable_llm_matching': existing_settings.get('enable_llm_matching', False),  # Preserve AI setting
-            'termbase_display_order': tb_order_combo.currentData() if tb_order_combo is not None else 'appearance',
             'termbase_hide_shorter_matches': tb_hide_shorter_cb.isChecked() if tb_hide_shorter_cb is not None else False,
             'enable_smart_word_selection': smart_selection_cb.isChecked() if smart_selection_cb is not None else True,
             'precision_scroll_divisor': self.precision_spin.value() if hasattr(self, 'precision_spin') else 3,
@@ -21299,7 +21274,6 @@ class SupervertalerQt(QMainWindow):
                 'auto_confirm_overwrite_existing': self.auto_confirm_overwrite_existing,
                 'enable_termbase_grid_highlighting': self.enable_termbase_grid_highlighting,
                 'precision_scroll_divisor': self.precision_scroll_divisor,
-                'termbase_display_order': self.termbase_display_order,
                 'termbase_hide_shorter_matches': self.termbase_hide_shorter_matches,
                 'enable_smart_word_selection': self.enable_smart_word_selection,
                 'enable_sound_effects': self.enable_sound_effects,
@@ -24027,9 +24001,6 @@ class SupervertalerQt(QMainWindow):
                     self.precision_scroll_divisor = project_settings['precision_scroll_divisor']
                     self.log(f"✓ Project override: precision scroll = {self.precision_scroll_divisor}")
                 
-                if 'termbase_display_order' in project_settings:
-                    self.termbase_display_order = project_settings['termbase_display_order']
-                
                 if 'termbase_hide_shorter_matches' in project_settings:
                     self.termbase_hide_shorter_matches = project_settings['termbase_hide_shorter_matches']
                 
@@ -25061,7 +25032,6 @@ class SupervertalerQt(QMainWindow):
                 'auto_confirm_100_percent_matches': self.auto_confirm_100_percent_matches,
                 'enable_termbase_grid_highlighting': self.enable_termbase_grid_highlighting,
                 'precision_scroll_divisor': self.precision_scroll_divisor,
-                'termbase_display_order': self.termbase_display_order,
                 'termbase_hide_shorter_matches': self.termbase_hide_shorter_matches,
                 'enable_smart_word_selection': self.enable_smart_word_selection,
                 'enable_sound_effects': self.enable_sound_effects,
@@ -34160,7 +34130,6 @@ class SupervertalerQt(QMainWindow):
         # Load auto-center active segment setting (default True, like memoQ/Trados)
         self.auto_center_active_segment = settings.get('auto_center_active_segment', True)
         # Load termbase display settings
-        self.termbase_display_order = settings.get('termbase_display_order', 'appearance')
         self.termbase_hide_shorter_matches = settings.get('termbase_hide_shorter_matches', False)
         # Load invisible character color
         self.invisible_char_color = settings.get('invisible_char_color', '#999999')

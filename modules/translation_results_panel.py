@@ -1597,39 +1597,6 @@ class TranslationResultsPanel(QWidget):
         # Re-render with merged matches
         self.set_matches(self.matches_by_type)
 
-    def _sort_termbase_matches(self, matches: List[TranslationMatch]) -> List[TranslationMatch]:
-        """
-        Sort termbase matches based on user preference.
-
-        Args:
-            matches: List of termbase matches
-
-        Returns:
-            Sorted list of matches
-        """
-        if not self.parent_app:
-            return matches  # No sorting if no parent app
-
-        sort_order = getattr(self.parent_app, 'termbase_display_order', 'appearance')
-
-        if sort_order == 'alphabetical':
-            # Sort alphabetically by source term (case-insensitive)
-            return sorted(matches, key=lambda m: m.source.lower())
-        elif sort_order == 'length':
-            # Sort by source term length (longest first)
-            return sorted(matches, key=lambda m: len(m.source), reverse=True)
-        elif sort_order == 'appearance':
-            # Sort by position in source text (if available in metadata)
-            # If position not available, keep original order
-            def get_position(match):
-                pos = match.metadata.get('position_in_source', -1)
-                # If no position, put at end
-                return pos if pos >= 0 else 999999
-            return sorted(matches, key=get_position)
-        else:
-            # Default: keep original order
-            return matches
-
     def _filter_shorter_matches(self, matches: List[TranslationMatch]) -> List[TranslationMatch]:
         """
         Filter out shorter termbase matches that are substrings of longer matches.
@@ -1718,12 +1685,10 @@ class TranslationResultsPanel(QWidget):
                 # Get matches for this type
                 type_matches = matches_dict[match_type]
 
-                # Apply sorting and filtering for termbase matches
+                # Apply filtering for termbase matches
                 if match_type == "Termbases":
-                    # First filter out shorter substring matches (if enabled)
+                    # Filter out shorter substring matches (if enabled)
                     type_matches = self._filter_shorter_matches(type_matches)
-                    # Then sort according to user preference
-                    type_matches = self._sort_termbase_matches(type_matches)
 
                 # Apply limit for this match type
                 limit = match_limits.get(match_type, 5)
