@@ -2,8 +2,20 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.277 (February 18, 2026)
+**Current Version:** v1.9.278 (February 18, 2026)
 
+
+## v1.9.278 - February 18, 2026
+
+### Bug Fixes
+
+- **Fixed: shorter glossary terms inside longer phrases now always show in TermView and source highlighting** — When a long project-glossary phrase (e.g. "de gekarakteriseerde luchttoevoerkleppen en de gekarakteriseerde luchtafvoerkleppen") matched first, its character positions were claimed and shorter individual terms sharing those characters (e.g. "gekarakteriseerde") were silently suppressed in both the TermView and the source-cell highlighting. Root cause: both the TermView tokenizer and the source highlighter sorted terms longest-first and then skipped any shorter term whose positions were already claimed — ignoring the "Hide shorter glossary matches" setting entirely. Fixed by wiring the `termbase_hide_shorter_matches` setting to both code paths: when the checkbox is **off** (default), individual glossary words always appear even inside a longer matched phrase; when **on**, the overlap suppression is applied as intended.
+
+### Removed
+
+- **Removed "Glossary match display order" setting** — The dropdown (Order of appearance / Alphabetical / By length) was only ever wired to the now-defunct Translation Results Panel and had no effect on the TermView. The TermView's design principle is to mirror the source text left-to-right, so order-of-appearance is always correct and the setting was meaningless. Removed from Settings UI, all save/load paths, project settings, and the dead panel code.
+
+---
 
 ## v1.9.277 - February 18, 2026
 
