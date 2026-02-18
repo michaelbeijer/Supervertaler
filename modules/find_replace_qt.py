@@ -106,13 +106,17 @@ class FindReplaceOperation:
     match_mode: int = 0  # 0=anything, 1=whole words, 2=entire segment
     case_sensitive: bool = False
     enabled: bool = True
-    
+    auto_case: bool = False  # Auto-adjust replacement to match case pattern of matched text
+
     def to_dict(self) -> dict:
         return asdict(self)
-    
+
     @classmethod
     def from_dict(cls, data: dict) -> 'FindReplaceOperation':
-        return cls(**data)
+        # Accept old saved sets that lack newer fields (forward-compatible defaults)
+        known_fields = {f.name for f in cls.__dataclass_fields__.values()}
+        filtered = {k: v for k, v in data.items() if k in known_fields}
+        return cls(**filtered)
 
 
 @dataclass

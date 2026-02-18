@@ -38171,7 +38171,37 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
     # ========================================================================
     # NAVIGATION & SEARCH
     # ========================================================================
-    
+
+    @staticmethod
+    def _apply_case_pattern(original: str, replacement: str) -> str:
+        """
+        Adjust *replacement* to match the case pattern of *original*.
+
+        Recognised patterns (checked in order of specificity):
+          1. ALL CAPS          → replacement.upper()
+          2. all lowercase     → replacement.lower()
+          3. Title Case        → replacement.title()
+          4. Sentence case     → first char upper, rest as-is from replacement
+          5. Mixed / unknown   → replacement unchanged
+
+        Only the first character is checked for (4) when the string is longer
+        than one word; for single-word originals only UPPER/lower/Title are used.
+        """
+        if not original or not replacement:
+            return replacement
+
+        if original.isupper():
+            return replacement.upper()
+        if original.islower():
+            return replacement.lower()
+        if original.istitle():
+            return replacement.title()
+        # Sentence case: first char upper, rest lower-or-mixed in original
+        if original[0].isupper() and original[1:].islower():
+            return replacement[0].upper() + replacement[1:] if replacement else replacement
+        # Fallback: preserve replacement as typed
+        return replacement
+
     def show_find_replace_dialog(self):
         """Show unified Find & Replace dialog (Ctrl+F and Ctrl+H both open same dialog)
         Features:
@@ -38293,7 +38323,21 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         # Case sensitive checkbox
         self.case_sensitive_cb = CheckmarkCheckBox("Case sensitive")
         options_layout.addWidget(self.case_sensitive_cb)
-        
+
+        # Auto-adjust case checkbox
+        self.auto_case_cb = CheckmarkCheckBox("Auto-adjust case")
+        self.auto_case_cb.setToolTip(
+            "When replacing, automatically adjust the replacement text to match\n"
+            "the case pattern of the matched text.\n\n"
+            "Recognised patterns:\n"
+            "  ALL CAPS  → replacement is uppercased\n"
+            "  all lower → replacement is lowercased\n"
+            "  Title Case → replacement is title-cased\n"
+            "  Sentence case → first letter uppercased\n\n"
+            "Has no effect when 'Case sensitive' is also checked."
+        )
+        options_layout.addWidget(self.auto_case_cb)
+
         options_layout.addStretch()
         main_v_layout.addLayout(options_layout)
         
@@ -38440,7 +38484,8 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             search_in=search_in,
             match_mode=self.match_group.checkedId(),
             case_sensitive=self.case_sensitive_cb.isChecked(),
-            enabled=True
+            enabled=True,
+            auto_case=self.auto_case_cb.isChecked(),
         )
         
         self.fr_sets_manager.add_current_operation_to_set(op)
@@ -38468,7 +38513,8 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             btn.setChecked(True)
         
         self.case_sensitive_cb.setChecked(op.case_sensitive)
-    
+        self.auto_case_cb.setChecked(getattr(op, 'auto_case', False))
+
     def _fr_run_set_batch(self, fr_set: FindReplaceSet):
         """Run all enabled operations in a F&R Set as a batch (optimized for speed)."""
         enabled_ops = [op for op in fr_set.operations if op.enabled and op.find_text]
@@ -38556,6 +38602,8 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             if op.search_in in ("target", "both"):
                 texts_to_check.append(("target", segment.target))
             
+            auto_case = getattr(op, 'auto_case', False)
+
             for field_name, old_text in texts_to_check:
                 if op.match_mode == 2:  # Entire segment
                     if op.case_sensitive:
@@ -38565,16 +38613,27 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                             new_text = old_text
                     else:
                         if old_text.lower() == op.find_text.lower():
-                            new_text = op.replace_text
+                            new_text = self._apply_case_pattern(old_text, op.replace_text) if auto_case else op.replace_text
                         else:
                             new_text = old_text
                 elif op.match_mode == 1:  # Whole words
                     pattern = r'\b' + re.escape(op.find_text) + r'\b'
-                    flags = 0 if op.case_sensitive else re.IGNORECASE
-                    new_text = re.sub(pattern, op.replace_text, old_text, flags=flags)
+                    if op.case_sensitive:
+                        new_text = re.sub(pattern, op.replace_text, old_text)
+                    elif auto_case:
+                        def _ww_repl(m, _rt=op.replace_text):
+                            return self._apply_case_pattern(m.group(0), _rt)
+                        new_text = re.sub(pattern, _ww_repl, old_text, flags=re.IGNORECASE)
+                    else:
+                        new_text = re.sub(pattern, op.replace_text, old_text, flags=re.IGNORECASE)
                 else:  # Anything
                     if op.case_sensitive:
                         new_text = old_text.replace(op.find_text, op.replace_text)
+                    elif auto_case:
+                        pattern = re.escape(op.find_text)
+                        def _any_repl(m, _rt=op.replace_text):
+                            return self._apply_case_pattern(m.group(0), _rt)
+                        new_text = re.sub(pattern, _any_repl, old_text, flags=re.IGNORECASE)
                     else:
                         pattern = re.escape(op.find_text)
                         new_text = re.sub(pattern, op.replace_text, old_text, flags=re.IGNORECASE)
@@ -38812,25 +38871,31 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         
         segment = self.current_project.segments[row]
         case_sensitive = self.case_sensitive_cb.isChecked()
+        auto_case = self.auto_case_cb.isChecked()
         match_mode = self.match_group.checkedId()
-        
+
         # Determine which field to update
         if col == 2:  # Source column
             field_text = segment.source
         else:  # col == 3, Target column
             field_text = segment.target
-        
+
         if match_mode == 2:  # Entire segment
             new_text = replace_text
         else:
             # Replace using the appropriate method
+            import re
             if case_sensitive:
                 new_text = field_text.replace(find_text, replace_text, 1)
+            elif auto_case:
+                pattern = re.escape(find_text)
+                def _case_replacer_single(m):
+                    return self._apply_case_pattern(m.group(0), replace_text)
+                new_text = re.sub(pattern, _case_replacer_single, field_text, count=1, flags=re.IGNORECASE)
             else:
-                import re
                 pattern = re.escape(find_text)
                 new_text = re.sub(pattern, replace_text, field_text, count=1, flags=re.IGNORECASE)
-        
+
         # Update the appropriate field
         if col == 2:
             segment.source = new_text
@@ -38860,8 +38925,9 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         search_source = self.search_source_cb.isChecked()
         search_target = self.search_target_cb.isChecked()
         case_sensitive = self.case_sensitive_cb.isChecked()
+        auto_case = self.auto_case_cb.isChecked()
         match_mode = self.match_group.checkedId()
-        
+
         # Safety check: warn if trying to replace in source when disabled
         if search_source and not self.allow_replace_in_source:
             reply = QMessageBox.warning(
@@ -38947,14 +39013,19 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                 else:
                     if case_sensitive:
                         new_text = old_text.replace(find_text, replace_text)
+                    elif auto_case:
+                        pattern = re.escape(find_text)
+                        def _case_repl(m, _rt=replace_text):
+                            return self._apply_case_pattern(m.group(0), _rt)
+                        new_text = re.sub(pattern, _case_repl, old_text, flags=re.IGNORECASE)
                     else:
                         pattern = re.escape(find_text)
                         new_text = re.sub(pattern, replace_text, old_text, flags=re.IGNORECASE)
-                
+
                 if new_text != old_text:
                     replaced_count += 1
                     updated_rows.add(row)
-                    
+
                     # Update the appropriate field
                     if col == 2:
                         segment.source = new_text

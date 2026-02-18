@@ -2,8 +2,16 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.278 (February 18, 2026)
+**Current Version:** v1.9.279 (February 18, 2026)
 
+
+## v1.9.279 - February 18, 2026
+
+### New Features
+
+- **Find & Replace: Auto-adjust case option** — Added an "Auto-adjust case" checkbox to the Find & Replace dialog. When enabled (and "Case sensitive" is off), the replacement text is automatically adjusted to match the case pattern of each matched string: ALL CAPS → uppercased, all lowercase → lowercased, Title Case → title-cased, Sentence case → first letter uppercased. Works in "Replace this", "Replace all", and F&R Sets batch operations. The case pattern is stored per-operation in saved F&R Sets for full round-trip fidelity.
+
+---
 
 ## v1.9.278 - February 18, 2026
 
