@@ -19303,7 +19303,74 @@ class SupervertalerQt(QMainWindow):
         
         termview_group.setLayout(termview_layout)
         layout.addWidget(termview_group)
-        
+
+        # ===== Match Panel Font Settings =====
+        mp_font_group = QGroupBox("📊 Match Panel Font Settings")
+        mp_font_layout = QVBoxLayout()
+
+        mp_font_info = QLabel(
+            "Configure the font appearance for the TM Source and TM Target boxes in the Match Panel."
+        )
+        mp_font_info.setStyleSheet("font-size: 8pt; padding: 8px; border-radius: 2px;")
+        mp_font_info.setWordWrap(True)
+        mp_font_layout.addWidget(mp_font_info)
+
+        # Font family dropdown
+        mp_font_family_layout = QHBoxLayout()
+        mp_font_family_layout.addWidget(QLabel("Font Family:"))
+        mp_font_family_combo = QComboBox()
+        mp_font_family_combo.addItems(font_families)
+        current_mp_font_family = font_settings.get('match_panel_font_family', '')
+        if current_mp_font_family and current_mp_font_family in font_families:
+            mp_font_family_combo.setCurrentText(current_mp_font_family)
+        else:
+            # Show placeholder when using system default
+            mp_font_family_combo.setCurrentIndex(0)
+        mp_font_family_combo.setToolTip("Select the font family for TM Source/Target text in the Match Panel")
+        mp_font_family_layout.addWidget(mp_font_family_combo)
+        mp_font_family_layout.addStretch()
+        mp_font_layout.addLayout(mp_font_family_layout)
+
+        # Font size spinbox
+        mp_size_layout = QHBoxLayout()
+        mp_size_layout.addWidget(QLabel("Font Size:"))
+        mp_font_spin = QSpinBox()
+        mp_font_spin.setMinimum(6)
+        mp_font_spin.setMaximum(18)
+        mp_font_spin.setValue(font_settings.get('match_panel_font_size', 10))
+        mp_font_spin.setSuffix(" pt")
+        mp_font_spin.setToolTip("Match Panel TM font size (6-18 pt). Can also be adjusted with View → Match Panel zoom shortcuts.")
+        mp_font_spin.setMinimumHeight(28)
+        mp_font_spin.setMinimumWidth(80)
+        mp_font_spin.setStyleSheet("""
+            QSpinBox {
+                padding-right: 20px;
+            }
+            QSpinBox::up-button {
+                width: 20px;
+                height: 14px;
+            }
+            QSpinBox::down-button {
+                width: 20px;
+                height: 14px;
+            }
+        """)
+        mp_size_layout.addWidget(mp_font_spin)
+        mp_size_layout.addStretch()
+        mp_font_layout.addLayout(mp_size_layout)
+
+        # Font weight checkbox
+        mp_bold_layout = QHBoxLayout()
+        mp_bold_check = CheckmarkCheckBox("Bold font")
+        mp_bold_check.setChecked(font_settings.get('match_panel_font_bold', False))
+        mp_bold_check.setToolTip("Display TM Source/Target text in bold")
+        mp_bold_layout.addWidget(mp_bold_check)
+        mp_bold_layout.addStretch()
+        mp_font_layout.addLayout(mp_bold_layout)
+
+        mp_font_group.setLayout(mp_font_layout)
+        layout.addWidget(mp_font_group)
+
         # ===== Global UI Font Scale =====
         ui_scale_group = QGroupBox("🖥️ Global UI Font Scale")
         ui_scale_layout = QVBoxLayout()
@@ -19392,7 +19459,8 @@ class SupervertalerQt(QMainWindow):
                 alt_colors_check, even_color_btn, odd_color_btn, invisible_char_color_btn, grid_font_family_combo,
                 termview_font_family_combo, termview_font_spin, termview_bold_check,
                 border_color_btn, border_thickness_spin, badge_text_color_btn, tabs_above_check,
-                hide_wrapping_tags_check
+                hide_wrapping_tags_check,
+                mp_font_family_combo=mp_font_family_combo, mp_font_spin=mp_font_spin, mp_bold_check=mp_bold_check
             )
         
         save_btn.clicked.connect(save_view_settings_with_scale)
@@ -21376,7 +21444,8 @@ class SupervertalerQt(QMainWindow):
                                      alt_colors_check=None, even_color_btn=None, odd_color_btn=None, invisible_char_color_btn=None,
                                      grid_font_family_combo=None, termview_font_family_combo=None, termview_font_spin=None, termview_bold_check=None,
                                      border_color_btn=None, border_thickness_spin=None, badge_text_color_btn=None, tabs_above_check=None,
-                                     hide_wrapping_tags_check=None):
+                                     hide_wrapping_tags_check=None,
+                                     mp_font_family_combo=None, mp_font_spin=None, mp_bold_check=None):
         """Save view settings from UI"""
         # CRITICAL: Suppress TM saves during view settings update
         # Grid operations (setStyleSheet, rehighlight, etc.) can trigger textChanged events
@@ -21390,7 +21459,8 @@ class SupervertalerQt(QMainWindow):
                 alt_colors_check, even_color_btn, odd_color_btn, invisible_char_color_btn,
                 grid_font_family_combo, termview_font_family_combo, termview_font_spin, termview_bold_check,
                 border_color_btn, border_thickness_spin, badge_text_color_btn, tabs_above_check,
-                hide_wrapping_tags_check
+                hide_wrapping_tags_check,
+                mp_font_family_combo=mp_font_family_combo, mp_font_spin=mp_font_spin, mp_bold_check=mp_bold_check
             )
         finally:
             self._suppress_target_change_handlers = previous_suppression
@@ -21399,7 +21469,8 @@ class SupervertalerQt(QMainWindow):
                                      alt_colors_check=None, even_color_btn=None, odd_color_btn=None, invisible_char_color_btn=None,
                                      grid_font_family_combo=None, termview_font_family_combo=None, termview_font_spin=None, termview_bold_check=None,
                                      border_color_btn=None, border_thickness_spin=None, badge_text_color_btn=None, tabs_above_check=None,
-                                     hide_wrapping_tags_check=None):
+                                     hide_wrapping_tags_check=None,
+                                     mp_font_family_combo=None, mp_font_spin=None, mp_bold_check=None):
         """Implementation of save view settings (called with TM saves suppressed)"""
         # Load existing settings first to preserve all values, then update with new ones
         general_settings = self.load_general_settings()
@@ -21427,6 +21498,14 @@ class SupervertalerQt(QMainWindow):
             general_settings['termview_font_size'] = termview_font_spin.value()
         if termview_bold_check is not None:
             general_settings['termview_font_bold'] = termview_bold_check.isChecked()
+
+        # Add Match Panel font settings if provided
+        if mp_font_family_combo is not None:
+            general_settings['match_panel_font_family'] = mp_font_family_combo.currentText()
+        if mp_font_spin is not None:
+            general_settings['match_panel_font_size'] = mp_font_spin.value()
+        if mp_bold_check is not None:
+            general_settings['match_panel_font_bold'] = mp_bold_check.isChecked()
 
         # Add tag color if provided
         if tag_color_btn:
@@ -21522,7 +21601,19 @@ class SupervertalerQt(QMainWindow):
             termview_size = general_settings.get('termview_font_size', 10)
             termview_bold = general_settings.get('termview_font_bold', False)
             self.termview_widget_match.set_font_settings(termview_family, termview_size, termview_bold)
-        
+
+        # Apply Match Panel TM Source/Target font settings immediately
+        if mp_font_spin is not None:
+            new_mp_size = mp_font_spin.value()
+            if 6 <= new_mp_size <= 18:
+                SupervertalerQt.match_panel_font_size = new_mp_size
+        if mp_font_family_combo is not None:
+            SupervertalerQt.match_panel_font_family = mp_font_family_combo.currentText()
+        if mp_bold_check is not None:
+            SupervertalerQt.match_panel_font_bold = mp_bold_check.isChecked()
+        if mp_font_spin is not None or mp_font_family_combo is not None or mp_bold_check is not None:
+            self._apply_match_panel_font_size()
+
         # Apply font family and size immediately
         font_changed = False
         if grid_font_family_combo is not None and self.default_font_family != grid_font_family_combo.currentText():
@@ -22455,12 +22546,15 @@ class SupervertalerQt(QMainWindow):
         # Add left side to main horizontal splitter
         main_horizontal_splitter.addWidget(left_container)
 
-        # Pre-load match panel font size so _create_match_panel() uses the saved value
+        # Pre-load match panel font settings so _create_match_panel() uses the saved values
         try:
             _pre_settings = self.load_general_settings()
             _mp_size = _pre_settings.get('match_panel_font_size', 10)
             if 7 <= _mp_size <= 18:
                 SupervertalerQt.match_panel_font_size = _mp_size
+            _mp_family = _pre_settings.get('match_panel_font_family', '')
+            SupervertalerQt.match_panel_font_family = _mp_family
+            SupervertalerQt.match_panel_font_bold = _pre_settings.get('match_panel_font_bold', False)
         except Exception:
             pass
 
@@ -32678,6 +32772,14 @@ class SupervertalerQt(QMainWindow):
                 color: {text_color};
             }}
         """)
+        # Also set document default font so rich-text content (cursor-inserted diffs) respects size
+        from PyQt6.QtGui import QFont as _QFont
+        _doc_font = _QFont()
+        if SupervertalerQt.match_panel_font_family:
+            _doc_font.setFamily(SupervertalerQt.match_panel_font_family)
+        _doc_font.setPointSize(_mp_font_size)
+        _doc_font.setBold(SupervertalerQt.match_panel_font_bold)
+        text_edit.document().setDefaultFont(_doc_font)
         text_edit.setMinimumHeight(50)
         main_layout.addWidget(text_edit, 1)
         
@@ -34122,23 +34224,25 @@ class SupervertalerQt(QMainWindow):
     # MATCH PANEL ZOOM METHODS
     # =========================================================================
     
-    # Class variable for Match Panel font size (TM Source/Target boxes)
-    match_panel_font_size = 10  # Default font size
-    
+    # Class variables for Match Panel font (TM Source/Target boxes)
+    match_panel_font_size = 10    # Default font size
+    match_panel_font_family = ''  # Empty = system default; set from settings on startup
+    match_panel_font_bold = False  # Default not bold
+
     def match_panel_zoom_in(self):
         """Increase font size in Match Panel TM boxes"""
         SupervertalerQt.match_panel_font_size = min(18, SupervertalerQt.match_panel_font_size + 1)
         self._apply_match_panel_font_size()
         self.save_current_font_sizes()
         self.log(f"Match Panel font size: {SupervertalerQt.match_panel_font_size}pt")
-    
+
     def match_panel_zoom_out(self):
         """Decrease font size in Match Panel TM boxes"""
         SupervertalerQt.match_panel_font_size = max(7, SupervertalerQt.match_panel_font_size - 1)
         self._apply_match_panel_font_size()
         self.save_current_font_sizes()
         self.log(f"Match Panel font size: {SupervertalerQt.match_panel_font_size}pt")
-    
+
     def match_panel_zoom_reset(self):
         """Reset font size in Match Panel TM boxes to default"""
         SupervertalerQt.match_panel_font_size = 10
@@ -34147,23 +34251,43 @@ class SupervertalerQt(QMainWindow):
         self.log("Match Panel font size reset to 10pt")
     
     def _apply_match_panel_font_size(self):
-        """Apply current font size to Match Panel TM Source/Target text edits"""
+        """Apply current font settings to Match Panel TM Source/Target text edits.
+
+        Both the QTextEdit stylesheet AND the document default font must be updated:
+        - The stylesheet controls plain-text rendering.
+        - The document default font controls rich-text content inserted via QTextCursor
+          (e.g. diff-highlighted segments), which ignores the stylesheet font-size.
+        """
         if not hasattr(self, 'compare_panel_text_edits'):
             return
-        
+
         font_size = SupervertalerQt.match_panel_font_size
-        
+        font_family = SupervertalerQt.match_panel_font_family
+        font_bold = SupervertalerQt.match_panel_font_bold
+
+        # Build a QFont for the document default font
+        from PyQt6.QtGui import QFont
+        doc_font = QFont()
+        if font_family:
+            doc_font.setFamily(font_family)
+        doc_font.setPointSize(font_size)
+        doc_font.setBold(font_bold)
+
         for item in self.compare_panel_text_edits:
             text_edit = item[0]  # First element is the QTextEdit
-            if text_edit and hasattr(text_edit, 'setStyleSheet'):
-                # Preserve existing style but update font size
-                current_style = text_edit.styleSheet()
-                # Update font-size in the stylesheet
-                import re
-                new_style = re.sub(r'font-size:\s*\d+px;?', f'font-size: {font_size}px;', current_style)
-                if 'font-size' not in new_style:
-                    new_style += f" font-size: {font_size}px;"
-                text_edit.setStyleSheet(new_style)
+            if not (text_edit and hasattr(text_edit, 'setStyleSheet')):
+                continue
+
+            # 1. Update stylesheet (for plain-text rendering)
+            import re
+            current_style = text_edit.styleSheet()
+            new_style = re.sub(r'font-size:\s*\d+px;?', f'font-size: {font_size}px;', current_style)
+            if 'font-size' not in new_style:
+                new_style += f" font-size: {font_size}px;"
+            text_edit.setStyleSheet(new_style)
+
+            # 2. Update document default font (for rich-text / cursor-inserted content)
+            text_edit.document().setDefaultFont(doc_font)
     
     def save_current_font_sizes(self):
         """Save current font sizes to preferences"""
@@ -34180,8 +34304,10 @@ class SupervertalerQt(QMainWindow):
                 general_settings['results_show_tags'] = CompactMatchItem.show_tags
             if hasattr(EditableGridTextEditor, 'tag_highlight_color'):
                 general_settings['tag_highlight_color'] = EditableGridTextEditor.tag_highlight_color
-            # Save Match Panel font size
+            # Save Match Panel font settings
             general_settings['match_panel_font_size'] = SupervertalerQt.match_panel_font_size
+            general_settings['match_panel_font_family'] = SupervertalerQt.match_panel_font_family
+            general_settings['match_panel_font_bold'] = SupervertalerQt.match_panel_font_bold
             # Preserve other settings
             if 'restore_last_project' not in general_settings:
                 general_settings['restore_last_project'] = False
@@ -34630,11 +34756,13 @@ class SupervertalerQt(QMainWindow):
                 EditableGridTextEditor.focus_border_color = focus_border_color
                 EditableGridTextEditor.focus_border_thickness = focus_border_thickness
                 
-            # Load and apply Match Panel font size
+            # Load and apply Match Panel font settings
             match_panel_size = general_settings.get('match_panel_font_size', 10)
             if 7 <= match_panel_size <= 18:
                 SupervertalerQt.match_panel_font_size = match_panel_size
-                self._apply_match_panel_font_size()
+            SupervertalerQt.match_panel_font_family = general_settings.get('match_panel_font_family', '')
+            SupervertalerQt.match_panel_font_bold = general_settings.get('match_panel_font_bold', False)
+            self._apply_match_panel_font_size()
                 
             if hasattr(self, 'results_panels'):
                 # Load and apply match limits
@@ -35077,6 +35205,31 @@ class SupervertalerQt(QMainWindow):
                     if self.enable_termbase_grid_highlighting:
                         with self.termbase_cache_lock:
                             tb_dict = self.termbase_cache.get(segment_id, {})
+                        if not tb_dict:
+                            # termbase_cache may be empty if prefetch ran before batch worker,
+                            # or after termbase_cache was cleared. Fall back to the TB matches
+                            # already in translation_matches_cache (cached_matches["Termbases"]).
+                            cached_tb_matches = cached_matches.get("Termbases", [])
+                            if cached_tb_matches:
+                                tb_dict = {}
+                                for match in cached_tb_matches:
+                                    term_id = match.metadata.get('term_id') if match.metadata else None
+                                    key = term_id if term_id is not None else match.source
+                                    tb_dict[key] = {
+                                        'source': match.source,
+                                        'translation': match.target,
+                                        'ranking': match.metadata.get('ranking', 99) if match.metadata else 99,
+                                        'is_project_termbase': match.metadata.get('is_project_termbase', False) if match.metadata else False,
+                                        'forbidden': match.metadata.get('forbidden', False) if match.metadata else False,
+                                        'termbase_name': match.metadata.get('termbase_name', '') if match.metadata else '',
+                                        'notes': match.metadata.get('notes', '') if match.metadata else '',
+                                        'term_id': term_id,
+                                        'termbase_id': match.metadata.get('termbase_id') if match.metadata else None,
+                                    }
+                                # Backfill termbase_cache so future navigations don't need this fallback
+                                if tb_dict:
+                                    with self.termbase_cache_lock:
+                                        self.termbase_cache[segment_id] = tb_dict
                         if tb_dict:
                             self.highlight_source_with_termbase(current_row, segment.source, tb_dict)
 
