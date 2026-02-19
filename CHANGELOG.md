@@ -2,8 +2,21 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.281 (February 18, 2026)
+**Current Version:** v1.9.282 (February 18, 2026)
 
+
+## v1.9.282 - February 18, 2026
+
+### New Features
+
+- **Match Panel Font Settings in View Settings** — A new "📊 Match Panel Font Settings" section has been added to the View Settings tab (alongside the existing Termview Font Settings). Users can now configure Font Family, Font Size (6–18 pt), and Bold for the TM Source and TM Target boxes in the Match Panel. Settings persist across restarts. The font size spinner here is equivalent to the View → Match Panel zoom shortcuts.
+
+### Bug Fixes
+
+- **Fixed: Match Panel font zoom truly not persisting across restarts** — The v1.9.280 fix was incomplete. While the QTextEdit stylesheet was updated correctly, TM Source content rendered via `QTextCursor.insertText()` (the diff-highlighted view) ignores the stylesheet and uses the document's internal default font instead. Fixed by also calling `text_edit.document().setDefaultFont()` in `_apply_match_panel_font_size()`, and by setting the document default font during widget creation in `_create_compare_panel_box()`. This ensures that both plain-text and rich-text (diff-highlighted) content render at the correct size.
+- **Fixed: Glossary highlights missing in source cell on cache-hit navigation** — When navigating to a segment that was already in `translation_matches_cache` (cache hit), glossary highlights were sometimes not applied to the source cell even though the TermView showed the correct matches. Root cause: the grid highlighting code read exclusively from `termbase_cache`, which could be empty if the prefetch worker populated `translation_matches_cache` before the batch termbase worker had processed that segment, or after a cache clear. Fixed by falling back to the TB matches already present in `cached_matches["Termbases"]` when `termbase_cache` is empty, and backfilling `termbase_cache` so future navigations are instant. Previously required pressing F5 to force-refresh highlighting.
+
+---
 
 ## v1.9.281 - February 18, 2026
 

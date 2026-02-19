@@ -1,6 +1,0 @@
-2025/12/21-15:47:49.793 7294 Creating DB C:\Dev\Supervertaler\user_data\web_cache\WebStorage\20\IndexedDB\indexeddb.leveldb since it was missing.
-2025/12/21-15:47:49.807 7294 Reusing MANIFEST C:\Dev\Supervertaler\user_data\web_cache\WebStorage\20\IndexedDB\indexeddb.leveldb/MANIFEST-000001
-2025/12/21-15:47:58.657 8524 Level-0 table #5: started
-2025/12/21-15:47:58.664 8524 Level-0 table #5: 480 bytes OK
-2025/12/21-15:47:58.668 8524 Delete type=0 #3
-2025/12/21-15:47:58.668 8524 Manual compaction at level-0 from (begin) .. (end); will stop at (end)

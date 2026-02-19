@@ -86,7 +86,15 @@
       "Bash(findstr:*)",
       "Bash(unzip:*)",
       "WebFetch(domain:docs.byteplus.com)",
-      "WebFetch(domain:docs.litellm.ai)"
+      "WebFetch(domain:docs.litellm.ai)",
+      "Bash(winget install:*)",
+      "Bash(powershell.exe:*)",
+      "WebFetch(domain:api.github.com)",
+      "Bash(export PATH=\"$PATH:/c/Users/mbeijer/AppData/Local/gh-cli\")",
+      "Bash(gh:*)",
+      "Bash(\"/c/Users/mbeijer/AppData/Local/Microsoft/WindowsApps/winget.exe\" --version)",
+      "Bash(python3:*)",
+      "Bash(echo:*)"
     ],
     "deny": [],
     "ask": []

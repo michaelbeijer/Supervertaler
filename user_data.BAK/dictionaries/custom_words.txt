@@ -1,4 +1,0 @@
-# Supervertaler Custom Dictionary
-# Add words that should not be marked as spelling errors
-
-supervertaler
