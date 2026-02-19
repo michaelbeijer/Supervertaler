@@ -2,8 +2,20 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.283 (February 19, 2026)
+**Current Version:** v1.9.284 (February 19, 2026)
 
+
+## v1.9.284 - February 19, 2026
+
+### New Features
+
+- **Subscript and superscript formatting support** — `<sub>` and `<sup>` tags are now fully supported end-to-end alongside the existing `<b>`, `<i>`, `<u>` inline formatting. Subscript/superscript text is correctly imported from memoQ bilingual RTF (`{\sub V}` brace groups), memoQ bilingual DOCX, and monolingual DOCX files. Tags render visually in WYSIWYG grid mode and the Preview panel, round-trip cleanly to RTF and DOCX on export, and are properly handled by all utility functions (tag detection, stripping, and run parsing).
+
+### Bug Fixes
+
+- **Fixed: memoQ bilingual RTF subscript/superscript rendered as `{V}` instead of `V`** — RTF brace-scoped formatting groups like `{\sub V}` were not handled, leaving stray braces in the extracted text (e.g. `C{V}` instead of `CV`). These groups are now parsed and converted to `<sub>`/`<sup>` tags.
+
+---
 
 ## v1.9.283 - February 19, 2026
 

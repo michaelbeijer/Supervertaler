@@ -262,6 +262,11 @@ class MemoQRTFHandler:
             content
         )
 
+        # Convert RTF subscript/superscript brace groups to <sub>/<sup> tags:
+        # {\sub V} → <sub>V</sub>, {\super 2} → <sup>2</sup>
+        content = re.sub(r'\{\\sub\s+((?:[^{}]|\\[{}])*)\}', r'<sub>\1</sub>', content)
+        content = re.sub(r'\{\\super\s+((?:[^{}]|\\[{}])*)\}', r'<sup>\1</sup>', content)
+
         # Remove RTF formatting preamble
         content = re.sub(r'\\rtlch\\fcs\d+\s*', '', content)
         content = re.sub(r'\\ltrch\\fcs\d+\s*', '', content)
@@ -494,6 +499,13 @@ class MemoQRTFHandler:
         text = text.replace('<u>', '\\ul ')
         text = text.replace('</u>', '\\ul0 ')
 
+        # Subscript/superscript use brace-scoped groups: {\sub text} / {\super text}
+        # Use placeholders so the braces don't get escaped in the loop below.
+        text = text.replace('<sub>', '\x00SUB_OPEN\x00')
+        text = text.replace('</sub>', '\x00SUB_CLOSE\x00')
+        text = text.replace('<sup>', '\x00SUP_OPEN\x00')
+        text = text.replace('</sup>', '\x00SUP_CLOSE\x00')
+
         result = []
         i = 0
         while i < len(text):
@@ -532,7 +544,15 @@ class MemoQRTFHandler:
                 result.append(char)
             i += 1
 
-        return ''.join(result)
+        encoded = ''.join(result)
+
+        # Restore subscript/superscript placeholders as RTF brace groups
+        encoded = encoded.replace('\x00SUB_OPEN\x00', '{\\sub ')
+        encoded = encoded.replace('\x00SUB_CLOSE\x00', '}')
+        encoded = encoded.replace('\x00SUP_OPEN\x00', '{\\super ')
+        encoded = encoded.replace('\x00SUP_CLOSE\x00', '}')
+
+        return encoded
 
     def save(self, output_path: str) -> bool:
         """

@@ -393,29 +393,31 @@ atexit.register(cleanup_hotkey_processes)
 def runs_to_tagged_text(paragraphs) -> str:
     """
     Convert Word document paragraphs with run formatting to HTML-tagged text.
-    
+
     Args:
         paragraphs: List of python-docx Paragraph objects
-        
+
     Returns:
-        String with HTML tags for formatting (e.g., "<b>bold</b> normal <i>italic</i>")
+        String with HTML tags for formatting (e.g., "<b>bold</b> normal <sub>V</sub>")
     """
     result_parts = []
-    
+
     for paragraph in paragraphs:
         for run in paragraph.runs:
             text = run.text
             if not text:
                 continue
-            
+
             # Determine which tags to apply
             is_bold = run.bold == True
             is_italic = run.italic == True
             is_underline = run.underline == True
-            
+            is_subscript = getattr(run.font, 'subscript', None) == True
+            is_superscript = getattr(run.font, 'superscript', None) == True
+
             # Build tagged text
-            if is_bold or is_italic or is_underline:
-                # Open tags (order: bold, italic, underline)
+            if is_bold or is_italic or is_underline or is_subscript or is_superscript:
+                # Open tags (order: bold, italic, underline, sub/sup)
                 if is_bold:
                     text = f"<b>{text}"
                 if is_italic:
@@ -429,17 +431,25 @@ def runs_to_tagged_text(paragraphs) -> str:
                         text = text.replace("<i>", "<i><u>", 1)
                     else:
                         text = f"<u>{text}"
-                
-                # Close tags (reverse order: underline, italic, bold)
+                if is_subscript:
+                    text = f"<sub>{text}"
+                if is_superscript:
+                    text = f"<sup>{text}"
+
+                # Close tags (reverse order: sup, sub, underline, italic, bold)
+                if is_superscript:
+                    text = f"{text}</sup>"
+                if is_subscript:
+                    text = f"{text}</sub>"
                 if is_underline:
                     text = f"{text}</u>"
                 if is_italic:
                     text = f"{text}</i>"
                 if is_bold:
                     text = f"{text}</b>"
-            
+
             result_parts.append(text)
-    
+
     return ''.join(result_parts)
 
 
@@ -448,14 +458,13 @@ def strip_formatting_tags(text: str) -> str:
     Remove HTML formatting tags from text, leaving plain text.
 
     Args:
-        text: Text with HTML tags like <b>, </b>, <i>, </i>, <u>, </u>
+        text: Text with HTML tags like <b>, </b>, <i>, </i>, <u>, </u>, <sub>, </sub>, <sup>, </sup>
 
     Returns:
         Plain text without tags
     """
     import re
-    # Remove <b>, </b>, <i>, </i>, <u>, </u> tags
-    return re.sub(r'</?[biu]>', '', text)
+    return re.sub(r'</?(?:[biu]|sub|sup)>', '', text)
 
 
 def strip_outer_wrapping_tags(text: str) -> tuple:
@@ -778,15 +787,15 @@ def set_docx_language(doc, lang_code: str):
 def has_formatting_tags(text: str) -> bool:
     """
     Check if text contains any formatting tags.
-    
+
     Args:
         text: Text to check
-        
+
     Returns:
-        True if text contains <b>, <i>, or <u> tags
+        True if text contains <b>, <i>, <u>, <sub>, or <sup> tags
     """
     import re
-    return bool(re.search(r'</?[biu]>', text))
+    return bool(re.search(r'</?(?:[biu]|sub|sup)>', text))
 
 
 def apply_formatting_tags(text: str, tag: str) -> str:
@@ -810,7 +819,7 @@ def get_formatted_html_display(text: str) -> str:
     Convert our simple tags to HTML for rich text display.
 
     Args:
-        text: Text with <b>, <i>, <u> tags
+        text: Text with <b>, <i>, <u>, <sub>, <sup> tags
 
     Returns:
         HTML string suitable for QTextEdit.setHtml()
@@ -825,6 +834,10 @@ def get_formatted_html_display(text: str) -> str:
     text = text.replace('</i>', '\x00I_CLOSE\x00')
     text = text.replace('<u>', '\x00U_OPEN\x00')
     text = text.replace('</u>', '\x00U_CLOSE\x00')
+    text = text.replace('<sub>', '\x00SUB_OPEN\x00')
+    text = text.replace('</sub>', '\x00SUB_CLOSE\x00')
+    text = text.replace('<sup>', '\x00SUP_OPEN\x00')
+    text = text.replace('</sup>', '\x00SUP_CLOSE\x00')
 
     # Escape other HTML
     text = html.escape(text)
@@ -836,6 +849,10 @@ def get_formatted_html_display(text: str) -> str:
     text = text.replace('\x00I_CLOSE\x00', '</i>')
     text = text.replace('\x00U_OPEN\x00', '<u>')
     text = text.replace('\x00U_CLOSE\x00', '</u>')
+    text = text.replace('\x00SUB_OPEN\x00', '<sub>')
+    text = text.replace('\x00SUB_CLOSE\x00', '</sub>')
+    text = text.replace('\x00SUP_OPEN\x00', '<sup>')
+    text = text.replace('\x00SUP_CLOSE\x00', '</sup>')
 
     # Preserve whitespace in HTML rendering (prevents collapsing spaces/indentation)
     text = f'<span style="white-space: pre-wrap;">{text}</span>'
@@ -846,113 +863,83 @@ def get_formatted_html_display(text: str) -> str:
 def tagged_text_to_runs(text: str) -> list:
     """
     Parse text with HTML formatting tags and return a list of runs with formatting info.
-    
+
     Args:
-        text: Text with <b>, <i>, <u> tags (can be nested)
-        
+        text: Text with <b>, <i>, <u>, <sub>, <sup> tags (can be nested)
+
     Returns:
-        List of dicts: [{'text': str, 'bold': bool, 'italic': bool, 'underline': bool}, ...]
-    
-    Example:
-        "Hello <b>bold</b> and <i>italic</i> world"
-        -> [{'text': 'Hello ', 'bold': False, 'italic': False, 'underline': False},
-            {'text': 'bold', 'bold': True, 'italic': False, 'underline': False},
-            {'text': ' and ', 'bold': False, 'italic': False, 'underline': False},
-            {'text': 'italic', 'bold': False, 'italic': True, 'underline': False},
-            {'text': ' world', 'bold': False, 'italic': False, 'underline': False}]
+        List of dicts with keys: text, bold, italic, underline, subscript, superscript
     """
     import re
-    
+
     runs = []
-    
+
     # Track current formatting state
     is_bold = False
     is_italic = False
     is_underline = False
-    
+    is_subscript = False
+    is_superscript = False
+
     # Pattern to match opening/closing tags
-    tag_pattern = re.compile(r'(</?[biu]>)')
-    
+    tag_pattern = re.compile(r'(</?(?:[biu]|sub|sup)>)')
+
     # Split text by tags, keeping the tags as delimiters
     parts = tag_pattern.split(text)
-    
+
     current_text = ""
-    
+
+    def _flush():
+        nonlocal current_text
+        if current_text:
+            runs.append({
+                'text': current_text,
+                'bold': is_bold,
+                'italic': is_italic,
+                'underline': is_underline,
+                'subscript': is_subscript,
+                'superscript': is_superscript,
+            })
+            current_text = ""
+
     for part in parts:
         if part == '<b>':
-            # Save any accumulated text before changing state
-            if current_text:
-                runs.append({
-                    'text': current_text,
-                    'bold': is_bold,
-                    'italic': is_italic,
-                    'underline': is_underline
-                })
-                current_text = ""
+            _flush()
             is_bold = True
         elif part == '</b>':
-            if current_text:
-                runs.append({
-                    'text': current_text,
-                    'bold': is_bold,
-                    'italic': is_italic,
-                    'underline': is_underline
-                })
-                current_text = ""
+            _flush()
             is_bold = False
         elif part == '<i>':
-            if current_text:
-                runs.append({
-                    'text': current_text,
-                    'bold': is_bold,
-                    'italic': is_italic,
-                    'underline': is_underline
-                })
-                current_text = ""
+            _flush()
             is_italic = True
         elif part == '</i>':
-            if current_text:
-                runs.append({
-                    'text': current_text,
-                    'bold': is_bold,
-                    'italic': is_italic,
-                    'underline': is_underline
-                })
-                current_text = ""
+            _flush()
             is_italic = False
         elif part == '<u>':
-            if current_text:
-                runs.append({
-                    'text': current_text,
-                    'bold': is_bold,
-                    'italic': is_italic,
-                    'underline': is_underline
-                })
-                current_text = ""
+            _flush()
             is_underline = True
         elif part == '</u>':
-            if current_text:
-                runs.append({
-                    'text': current_text,
-                    'bold': is_bold,
-                    'italic': is_italic,
-                    'underline': is_underline
-                })
-                current_text = ""
+            _flush()
             is_underline = False
+        elif part == '<sub>':
+            _flush()
+            is_subscript = True
+        elif part == '</sub>':
+            _flush()
+            is_subscript = False
+        elif part == '<sup>':
+            _flush()
+            is_superscript = True
+        elif part == '</sup>':
+            _flush()
+            is_superscript = False
         else:
             # Regular text - accumulate it
             current_text += part
-    
+
     # Don't forget any remaining text
-    if current_text:
-        runs.append({
-            'text': current_text,
-            'bold': is_bold,
-            'italic': is_italic,
-            'underline': is_underline
-        })
-    
+    _flush()
+
     return runs
 
 
@@ -29576,7 +29563,11 @@ class SupervertalerQt(QMainWindow):
                     run.italic = True
                 if run_info.get('underline'):
                     run.underline = True
-            
+                if run_info.get('subscript'):
+                    run.font.subscript = True
+                if run_info.get('superscript'):
+                    run.font.superscript = True
+
             return
         
         # PRIORITY 2: Use formatting_info for smart transfer (legacy approach)
