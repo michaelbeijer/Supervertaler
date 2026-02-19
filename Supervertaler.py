@@ -8766,6 +8766,10 @@ class SupervertalerQt(QMainWindow):
         import_sdlxliff_action.triggered.connect(self.import_standalone_sdlxliff)
         trados_submenu.addAction(import_sdlxliff_action)
 
+        import_sdlxliff_folder_action = QAction("Bilingual XLIFF &Folder (.sdlxliff)...", self)
+        import_sdlxliff_folder_action.triggered.connect(self.import_sdlxliff_folder)
+        trados_submenu.addAction(import_sdlxliff_folder_action)
+
         import_sdlppx_action = QAction("&Package (SDLPPX)...", self)
         import_sdlppx_action.triggered.connect(self.import_sdlppx_package)
         trados_submenu.addAction(import_sdlppx_action)
@@ -31126,6 +31130,123 @@ class SupervertalerQt(QMainWindow):
                 f"Failed to import SDLXLIFF file(s):\n\n{str(e)}"
             )
             self.log(f"✗ SDLXLIFF import failed: {str(e)}")
+            import traceback
+            traceback.print_exc()
+
+    def import_sdlxliff_folder(self):
+        """Import all .sdlxliff files from a selected folder (optionally recursive)."""
+        folder = QFileDialog.getExistingDirectory(
+            self,
+            "Select Folder Containing SDLXLIFF Files",
+            ""
+        )
+        if not folder:
+            return
+
+        # Discover all .sdlxliff files in the folder
+        folder_path = Path(folder)
+        file_paths = sorted(folder_path.glob("**/*.sdlxliff"))
+
+        if not file_paths:
+            # Try non-recursive as fallback (already covered by ** but be explicit in message)
+            QMessageBox.warning(
+                self, "No SDLXLIFF Files Found",
+                f"No .sdlxliff files were found in:\n{folder}\n\n"
+                "Make sure the folder contains .sdlxliff files."
+            )
+            return
+
+        file_paths = [str(p) for p in file_paths]
+        self.log(f"Found {len(file_paths)} SDLXLIFF file(s) in folder: {folder}")
+
+        try:
+            from modules.sdlppx_handler import StandaloneSDLXLIFFHandler
+
+            handler = StandaloneSDLXLIFFHandler(log_callback=self.log)
+            if not handler.load(file_paths):
+                QMessageBox.critical(
+                    self, "Import Error",
+                    "Failed to load the SDLXLIFF file(s). Check the log for details."
+                )
+                return
+
+            all_sdl_segments = handler.get_all_segments()
+            if not all_sdl_segments:
+                QMessageBox.warning(
+                    self, "No Segments",
+                    "No translatable segments found in the SDLXLIFF files."
+                )
+                return
+
+            # Convert SDLSegments to internal Segments using shared status mapper
+            segments = [self._map_sdlxliff_segment(sdl_seg, i)
+                        for i, sdl_seg in enumerate(all_sdl_segments)]
+
+            # Normalize language codes to full names
+            source_lang = self._normalize_language_code(handler.get_source_lang())
+            target_lang = self._normalize_language_code(handler.get_target_lang())
+
+            # Create project name from folder
+            project_name = f"{folder_path.name} ({len(file_paths)} files)"
+
+            # Create new project
+            self.current_project = Project(
+                name=project_name,
+                segments=segments,
+                source_lang=source_lang,
+                target_lang=target_lang
+            )
+
+            # Store handler and source paths for round-trip export
+            self.sdlxliff_handler = handler
+            self.sdlxliff_source_files = file_paths
+            self.current_project.sdlxliff_source_paths = file_paths
+
+            # CRITICAL: Update _original_segment_order for new import
+            self._original_segment_order = self.current_project.segments.copy()
+
+            # Sync global language settings
+            self.source_language = source_lang
+            self.target_language = target_lang
+
+            # Update UI
+            self.project_file_path = None
+            self.project_modified = True
+            self.update_window_title()
+            self.load_segments_to_grid()
+            self.initialize_tm_database()
+            self._clear_caches_after_import()
+            self._deactivate_all_resources_for_new_project()
+            self.auto_resize_rows()
+            self._initialize_spellcheck_for_target_language(target_lang)
+
+            # Count pretranslated segments
+            pretrans_count = sum(1 for s in segments if s.target)
+
+            self.log(f"✓ Imported {len(segments)} segments from {len(file_paths)} SDLXLIFF file(s) in folder: {folder_path.name}")
+            if pretrans_count:
+                self.log(f"  {pretrans_count} segments are pretranslated")
+
+            QMessageBox.information(
+                self, "Import Successful",
+                f"Successfully imported {len(segments)} segment(s) from {len(file_paths)} SDLXLIFF file(s).\n\n"
+                f"Folder: {folder_path.name}\n"
+                f"Languages: {source_lang} → {target_lang}\n"
+                f"Pretranslated: {pretrans_count}\n\n"
+                f"After translation, export back as SDLXLIFF (.sdlxliff) to return to the Trados user."
+            )
+
+        except ImportError as e:
+            QMessageBox.critical(
+                self, "Missing Dependency",
+                f"Failed to import SDLXLIFF handler:\n\n{str(e)}"
+            )
+        except Exception as e:
+            QMessageBox.critical(
+                self, "Import Error",
+                f"Failed to import SDLXLIFF folder:\n\n{str(e)}"
+            )
+            self.log(f"✗ SDLXLIFF folder import failed: {str(e)}")
             import traceback
             traceback.print_exc()
 

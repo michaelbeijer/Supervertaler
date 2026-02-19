@@ -2,8 +2,16 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.284 (February 19, 2026)
+**Current Version:** v1.9.285 (February 19, 2026)
 
+
+## v1.9.285 - February 19, 2026
+
+### New Features
+
+- **Import folder of SDLXLIFF files** (GitHub issue #80) — A new **Import → Trados Studio → Bilingual XLIFF Folder (.sdlxliff)...** menu item lets you point Supervertaler at a folder and automatically import all `.sdlxliff` files found inside it, including those in subfolders. This covers workflows where clients send a directory of SDLXLIFF files instead of a packaged `.sdlppx`. After translating, export all files back via the existing **Export → Trados Studio → Bilingual XLIFF - Translated (.sdlxliff)...** menu.
+
+---
 
 ## v1.9.284 - February 19, 2026
 
