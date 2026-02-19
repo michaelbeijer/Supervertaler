@@ -1535,6 +1535,100 @@ class _CtrlReturnEventFilter(QObject):
         return False
 
 
+class _GridArrowKeyEventFilter(QObject):
+    """App-level event filter to catch Alt+Up/Down and Ctrl+Up/Down in grid cells.
+
+    QAbstractItemView (parent of QTableWidget) intercepts Up/Down arrow keys at
+    the viewport level for row navigation, preventing them from ever reaching the
+    cell widget's keyPressEvent or event() methods.  Alt+Left is NOT intercepted
+    by Qt (horizontal arrow keys are not used for row navigation), which is why
+    that shortcut works fine without this filter.
+
+    This filter sits at the application level — above the viewport — and catches
+    the four affected key combos when focus is inside a grid cell, then calls the
+    appropriate handler directly.
+    """
+
+    def __init__(self, main_window):
+        super().__init__(main_window)
+        self._main_window = main_window
+
+    def eventFilter(self, obj, event):
+        from PyQt6.QtCore import QEvent
+        from PyQt6.QtWidgets import QApplication
+
+        if event.type() != QEvent.Type.KeyPress:
+            return False
+
+        mw = self._main_window
+        if not mw or not mw.isActiveWindow():
+            return False
+
+        key = event.key()
+        mods = event.modifiers()
+
+        # Only handle the four combos we care about
+        alt_only = mods == Qt.KeyboardModifier.AltModifier
+        ctrl_only = mods == Qt.KeyboardModifier.ControlModifier
+
+        is_our_combo = (
+            (alt_only  and key in (Qt.Key.Key_Up, Qt.Key.Key_Down)) or
+            (ctrl_only and key in (Qt.Key.Key_Up, Qt.Key.Key_Down))
+        )
+        if not is_our_combo:
+            return False
+
+        # Only act when focus is inside a grid cell widget
+        focus = QApplication.focusWidget()
+        if not isinstance(focus, (ReadOnlyGridTextEditor, EditableGridTextEditor)):
+            return False
+
+        if alt_only:
+            if key == Qt.Key.Key_Up:
+                focus._handle_quick_add_to_glossary_priority(1)
+            else:
+                focus._handle_quick_add_to_glossary_priority(2)
+            return True
+
+        if ctrl_only:
+            # Use the focused widget's stored row for reliable navigation.
+            # table.currentRow() can be stale after rapid Ctrl+Up/Down because
+            # setCurrentCell + setFocus triggers asynchronous Qt signals.
+            table = getattr(mw, 'table', None)
+            if table is None:
+                return False
+            widget_row = getattr(focus, 'row', -1)
+            actual_row = widget_row if widget_row >= 0 else table.currentRow()
+
+            if key == Qt.Key.Key_Up:
+                new_row = actual_row - 1
+                while new_row > 0 and table.isRowHidden(new_row):
+                    new_row -= 1
+                if new_row >= 0 and not table.isRowHidden(new_row):
+                    table.clearSelection()
+                    table.setCurrentCell(new_row, 3)
+                    target_widget = table.cellWidget(new_row, 3)
+                    if target_widget:
+                        target_widget.setFocus()
+                        from PyQt6.QtGui import QTextCursor
+                        target_widget.moveCursor(QTextCursor.MoveOperation.End)
+            elif key == Qt.Key.Key_Down:
+                new_row = actual_row + 1
+                while new_row < table.rowCount() - 1 and table.isRowHidden(new_row):
+                    new_row += 1
+                if new_row < table.rowCount() and not table.isRowHidden(new_row):
+                    table.clearSelection()
+                    table.setCurrentCell(new_row, 3)
+                    target_widget = table.cellWidget(new_row, 3)
+                    if target_widget:
+                        target_widget.setFocus()
+                        from PyQt6.QtGui import QTextCursor
+                        target_widget.moveCursor(QTextCursor.MoveOperation.End)
+            return True
+
+        return False
+
+
 class _DoubleTapShiftEventFilter(QObject):
     """App-level event filter to detect double-tap Shift for context menu.
 
@@ -1636,12 +1730,15 @@ class GridTextEditor(QTextEdit):
             if event.key() >= Qt.Key.Key_1 and event.key() <= Qt.Key.Key_9:
                 # Disabled for now - needs update to work with results_panels
                 pass
-            # Ctrl+Up/Down: Send to grid for grid navigation
+            # Ctrl+Up/Down: Navigate to previous/next segment
             elif event.key() in (Qt.Key.Key_Up, Qt.Key.Key_Down):
-                if self.table_widget:
-                    self.table_widget.keyPressEvent(event)
-                    event.accept()
-                    return
+                if self.main_window:
+                    if event.key() == Qt.Key.Key_Up and hasattr(self.main_window, 'go_to_previous_segment'):
+                        self.main_window.go_to_previous_segment()
+                    elif event.key() == Qt.Key.Key_Down and hasattr(self.main_window, 'go_to_next_segment'):
+                        self.main_window.go_to_next_segment()
+                event.accept()
+                return
             # Ctrl+Enter: Confirm & Next (call main window method directly)
             elif event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
                 if self.main_window and hasattr(self.main_window, 'confirm_selected_or_next'):
@@ -2017,7 +2114,41 @@ class ReadOnlyGridTextEditor(QTextEdit):
                     target_widget.setFocus()
                     table.setCurrentCell(self.row, 3)
                     return
-        
+
+        # Ctrl+Up: Navigate to previous segment
+        if event.key() == Qt.Key.Key_Up and event.modifiers() == Qt.KeyboardModifier.ControlModifier:
+            main_window = self._get_main_window()
+            if main_window and hasattr(main_window, 'go_to_previous_segment'):
+                main_window.go_to_previous_segment()
+            event.accept()
+            return
+
+        # Ctrl+Down: Navigate to next segment
+        if event.key() == Qt.Key.Key_Down and event.modifiers() == Qt.KeyboardModifier.ControlModifier:
+            main_window = self._get_main_window()
+            if main_window and hasattr(main_window, 'go_to_next_segment'):
+                main_window.go_to_next_segment()
+            event.accept()
+            return
+
+        # Alt+Left: Quick add selected terms to last-used glossary (no dialog)
+        if event.key() == Qt.Key.Key_Left and event.modifiers() == Qt.KeyboardModifier.AltModifier:
+            self._handle_quick_add_to_termbase()
+            event.accept()
+            return
+
+        # Alt+Up: Quick add selected terms to Priority 1 glossary (no dialog)
+        if event.key() == Qt.Key.Key_Up and event.modifiers() == Qt.KeyboardModifier.AltModifier:
+            self._handle_quick_add_to_glossary_priority(1)
+            event.accept()
+            return
+
+        # Alt+Down: Quick add selected terms to Priority 2 glossary (no dialog)
+        if event.key() == Qt.Key.Key_Down and event.modifiers() == Qt.KeyboardModifier.AltModifier:
+            self._handle_quick_add_to_glossary_priority(2)
+            event.accept()
+            return
+
         super().keyPressEvent(event)
     
     def mouseDoubleClickEvent(self, event):
@@ -2053,7 +2184,38 @@ class ReadOnlyGridTextEditor(QTextEdit):
         
         # Default behavior
         super().mouseDoubleClickEvent(event)
-    
+
+    def _handle_quick_add_to_termbase(self):
+        """Handle Alt+Left: Quick add selected source and target terms to last-used glossary (no dialog)"""
+        source_text = self.textCursor().selectedText().strip()
+
+        table = self.table_ref if hasattr(self, 'table_ref') and self.table_ref else self.parent()
+        target_text = ""
+        if table and self.row >= 0:
+            target_widget = table.cellWidget(self.row, 3)
+            if target_widget and hasattr(target_widget, 'textCursor'):
+                target_text = target_widget.textCursor().selectedText().strip()
+
+        if not source_text or not target_text:
+            from PyQt6.QtWidgets import QMessageBox
+            QMessageBox.warning(
+                self,
+                "Selection Required",
+                "Please select text in both Source and Target cells before quick-adding to glossary.\n\n"
+                f"Tip: Use Ctrl+E to add with a dialogue where you can choose a glossary and add metadata."
+            )
+            return
+
+        main_window = self._get_main_window()
+        if main_window and hasattr(main_window, 'quick_add_term_pair_to_termbase'):
+            main_window.quick_add_term_pair_to_termbase(source_text, target_text)
+
+    def _handle_quick_add_to_glossary_priority(self, priority: int):
+        """Handle Alt+Up/Down: Quick add selected terms to the Priority N glossary (no dialog)"""
+        main_window = self._get_main_window()
+        if main_window and hasattr(main_window, '_quick_add_term_with_priority'):
+            main_window._quick_add_term_with_priority(priority)
+
     def _get_main_window(self):
         """Get the main application window by traversing the parent hierarchy"""
         from PyQt6.QtWidgets import QTableWidget
@@ -2352,9 +2514,19 @@ class ReadOnlyGridTextEditor(QTextEdit):
                 self._handle_add_to_termbase()
                 return True  # Event handled
             
-            # Alt+Left: Quick add selected terms to last-used termbase (no dialog)
+            # Alt+Left: Quick add selected terms to last-used glossary (no dialog)
             if key_event.key() == Qt.Key.Key_Left and key_event.modifiers() == Qt.KeyboardModifier.AltModifier:
                 self._handle_quick_add_to_termbase()
+                return True  # Event handled
+
+            # Alt+Up: Quick add selected terms to Priority 1 glossary (no dialog)
+            if key_event.key() == Qt.Key.Key_Up and key_event.modifiers() == Qt.KeyboardModifier.AltModifier:
+                self._handle_quick_add_to_glossary_priority(1)
+                return True  # Event handled
+
+            # Alt+Down: Quick add selected terms to Priority 2 glossary (no dialog)
+            if key_event.key() == Qt.Key.Key_Down and key_event.modifiers() == Qt.KeyboardModifier.AltModifier:
+                self._handle_quick_add_to_glossary_priority(2)
                 return True  # Event handled
             
             # Ctrl+Alt+N: Add selected text to non-translatables
@@ -2362,13 +2534,27 @@ class ReadOnlyGridTextEditor(QTextEdit):
                 self._handle_add_to_nt()
                 return True  # Event handled
             
+            # Ctrl+Up: Navigate to previous segment
+            if key_event.key() == Qt.Key.Key_Up and key_event.modifiers() == Qt.KeyboardModifier.ControlModifier:
+                main_window = self._get_main_window()
+                if main_window and hasattr(main_window, 'go_to_previous_segment'):
+                    main_window.go_to_previous_segment()
+                return True  # Event handled
+
+            # Ctrl+Down: Navigate to next segment
+            if key_event.key() == Qt.Key.Key_Down and key_event.modifiers() == Qt.KeyboardModifier.ControlModifier:
+                main_window = self._get_main_window()
+                if main_window and hasattr(main_window, 'go_to_next_segment'):
+                    main_window.go_to_next_segment()
+                return True  # Event handled
+
             # Ctrl+Home: Navigate to first segment (pass to main window)
             if key_event.key() == Qt.Key.Key_Home and key_event.modifiers() == Qt.KeyboardModifier.ControlModifier:
                 main_window = self._get_main_window()
                 if main_window and hasattr(main_window, 'go_to_first_segment'):
                     main_window.go_to_first_segment()
                 return True  # Event handled
-            
+
             # Ctrl+End: Navigate to last segment (pass to main window)
             if key_event.key() == Qt.Key.Key_End and key_event.modifiers() == Qt.KeyboardModifier.ControlModifier:
                 main_window = self._get_main_window()
@@ -2413,7 +2599,7 @@ class ReadOnlyGridTextEditor(QTextEdit):
         return QSize(current_width, height)
     
     def _handle_add_to_termbase(self):
-        """Handle Ctrl+T: Add selected source and target terms to termbase"""
+        """Handle Ctrl+E: Add selected source and target terms to glossary (with dialogue)"""
         if not self.table_ref or self.row < 0:
             return
         
@@ -2450,37 +2636,66 @@ class ReadOnlyGridTextEditor(QTextEdit):
             main_window.add_term_pair_to_termbase(source_text, target_text)
     
     def _handle_quick_add_to_termbase(self):
-        """Handle Ctrl+R: Quick add selected source and target terms to termbase (no dialog)"""
+        """Handle Alt+Left: Quick add selected source and target terms to last-used glossary (no dialog)"""
         if not self.table_ref or self.row < 0:
             return
-        
+
         # Get source selection (from this widget)
         source_text = self.textCursor().selectedText().strip()
-        
+
         # Get target cell widget and its selection
         target_widget = self.table_ref.cellWidget(self.row, 3)
         target_text = ""
         if target_widget and hasattr(target_widget, 'textCursor'):
             target_text = target_widget.textCursor().selectedText().strip()
-        
+
         # Validate we have both selections
         if not source_text or not target_text:
             from PyQt6.QtWidgets import QMessageBox
             QMessageBox.warning(
                 self,
                 "Selection Required",
-                "Please select text in both Source and Target cells before quick-adding to termbase.\n\n"
-                f"Tip: Use {format_shortcut_for_display('Ctrl+E')} to add with a dialog where you can choose termbase and add metadata."
+                "Please select text in both Source and Target cells before quick-adding to glossary.\n\n"
+                f"Tip: Use {format_shortcut_for_display('Ctrl+E')} to add with a dialogue where you can choose a glossary and add metadata."
             )
             return
-        
+
         # Find main window and call quick_add_to_termbase method
         main_window = self.table_ref.parent()
         while main_window and not hasattr(main_window, 'quick_add_term_pair_to_termbase'):
             main_window = main_window.parent()
-        
+
         if main_window and hasattr(main_window, 'quick_add_term_pair_to_termbase'):
             main_window.quick_add_term_pair_to_termbase(source_text, target_text)
+
+    def _handle_quick_add_to_glossary_priority(self, priority: int):
+        """Handle Alt+Up/Down: Quick add selected terms to the Priority N glossary (no dialog)"""
+        if not self.table_ref or self.row < 0:
+            return
+
+        source_text = self.textCursor().selectedText().strip()
+
+        target_widget = self.table_ref.cellWidget(self.row, 3)
+        target_text = ""
+        if target_widget and hasattr(target_widget, 'textCursor'):
+            target_text = target_widget.textCursor().selectedText().strip()
+
+        if not source_text or not target_text:
+            from PyQt6.QtWidgets import QMessageBox
+            QMessageBox.warning(
+                self,
+                "Selection Required",
+                f"Please select text in both Source and Target cells before quick-adding to the Priority {priority} glossary.\n\n"
+                f"Tip: Use {format_shortcut_for_display('Ctrl+E')} to add with a dialogue where you can choose a glossary and add metadata."
+            )
+            return
+
+        main_window = self.table_ref.parent()
+        while main_window and not hasattr(main_window, '_quick_add_term_with_priority'):
+            main_window = main_window.parent()
+
+        if main_window and hasattr(main_window, '_quick_add_term_with_priority'):
+            main_window._quick_add_term_with_priority(priority)
     
     def _handle_superlookup_search(self):
         """Handle right-click: Search selected text in Superlookup"""
@@ -2799,23 +3014,33 @@ class ReadOnlyGridTextEditor(QTextEdit):
             # Never break the normal context menu due to QuickMenu errors
             pass
         
-        # Add to glossary action (with dialog)
+        # Add to glossary action (with dialogue)
         add_to_tb_action = QAction(f"📖 Add to Glossary ({format_shortcut_for_display('Ctrl+E')})", self)
         add_to_tb_action.triggered.connect(self._handle_add_to_termbase)
         menu.addAction(add_to_tb_action)
-        
+
         # Quick add to glossary action (no dialog) - uses last-selected glossary from Ctrl+E
         quick_add_action = QAction(f"⚡ Quick Add to Glossary ({format_shortcut_for_display('Alt+Left')})", self)
         quick_add_action.triggered.connect(self._handle_quick_add_to_termbase)
         menu.addAction(quick_add_action)
-        
+
+        # Quick add to Priority 1 glossary (no dialog)
+        quick_add_p1_action = QAction(f"⚡ Quick Add to Priority 1 Glossary ({format_shortcut_for_display('Alt+Up')})", self)
+        quick_add_p1_action.triggered.connect(lambda: self._handle_quick_add_to_glossary_priority(1))
+        menu.addAction(quick_add_p1_action)
+
+        # Quick add to Priority 2 glossary (no dialog)
+        quick_add_p2_action = QAction(f"⚡ Quick Add to Priority 2 Glossary ({format_shortcut_for_display('Alt+Down')})", self)
+        quick_add_p2_action.triggered.connect(lambda: self._handle_quick_add_to_glossary_priority(2))
+        menu.addAction(quick_add_p2_action)
+
         # Add to non-translatables action
         add_to_nt_action = QAction(f"🚫 Add to Non-Translatables ({format_shortcut_for_display('Ctrl+Alt+N')})", self)
         add_to_nt_action.triggered.connect(self._handle_add_to_nt)
         menu.addAction(add_to_nt_action)
-        
+
         menu.exec(event.globalPos())
-    
+
     def _handle_add_to_nt(self):
         """Handle Ctrl+Alt+N: Add selected text to active non-translatable list(s)"""
         # Get selected text
@@ -3306,7 +3531,7 @@ class EditableGridTextEditor(QTextEdit):
         return main_window
     
     def _handle_add_to_termbase(self):
-        """Handle Ctrl+T: Add selected source and target terms to termbase"""
+        """Handle Ctrl+E: Add selected source and target terms to glossary (with dialogue)"""
         if not self.table or self.row < 0:
             return
         
@@ -3343,19 +3568,19 @@ class EditableGridTextEditor(QTextEdit):
             main_window.add_term_pair_to_termbase(source_text, target_text)
     
     def _handle_quick_add_to_termbase(self):
-        """Handle Ctrl+R: Quick add selected source and target terms to glossary (no dialog)"""
+        """Handle Alt+Left: Quick add selected source and target terms to last-used glossary (no dialog)"""
         if not self.table or self.row < 0:
             return
-        
+
         # Get target selection (from this widget)
         target_text = self.textCursor().selectedText().strip()
-        
+
         # Get source cell widget and its selection
         source_widget = self.table.cellWidget(self.row, 2)
         source_text = ""
         if source_widget and hasattr(source_widget, 'textCursor'):
             source_text = source_widget.textCursor().selectedText().strip()
-        
+
         # Validate we have both selections
         if not source_text or not target_text:
             from PyQt6.QtWidgets import QMessageBox
@@ -3363,17 +3588,46 @@ class EditableGridTextEditor(QTextEdit):
                 self,
                 "Selection Required",
                 "Please select text in both Source and Target cells before quick-adding to glossary.\n\n"
-                f"Tip: Use {format_shortcut_for_display('Ctrl+E')} to add with a dialog where you can choose glossary and add metadata."
+                f"Tip: Use {format_shortcut_for_display('Ctrl+E')} to add with a dialogue where you can choose a glossary and add metadata."
             )
             return
-        
+
         # Find main window and call quick_add_to_termbase method
         main_window = self.table.parent()
         while main_window and not hasattr(main_window, 'quick_add_term_pair_to_termbase'):
             main_window = main_window.parent()
-        
+
         if main_window and hasattr(main_window, 'quick_add_term_pair_to_termbase'):
             main_window.quick_add_term_pair_to_termbase(source_text, target_text)
+
+    def _handle_quick_add_to_glossary_priority(self, priority: int):
+        """Handle Alt+Up/Down: Quick add selected terms to the Priority N glossary (no dialog)"""
+        if not self.table or self.row < 0:
+            return
+
+        target_text = self.textCursor().selectedText().strip()
+
+        source_widget = self.table.cellWidget(self.row, 2)
+        source_text = ""
+        if source_widget and hasattr(source_widget, 'textCursor'):
+            source_text = source_widget.textCursor().selectedText().strip()
+
+        if not source_text or not target_text:
+            from PyQt6.QtWidgets import QMessageBox
+            QMessageBox.warning(
+                self,
+                "Selection Required",
+                f"Please select text in both Source and Target cells before quick-adding to the Priority {priority} glossary.\n\n"
+                f"Tip: Use {format_shortcut_for_display('Ctrl+E')} to add with a dialogue where you can choose a glossary and add metadata."
+            )
+            return
+
+        main_window = self.table.parent()
+        while main_window and not hasattr(main_window, '_quick_add_term_with_priority'):
+            main_window = main_window.parent()
+
+        if main_window and hasattr(main_window, '_quick_add_term_with_priority'):
+            main_window._quick_add_term_with_priority(priority)
     
     def _handle_superlookup_search(self):
         """Handle right-click: Search selected text in Superlookup"""
@@ -3519,21 +3773,31 @@ class EditableGridTextEditor(QTextEdit):
             # Never break the normal context menu due to QuickMenu errors
             pass
         
-        # Add to termbase action (with dialog)
+        # Add to glossary action (with dialogue)
         add_to_tb_action = QAction(f"📖 Add to Glossary ({format_shortcut_for_display('Ctrl+E')})", self)
         add_to_tb_action.triggered.connect(self._handle_add_to_termbase)
         menu.addAction(add_to_tb_action)
-        
-        # Quick add to termbase action (no dialog) - uses last-selected termbase from Ctrl+E
+
+        # Quick add to glossary action (no dialog) - uses last-selected glossary from Ctrl+E
         quick_add_action = QAction(f"⚡ Quick Add to Glossary ({format_shortcut_for_display('Alt+Left')})", self)
         quick_add_action.triggered.connect(self._handle_quick_add_to_termbase)
         menu.addAction(quick_add_action)
-        
+
+        # Quick add to Priority 1 glossary (no dialog)
+        quick_add_p1_action = QAction(f"⚡ Quick Add to Priority 1 Glossary ({format_shortcut_for_display('Alt+Up')})", self)
+        quick_add_p1_action.triggered.connect(lambda: self._handle_quick_add_to_glossary_priority(1))
+        menu.addAction(quick_add_p1_action)
+
+        # Quick add to Priority 2 glossary (no dialog)
+        quick_add_p2_action = QAction(f"⚡ Quick Add to Priority 2 Glossary ({format_shortcut_for_display('Alt+Down')})", self)
+        quick_add_p2_action.triggered.connect(lambda: self._handle_quick_add_to_glossary_priority(2))
+        menu.addAction(quick_add_p2_action)
+
         # Add to non-translatables action
         add_to_nt_action = QAction(f"🚫 Add to Non-Translatables ({format_shortcut_for_display('Ctrl+Alt+N')})", self)
         add_to_nt_action.triggered.connect(self._handle_add_to_nt)
         menu.addAction(add_to_nt_action)
-        
+
         menu.exec(event.globalPos())
 
     def _get_misspelled_word_at_cursor(self, cursor):
@@ -3807,12 +4071,40 @@ class EditableGridTextEditor(QTextEdit):
             event.accept()
             return
         
-        # Alt+Left: Quick add selected terms to last-used termbase (no dialog)
+        # Ctrl+Up: Navigate to previous segment
+        if event.key() == Qt.Key.Key_Up and event.modifiers() == Qt.KeyboardModifier.ControlModifier:
+            main_window = self._get_main_window()
+            if main_window and hasattr(main_window, 'go_to_previous_segment'):
+                main_window.go_to_previous_segment()
+            event.accept()
+            return
+
+        # Ctrl+Down: Navigate to next segment
+        if event.key() == Qt.Key.Key_Down and event.modifiers() == Qt.KeyboardModifier.ControlModifier:
+            main_window = self._get_main_window()
+            if main_window and hasattr(main_window, 'go_to_next_segment'):
+                main_window.go_to_next_segment()
+            event.accept()
+            return
+
+        # Alt+Left: Quick add selected terms to last-used glossary (no dialog)
         if event.key() == Qt.Key.Key_Left and event.modifiers() == Qt.KeyboardModifier.AltModifier:
             self._handle_quick_add_to_termbase()
             event.accept()
             return
-        
+
+        # Alt+Up: Quick add selected terms to Priority 1 glossary (no dialog)
+        if event.key() == Qt.Key.Key_Up and event.modifiers() == Qt.KeyboardModifier.AltModifier:
+            self._handle_quick_add_to_glossary_priority(1)
+            event.accept()
+            return
+
+        # Alt+Down: Quick add selected terms to Priority 2 glossary (no dialog)
+        if event.key() == Qt.Key.Key_Down and event.modifiers() == Qt.KeyboardModifier.AltModifier:
+            self._handle_quick_add_to_glossary_priority(2)
+            event.accept()
+            return
+
         # Ctrl+Alt+N: Add selected text to non-translatables
         if event.key() == Qt.Key.Key_N and event.modifiers() == (Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.AltModifier):
             self._handle_add_to_nt()
@@ -7766,9 +8058,9 @@ class SupervertalerQt(QMainWindow):
         # F9 - Voice dictation
         create_shortcut("voice_dictate", "F9", self.start_voice_dictation)
         
-        # Ctrl+Up/Down - Cycle through translation matches
-        create_shortcut("match_cycle_previous", "Ctrl+Up", self.select_previous_match)
-        create_shortcut("match_cycle_next", "Ctrl+Down", self.select_next_match)
+        # Ctrl+Up/Down - Segment navigation is handled by _GridArrowKeyEventFilter
+        # (QTableWidget intercepts vertical arrow keys before QShortcuts can fire)
+        # Legacy match cycling (Translation Results panel) has been removed.
         
         # Ctrl+1 through Ctrl+9 - Insert match by number
         self.match_shortcuts = []
@@ -7851,9 +8143,9 @@ class SupervertalerQt(QMainWindow):
         # Ctrl+Space - Insert currently selected match
         create_shortcut("match_insert_selected_ctrl", "Ctrl+Space", self.insert_selected_match)
         
-        # Alt+Up/Down - Navigate to previous/next segment
-        create_shortcut("segment_previous", "Alt+Up", self.go_to_previous_segment)
-        create_shortcut("segment_next", "Alt+Down", self.go_to_next_segment)
+        # Ctrl+Up/Down - Navigate to previous/next segment
+        # Handled by _GridArrowKeyEventFilter (QTableWidget eats vertical arrow keys
+        # before QShortcuts can fire, so QShortcut-based registration doesn't work)
         
         # Ctrl+Home/End - Navigate to first/last segment
         create_shortcut("segment_go_to_top", "Ctrl+Home", self.go_to_first_segment)
@@ -7873,6 +8165,15 @@ class SupervertalerQt(QMainWindow):
             self._ctrl_return_event_filter = _CtrlReturnEventFilter(self)
             QApplication.instance().installEventFilter(self._ctrl_return_event_filter)
         
+        # Alt+Up/Down (glossary) and Ctrl+Up/Down (segment nav) in grid cells.
+        # QAbstractItemView intercepts vertical arrow keys at the viewport level,
+        # preventing them from reaching the cell widget's keyPressEvent/event().
+        # This app-level filter sits above the viewport and dispatches them directly.
+        if not hasattr(self, '_grid_arrow_key_event_filter'):
+            from PyQt6.QtWidgets import QApplication
+            self._grid_arrow_key_event_filter = _GridArrowKeyEventFilter(self)
+            QApplication.instance().installEventFilter(self._grid_arrow_key_event_filter)
+
         # Double-tap Shift for context menu (cross-platform, replaces AHK detection)
         if not hasattr(self, '_double_shift_event_filter'):
             from PyQt6.QtWidgets import QApplication
@@ -7909,9 +8210,13 @@ class SupervertalerQt(QMainWindow):
         
         # Ctrl+Shift+1 - Quick add term with Priority 1
         create_shortcut("editor_quick_add_priority_1", "Ctrl+Shift+1", lambda: self._quick_add_term_with_priority(1))
-        
+
         # Ctrl+Shift+2 - Quick add term with Priority 2
         create_shortcut("editor_quick_add_priority_2", "Ctrl+Shift+2", lambda: self._quick_add_term_with_priority(2))
+
+        # Alt+Up/Down - Quick add term pair to Priority 1/2 glossary
+        # Handled by _GridArrowKeyEventFilter (QTableWidget eats vertical arrow keys
+        # before QShortcuts can fire, so QShortcut-based registration doesn't work)
         
         # Alt+D - Add word at cursor to dictionary
         create_shortcut("editor_add_to_dictionary", "Alt+D", self.add_word_to_dictionary_shortcut)
@@ -34900,12 +35205,13 @@ class SupervertalerQt(QMainWindow):
             return
         self._last_selected_row = current_row
 
-        # ⚡ FILTER MODE: Skip ALL heavy lookups when text filters are active
+        # ⚡ FILTER MODE: Skip heavy TM/MT/LLM lookups when text filters are active
         # User is quickly navigating through filtered results - don't slow them down
+        # But still update glossary highlights and TermView from cache (cheap, from cache)
         is_filtering = getattr(self, 'filtering_active', False)
         if is_filtering:
-            # Only do minimal UI update (orange highlight) - no TM/termbase lookups
             self._on_cell_selected_minimal(current_row, previous_row)
+            self._on_cell_selected_glossary_only(current_row)
             return
 
         # ⚡ FAST PATH: Defer heavy lookups for ALL navigation (arrow keys, Ctrl+Enter, AND mouse clicks)
@@ -34968,7 +35274,95 @@ class SupervertalerQt(QMainWindow):
         except Exception as e:
             if self.debug_mode_enabled:
                 self.log(f"Error in minimal cell selection: {e}")
-    
+
+    def _on_cell_selected_glossary_only(self, current_row):
+        """Update glossary highlights and TermView from cache when in filtered mode.
+        Skips TM/MT/LLM lookups - only handles cheap, cache-based termbase operations."""
+        try:
+            if not self.current_project or current_row < 0:
+                return
+
+            id_item = self.table.item(current_row, 0)
+            if not id_item:
+                return
+            try:
+                segment_id = int(id_item.text())
+            except (ValueError, AttributeError):
+                return
+
+            segment = next((seg for seg in self.current_project.segments if seg.id == segment_id), None)
+            if not segment:
+                return
+
+            # --- Termbase grid highlighting (from cache) ---
+            if self.enable_termbase_grid_highlighting:
+                tb_dict = {}
+                with self.termbase_cache_lock:
+                    tb_dict = self.termbase_cache.get(segment_id, {})
+
+                if not tb_dict:
+                    # Fall back to translation_matches_cache
+                    with self.translation_matches_cache_lock:
+                        cached_matches = self.translation_matches_cache.get(segment_id)
+                    if cached_matches:
+                        cached_tb = cached_matches.get("Termbases", [])
+                        if cached_tb:
+                            for match in cached_tb:
+                                term_id = match.metadata.get('term_id') if match.metadata else None
+                                key = term_id if term_id is not None else match.source
+                                tb_dict[key] = {
+                                    'source': match.source,
+                                    'translation': match.target,
+                                    'ranking': match.metadata.get('ranking', 99) if match.metadata else 99,
+                                    'is_project_termbase': match.metadata.get('is_project_termbase', False) if match.metadata else False,
+                                    'forbidden': match.metadata.get('forbidden', False) if match.metadata else False,
+                                    'termbase_name': match.metadata.get('termbase_name', '') if match.metadata else '',
+                                    'notes': match.metadata.get('notes', '') if match.metadata else '',
+                                    'term_id': term_id,
+                                    'termbase_id': match.metadata.get('termbase_id') if match.metadata else None,
+                                }
+                            if tb_dict:
+                                with self.termbase_cache_lock:
+                                    self.termbase_cache[segment_id] = tb_dict
+
+                if tb_dict:
+                    self.highlight_source_with_termbase(current_row, segment.source, tb_dict)
+                else:
+                    # No cached matches — do a fresh (cheap) termbase-only lookup
+                    fresh_tb = self.find_termbase_matches_in_source(segment.source)
+                    if fresh_tb:
+                        self.highlight_source_with_termbase(current_row, segment.source, fresh_tb)
+
+            # --- TermView pane update ---
+            if self.current_project and (
+                (hasattr(self, 'termview_widget') and self.termview_widget) or
+                (hasattr(self, 'termview_widget_match') and self.termview_widget_match)
+            ):
+                termbase_matches = []
+                with self.translation_matches_cache_lock:
+                    tv_cached = self.translation_matches_cache.get(segment_id)
+                if tv_cached:
+                    termbase_matches = [
+                        {
+                            'source_term': match.source,
+                            'target_term': match.target,
+                            'termbase_name': match.metadata.get('termbase_name', '') if match.metadata else '',
+                            'ranking': match.metadata.get('ranking', 99) if match.metadata else 99,
+                            'is_project_termbase': match.metadata.get('is_project_termbase', False) if match.metadata else False,
+                            'term_id': match.metadata.get('term_id') if match.metadata else None,
+                            'termbase_id': match.metadata.get('termbase_id') if match.metadata else None,
+                            'notes': match.metadata.get('notes', '') if match.metadata else ''
+                        }
+                        for match in tv_cached.get("Termbases", [])
+                    ]
+
+                nt_matches = self.find_nt_matches_in_source(segment.source)
+                status_hint = self._get_termbase_status_hint()
+                self._update_both_termviews(segment.source, termbase_matches, nt_matches, status_hint)
+        except Exception as e:
+            if self.debug_mode_enabled:
+                self.log(f"Error in glossary-only cell selection: {e}")
+
     def _on_cell_selected_full(self, current_row, current_col, previous_row, previous_col):
         """Full cell selection handler with lookups and highlighting"""
         # Clear text selections in previous row's source and target cells

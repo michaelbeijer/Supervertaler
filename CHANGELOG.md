@@ -2,8 +2,26 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.282 (February 18, 2026)
+**Current Version:** v1.9.283 (February 19, 2026)
 
+
+## v1.9.283 - February 19, 2026
+
+### New Features
+
+- **Alt+Up / Alt+Down — Quick-add term pair to Priority 1 / Priority 2 glossary** — Two new keyboard shortcuts (also available in the right-click context menu of source and target cells) let you instantly add the selected source+target text as a term pair to your highest- or second-priority glossary without any dialog. Works identically to the existing Alt+Left "Quick Add to last-used glossary" shortcut. These are handled via an application-level event filter to bypass Qt's `QAbstractItemView` arrow-key interception.
+- **Ctrl+Up / Ctrl+Down — Navigate to previous / next segment** — Segment navigation has been reassigned from Alt+Up/Down (which never worked reliably due to Qt table arrow-key interception) to Ctrl+Up/Down. Navigation is now handled via the same app-level event filter for consistent, reliable behaviour regardless of which cell has focus.
+
+### Bug Fixes
+
+- **Fixed: Glossary highlights and TermView not updating in filtered mode** — When navigating between segments while a text filter was active, glossary matches were not highlighted in the source cell and the TermView pane was not updated (requiring F5 to refresh). Root cause: the filtered-mode early exit in `on_cell_selected` skipped all termbase/glossary processing. Fixed by adding `_on_cell_selected_glossary_only()` which runs the cheap, cache-based termbase highlighting and TermView update even in filtered mode, while still skipping the expensive TM/MT/LLM lookups.
+- **Fixed: Legacy match-cycling shortcuts (Ctrl+Up/Down) causing silent shortcut conflicts** — The old Translation Results panel (now removed) had registered Ctrl+Up/Down as QShortcuts for cycling through matches. These were never cleaned up and caused Qt's "ambiguous shortcut" behaviour, silently disabling any other shortcut registered with the same key. Cleared the legacy defaults and removed the duplicate QShortcut registrations.
+
+### UI/UX
+
+- **Renamed "termbase" → "glossary" in shortcuts settings** — The Keyboard Shortcuts settings dialog now reads "Add selected term pair to glossary (with dialogue)" and "Quick add term pair to the last used glossary" instead of the old "termbase" wording.
+
+---
 
 ## v1.9.282 - February 18, 2026
 

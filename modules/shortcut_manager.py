@@ -386,15 +386,15 @@ class ShortcutManager:
         },
         "match_cycle_next": {
             "category": "Match Navigation",
-            "description": "Cycle to Next Match (from grid)",
-            "default": "Ctrl+Down",
+            "description": "Cycle to Next Match (from grid) [legacy]",
+            "default": "",
             "action": "select_next_match",
             "context": "grid"
         },
         "match_cycle_previous": {
             "category": "Match Navigation",
-            "description": "Cycle to Previous Match (from grid)",
-            "default": "Ctrl+Up",
+            "description": "Cycle to Previous Match (from grid) [legacy]",
+            "default": "",
             "action": "select_previous_match",
             "context": "grid"
         },
@@ -417,13 +417,13 @@ class ShortcutManager:
         "segment_next": {
             "category": "Grid Navigation",
             "description": "Next Segment",
-            "default": "Alt+Down",
+            "default": "Ctrl+Down",
             "action": "go_to_next_segment"
         },
         "segment_previous": {
             "category": "Grid Navigation",
             "description": "Previous Segment",
-            "default": "Alt+Up",
+            "default": "Ctrl+Up",
             "action": "go_to_previous_segment"
         },
         "segment_go_to_top": {
@@ -501,14 +501,14 @@ class ShortcutManager:
         },
         "editor_add_to_termbase": {
             "category": "Editor",
-            "description": "Add selected term pair to termbase (with dialog)",
+            "description": "Add selected term pair to glossary (with dialogue)",
             "default": "Ctrl+E",
             "action": "add_to_termbase",
             "context": "grid_editor"
         },
         "editor_quick_add_to_termbase": {
             "category": "Editor",
-            "description": "Quick add term pair to last-used termbase",
+            "description": "Quick add term pair to the last used glossary",
             "default": "Alt+Left",
             "action": "quick_add_to_termbase",
             "context": "grid_editor"
@@ -525,6 +525,20 @@ class ShortcutManager:
             "description": "Quick add term pair with Priority 2",
             "default": "Ctrl+Shift+2",
             "action": "quick_add_term_priority_2",
+            "context": "grid_editor"
+        },
+        "editor_quick_add_to_glossary_priority_1": {
+            "category": "Editor",
+            "description": "Quick add term pair to Priority 1 glossary",
+            "default": "Alt+Up",
+            "action": "quick_add_to_glossary_priority_1",
+            "context": "grid_editor"
+        },
+        "editor_quick_add_to_glossary_priority_2": {
+            "category": "Editor",
+            "description": "Quick add term pair to Priority 2 glossary",
+            "default": "Alt+Down",
+            "action": "quick_add_to_glossary_priority_2",
             "context": "grid_editor"
         },
         "editor_add_to_non_translatables": {
