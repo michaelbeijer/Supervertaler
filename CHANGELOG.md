@@ -2,8 +2,16 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.291 (February 20, 2026)
+**Current Version:** v1.9.292 (February 20, 2026)
 
+
+## v1.9.292 - February 20, 2026
+
+### Bug Fixes
+
+- **Fixed: Show Invisibles toggle causes invisibles to immediately disappear** — Toggling any "Show Invisibles" option (Spaces, Tabs, Non-breaking Spaces, Line Breaks, or Toggle All) would briefly render the invisible-character markers, which then vanished within a few seconds. Root cause: `refresh_grid_invisibles()` was calling `load_segments_to_grid()` — a full grid rebuild that overwrote the rendered markers. Fixed by rewriting `refresh_grid_invisibles()` to update cell widgets **in-place** (iterating existing `QTextEdit` widgets and calling `setPlainText()` with signals blocked) instead of triggering a full grid reload. Additionally fixed a cascade bug in "Toggle All" where `setChecked()` on the four menu actions was firing the `triggered` signal for each, causing up to 4 extra full grid reloads and incorrect toggle state. Signals on those actions are now blocked during the checkbox update.
+
+---
 
 ## v1.9.291 - February 20, 2026
 

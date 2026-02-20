@@ -41369,36 +41369,73 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             'linebreaks': new_state
         }
 
-        # Update menu checkboxes
-        if hasattr(self, 'show_spaces_action'):
-            self.show_spaces_action.setChecked(new_state)
-        if hasattr(self, 'show_tabs_action'):
-            self.show_tabs_action.setChecked(new_state)
-        if hasattr(self, 'show_nbsp_action'):
-            self.show_nbsp_action.setChecked(new_state)
-        if hasattr(self, 'show_linebreaks_action'):
-            self.show_linebreaks_action.setChecked(new_state)
+        # Update menu checkboxes — block signals so setChecked() does NOT re-fire
+        # toggle_invisible_display() and cause 4 extra grid reloads
+        for action_attr in ('show_spaces_action', 'show_tabs_action',
+                            'show_nbsp_action', 'show_linebreaks_action'):
+            action = getattr(self, action_attr, None)
+            if action is not None:
+                action.blockSignals(True)
+                action.setChecked(new_state)
+                action.blockSignals(False)
 
-        # Refresh the grid
+        # Refresh the grid (in-place, no full reload)
         self.refresh_grid_invisibles()
 
         status = "enabled" if new_state else "disabled"
         self.log(f"Show invisibles: All {status}")
 
     def refresh_grid_invisibles(self):
-        """Refresh the grid to show/hide invisible characters"""
+        """Refresh invisible-character display in-place without reloading the grid.
+
+        Iterates existing cell widgets and re-applies (or removes) invisible-character
+        substitutions directly, avoiding the expensive full grid rebuild that
+        load_segments_to_grid() would trigger.
+        """
         if not hasattr(self, 'table') or not self.table:
             return
-
         if not hasattr(self, 'invisible_display_settings'):
             return
+        if not hasattr(self, 'current_project') or not self.current_project:
+            return
 
-        # Check if spaces are being shown (which affects word wrapping)
+        # Update the legacy boolean used by word-wrap logic
         self.showing_invisible_spaces = self.invisible_display_settings.get('spaces', False)
 
-        # Simply reload the grid - the apply_invisible_replacements will be called
-        # during load_segments_to_grid when creating cell widgets
-        self.load_segments_to_grid()
+        segments = self.current_project.segments
+        row_count = self.table.rowCount()
+
+        for row in range(row_count):
+            if row >= len(segments):
+                break
+            segment = segments[row]
+
+            # --- Source column (col 2) ---
+            source_widget = self.table.cellWidget(row, 2)
+            if source_widget is not None:
+                source_for_display = segment.source
+                if self.hide_outer_wrapping_tags:
+                    stripped, _ = strip_outer_wrapping_tags(source_for_display)
+                    source_for_display = stripped
+                new_source_text = self.apply_invisible_replacements(source_for_display)
+                source_widget.blockSignals(True)
+                source_widget.setPlainText(new_source_text)
+                source_widget.blockSignals(False)
+
+            # --- Target column (col 3) ---
+            target_widget = self.table.cellWidget(row, 3)
+            if target_widget is not None:
+                target_for_display = segment.target
+                if self.hide_outer_wrapping_tags:
+                    stripped, _ = strip_outer_wrapping_tags(target_for_display)
+                    target_for_display = stripped
+                new_target_text = self.apply_invisible_replacements(target_for_display)
+                target_widget.blockSignals(True)
+                target_widget.setPlainText(new_target_text)
+                target_widget.blockSignals(False)
+
+        # Resize rows since space→middle-dot substitution changes text width
+        self.auto_resize_rows()
 
     def _refresh_source_column_display(self):
         """Refresh grid to reflect hide_outer_wrapping_tags setting.
