@@ -2,8 +2,16 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.288 (February 20, 2026)
+**Current Version:** v1.9.289 (February 20, 2026)
 
+
+## v1.9.289 - February 20, 2026
+
+### Bug Fixes
+
+- **Fixed: file boundary banner overlapping the last segment of the previous file** — The extra 20px row height added for banner spacing was incorrectly added to the first row of the *new* file instead of the last row of the *previous* file. The banner (positioned at the top of the new file's row) therefore sat on top of segment content rather than in the empty gap below it. Fixed by adding the padding to the correct row.
+
+---
 
 ## v1.9.288 - February 20, 2026
 

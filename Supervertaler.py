@@ -34483,16 +34483,18 @@ class SupervertalerQt(QMainWindow):
         # Minimum 32px to accommodate status icons (16px) + match text + padding without any cutoff
         compact_height = max(max_height + 2, 32)
 
-        # Add space for the file boundary banner (20px) above boundary rows in multi-file projects
-        if (row > 0 and self.current_project and
+        # Add space for the file boundary banner (20px) at the BOTTOM of the last row of each file.
+        # The banner floats above the NEXT row's top, so the space must come from this row's height.
+        if (self.current_project and
                 getattr(self.current_project, 'is_multifile', False)):
             segments = self.current_project.segments
-            if row < len(segments):
-                prev_file_id = getattr(segments[row - 1], 'file_id', None)
+            next_row = row + 1
+            if next_row < len(segments):
                 curr_file_id = getattr(segments[row], 'file_id', None)
-                if (curr_file_id is not None and prev_file_id is not None
-                        and curr_file_id != prev_file_id):
-                    compact_height += 20  # Room for the floating banner above this row
+                next_file_id = getattr(segments[next_row], 'file_id', None)
+                if (curr_file_id is not None and next_file_id is not None
+                        and curr_file_id != next_file_id):
+                    compact_height += 20  # Banner sits in the extra space at the bottom of this row
 
         self.table.setRowHeight(row, compact_height)
 
