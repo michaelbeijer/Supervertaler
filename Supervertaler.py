@@ -3474,36 +3474,58 @@ class EditableGridTextEditor(QTextEdit):
         self.setMaximumHeight(16777215)  # Qt's max int
     
     def mouseDoubleClickEvent(self, event):
-        """Handle double-click to select words properly when invisibles are shown"""
+        """Handle double-click to select words properly when invisibles are shown.
+
+        When any invisible-character substitutions are active the text contains
+        marker characters (·, →, °, ¶) and zero-width spaces (\u200B).
+        Qt's built-in double-click word selection treats \u200B as a word
+        character, causing it to include the zero-width space in the selection
+        and breaking copy-to-clipboard / add-to-glossary workflows.
+
+        We override double-click to use only the *visible* marker characters
+        (·, →, °, ¶, \n, \t) as word delimiters.  \u200B is intentionally
+        excluded — it is a transparent word-wrap hint, not a delimiter.
+        """
         from PyQt6.QtGui import QTextCursor
-        
+
         main_window = self._get_main_window()
-        # Check if invisible spaces are being shown
+        any_invisibles = False
         if main_window and hasattr(main_window, 'invisible_display_settings'):
-            if main_window.invisible_display_settings.get('spaces', False):
-                # Get cursor position at click
-                cursor = self.cursorForPosition(event.pos())
-                pos = cursor.position()
-                text = self.toPlainText()
-                
-                # Find word boundaries using middle dot (·) or zero-width space as delimiters
-                # Find start of word (search backwards for · or start of text)
-                start = pos
-                while start > 0 and text[start - 1] not in ('·', '\u200B', '\n', '\t', '→', '°', '¶'):
-                    start -= 1
-                
-                # Find end of word (search forwards for · or end of text)
-                end = pos
-                while end < len(text) and text[end] not in ('·', '\u200B', '\n', '\t', '→', '°', '¶'):
-                    end += 1
-                
-                # Select the word
-                cursor.setPosition(start)
-                cursor.setPosition(end, QTextCursor.MoveMode.KeepAnchor)
-                self.setTextCursor(cursor)
-                return
-        
-        # Default behavior
+            any_invisibles = any(main_window.invisible_display_settings.values())
+
+        if any_invisibles:
+            # Visible marker characters that serve as word delimiters
+            # NOTE: \u200B (zero-width space) is deliberately NOT in this set —
+            # it lives inside '·\u200B' pairs and must not split word selection.
+            DELIMITERS = {'·', '→', '°', '¶', '\n', '\t'}
+
+            cursor = self.cursorForPosition(event.pos())
+            pos = cursor.position()
+            text = self.toPlainText()
+
+            # Search backwards for a delimiter (or start of text)
+            start = pos
+            while start > 0 and text[start - 1] not in DELIMITERS:
+                start -= 1
+
+            # Search forwards for a delimiter (or end of text)
+            end = pos
+            while end < len(text) and text[end] not in DELIMITERS:
+                end += 1
+
+            # Trim any trailing \u200B from the selection (it's always at the
+            # start of a '·\u200B' pair and would be the first char after 'end')
+            # — nothing to do since we stop before delimiters.
+            # But trim leading \u200B if the word starts right after a '·\u200B':
+            while start < end and text[start] == '\u200B':
+                start += 1
+
+            cursor.setPosition(start)
+            cursor.setPosition(end, QTextCursor.MoveMode.KeepAnchor)
+            self.setTextCursor(cursor)
+            return
+
+        # Default Qt word-selection behaviour when no invisibles are shown
         super().mouseDoubleClickEvent(event)
     
     def _get_main_window(self):
@@ -41391,6 +41413,21 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         Iterates existing cell widgets and re-applies (or removes) invisible-character
         substitutions directly, avoiding the expensive full grid rebuild that
         load_segments_to_grid() would trigger.
+
+        Signal handling strategy
+        -----------------------
+        We call setPlainText() with Qt signals blocked on each widget.  Unlike
+        load_segments_to_grid() we do NOT unblock signals afterwards — the widgets
+        already have their textChanged handlers connected from the original grid
+        load, and those handlers remain active for future user edits.  Keeping
+        signals blocked only for the duration of setPlainText() (and the brief
+        queued-event window) prevents stale invisible markers from being written
+        back into segment.target.
+
+        We also raise _suppress_target_change_handlers as a belt-and-braces guard
+        so that any signal that does slip through (e.g. on an already-focused cell
+        whose queued event fires before blockSignals takes effect) is silently
+        ignored by the on_target_text_changed handler.
         """
         if not hasattr(self, 'table') or not self.table:
             return
@@ -41405,34 +41442,49 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         segments = self.current_project.segments
         row_count = self.table.rowCount()
 
-        for row in range(row_count):
-            if row >= len(segments):
-                break
-            segment = segments[row]
+        # Suppress the target-changed handler for all cells during the refresh
+        old_suppress = getattr(self, '_suppress_target_change_handlers', False)
+        self._suppress_target_change_handlers = True
+        try:
+            for row in range(row_count):
+                if row >= len(segments):
+                    break
+                segment = segments[row]
 
-            # --- Source column (col 2) ---
-            source_widget = self.table.cellWidget(row, 2)
-            if source_widget is not None:
-                source_for_display = segment.source
-                if self.hide_outer_wrapping_tags:
-                    stripped, _ = strip_outer_wrapping_tags(source_for_display)
-                    source_for_display = stripped
-                new_source_text = self.apply_invisible_replacements(source_for_display)
-                source_widget.blockSignals(True)
-                source_widget.setPlainText(new_source_text)
-                source_widget.blockSignals(False)
+                # --- Source column (col 2) — read-only, no save risk ---
+                source_widget = self.table.cellWidget(row, 2)
+                if source_widget is not None:
+                    source_for_display = segment.source
+                    if self.hide_outer_wrapping_tags:
+                        stripped, _ = strip_outer_wrapping_tags(source_for_display)
+                        source_for_display = stripped
+                    new_source_text = self.apply_invisible_replacements(source_for_display)
+                    source_widget.blockSignals(True)
+                    source_widget.setPlainText(new_source_text)
+                    source_widget.blockSignals(False)
 
-            # --- Target column (col 3) ---
-            target_widget = self.table.cellWidget(row, 3)
-            if target_widget is not None:
-                target_for_display = segment.target
-                if self.hide_outer_wrapping_tags:
-                    stripped, _ = strip_outer_wrapping_tags(target_for_display)
-                    target_for_display = stripped
-                new_target_text = self.apply_invisible_replacements(target_for_display)
-                target_widget.blockSignals(True)
-                target_widget.setPlainText(new_target_text)
-                target_widget.blockSignals(False)
+                # --- Target column (col 3) ---
+                # Always use segment.target (the clean, marker-free canonical text)
+                # as the source of truth, then re-apply current marker settings.
+                target_widget = self.table.cellWidget(row, 3)
+                if target_widget is not None:
+                    target_for_display = segment.target
+                    if self.hide_outer_wrapping_tags:
+                        stripped, _ = strip_outer_wrapping_tags(target_for_display)
+                        target_for_display = stripped
+                    new_target_text = self.apply_invisible_replacements(target_for_display)
+                    target_widget.blockSignals(True)
+                    target_widget.setPlainText(new_target_text)
+                    # Keep signals blocked — user edits will unblock naturally when
+                    # the widget is next focused and the handler fires from keystrokes.
+                    # We restore signals here so the widget stays interactive, but
+                    # _suppress_target_change_handlers guards against the queued event.
+                    target_widget.blockSignals(False)
+                    # Reset initial-load flag so the single queued textChanged event
+                    # that Qt delivers after blockSignals(False) is eaten harmlessly.
+                    target_widget._initial_load_complete = False
+        finally:
+            self._suppress_target_change_handlers = old_suppress
 
         # Resize rows since space→middle-dot substitution changes text width
         self.auto_resize_rows()
@@ -41483,32 +41535,38 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         return result
 
     def reverse_invisible_replacements(self, text):
-        """Reverse invisible character replacements to get original text"""
-        if not hasattr(self, 'invisible_display_settings'):
-            return text
+        """Reverse ALL invisible character replacements to get original text.
 
+        NOTE: We always strip ALL marker types unconditionally, regardless of
+        which settings are currently enabled.  This is necessary because:
+        - The user may toggle a setting OFF after markers were already placed in
+          the widget; the markers must still be removed from the saved text.
+        - refresh_grid_invisibles() calls setPlainText() with the clean
+          segment.target text, but a queued textChanged event fired afterwards
+          would see the freshly-set text (which may contain markers) and must
+          still clean it correctly.
+        """
         result = text
 
-        # Reverse spaces (middle dot + zero-width space → space)
-        if self.invisible_display_settings.get('spaces', False):
-            result = result.replace('·\u200B', ' ')
-            result = result.replace('·', ' ')  # Fallback for any without zero-width space
+        # Reverse spaces (middle dot + zero-width space → space) — always
+        result = result.replace('·\u200B', ' ')
+        result = result.replace('·', ' ')  # Fallback for any without zero-width space
 
-        # Reverse tabs (right arrow + zero-width space → tab)
-        if self.invisible_display_settings.get('tabs', False):
-            result = result.replace('→\u200B', '\t')
-            result = result.replace('→', '\t')  # Fallback
+        # Reverse tabs (right arrow + zero-width space → tab) — always
+        result = result.replace('→\u200B', '\t')
+        result = result.replace('→', '\t')  # Fallback
 
-        # Reverse non-breaking spaces (degree symbol → NBSP)
-        if self.invisible_display_settings.get('nbsp', False):
-            # We can't distinguish between \u00A0 and \u202F after replacement,
-            # so we default to the more common \u00A0
-            result = result.replace('°', '\u00A0')
+        # Reverse non-breaking spaces (degree symbol → NBSP) — always
+        # We can't distinguish between \u00A0 and \u202F after replacement,
+        # so we default to the more common \u00A0
+        result = result.replace('°', '\u00A0')
 
-        # Reverse line breaks (pilcrow → line break)
-        if self.invisible_display_settings.get('linebreaks', False):
-            result = result.replace('¶\n', '\n')
-            result = result.replace('¶', '\r')
+        # Reverse line breaks (pilcrow → line break) — always
+        result = result.replace('¶\n', '\n')
+        result = result.replace('¶', '\r')
+
+        # Always strip any stray zero-width spaces left over
+        result = result.replace('\u200B', '')
 
         return result
 

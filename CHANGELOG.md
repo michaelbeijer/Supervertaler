@@ -2,8 +2,17 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.292 (February 20, 2026)
+**Current Version:** v1.9.293 (February 20, 2026)
 
+
+## v1.9.293 - February 20, 2026
+
+### Bug Fixes
+
+- **Fixed: invisible-character markers stick in target cells after toggling off** — After disabling "Show Invisibles", the middle-dot space markers (·), tab arrows (→), etc. remained visible in target cells that had been previously edited. Three root causes fixed: (1) `reverse_invisible_replacements()` was gated on whether each setting was currently *on*, so it couldn't strip markers from a cell when the setting was toggled off — it now always strips all marker types unconditionally; (2) `refresh_grid_invisibles()` was calling `blockSignals(False)` after each `setPlainText()`, which caused Qt to deliver a queued `textChanged` event that wrote the stale marker text back into `segment.target` — fixed by raising `_suppress_target_change_handlers` during the refresh and resetting `_initial_load_complete` per widget so the queued event is discarded; (3) `refresh_grid_invisibles()` now always reads from `segment.target` (the canonical clean text) rather than from the widget's current display text, so edited segments are not corrupted.
+- **Fixed: double-click word selection broken when Show Invisibles is active** — Double-clicking to select a word for glossary lookup would select only a fragment of the word because the zero-width space (U+200B) that is inserted alongside each `·` space-marker was listed as a word delimiter. Removed U+200B from the delimiter set in `mouseDoubleClickEvent`; it is now treated as a transparent word-wrap hint. Also generalized the override to activate whenever *any* invisible setting is on, not only when "Spaces" is on.
+
+---
 
 ## v1.9.292 - February 20, 2026
 
