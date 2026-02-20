@@ -30966,12 +30966,18 @@ class SupervertalerQt(QMainWindow):
 
     # ─── Standalone SDLXLIFF import/export ────────────────────────────────────
 
-    def _map_sdlxliff_segment(self, sdl_seg, index: int) -> 'Segment':
+    def _map_sdlxliff_segment(self, sdl_seg, index: int, file_id: int = None, file_name: str = "") -> 'Segment':
         """
         Convert an SDLSegment to an internal Segment with proper status mapping.
 
         Shared by import_sdlppx_package() and import_standalone_sdlxliff().
         Maps SDL origin/percent/text-match to the 13-level Supervertaler status hierarchy.
+
+        Args:
+            sdl_seg: SDLSegment to convert
+            index: 0-based index used to assign segment ID
+            file_id: Optional file ID for multi-file projects
+            file_name: Optional file name for multi-file projects
         """
         # Determine status based on origin, match percent, and text-match attribute
         if sdl_seg.target_text:
@@ -31022,7 +31028,9 @@ class SupervertalerQt(QMainWindow):
             source=sdl_seg.source_text,
             target=sdl_seg.target_text if sdl_seg.target_text else "",
             status=status,
-            notes=f"SDLXLIFF: {Path(sdl_seg.file_path).name} | Segment: {sdl_seg.segment_id}{origin_info}"
+            notes=f"SDLXLIFF: {Path(sdl_seg.file_path).name} | Segment: {sdl_seg.segment_id}{origin_info}",
+            file_id=file_id,
+            file_name=file_name
         )
 
     def import_standalone_sdlxliff(self):
@@ -31178,9 +31186,37 @@ class SupervertalerQt(QMainWindow):
                 )
                 return
 
-            # Convert SDLSegments to internal Segments using shared status mapper
-            segments = [self._map_sdlxliff_segment(sdl_seg, i)
-                        for i, sdl_seg in enumerate(all_sdl_segments)]
+            # Build segments and file_metadata per-file so the multi-file UI activates
+            is_multifile = len(handler.xliff_files) > 1
+            segments = []
+            file_metadata = []
+            global_index = 0
+
+            for file_idx, xliff_file in enumerate(handler.xliff_files):
+                file_id = file_idx + 1
+                file_name = Path(xliff_file.file_path).name
+                file_start = global_index
+
+                for sdl_seg in xliff_file.segments:
+                    seg = self._map_sdlxliff_segment(
+                        sdl_seg, global_index,
+                        file_id=file_id if is_multifile else None,
+                        file_name=file_name if is_multifile else ""
+                    )
+                    segments.append(seg)
+                    global_index += 1
+
+                if is_multifile:
+                    file_segs = segments[file_start:global_index]
+                    file_metadata.append({
+                        'id': file_id,
+                        'name': file_name,
+                        'path': xliff_file.file_path,
+                        'type': 'sdlxliff',
+                        'segment_count': len(file_segs),
+                        'start_segment_id': file_segs[0].id if file_segs else None,
+                        'end_segment_id': file_segs[-1].id if file_segs else None,
+                    })
 
             # Normalize language codes to full names
             source_lang = self._normalize_language_code(handler.get_source_lang())
@@ -31194,7 +31230,9 @@ class SupervertalerQt(QMainWindow):
                 name=project_name,
                 segments=segments,
                 source_lang=source_lang,
-                target_lang=target_lang
+                target_lang=target_lang,
+                is_multifile=is_multifile,
+                files=file_metadata if is_multifile else None
             )
 
             # Store handler and source paths for round-trip export

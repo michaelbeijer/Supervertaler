@@ -2,8 +2,16 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.285 (February 19, 2026)
+**Current Version:** v1.9.286 (February 20, 2026)
 
+
+## v1.9.286 - February 20, 2026
+
+### New Features
+
+- **Multi-file UI for SDLXLIFF folder imports** — When importing a folder of `.sdlxliff` files via **Import → Trados Studio → Bilingual XLIFF Folder**, the project is now correctly treated as a multi-file project. Each file gets its own `file_id`, so the full multi-file UI activates automatically: a **blue separator line** appears in the segment grid at each file boundary, the **file filter dropdown** in the toolbar lets you show only segments from a specific file, and the **Views system** (Manage Views…) is available for grouping files into custom views. Previously all segments were imported into a flat single-file project with no visual distinction between files.
+
+---
 
 ## v1.9.285 - February 19, 2026
 
