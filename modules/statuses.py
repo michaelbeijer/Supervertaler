@@ -14,6 +14,7 @@ class StatusDefinition:
     memoq_label: str
     memoQ_equivalents: tuple[str, ...]
     match_symbol: str = ""
+    short_label: str = ""  # Short abbreviation shown inline in the status column (e.g. "CM", "MT", "Rep")
 
 
 STATUSES: Dict[str, StatusDefinition] = {
@@ -33,6 +34,7 @@ STATUSES: Dict[str, StatusDefinition] = {
         memoq_label="Pre-translated",
         memoQ_equivalents=("pre-translated", "pretranslated"),
         match_symbol="⚡",
+        short_label="Pre",
     ),
     "translated": StatusDefinition(
         key="translated",
@@ -60,6 +62,7 @@ STATUSES: Dict[str, StatusDefinition] = {
         memoq_label="TR confirmed",
         memoQ_equivalents=("tr confirmed", "translation review confirmed"),
         match_symbol="🌐",
+        short_label="TRC",
     ),
     "proofread": StatusDefinition(
         key="proofread",
@@ -69,6 +72,7 @@ STATUSES: Dict[str, StatusDefinition] = {
         memoq_label="Proofread",
         memoQ_equivalents=("proofread",),
         match_symbol="📘",
+        short_label="PR",
     ),
     "rejected": StatusDefinition(
         key="rejected",
@@ -78,6 +82,7 @@ STATUSES: Dict[str, StatusDefinition] = {
         memoq_label="Rejected",
         memoQ_equivalents=("rejected",),
         match_symbol="⛔",
+        short_label="Rej",
     ),
     "approved": StatusDefinition(
         key="approved",
@@ -87,6 +92,7 @@ STATUSES: Dict[str, StatusDefinition] = {
         memoq_label="Approved",
         memoQ_equivalents=("approved", "final", "proofread confirmed"),
         match_symbol="🏁",
+        short_label="App",
     ),
     "pm": StatusDefinition(
         key="pm",
@@ -96,6 +102,7 @@ STATUSES: Dict[str, StatusDefinition] = {
         memoq_label="Pre-translated (102%)",
         memoQ_equivalents=("pre-translated (102%)", "102%", "xlt", "double context", "perfect match", "pm"),
         match_symbol="⭐",
+        short_label="PM",
     ),
     "cm": StatusDefinition(
         key="cm",
@@ -105,6 +112,7 @@ STATUSES: Dict[str, StatusDefinition] = {
         memoq_label="Pre-translated (101%)",
         memoQ_equivalents=("pre-translated (101%)", "context match", "cm", "101%"),
         match_symbol="💎",
+        short_label="CM",
     ),
     "tm_100": StatusDefinition(
         key="tm_100",
@@ -114,6 +122,7 @@ STATUSES: Dict[str, StatusDefinition] = {
         memoq_label="Pre-translated (100%)",
         memoQ_equivalents=("pre-translated (100%)", "100%", "exact match"),
         match_symbol="✅",
+        short_label="100%",
     ),
     "tm_fuzzy": StatusDefinition(
         key="tm_fuzzy",
@@ -123,6 +132,7 @@ STATUSES: Dict[str, StatusDefinition] = {
         memoq_label="Pre-translated (fuzzy)",
         memoQ_equivalents=("fuzzy", "fuzzy match"),
         match_symbol="🔶",
+        short_label="Fuz",
     ),
     "repetition": StatusDefinition(
         key="repetition",
@@ -132,6 +142,7 @@ STATUSES: Dict[str, StatusDefinition] = {
         memoq_label="Repetition",
         memoQ_equivalents=("repetition", "rep", "auto-propagated"),
         match_symbol="🔁",
+        short_label="Rep",
     ),
     "machine_translated": StatusDefinition(
         key="machine_translated",
@@ -141,6 +152,7 @@ STATUSES: Dict[str, StatusDefinition] = {
         memoq_label="Machine Translated",
         memoQ_equivalents=("machine translated", "mt", "nmt", "auto-translated"),
         match_symbol="🤖",
+        short_label="MT",
     ),
 }
 

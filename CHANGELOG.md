@@ -2,8 +2,16 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.289 (February 20, 2026)
+**Current Version:** v1.9.290 (February 20, 2026)
 
+
+## v1.9.290 - February 20, 2026
+
+### New Features
+
+- **Status column short labels** — The status column now shows a compact text abbreviation to the right of the status icon for statuses where it adds clarity: `CM` (context match), `PM` (perfect match), `MT` (machine translated), `Rep` (repetition), `Pre` (pre-translated), `Fuz` (fuzzy), `100%` (exact TM match), `TRC` (TR confirmed), `PR` (proofread), `Rej` (rejected), `App` (approved). When a numeric match percentage is already shown (e.g. `101%` from a TM lookup), the short label is suppressed to avoid redundancy. The label is styled in small bold text and has the same tooltip as the icon.
+
+---
 
 ## v1.9.289 - February 20, 2026
 

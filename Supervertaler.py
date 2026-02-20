@@ -34207,7 +34207,7 @@ class SupervertalerQt(QMainWindow):
         # Note: No stylesheet for non-notes case to avoid interfering with HTML color
         layout.addWidget(status_label)
 
-        # Only add match label if there's a match percentage
+        # Show match percentage if available, otherwise show the status short_label
         if segment.match_percent is not None:
             match_text = f"{segment.match_percent}%"
             match_label = QLabel(match_text)
@@ -34227,6 +34227,15 @@ class SupervertalerQt(QMainWindow):
                 match_label.setProperty("status_tooltip", f"Fuzzy match {segment.match_percent}%")
             match_label.installEventFilter(self)
             layout.addWidget(match_label)
+        elif status_def.short_label:
+            # No match %, show a short text abbreviation to the right of the icon (e.g. "CM", "MT", "Rep")
+            short_lbl = QLabel(status_def.short_label)
+            short_lbl.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
+            short_lbl.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
+            short_lbl.setStyleSheet("color: #444; font-size: 10px; font-weight: bold; padding: 0px;")
+            short_lbl.setProperty("status_tooltip", status_def.label)
+            short_lbl.installEventFilter(self)
+            layout.addWidget(short_lbl)
 
         layout.addStretch(1)
 
