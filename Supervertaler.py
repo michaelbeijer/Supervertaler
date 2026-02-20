@@ -1197,6 +1197,39 @@ def get_html_wrapping_tag_pair(source_text: str, target_text: str) -> tuple:
     return (None, None)
 
 
+def strip_invisible_markers(text: str) -> str:
+    """Remove all Show-Invisibles display markers from a string.
+
+    These markers are inserted by apply_invisible_replacements() for on-screen
+    display only and must never appear in segment.target or on disk.
+
+    Handles:
+      · + U+200B  → regular space   (space marker)
+      ·           → regular space   (fallback, lone middle-dot)
+      → + U+200B  → tab             (tab marker)
+      →           → tab             (fallback, lone right-arrow)
+      ¶ + \\n     → \\n              (line-break marker before newline)
+      ¶           → (removed)       (bare pilcrow)
+      U+200B      → (removed)       (stray zero-width space)
+
+    NOTE: The degree sign ° is intentionally NOT reversed here because ° is a
+    legitimate Unicode character that appears in normal translation text.  The
+    NBSP substitution is handled separately by the main-window method that has
+    project-level context.
+    """
+    if not text:
+        return text
+    result = text
+    result = result.replace('\u00B7\u200B', ' ')   # middle-dot + ZWSP → space
+    result = result.replace('\u00B7', ' ')          # lone middle-dot → space
+    result = result.replace('\u2192\u200B', '\t')   # arrow + ZWSP → tab
+    result = result.replace('\u2192', '\t')          # lone arrow → tab
+    result = result.replace('\u00B6\n', '\n')        # pilcrow + newline → newline
+    result = result.replace('\u00B6', '')            # bare pilcrow → nothing
+    result = result.replace('\u200B', '')            # stray ZWSP → nothing
+    return result
+
+
 @dataclass
 class Segment:
     """Translation segment (matches tkinter version format)"""
@@ -1241,6 +1274,12 @@ class Segment:
         # Only use fields that the dataclass knows about
         valid_fields = {f.name for f in cls.__dataclass_fields__.values()}
         filtered_data = {k: v for k, v in data.items() if k in valid_fields}
+        # Defensively strip any Show-Invisibles markers that may have been
+        # written to disk by an earlier buggy version of the app.
+        if 'target' in filtered_data and isinstance(filtered_data['target'], str):
+            filtered_data['target'] = strip_invisible_markers(filtered_data['target'])
+        if 'source' in filtered_data and isinstance(filtered_data['source'], str):
+            filtered_data['source'] = strip_invisible_markers(filtered_data['source'])
         return cls(**filtered_data)
 
 
@@ -25555,6 +25594,15 @@ class SupervertalerQt(QMainWindow):
             # Restore original order for saving
             if hasattr(self, '_original_segment_order') and self._original_segment_order:
                 self.current_project.segments = self._original_segment_order.copy()
+
+            # Sanitise: strip any Show-Invisibles display markers that should
+            # never appear in the saved file.  This is a belt-and-braces guard;
+            # the markers should already be absent from segment.target, but if
+            # any slipped through (e.g. from a race between textChanged and the
+            # grid refresh), we catch them here at save time.
+            for seg in self.current_project.segments:
+                if seg.target:
+                    seg.target = strip_invisible_markers(seg.target)
 
             with open(file_path, 'w', encoding='utf-8') as f:
                 json.dump(self.current_project.to_dict(), f, indent=2, ensure_ascii=False)

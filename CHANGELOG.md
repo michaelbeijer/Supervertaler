@@ -2,8 +2,16 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.293 (February 20, 2026)
+**Current Version:** v1.9.294 (February 20, 2026)
 
+
+## v1.9.294 - February 20, 2026
+
+### Bug Fixes
+
+- **Fixed: Show Invisibles markers permanently saved into .svproj files** — The root cause of invisible-character markers (·, →, ¶, U+200B) appearing permanently in certain segments even after toggling Show Invisibles off was that the markers had been written into the `.svproj` JSON file on disk as part of `segment.target`. Once saved, every subsequent project load would populate `segment.target` with the corrupted text, making the markers reappear regardless of display settings. Fixed with a three-layer defence: (1) a new module-level `strip_invisible_markers()` function is called inside `Segment.from_dict()` on every project load — any markers in existing saved files are stripped immediately on load; (2) `save_project_to_file()` now sanitises all `segment.target` values through the same function just before writing the JSON, so markers can never reach disk even if one slipped through the editor pipeline; (3) the `.svproj` file for the active LANDEXX project was cleaned directly to immediately fix the three affected segments (3, 4, 5).
+
+---
 
 ## v1.9.293 - February 20, 2026
 
