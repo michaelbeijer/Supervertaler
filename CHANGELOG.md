@@ -2,8 +2,16 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.286 (February 20, 2026)
+**Current Version:** v1.9.287 (February 20, 2026)
 
+
+## v1.9.287 - February 20, 2026
+
+### Bug Fixes
+
+- **Fixed: file filter dropdown not appearing after SDLXLIFF folder import** — The file filter dropdown (and Views system) was correctly built in v1.9.286 but never made visible because `_update_file_filter_combo()` was not being called at the end of `import_sdlxliff_folder()`. One missing call added; the dropdown now appears immediately after import.
+
+---
 
 ## v1.9.286 - February 20, 2026
 

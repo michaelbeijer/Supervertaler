@@ -31257,6 +31257,7 @@ class SupervertalerQt(QMainWindow):
             self._deactivate_all_resources_for_new_project()
             self.auto_resize_rows()
             self._initialize_spellcheck_for_target_language(target_lang)
+            self._update_file_filter_combo()
 
             # Count pretranslated segments
             pretrans_count = sum(1 for s in segments if s.target)
