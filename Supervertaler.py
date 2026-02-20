@@ -3070,16 +3070,14 @@ class ReadOnlyGridTextEditor(QTextEdit):
             main_window.show_mt_quick_popup(text_override=selected_text)
 
     def set_file_boundary(self, is_boundary: bool):
-        """Mark this row as a file boundary (shows a top separator line)."""
+        """Mark this row as a file boundary. Kept for API compatibility; visual handled by banner overlay."""
         self._file_boundary = is_boundary
 
     def set_background_color(self, color: str):
         """Set the background color for this text editor (for alternating row colors)"""
-        border_top = "border-top: 2px solid #2196F3;" if getattr(self, '_file_boundary', False) else ""
         self.setStyleSheet(f"""
             QTextEdit {{
                 border: none;
-                {border_top}
                 background-color: {color};
                 padding: 0px;
             }}
@@ -4514,11 +4512,9 @@ class EditableGridTextEditor(QTextEdit):
         # Use class variables for border settings to respect user customization
         border_color = EditableGridTextEditor.focus_border_color
         border_thickness = EditableGridTextEditor.focus_border_thickness
-        border_top = "border-top: 2px solid #2196F3;" if getattr(self, '_file_boundary', False) else ""
         self.setStyleSheet(f"""
             QTextEdit {{
                 border: none;
-                {border_top}
                 background-color: {color};
                 padding: 0px 4px 0px 0px;
             }}
@@ -23456,6 +23452,10 @@ class SupervertalerQt(QMainWindow):
         # Add additional selection signal for row-based selection mode
         self.table.itemSelectionChanged.connect(self.on_selection_changed)
 
+        # Reposition file boundary banners when the user scrolls or resizes columns
+        self.table.verticalScrollBar().valueChanged.connect(self._update_file_boundary_labels)
+        self.table.horizontalHeader().sectionResized.connect(lambda *_: self._update_file_boundary_labels())
+
         # Debug: Confirm signal connections
         self.log("🔌 Table signals connected: currentCellChanged, itemClicked, cellDoubleClicked, itemSelectionChanged")
         
@@ -32840,6 +32840,9 @@ class SupervertalerQt(QMainWindow):
             # Apply pagination - show only segments for current page
             self._apply_pagination_to_grid()
 
+            # Reposition file boundary banners (pagination may have changed row visibility)
+            self._update_file_boundary_labels()
+
             # Apply current tag view mode (WYSIWYG or Tags)
             if hasattr(self, 'show_tags') and self.show_tags:
                 # If tags mode is enabled, refresh to show raw tags
@@ -34357,6 +34360,61 @@ class SupervertalerQt(QMainWindow):
         settings['termview_under_grid_visible'] = not is_visible
         self.save_general_settings(settings)
     
+    def _update_file_boundary_labels(self):
+        """Create/reposition floating filename banner labels at file boundaries in multi-file projects.
+
+        Labels are parented to the table viewport so they scroll with the table automatically.
+        Called after load_segments_to_grid(), auto_resize_rows(), and on scroll/resize.
+        """
+        # Clean up existing labels
+        for lbl in getattr(self, '_file_boundary_labels', []):
+            lbl.setParent(None)
+            lbl.deleteLater()
+        self._file_boundary_labels = []
+
+        if not hasattr(self, 'table') or not self.table:
+            return
+        if not self.current_project or not getattr(self.current_project, 'is_multifile', False):
+            return
+
+        segments = self.current_project.segments
+        viewport = self.table.viewport()
+        viewport_width = viewport.width()
+
+        for row, segment in enumerate(segments):
+            if row == 0:
+                continue  # First file has no preceding banner
+            prev_file_id = getattr(segments[row - 1], 'file_id', None)
+            curr_file_id = getattr(segment, 'file_id', None)
+            if curr_file_id is None or prev_file_id is None or curr_file_id == prev_file_id:
+                continue
+            if self.table.isRowHidden(row):
+                continue  # Don't show banner when file is filtered out
+
+            # Get the Y position of this row in the viewport
+            rect = self.table.visualRect(self.table.model().index(row, 0))
+            if rect.isNull() or rect.top() < 0:
+                continue
+
+            file_name = getattr(segment, 'file_name', '') or f"File {curr_file_id}"
+            lbl = QLabel(f"  📄  {file_name}", viewport)
+            lbl.setFixedHeight(20)
+            lbl.setFixedWidth(viewport_width)
+            lbl.move(0, rect.top() - 20)
+            lbl.setStyleSheet(
+                "QLabel {"
+                "  background-color: #1a3a5c;"
+                "  color: #e8f0fe;"
+                "  font-size: 10px;"
+                "  font-weight: bold;"
+                "  padding-left: 8px;"
+                "  border-bottom: 1px solid #2196F3;"
+                "}"
+            )
+            lbl.show()
+            lbl.raise_()
+            self._file_boundary_labels.append(lbl)
+
     def auto_resize_rows(self):
         """Auto-resize all rows to fit content - Compact version"""
         if not hasattr(self, 'table') or not self.table:
@@ -34374,6 +34432,7 @@ class SupervertalerQt(QMainWindow):
 
         self.log("✓ Auto-resized rows to fit content (compact)")
         self._enforce_status_row_heights()
+        self._update_file_boundary_labels()
     
     def _auto_resize_single_row(self, row: int, width_reduction: int = 8):
         """Auto-resize a single row to fit its content. Called automatically after text changes."""
@@ -34423,6 +34482,18 @@ class SupervertalerQt(QMainWindow):
         # Set row height with minimal padding
         # Minimum 32px to accommodate status icons (16px) + match text + padding without any cutoff
         compact_height = max(max_height + 2, 32)
+
+        # Add space for the file boundary banner (20px) above boundary rows in multi-file projects
+        if (row > 0 and self.current_project and
+                getattr(self.current_project, 'is_multifile', False)):
+            segments = self.current_project.segments
+            if row < len(segments):
+                prev_file_id = getattr(segments[row - 1], 'file_id', None)
+                curr_file_id = getattr(segments[row], 'file_id', None)
+                if (curr_file_id is not None and prev_file_id is not None
+                        and curr_file_id != prev_file_id):
+                    compact_height += 20  # Room for the floating banner above this row
+
         self.table.setRowHeight(row, compact_height)
 
     def _resize_visible_rows(self):
@@ -40974,6 +41045,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             # "All Files" selected - re-apply pagination (keeps empty segments hidden)
             if hasattr(self, '_apply_pagination_to_grid'):
                 self._apply_pagination_to_grid()
+            self._update_file_boundary_labels()
             self.log("File filter: showing all files")
             return
 
@@ -40993,6 +41065,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                 if show_row:
                     visible_count += 1
             self.log(f"View filter: showing {visible_count} segments from {len(view_file_ids)} files")
+            self._update_file_boundary_labels()
             return
 
         # Single file selected (int file_id)
@@ -41015,7 +41088,8 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                 break
 
         self.log(f"File filter: showing {visible_count} segments from '{file_name}'")
-    
+        self._update_file_boundary_labels()
+
     def _update_file_filter_combo(self):
         """Update the file filter dropdown with files and views from the current project."""
         if not hasattr(self, 'file_filter_combo') or not self.file_filter_combo:

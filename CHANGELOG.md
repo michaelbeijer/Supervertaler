@@ -2,8 +2,16 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.287 (February 20, 2026)
+**Current Version:** v1.9.288 (February 20, 2026)
 
+
+## v1.9.288 - February 20, 2026
+
+### New Features
+
+- **File boundary banner labels in multi-file projects** — In multi-file projects (SDLXLIFF folder import, DOCX folder import, etc.), a dark blue full-width banner now appears above the first segment of each new file in the segment grid, showing the filename (e.g. `📄 Belastungswerttabellen_SW_20260217_afb.xlsx.sdlxliff`). The banners are floating overlays on the table viewport — they scroll with the grid, reposition on column resize, and disappear automatically when a file is filtered out using the file filter dropdown. The old subtle 2px blue border line between files is replaced by this more prominent and descriptive header.
+
+---
 
 ## v1.9.287 - February 20, 2026
 
