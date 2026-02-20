@@ -28045,9 +28045,11 @@ class SupervertalerQt(QMainWindow):
         # Load into grid
         self.load_segments_to_grid()
 
-        # Initialize TM
+        # Initialize TM and clear stale resources from previous project
         self.initialize_tm_database()
-        
+        self._clear_caches_after_import()
+        self._deactivate_all_resources_for_new_project()
+
         # Update UI
         self.update_window_title()
         
@@ -30768,16 +30770,18 @@ class SupervertalerQt(QMainWindow):
             self.update_window_title()
             self.load_segments_to_grid()
             self.initialize_tm_database()
-            
+            self._clear_caches_after_import()
+            self._deactivate_all_resources_for_new_project()
+
             # Auto-resize rows for better initial display
             self.auto_resize_rows()
-            
+
             # Initialize spellcheck for target language
             self._initialize_spellcheck_for_target_language(target_lang)
-            
+
             # Count pretranslated segments
             pretrans_count = sum(1 for s in segments if s.target)
-            
+
             self.log(f"✓ Imported {len(segments)} segments from Trados package: {Path(file_path).name}")
             if pretrans_count:
                 self.log(f"  {pretrans_count} segments are pretranslated")
@@ -31622,10 +31626,12 @@ class SupervertalerQt(QMainWindow):
             self.update_window_title()
             self.load_segments_to_grid()
             self.initialize_tm_database()
-            
+            self._clear_caches_after_import()
+            self._deactivate_all_resources_for_new_project()
+
             # Auto-resize rows for better initial display
             self.auto_resize_rows()
-            
+
             # Initialize spellcheck for target language
             self._initialize_spellcheck_for_target_language(target_lang)
 
@@ -31924,6 +31930,8 @@ class SupervertalerQt(QMainWindow):
             self.update_window_title()
             self.load_segments_to_grid()
             self.initialize_tm_database()
+            self._clear_caches_after_import()
+            self._deactivate_all_resources_for_new_project()
 
             # Auto-resize rows for better initial display
             self.auto_resize_rows()

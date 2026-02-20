@@ -2,8 +2,16 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.290 (February 20, 2026)
+**Current Version:** v1.9.291 (February 20, 2026)
 
+
+## v1.9.291 - February 20, 2026
+
+### Bug Fixes
+
+- **Fixed: resource bleed between projects (TMs, glossaries, NT lists)** — When starting a new project via **Import → Phrase Bilingual**, **Import → Déjà Vu Bilingual**, **Import → Trados Studio → SDLPPX Package**, or **Import (Multi-file)**, previously activated translation memories, glossaries, and NT lists from an earlier project were not being cleared. This could cause lookups against stray resources that belong to a completely different project. Fixed by calling `_deactivate_all_resources_for_new_project()` at the start of each of these import paths, consistent with the behaviour already in place for DOCX, plain-text, memoQ bilingual, and SDLXLIFF imports.
+
+---
 
 ## v1.9.290 - February 20, 2026
 
