@@ -662,14 +662,14 @@ Local LLM allows you to run AI translation entirely on your computer - no API co
 **Step 2: Download a Model**
 Open a terminal/command prompt and run:
 ```bash
-# Recommended for most users (8GB+ RAM):
-ollama pull qwen2.5:7b
+# Recommended — purpose-built translation model (12GB+ RAM):
+ollama pull translategemma:12b
 
-# For 16GB+ RAM (better quality):
-ollama pull qwen2.5:14b
+# For 24GB+ RAM (highest translation quality):
+ollama pull translategemma:27b
 
-# For 4GB RAM (lighter, faster):
-ollama pull qwen2.5:3b
+# For 6GB RAM (lighter, still translation-tuned):
+ollama pull translategemma:4b
 ```
 
 **Step 3: Configure Supervertaler**
@@ -681,10 +681,10 @@ ollama pull qwen2.5:3b
 **Model Recommendations by RAM:**
 | RAM | Recommended Model | Quality |
 |-----|------------------|---------|
-| 4 GB | qwen2.5:3b | ★★★☆☆ |
-| 8 GB | qwen2.5:7b | ★★★★☆ |
-| 10 GB | gemma2:9b | ★★★★★ |
-| 16 GB+ | qwen2.5:14b | ★★★★★ |
+| 4 GB | qwen3:4b | ★★★☆☆ |
+| 6 GB | translategemma:4b | ★★★★☆ |
+| 12 GB | translategemma:12b | ★★★★★ |
+| 24 GB+ | translategemma:27b | ★★★★★ |
 
 **Tips:**
 - First translation may take 30-60 seconds (model loading)

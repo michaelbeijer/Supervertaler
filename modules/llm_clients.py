@@ -141,74 +141,75 @@ class LLMClient:
         "openai": "gpt-4o",
         "claude": "claude-sonnet-4-6",  # Claude Sonnet 4.6 (Feb 2026)
         "gemini": "gemini-2.5-flash",  # Gemini 2.5 Flash (2025)
-        "ollama": "qwen2.5:7b",  # Local LLM via Ollama - excellent multilingual quality
+        "ollama": "translategemma:12b",  # Local LLM via Ollama - purpose-built translation model
         "custom_openai": "custom-model"  # Custom OpenAI-compatible endpoint
     }
     
     # Available Ollama models with descriptions (for UI display)
+    # Last audited: February 2026
     OLLAMA_MODELS = {
-        "qwen2.5:3b": {
-            "name": "Qwen 2.5 3B",
-            "description": "Fast & lightweight - good for simple translations",
-            "size_gb": 2.0,
+        "translategemma:4b": {
+            "name": "TranslateGemma 4B",
+            "description": "Translation-tuned - fast & lightweight (55 languages)",
+            "size_gb": 3.3,
+            "ram_required": 6,
+            "quality_stars": 4,
+            "strengths": ["Purpose-built for translation", "55 languages incl. Dutch", "Fast"],
+            "use_case": "Quick translation drafts, low-end hardware"
+        },
+        "translategemma:12b": {
+            "name": "TranslateGemma 12B",
+            "description": "Best translation model for size — beats larger general models",
+            "size_gb": 8.1,
+            "ram_required": 12,
+            "quality_stars": 5,
+            "strengths": ["Top translation quality", "55 languages incl. Dutch", "Beats Gemma 3 27B on translation"],
+            "use_case": "Professional translation — best quality/size ratio"
+        },
+        "qwen3:4b": {
+            "name": "Qwen 3 4B",
+            "description": "Fast & lightweight general-purpose (100+ languages)",
+            "size_gb": 2.5,
             "ram_required": 4,
             "quality_stars": 3,
-            "strengths": ["Fast", "Low memory", "Multilingual"],
+            "strengths": ["Fast", "Low memory", "100+ languages"],
             "use_case": "Quick drafts, simple text, low-end hardware"
         },
-        "qwen2.5:7b": {
-            "name": "Qwen 2.5 7B",
-            "description": "Recommended - excellent multilingual quality",
-            "size_gb": 4.4,
+        "qwen3:8b": {
+            "name": "Qwen 3 8B",
+            "description": "Excellent general-purpose — strong multilingual",
+            "size_gb": 5.2,
             "ram_required": 8,
             "quality_stars": 4,
-            "strengths": ["Excellent multilingual", "Good quality", "Balanced speed"],
+            "strengths": ["Excellent multilingual", "100+ languages", "Balanced speed/quality"],
             "use_case": "General translation, most European languages"
         },
-        "llama3.2:3b": {
-            "name": "Llama 3.2 3B",
-            "description": "Meta's efficient model - good English",
-            "size_gb": 2.0,
-            "ram_required": 4,
-            "quality_stars": 3,
-            "strengths": ["Fast", "Good English", "Efficient"],
-            "use_case": "English-centric translations, quick drafts"
-        },
-        "mistral:7b": {
-            "name": "Mistral 7B",
-            "description": "Strong European language support",
-            "size_gb": 4.1,
-            "ram_required": 8,
-            "quality_stars": 4,
-            "strengths": ["European languages", "French", "Fast inference"],
-            "use_case": "French, German, Spanish translations"
-        },
-        "gemma2:9b": {
-            "name": "Gemma 2 9B",
-            "description": "Google's quality model - best for size",
-            "size_gb": 5.5,
-            "ram_required": 10,
+        "gemma3:12b": {
+            "name": "Gemma 3 12B",
+            "description": "Google's general-purpose — 140+ languages, multimodal",
+            "size_gb": 8.1,
+            "ram_required": 12,
             "quality_stars": 5,
-            "strengths": ["High quality", "Good reasoning", "Multilingual"],
+            "strengths": ["140+ languages", "High quality", "Multimodal (text+image)"],
             "use_case": "Quality-focused translation, technical content"
         },
-        "qwen2.5:14b": {
-            "name": "Qwen 2.5 14B",
-            "description": "Premium quality - needs 16GB+ RAM",
-            "size_gb": 9.0,
+        "qwen3:14b": {
+            "name": "Qwen 3 14B",
+            "description": "Premium quality — excellent for complex text",
+            "size_gb": 9.3,
             "ram_required": 16,
             "quality_stars": 5,
             "strengths": ["Excellent quality", "Complex text", "Nuanced translation"],
-            "use_case": "Premium translations, complex documents, high-end hardware"
+            "use_case": "Premium translations, complex documents"
         },
-        "llama3.1:8b": {
-            "name": "Llama 3.1 8B",
-            "description": "Meta's capable model - good all-rounder",
-            "size_gb": 4.7,
+        "aya-expanse:8b": {
+            "name": "Aya Expanse 8B",
+            "description": "Cohere's multilingual model — excellent for Dutch",
+            "size_gb": 5.1,
             "ram_required": 8,
-            "quality_stars": 4,
-            "strengths": ["Versatile", "Good quality", "Well-tested"],
-            "use_case": "General purpose translation"
+            "quality_stars": 5,
+            "strengths": ["Top Dutch support", "High fidelity translation", "23 languages"],
+            "use_case": "Dutch-English translation (Top Pick for Dutch)"
         }
     }
     
@@ -1021,7 +1022,7 @@ class LLMClient:
                 "  3. First-time model loading takes longer\n\n"
                 "Solutions:\n"
                 "  • Close other applications to free RAM\n"
-                "  • Use a smaller model: 'qwen2.5:7b' or 'qwen2.5:3b'\n"
+                "  • Use a smaller model: 'translategemma:4b' or 'qwen3:4b'\n"
                 "  • Try again (subsequent runs are faster)"
             )
         except requests.exceptions.RequestException as e:

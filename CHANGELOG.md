@@ -2,8 +2,29 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.299 (February 21, 2026)
+**Current Version:** v1.9.301 (February 21, 2026)
 
+
+## v1.9.301 - February 21, 2026
+
+### Improvements
+
+- **Ollama model list audited and updated for February 2026** — Replaced the recommended local LLM list with the best currently available models. Key changes:
+  - **Added TranslateGemma** (4B / 12B / 27B) — Google's purpose-built translation model (Jan 2026), fine-tuned on Gemma 3 with reinforcement learning. Supports 55 languages including Dutch. The 12B model outperforms the general-purpose Gemma 3 27B on translation benchmarks. Now the recommended default Ollama model.
+  - **Upgraded Qwen 2.5 → Qwen 3** (4B / 8B / 14B / 32B) — Alibaba's latest generation with 100+ language support and improved quality across the board.
+  - **Upgraded Gemma 2 → Gemma 3 12B** — Google's latest general-purpose model with 140+ languages and multimodal support.
+  - **Kept Aya Expanse 8B** — Still the best Dutch-specialist model at its size, no newer version available.
+  - **Removed 12 outdated models**: Qwen 2.5 3B/14B/32B/72B, Llama 3.2 3B, Llama 3.1 8B, Mistral 7B, Gemma 2 9B, Mixtral 8x7B, Command R 35B, OpenEuroLLM Dutch, GEITje 7B Ultra, StableLM 2 12B — all surpassed by newer alternatives.
+
+---
+
+## v1.9.300 - February 21, 2026
+
+### Bug Fixes
+
+- **Fixed: TM/MT/LLM matches not appearing when grid filters are active** — When a Source or Target text filter was applied, navigating to a segment would skip all Translation Memory, MT, and LLM lookups as a performance optimisation. This meant the Match Panel and Translation Results panel stayed empty, even when pressing F5 (Force Refresh). Fixed by replacing the hard skip with a longer debounce timer (250ms vs 10ms in normal mode): rapid navigation through filtered results stays snappy, but settling on a segment now triggers the full TM/MT/LLM lookup pipeline as expected. Glossary/TermView updates from cache still happen immediately.
+
+---
 
 ## v1.9.299 - February 21, 2026
 

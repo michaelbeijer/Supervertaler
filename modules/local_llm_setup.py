@@ -51,160 +51,104 @@ from PyQt6.QtGui import QFont
 DEFAULT_OLLAMA_ENDPOINT = "http://localhost:11434"
 
 # Recommended models with metadata
+# Last audited: February 2026
 RECOMMENDED_MODELS = {
-    "qwen2.5:3b": {
-        "name": "Qwen 2.5 3B",
-        "description": "Fast & lightweight - good for simple translations",
-        "size_gb": 2.0,
-        "ram_required_gb": 4,
-        "quality_stars": 3,
-        "strengths": ["Fast", "Low memory", "Multilingual"],
-        "use_case": "Quick drafts, simple text, low-end hardware",
-        "download_size": "1.9 GB"
-    },
-    "qwen2.5:7b": {
-        "name": "Qwen 2.5 7B",
-        "description": "Recommended - excellent multilingual quality",
-        "size_gb": 4.4,
-        "ram_required_gb": 8,
+    # === TRANSLATION-SPECIALIZED (Google TranslateGemma, Jan 2026) ===
+    "translategemma:4b": {
+        "name": "TranslateGemma 4B",
+        "description": "Translation-tuned - fast & lightweight (55 languages)",
+        "size_gb": 3.3,
+        "ram_required_gb": 6,
         "quality_stars": 4,
-        "strengths": ["Excellent multilingual", "Good quality", "Balanced speed"],
-        "use_case": "General translation, most European languages",
-        "download_size": "4.4 GB",
+        "strengths": ["Purpose-built for translation", "55 languages incl. Dutch", "Fast"],
+        "use_case": "Quick translation drafts, low-end hardware",
+        "download_size": "3.3 GB"
+    },
+    "translategemma:12b": {
+        "name": "TranslateGemma 12B",
+        "description": "Best translation model for size — beats larger general models",
+        "size_gb": 8.1,
+        "ram_required_gb": 12,
+        "quality_stars": 5,
+        "strengths": ["Top translation quality", "55 languages incl. Dutch", "Beats Gemma 3 27B on translation"],
+        "use_case": "Professional translation — best quality/size ratio",
+        "download_size": "8.1 GB",
         "recommended": True
     },
-    "llama3.2:3b": {
-        "name": "Llama 3.2 3B",
-        "description": "Meta's efficient model - good English",
-        "size_gb": 2.0,
+    "translategemma:27b": {
+        "name": "TranslateGemma 27B",
+        "description": "Highest-quality dedicated translation model",
+        "size_gb": 17.0,
+        "ram_required_gb": 24,
+        "quality_stars": 5,
+        "strengths": ["Best translation quality", "55 languages incl. Dutch", "~25% fewer errors"],
+        "use_case": "Maximum translation quality (needs 24 GB+ VRAM/RAM)",
+        "download_size": "17 GB"
+    },
+    # === GENERAL-PURPOSE — SMALL (4-6 GB RAM) ===
+    "qwen3:4b": {
+        "name": "Qwen 3 4B",
+        "description": "Fast & lightweight general-purpose (100+ languages)",
+        "size_gb": 2.5,
         "ram_required_gb": 4,
         "quality_stars": 3,
-        "strengths": ["Fast", "Good English", "Efficient"],
-        "use_case": "English-centric translations, quick drafts",
-        "download_size": "2.0 GB"
+        "strengths": ["Fast", "Low memory", "100+ languages"],
+        "use_case": "Quick drafts, simple text, low-end hardware",
+        "download_size": "2.5 GB"
     },
-    "mistral:7b": {
-        "name": "Mistral 7B",
-        "description": "Strong European language support",
-        "size_gb": 4.1,
+    # === GENERAL-PURPOSE — MEDIUM (8-12 GB RAM) ===
+    "qwen3:8b": {
+        "name": "Qwen 3 8B",
+        "description": "Excellent general-purpose — strong multilingual",
+        "size_gb": 5.2,
         "ram_required_gb": 8,
         "quality_stars": 4,
-        "strengths": ["European languages", "French", "Fast inference"],
-        "use_case": "French, German, Spanish translations",
-        "download_size": "4.1 GB"
+        "strengths": ["Excellent multilingual", "100+ languages", "Balanced speed/quality"],
+        "use_case": "General translation, most European languages",
+        "download_size": "5.2 GB"
     },
-    "gemma2:9b": {
-        "name": "Gemma 2 9B",
-        "description": "Google's quality model - best for size",
-        "size_gb": 5.5,
-        "ram_required_gb": 10,
+    "gemma3:12b": {
+        "name": "Gemma 3 12B",
+        "description": "Google's general-purpose — 140+ languages, multimodal",
+        "size_gb": 8.1,
+        "ram_required_gb": 12,
         "quality_stars": 5,
-        "strengths": ["High quality", "Good reasoning", "Multilingual"],
+        "strengths": ["140+ languages", "High quality", "Multimodal (text+image)"],
         "use_case": "Quality-focused translation, technical content",
-        "download_size": "5.4 GB"
+        "download_size": "8.1 GB"
     },
-    "qwen2.5:14b": {
-        "name": "Qwen 2.5 14B",
-        "description": "Premium quality - needs 16GB+ RAM",
-        "size_gb": 9.0,
+    # === GENERAL-PURPOSE — LARGE (16+ GB RAM) ===
+    "qwen3:14b": {
+        "name": "Qwen 3 14B",
+        "description": "Premium quality — excellent for complex text",
+        "size_gb": 9.3,
         "ram_required_gb": 16,
         "quality_stars": 5,
         "strengths": ["Excellent quality", "Complex text", "Nuanced translation"],
         "use_case": "Premium translations, complex documents",
-        "download_size": "8.9 GB"
+        "download_size": "9.3 GB"
     },
-    "llama3.1:8b": {
-        "name": "Llama 3.1 8B",
-        "description": "Meta's capable model - good all-rounder",
-        "size_gb": 4.7,
-        "ram_required_gb": 8,
-        "quality_stars": 4,
-        "strengths": ["Versatile", "Good quality", "Well-tested"],
-        "use_case": "General purpose translation",
-        "download_size": "4.7 GB"
-    },
-    # === LARGE MODELS (32GB+ RAM required) ===
-    "qwen2.5:32b": {
-        "name": "Qwen 2.5 32B",
-        "description": "Alibaba's flagship model - excellent for translation",
-        "size_gb": 19.9,
-        "ram_required_gb": 32,
-        "quality_stars": 5,
-        "strengths": ["Top translation quality", "Excellent multilingual", "Nuanced output"],
-        "use_case": "High-quality professional translation",
-        "download_size": "19.9 GB"
-    },
-    "qwen2.5:72b": {
-        "name": "Qwen 2.5 72B",
-        "description": "Alibaba's largest model - best quality, very slow on CPU",
-        "size_gb": 43.0,
-        "ram_required_gb": 48,
-        "quality_stars": 5,
-        "strengths": ["Highest quality", "Best multilingual", "Near cloud-level"],
-        "use_case": "Maximum quality (needs 48GB+ RAM, very slow)",
-        "download_size": "43 GB"
-    },
-    "mixtral:8x7b": {
-        "name": "Mixtral 8x7B",
-        "description": "Mistral's mixture-of-experts model - very capable",
-        "size_gb": 26.4,
-        "ram_required_gb": 32,
-        "quality_stars": 5,
-        "strengths": ["Excellent reasoning", "Strong multilingual", "Efficient inference"],
-        "use_case": "High-quality translation with fast inference",
-        "download_size": "26.4 GB"
-    },
-    "command-r:35b": {
-        "name": "Command R 35B",
-        "description": "Cohere's RAG-optimized model - excellent for context",
+    "qwen3:32b": {
+        "name": "Qwen 3 32B",
+        "description": "Flagship general-purpose — near cloud-level quality",
         "size_gb": 20.0,
-        "ram_required_gb": 40,
+        "ram_required_gb": 32,
         "quality_stars": 5,
-        "strengths": ["Context-aware", "Strong reasoning", "Good for technical text"],
-        "use_case": "Technical and specialized translation",
-        "download_size": "20.0 GB"
+        "strengths": ["Top quality", "100+ languages", "Nuanced output"],
+        "use_case": "High-quality professional translation",
+        "download_size": "20 GB"
     },
-    # === DUTCH/MULTILINGUAL SPECIALISTS ===
+    # === DUTCH/MULTILINGUAL SPECIALIST ===
     "aya-expanse:8b": {
         "name": "Aya Expanse 8B",
-        "description": "Cohere's multilingual model - excellent for Dutch",
-        "size_gb": 4.8,
+        "description": "Cohere's multilingual model — excellent for Dutch",
+        "size_gb": 5.1,
         "ram_required_gb": 8,
         "quality_stars": 5,
         "strengths": ["Top Dutch support", "High fidelity translation", "23 languages"],
-        "use_case": "Dutch-English translation (Top Pick)",
-        "download_size": "4.8 GB"
+        "use_case": "Dutch-English translation (Top Pick for Dutch)",
+        "download_size": "5.1 GB"
     },
-    "openeurollm-dutch": {
-        "name": "OpenEuroLLM Dutch 9B",
-        "description": "Gemma3 fine-tuned for Dutch - strong grammar",
-        "size_gb": 5.4,
-        "ram_required_gb": 8,
-        "quality_stars": 4,
-        "strengths": ["Dutch grammar/idioms", "European tech docs", "Fine-tuned"],
-        "use_case": "Dutch technical documentation",
-        "download_size": "5.4 GB"
-    },
-    "geitje-7b-ultra": {
-        "name": "GEITje 7B Ultra",
-        "description": "Dutch-specialized Mistral - conversational",
-        "size_gb": 4.1,
-        "ram_required_gb": 6,
-        "quality_stars": 4,
-        "strengths": ["Dutch-specialized", "Adaptable prompts", "Fast"],
-        "use_case": "Dutch conversational translation",
-        "download_size": "4.1 GB"
-    },
-    "stablelm2:12b": {
-        "name": "StableLM 2 12B",
-        "description": "Multilingual training including Dutch",
-        "size_gb": 7.3,
-        "ram_required_gb": 10,
-        "quality_stars": 4,
-        "strengths": ["Multilingual", "Stable output", "Good for summaries"],
-        "use_case": "General multilingual tasks",
-        "download_size": "7.3 GB"
-    }
 }
 
 
@@ -312,9 +256,9 @@ def detect_system_specs() -> Dict:
         'gpu_name': None,
         'gpu_vram_gb': None,
         'os_name': platform.system(),
-        'recommended_model': 'qwen2.5:7b'
+        'recommended_model': 'translategemma:12b'
     }
-    
+
     # Detect RAM
     try:
         import psutil
@@ -326,7 +270,7 @@ def detect_system_specs() -> Dict:
                 import ctypes
                 kernel32 = ctypes.windll.kernel32
                 c_ulonglong = ctypes.c_ulonglong
-                
+
                 class MEMORYSTATUSEX(ctypes.Structure):
                     _fields_ = [
                         ('dwLength', ctypes.c_ulong),
@@ -339,14 +283,14 @@ def detect_system_specs() -> Dict:
                         ('ullAvailVirtual', c_ulonglong),
                         ('ullAvailExtendedVirtual', c_ulonglong),
                     ]
-                
+
                 stat = MEMORYSTATUSEX()
                 stat.dwLength = ctypes.sizeof(stat)
                 kernel32.GlobalMemoryStatusEx(ctypes.byref(stat))
                 specs['ram_gb'] = round(stat.ullTotalPhys / (1024**3), 1)
             except:
                 pass
-    
+
     # Detect GPU (basic detection)
     try:
         if platform.system() == 'Windows':
@@ -367,20 +311,21 @@ def detect_system_specs() -> Dict:
                         pass
     except:
         pass
-    
+
     # Recommend model based on RAM
+    # TranslateGemma is preferred for translation; fall back to smaller general models
     ram = specs['ram_gb']
-    if ram >= 16:
-        specs['recommended_model'] = 'qwen2.5:14b'
-    elif ram >= 10:
-        specs['recommended_model'] = 'gemma2:9b'
-    elif ram >= 8:
-        specs['recommended_model'] = 'qwen2.5:7b'
+    if ram >= 24:
+        specs['recommended_model'] = 'translategemma:27b'
+    elif ram >= 12:
+        specs['recommended_model'] = 'translategemma:12b'
+    elif ram >= 6:
+        specs['recommended_model'] = 'translategemma:4b'
     elif ram >= 4:
-        specs['recommended_model'] = 'qwen2.5:3b'
+        specs['recommended_model'] = 'qwen3:4b'
     else:
-        specs['recommended_model'] = 'llama3.2:3b'
-    
+        specs['recommended_model'] = 'qwen3:4b'
+
     return specs
 
 

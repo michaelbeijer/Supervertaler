@@ -8625,7 +8625,7 @@ class SupervertalerQt(QMainWindow):
                 if settings.get('provider') != 'ollama':
                     return
                 
-                model = settings.get('ollama_model', 'qwen2.5:7b')
+                model = settings.get('ollama_model', 'translategemma:12b')
                 endpoint = "http://localhost:11434"
                 
                 # Send minimal request to keep model warm
@@ -21417,7 +21417,7 @@ class SupervertalerQt(QMainWindow):
             provider = 'openai'  # Default fallback
         
         # Get Ollama model from widget if available
-        ollama_model = 'qwen2.5:7b'  # Default
+        ollama_model = 'translategemma:12b'  # Default
         if ollama_status_widget and hasattr(ollama_status_widget, 'get_selected_model'):
             selected = ollama_status_widget.get_selected_model()
             if selected:
@@ -21495,7 +21495,7 @@ class SupervertalerQt(QMainWindow):
             provider = 'openai'  # Default fallback
 
         # Get Ollama model from widget if available
-        ollama_model = 'qwen2.5:7b'  # Default
+        ollama_model = 'translategemma:12b'  # Default
         if ollama_status_widget and hasattr(ollama_status_widget, 'get_selected_model'):
             selected = ollama_status_widget.get_selected_model()
             if selected:
@@ -35560,20 +35560,16 @@ class SupervertalerQt(QMainWindow):
             return
         self._last_selected_row = current_row
 
-        # ⚡ FILTER MODE: Skip heavy TM/MT/LLM lookups when text filters are active
-        # User is quickly navigating through filtered results - don't slow them down
-        # But still update glossary highlights and TermView from cache (cheap, from cache)
-        is_filtering = getattr(self, 'filtering_active', False)
-        if is_filtering:
-            self._on_cell_selected_minimal(current_row, previous_row)
-            self._on_cell_selected_glossary_only(current_row)
-            return
-
         # ⚡ FAST PATH: Defer heavy lookups for ALL navigation (arrow keys, Ctrl+Enter, AND mouse clicks)
         # This makes segment navigation feel INSTANT - cursor moves first, lookups happen after
         # Reset any navigation flags
         self._arrow_key_navigation = False
         self._ctrl_enter_navigation = False
+
+        # In filtered mode, use a longer debounce so rapid navigation stays snappy
+        # but settling on a segment still triggers TM/MT/LLM lookups
+        is_filtering = getattr(self, 'filtering_active', False)
+        debounce_ms = 250 if is_filtering else 10
 
         # Schedule deferred lookup with short delay - debounce prevents hammering during rapid navigation
         if hasattr(self, '_deferred_lookup_timer') and self._deferred_lookup_timer:
@@ -35585,10 +35581,14 @@ class SupervertalerQt(QMainWindow):
             lambda r=current_row, c=current_col, pr=previous_row, pc=previous_col:
             self._on_cell_selected_full(r, c, pr, pc)
         )
-        self._deferred_lookup_timer.start(10)  # 10ms - just enough to batch rapid arrow key holding
+        self._deferred_lookup_timer.start(debounce_ms)
 
         # Do minimal UI update immediately (orange highlight, scroll)
         self._on_cell_selected_minimal(current_row, previous_row)
+
+        # In filtered mode, also update glossary highlights from cache (cheap)
+        if is_filtering:
+            self._on_cell_selected_glossary_only(current_row)
     
     def _center_row_in_viewport(self, row: int):
         """Center the given row vertically in the visible table viewport.
@@ -44792,7 +44792,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             'openai_model': 'gpt-4o',
             'claude_model': 'claude-sonnet-4-6',
             'gemini_model': 'gemini-2.5-flash',
-            'ollama_model': 'qwen2.5:7b',
+            'ollama_model': 'translategemma:12b',
             'custom_openai_model': '',
             'custom_openai_endpoint': '',
             'custom_openai_profiles': [],
