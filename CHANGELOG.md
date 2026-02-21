@@ -2,8 +2,16 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.298 (February 21, 2026)
+**Current Version:** v1.9.299 (February 21, 2026)
 
+
+## v1.9.299 - February 21, 2026
+
+### Bug Fixes
+
+- **Fixed: TM fuzzy matching misses segments that differ only by an inline line break** — Trados Studio and memoQ sometimes embed a heading or label as a line break within a segment (e.g. `"Door stops↵\nIf it is necessary to use a door stop…"`). When this multi-line segment was compared against the single-line body text stored in the TM (`"If it is necessary…"`), `SequenceMatcher` treated the `\n` characters as literal content differences, significantly lowering the similarity score and causing matches to fall below the 75% threshold. Fixed by normalising line breaks to spaces in `calculate_similarity()` before computing the ratio, consistent with the existing behaviour of `_normalize_for_matching()` used for exact matching.
+
+---
 
 ## v1.9.298 - February 21, 2026
 

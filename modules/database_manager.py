@@ -1267,7 +1267,9 @@ class DatabaseManager:
     def calculate_similarity(self, text1: str, text2: str) -> float:
         """
         Calculate similarity ratio between two texts using SequenceMatcher.
-        Tags are stripped before comparison for better matching accuracy.
+        Tags and line breaks are normalised before comparison so that segments
+        that differ only by an inline line break (e.g. a Trados <lb/> heading
+        prefix like "Door stops↵\n") still score well against the body text.
 
         Returns: Similarity score from 0.0 to 1.0
         """
@@ -1275,6 +1277,12 @@ class DatabaseManager:
         # Strip HTML/XML tags for comparison
         clean1 = re.sub(r'<[^>]+>', '', text1).lower()
         clean2 = re.sub(r'<[^>]+>', '', text2).lower()
+        # Normalise line breaks and surrounding whitespace to a single space,
+        # matching the behaviour of _normalize_for_matching() used for exact match.
+        # This prevents segments that differ only by a heading line or an inline
+        # line break from scoring very low in fuzzy matching.
+        clean1 = re.sub(r'\s*\n\s*', ' ', clean1).strip()
+        clean2 = re.sub(r'\s*\n\s*', ' ', clean2).strip()
         return SequenceMatcher(None, clean1, clean2).ratio()
 
     def search_fuzzy_matches(self, source: str, tm_ids: List[str] = None,
