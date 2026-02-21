@@ -2,8 +2,25 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.294 (February 20, 2026)
+**Current Version:** v1.9.296 (February 21, 2026)
 
+
+## v1.9.296 - February 21, 2026
+
+### Improvements
+
+- **Show Invisibles: line break marker changed from ¶ to ↵** — The pilcrow (¶) conventionally denotes a paragraph end; the correct symbol for a soft return / inline line break (as used by Trados Studio, Word, and most CAT tools) is ↵ (U+21B5). Updated the display marker, menu label ("Line Breaks (↵)"), highlighter, word-delimiter sets, and all reverse-stripping logic. Legacy ¶ markers are still stripped on load for backwards compatibility with any files saved by earlier versions.
+
+---
+
+## v1.9.295 - February 21, 2026
+
+### Bug Fixes
+
+- **Fixed: Batch translation drops line breaks in multi-line segments** — When Trados Studio (or memoQ) stores multiple lines within a single segment (e.g. a list of door specs), the batch translator was silently discarding all lines after the first. Root cause: the response parser split the LLM output on `\n` and only kept lines matching `^\d+\.` — continuation lines without a leading number were thrown away. Fixed with a state-machine parser that appends un-numbered lines to the translation of the most recently matched numbered segment, preserving all internal line breaks. The batch prompt instructions were also updated to explicitly tell the LLM to preserve source line breaks (previously the instructions said "do NOT split into multiple lines", which discouraged preservation of legitimate breaks).
+- **Fixed: Show Invisibles pilcrow (¶) not shown immediately after Shift+Enter** — Pressing Shift+Enter to insert a line break while "Line Breaks (¶)" was active in Show Invisibles would insert a raw `\n` into the cell without the pilcrow marker. The marker only appeared after toggling Show Invisibles off and back on. Fixed: `on_target_text_changed` now re-applies invisible markers to the widget display whenever the markers-applied form differs from the current widget text, preserving cursor position by mapping through the clean (marker-free) text.
+
+---
 
 ## v1.9.294 - February 20, 2026
 

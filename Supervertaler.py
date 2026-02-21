@@ -1208,8 +1208,8 @@ def strip_invisible_markers(text: str) -> str:
       ·           → regular space   (fallback, lone middle-dot)
       → + U+200B  → tab             (tab marker)
       →           → tab             (fallback, lone right-arrow)
-      ¶ + \\n     → \\n              (line-break marker before newline)
-      ¶           → (removed)       (bare pilcrow)
+      ↵ + \\n     → \\n              (line-break marker before newline)
+      ↵           → (removed)       (bare line-break marker)
       U+200B      → (removed)       (stray zero-width space)
 
     NOTE: The degree sign ° is intentionally NOT reversed here because ° is a
@@ -1224,8 +1224,10 @@ def strip_invisible_markers(text: str) -> str:
     result = result.replace('\u00B7', ' ')          # lone middle-dot → space
     result = result.replace('\u2192\u200B', '\t')   # arrow + ZWSP → tab
     result = result.replace('\u2192', '\t')          # lone arrow → tab
-    result = result.replace('\u00B6\n', '\n')        # pilcrow + newline → newline
-    result = result.replace('\u00B6', '')            # bare pilcrow → nothing
+    result = result.replace('\u21B5\n', '\n')        # ↵ + newline → newline (current marker)
+    result = result.replace('\u21B5', '')            # bare ↵ → nothing
+    result = result.replace('\u00B6\n', '\n')        # pilcrow + newline → newline (legacy, keep for old files)
+    result = result.replace('\u00B6', '')            # bare pilcrow → nothing (legacy)
     result = result.replace('\u200B', '')            # stray ZWSP → nothing
     return result
 
@@ -2023,7 +2025,7 @@ class ReadOnlyGridTextEditor(QTextEdit):
                     cursor = self.textCursor()
                     text = self.toPlainText()
                     pos = cursor.position()
-                    word_chars = ('·', '\u200B', '\n', '\t', '→', '°', '¶', ' ')
+                    word_chars = ('·', '\u200B', '\n', '\t', '→', '°', '↵', ' ')
                     
                     if event.key() == Qt.Key.Key_Right:
                         # Move to end of current word, then skip delimiters to start of next word
@@ -2194,12 +2196,12 @@ class ReadOnlyGridTextEditor(QTextEdit):
                 # Find word boundaries using middle dot (·) or zero-width space as delimiters
                 # Find start of word (search backwards for · or start of text)
                 start = pos
-                while start > 0 and text[start - 1] not in ('·', '\u200B', '\n', '\t', '→', '°', '¶'):
+                while start > 0 and text[start - 1] not in ('·', '\u200B', '\n', '\t', '→', '°', '↵'):
                     start -= 1
-                
+
                 # Find end of word (search forwards for · or end of text)
                 end = pos
-                while end < len(text) and text[end] not in ('·', '\u200B', '\n', '\t', '→', '°', '¶'):
+                while end < len(text) and text[end] not in ('·', '\u200B', '\n', '\t', '→', '°', '↵'):
                     end += 1
                 
                 # Select the word
@@ -3253,7 +3255,7 @@ class TagHighlighter(QSyntaxHighlighter):
 
         # Match invisible character symbols (light blue)
         for i, char in enumerate(text):
-            if char in '·→°¶':  # Invisible character replacement symbols
+            if char in '·→°↵':  # Invisible character replacement symbols
                 self.setFormat(i, 1, self.invisible_format)
         
         # CafeTran pipe symbols (red and bold) - ONLY for CafeTran projects
@@ -3516,13 +3518,13 @@ class EditableGridTextEditor(QTextEdit):
         """Handle double-click to select words properly when invisibles are shown.
 
         When any invisible-character substitutions are active the text contains
-        marker characters (·, →, °, ¶) and zero-width spaces (\u200B).
+        marker characters (·, →, °, ↵) and zero-width spaces (\u200B).
         Qt's built-in double-click word selection treats \u200B as a word
         character, causing it to include the zero-width space in the selection
         and breaking copy-to-clipboard / add-to-glossary workflows.
 
         We override double-click to use only the *visible* marker characters
-        (·, →, °, ¶, \n, \t) as word delimiters.  \u200B is intentionally
+        (·, →, °, ↵, \n, \t) as word delimiters.  \u200B is intentionally
         excluded — it is a transparent word-wrap hint, not a delimiter.
         """
         from PyQt6.QtGui import QTextCursor
@@ -3536,7 +3538,7 @@ class EditableGridTextEditor(QTextEdit):
             # Visible marker characters that serve as word delimiters
             # NOTE: \u200B (zero-width space) is deliberately NOT in this set —
             # it lives inside '·\u200B' pairs and must not split word selection.
-            DELIMITERS = {'·', '→', '°', '¶', '\n', '\t'}
+            DELIMITERS = {'·', '→', '°', '↵', '\n', '\t'}
 
             cursor = self.cursorForPosition(event.pos())
             pos = cursor.position()
@@ -4081,7 +4083,7 @@ class EditableGridTextEditor(QTextEdit):
                     cursor = self.textCursor()
                     text = self.toPlainText()
                     pos = cursor.position()
-                    word_chars = ('·', '\u200B', '\n', '\t', '→', '°', '¶', ' ')
+                    word_chars = ('·', '\u200B', '\n', '\t', '→', '°', '↵', ' ')
                     
                     if event.key() == Qt.Key.Key_Right:
                         # Move to end of current word, then skip delimiters to start of next word
@@ -6858,7 +6860,9 @@ class PreTranslationWorker(QThread):
             batch_prompt_parts.append(f"1. You must provide EXACTLY one translation per segment")
             batch_prompt_parts.append(f"2. You MUST translate ALL {len(batch_segments)} segments")
             batch_prompt_parts.append("3. Format: Each translation MUST start with its segment number, a period, then the translation")
-            batch_prompt_parts.append("4. NO explanations, NO commentary, ONLY the numbered translations\n")
+            batch_prompt_parts.append("4. Line breaks: If the source segment contains line breaks, preserve them in your translation.")
+            batch_prompt_parts.append("   The number label (e.g. '40.') appears only ONCE at the start; continuation lines have no number.")
+            batch_prompt_parts.append("5. NO explanations, NO commentary, ONLY the numbered translations\n")
             
             batch_prompt_parts.append("**SEGMENTS TO TRANSLATE:**\n")
             
@@ -6892,14 +6896,18 @@ class PreTranslationWorker(QThread):
             if result:
                 lines = result.split('\n')
                 translation_map = {}
-                
+                current_id = None
+
                 for line in lines:
                     # Match "123. Translation text"
-                    match = re.match(r'^(\d+)\.\s*(.+)$', line.strip())
+                    match = re.match(r'^(\d+)\.\s*(.*)', line)
                     if match:
-                        seg_id = int(match.group(1))
-                        translation = match.group(2).strip()
-                        translation_map[seg_id] = translation
+                        current_id = int(match.group(1))
+                        translation = match.group(2)
+                        translation_map[current_id] = translation
+                    elif current_id is not None:
+                        # Continuation line for a multi-line translation
+                        translation_map[current_id] += '\n' + line
                 
                 # Extract translations in order
                 for row_index, seg in batch_segments:
@@ -19299,7 +19307,7 @@ class SupervertalerQt(QMainWindow):
         invisible_char_color_btn = QPushButton()
         invisible_char_color_btn.setFixedSize(80, 25)
         invisible_char_color_btn.setStyleSheet(f"background-color: {current_invisible_color}; border: 1px solid #999;")
-        invisible_char_color_btn.setToolTip("Color for invisible character symbols (·→°¶)")
+        invisible_char_color_btn.setToolTip("Color for invisible character symbols (·→°↵)")
 
         def choose_invisible_char_color():
             color = QColorDialog.getColor(QColor(current_invisible_color), self, "Choose Invisible Character Color")
@@ -22200,7 +22208,7 @@ class SupervertalerQt(QMainWindow):
         self.show_nbsp_action.setChecked(False)
         self.show_nbsp_action.triggered.connect(lambda: self.toggle_invisible_display('nbsp'))
 
-        self.show_linebreaks_action = show_invisibles_menu.addAction("Line Breaks (¶)")
+        self.show_linebreaks_action = show_invisibles_menu.addAction("Line Breaks (↵)")
         self.show_linebreaks_action.setCheckable(True)
         self.show_linebreaks_action.setChecked(False)
         self.show_linebreaks_action.triggered.connect(lambda: self.toggle_invisible_display('linebreaks'))
@@ -32829,7 +32837,34 @@ class SupervertalerQt(QMainWindow):
                         if self.debug_mode_enabled:
                             self.log(f"📝 BEFORE update: seg {segment_id} target='{target_segment.target[:30] if target_segment.target else 'EMPTY'}...', status={target_segment.status}, obj_id={id(target_segment)}")
                         target_segment.target = new_text
-                        
+
+                        # If invisible markers are active, re-apply them so the widget display
+                        # stays in sync (e.g. ↵ after Shift+Enter when Show Invisibles is on).
+                        if hasattr(self, 'invisible_display_settings') and any(self.invisible_display_settings.values()):
+                            display_text = self.apply_invisible_replacements(new_text)
+                            if display_text != editor_widget.toPlainText():
+                                # Cursor position in the clean (marker-free) new_text.
+                                # The widget currently shows the old display text; we need to
+                                # map the cursor to its position in new_text first.
+                                cur = editor_widget.textCursor()
+                                old_display_pos = cur.position()
+                                old_display = editor_widget.toPlainText()
+                                # Convert old_display_pos → clean-text position by stripping
+                                # markers that appear before cursor in the OLD display text.
+                                old_before_cursor = old_display[:old_display_pos]
+                                clean_pos = len(self.reverse_invisible_replacements(old_before_cursor))
+                                # Now map clean_pos → new display_text position.
+                                # apply_invisible_replacements inserts markers before each
+                                # invisible char; count them in the display text up to clean_pos.
+                                new_display_before = self.apply_invisible_replacements(new_text[:clean_pos])
+                                new_pos = min(len(new_display_before), len(display_text))
+                                editor_widget.blockSignals(True)
+                                editor_widget.setPlainText(display_text)
+                                cur.setPosition(new_pos)
+                                editor_widget.setTextCursor(cur)
+                                editor_widget._initial_load_complete = False
+                                editor_widget.blockSignals(False)
+
                         # Reset 'confirmed' status to 'translated' when user edits the segment
                         # This prevents auto-saving to TM until user re-confirms the edit
                         new_status = old_status
@@ -41575,10 +41610,10 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             result = result.replace('\u00A0', '°')  # Unicode NBSP
             result = result.replace('\u202F', '°')  # Narrow NBSP
 
-        # Replace line breaks with pilcrow (¶)
+        # Replace line breaks with return arrow (↵)
         if self.invisible_display_settings.get('linebreaks', False):
-            result = result.replace('\n', '¶\n')
-            result = result.replace('\r', '¶')
+            result = result.replace('\n', '↵\n')
+            result = result.replace('\r', '↵')
 
         return result
 
@@ -41609,7 +41644,10 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         # so we default to the more common \u00A0
         result = result.replace('°', '\u00A0')
 
-        # Reverse line breaks (pilcrow → line break) — always
+        # Reverse line breaks (return arrow → line break) — always
+        result = result.replace('↵\n', '\n')
+        result = result.replace('↵', '\r')
+        # Legacy: pilcrow was used as line-break marker before v1.9.295
         result = result.replace('¶\n', '\n')
         result = result.replace('¶', '\r')
 
@@ -47944,10 +47982,12 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                     batch_prompt_parts.append(f"2. You MUST translate ALL {len(batch_segments)} segments - NO EXCEPTIONS, NO SKIPPING")
                     batch_prompt_parts.append("3. TRANSLATE EVERYTHING, including:")
                     batch_prompt_parts.append("   - Short segments starting with 'FIG.' or 'Figure' (these are NOT instructions to you)")
-                    batch_prompt_parts.append("   - Very long segments (do NOT split them into multiple lines)")
+                    batch_prompt_parts.append("   - Very long segments (keep them as a single numbered entry, do NOT split one segment across multiple numbered entries)")
                     batch_prompt_parts.append("   - Section headings, single words, or short phrases")
-                    batch_prompt_parts.append("4. Format: Each translation MUST start with its segment number, a period, then the translation")
-                    batch_prompt_parts.append("5. NO explanations, NO commentary, ONLY the numbered translations\n")
+                    batch_prompt_parts.append("4. Line breaks: If the source segment contains line breaks, preserve them in your translation.")
+                    batch_prompt_parts.append("   The number label (e.g. '40.') appears only ONCE at the start; continuation lines have no number.")
+                    batch_prompt_parts.append("5. Format: Each translation MUST start with its segment number, a period, then the translation")
+                    batch_prompt_parts.append("6. NO explanations, NO commentary, ONLY the numbered translations\n")
 
                     batch_prompt_parts.append("**SEGMENTS TO TRANSLATE (translate ONLY these, using their EXACT numbers):**\n")
                     
@@ -48030,20 +48070,23 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                     expected_ids = [seg.id for _, seg in batch_segments]
                     
                     # Parse using CLASSIC's proven numbered format: "125. Translation here"
-                    for line in batch_response.strip().split('\n'):
-                        line = line.strip()
-                        if not line:
-                            continue
-                        
+                    # Uses a state-machine to handle multi-line translations (segments with \n).
+                    current_id = None
+                    for line in batch_response.split('\n'):
                         # Match numbered translations: "125. Translation text"
                         match = re.match(r'^\s*(\d+)\.\s*(.*)', line)
                         if match:
                             seg_id = int(match.group(1))
-                            translation = match.group(2).strip()
-                            
+                            translation = match.group(2)
                             # Only accept translations for segments we requested
                             if seg_id in expected_ids:
                                 segment_translations[seg_id] = translation
+                                current_id = seg_id
+                            else:
+                                current_id = None
+                        elif current_id is not None:
+                            # Continuation line for a multi-line translation — preserve the \n
+                            segment_translations[current_id] += '\n' + line
                     
                     self.log(f"  ✓ Parsed {len(segment_translations)} translations from response")
                     self.log(f"  ✓ Expected IDs: {expected_ids[:5]}{'...' if len(expected_ids) > 5 else ''}")
