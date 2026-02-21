@@ -2215,14 +2215,15 @@ class ReadOnlyGridTextEditor(QTextEdit):
 
     def _handle_quick_add_to_termbase(self):
         """Handle Alt+Left: Quick add selected source and target terms to last-used glossary (no dialog)"""
-        source_text = self.textCursor().selectedText().strip()
+        # Strip invisible markers before saving to glossary
+        source_text = strip_invisible_markers(self.textCursor().selectedText()).strip()
 
         table = self.table_ref if hasattr(self, 'table_ref') and self.table_ref else self.parent()
         target_text = ""
         if table and self.row >= 0:
             target_widget = table.cellWidget(self.row, 3)
             if target_widget and hasattr(target_widget, 'textCursor'):
-                target_text = target_widget.textCursor().selectedText().strip()
+                target_text = strip_invisible_markers(target_widget.textCursor().selectedText()).strip()
 
         if not source_text or not target_text:
             from PyQt6.QtWidgets import QMessageBox
@@ -2630,15 +2631,15 @@ class ReadOnlyGridTextEditor(QTextEdit):
         """Handle Ctrl+E: Add selected source and target terms to glossary (with dialogue)"""
         if not self.table_ref or self.row < 0:
             return
-        
-        # Get source selection (from this widget)
-        source_text = self.textCursor().selectedText().strip()
-        
-        # Get target cell widget and its selection
+
+        # Get source selection (from this widget) — strip invisible markers before saving
+        source_text = strip_invisible_markers(self.textCursor().selectedText()).strip()
+
+        # Get target cell widget and its selection — strip invisible markers before saving
         target_widget = self.table_ref.cellWidget(self.row, 3)
         target_text = ""
         if target_widget and hasattr(target_widget, 'textCursor'):
-            target_text = target_widget.textCursor().selectedText().strip()
+            target_text = strip_invisible_markers(target_widget.textCursor().selectedText()).strip()
         
         # Validate we have both selections
         if not source_text or not target_text:
@@ -2668,14 +2669,14 @@ class ReadOnlyGridTextEditor(QTextEdit):
         if not self.table_ref or self.row < 0:
             return
 
-        # Get source selection (from this widget)
-        source_text = self.textCursor().selectedText().strip()
+        # Get source selection (from this widget) — strip invisible markers before saving
+        source_text = strip_invisible_markers(self.textCursor().selectedText()).strip()
 
-        # Get target cell widget and its selection
+        # Get target cell widget and its selection — strip invisible markers before saving
         target_widget = self.table_ref.cellWidget(self.row, 3)
         target_text = ""
         if target_widget and hasattr(target_widget, 'textCursor'):
-            target_text = target_widget.textCursor().selectedText().strip()
+            target_text = strip_invisible_markers(target_widget.textCursor().selectedText()).strip()
 
         # Validate we have both selections
         if not source_text or not target_text:
@@ -2701,12 +2702,13 @@ class ReadOnlyGridTextEditor(QTextEdit):
         if not self.table_ref or self.row < 0:
             return
 
-        source_text = self.textCursor().selectedText().strip()
+        # Strip invisible markers before saving to glossary
+        source_text = strip_invisible_markers(self.textCursor().selectedText()).strip()
 
         target_widget = self.table_ref.cellWidget(self.row, 3)
         target_text = ""
         if target_widget and hasattr(target_widget, 'textCursor'):
-            target_text = target_widget.textCursor().selectedText().strip()
+            target_text = strip_invisible_markers(target_widget.textCursor().selectedText()).strip()
 
         if not source_text or not target_text:
             from PyQt6.QtWidgets import QMessageBox
@@ -14019,18 +14021,18 @@ class SupervertalerQt(QMainWindow):
             self.statusBar().showMessage("No segment selected", 3000)
             return
         
-        # Get source selection
+        # Get source selection — strip invisible markers before saving
         source_widget = self.table.cellWidget(current_row, 2)
         source_text = ""
         if source_widget and hasattr(source_widget, 'textCursor'):
-            source_text = source_widget.textCursor().selectedText().strip()
-        
-        # Get target selection
+            source_text = self.reverse_invisible_replacements(source_widget.textCursor().selectedText()).strip()
+
+        # Get target selection — strip invisible markers before saving
         target_widget = self.table.cellWidget(current_row, 3)
         target_text = ""
         if target_widget and hasattr(target_widget, 'textCursor'):
-            target_text = target_widget.textCursor().selectedText().strip()
-        
+            target_text = self.reverse_invisible_replacements(target_widget.textCursor().selectedText()).strip()
+
         # Validate selections
         if not source_text or not target_text:
             self.statusBar().showMessage("Select text in both Source and Target cells first", 3000)

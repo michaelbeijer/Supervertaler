@@ -2,8 +2,16 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.296 (February 21, 2026)
+**Current Version:** v1.9.297 (February 21, 2026)
 
+
+## v1.9.297 - February 21, 2026
+
+### Bug Fixes
+
+- **Fixed: invisible markers saved into glossary terms when Show Invisibles is active** — When "Show Invisibles" was enabled (e.g. Spaces showing as `·`), selecting text to add to the termbase would include the display markers in the saved term (e.g. `Door·closers` instead of `Door closers`). The marker-containing term would not match the clean segment text during lookup, so the term appeared to be missing from TermView. Fixed by applying `strip_invisible_markers()` (or `reverse_invisible_replacements()`) to all `selectedText()` calls in the six add-to-glossary code paths: `_handle_add_to_termbase` (Ctrl+E), `_handle_quick_add_to_termbase` (Ctrl+Q / Alt+Left) on both `GridTextEditor` and `EditableGridTextEditor`, and `_quick_add_term_with_priority` (Alt+Up/Down).
+
+---
 
 ## v1.9.296 - February 21, 2026
 
