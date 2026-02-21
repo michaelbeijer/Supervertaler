@@ -43,6 +43,20 @@ A curated list of translation tools and AI-powered assistants that offer similar
   - CAT tool integration
 - **Open Source:** ❌
 
+### GT4T
+- **Website:** [gt4t.ai](https://gt4t.ai/)
+- **Type:** Desktop application (Windows, Mac)
+- **Description:** Lightweight translation assistant that works system-wide inside any application. Select text and press a global hotkey (Ctrl+J / Cmd+J) to get MT suggestions in a small popup; press a number to insert. Supports 29+ MT engines. Also does batch file translation (DOCX, XLIFF, SDLXLIFF, subtitles, etc.) locally without uploading to servers. Has been popular with translators since ~2009. *Supervertaler QuickTrans is inspired by this workflow.*
+- **Key Features:**
+  - Global hotkey popup (Ctrl+J) — works inside any app including CAT tools
+  - 29+ MT engines: Google, DeepL, Microsoft, Yandex, Baidu, Papago, and more
+  - Batch file translation with drag-and-drop (no file size limit)
+  - Local-first processing — files stay on your machine
+  - Dictionary lookup
+  - Pay-per-use credit model (chars prepaid, no expiry); free tier available
+- **Pricing:** Freemium — free tier + prepaid character credits (pay-as-you-go)
+- **Open Source:** ❌
+
 ### TWAS Suite / TWAS Assistant
 - **Website:** [twas.info](https://twas-all-apps.netlify.app/) 
 - **Type:** Desktop application
@@ -57,20 +71,21 @@ A curated list of translation tools and AI-powered assistants that offer similar
 
 ## 📊 How They Compare
 
-| Feature | Supervertaler | TransAIde | OpenAI Provider | CotranslatorAI | TWAS Suite |
-|---------|---------------|-----------|-----------------|----------------|------------|
-| Multi-LLM Support | ✅ GPT, Claude, Gemini, Ollama | ✅ Any AI model | ❌ (OpenAI only) | ❌ (only GPT) | ❓ |
-| Standalone App | ✅ | ❌ (Trados plugin only) | ❌ (Trados plugin only) | ✅ Web | ✅ Desktop |
-| Local/Offline Mode | ✅ Ollama | ✅ (via any local model) | ❌ | ❌ | ✅ |
-| Trados Integration | ✅ SDLPPX/SDLRPX | ✅ Native plugin | ✅ Native plugin | ✅ | ✅ |
-| memoQ Integration | ✅ | ❌ | ❌ | ✅ | ✅ |
-| CafeTran Integration | ✅ | ❌ | ❌ | ❓ | ✅ |
-| Full Context Translation | ✅ | ✅ (entire documents) | ❌ (segment-by-segment) | ❓ | ❓ |
-| Translation Memory | ✅ SQLite + TMX | ➖ (uses Trados TM) | ➖ (uses Trados TM) | ✅ | ✅ |
-| Terminology Management | ✅ | ➖ (exports from Trados) | ➖ (uses Trados TB) | ✅ | ✅ |
-| Voice Dictation | ✅ Whisper | ❌ | ❌ | ❌ | ❌ |
-| Open Source | ✅ MIT License | ❌ | ❌ | ❌ | ❌ |
-| Free | ✅ | Freemium (500 words) | ✅ (API costs) | Freemium | Paid |
+| Feature | Supervertaler | GT4T | TransAIde | OpenAI Provider | CotranslatorAI | TWAS Suite |
+|---------|---------------|------|-----------|-----------------|----------------|------------|
+| Multi-LLM Support | ✅ GPT, Claude, Gemini, Ollama | ➖ MT engines only (29+) | ✅ Any AI model | ❌ (OpenAI only) | ❌ (only GPT) | ❓ |
+| Global hotkey popup | ✅ QuickTrans (Ctrl+Alt+M) | ✅ Ctrl+J / Cmd+J | ❌ | ❌ | ❌ | ❌ |
+| Standalone App | ✅ | ✅ Desktop | ❌ (Trados plugin only) | ❌ (Trados plugin only) | ✅ Web | ✅ Desktop |
+| Local/Offline Mode | ✅ Ollama | ✅ local-first | ✅ (via any local model) | ❌ | ❌ | ✅ |
+| Trados Integration | ✅ SDLPPX/SDLRPX | ✅ SDLXLIFF batch | ✅ Native plugin | ✅ Native plugin | ✅ | ✅ |
+| memoQ Integration | ✅ | ❌ | ❌ | ❌ | ✅ | ✅ |
+| CafeTran Integration | ✅ | ❌ | ❌ | ❌ | ❓ | ✅ |
+| Full Context Translation | ✅ | ❌ | ✅ (entire documents) | ❌ (segment-by-segment) | ❓ | ❓ |
+| Translation Memory | ✅ SQLite + TMX | ❌ | ➖ (uses Trados TM) | ➖ (uses Trados TM) | ✅ | ✅ |
+| Terminology Management | ✅ | ❌ | ➖ (exports from Trados) | ➖ (uses Trados TB) | ✅ | ✅ |
+| Voice Dictation | ✅ Whisper | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Open Source | ✅ MIT License | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Free | ✅ | Freemium (pay-per-char) | Freemium (500 words) | ✅ (API costs) | Freemium | Paid |
 
 ---
 
