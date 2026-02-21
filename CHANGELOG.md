@@ -2,8 +2,16 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.297 (February 21, 2026)
+**Current Version:** v1.9.298 (February 21, 2026)
 
+
+## v1.9.298 - February 21, 2026
+
+### Improvements
+
+- **Glossaries terms table: all columns now resizable** — Columns Priority, Domain, Notes, Project, Client, and Forbidden were fixed-width and could not be resized by dragging the column header dividers. Changed their resize mode from Fixed to Interactive so all columns except the delete button (col 8) can be resized. Source and Target columns retain their Stretch behaviour and share the remaining space.
+
+---
 
 ## v1.9.297 - February 21, 2026
 

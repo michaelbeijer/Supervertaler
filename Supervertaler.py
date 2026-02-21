@@ -14633,8 +14633,15 @@ class SupervertalerQt(QMainWindow):
         terms_table.setColumnCount(9)
         terms_table.setHorizontalHeaderLabels(["Source Term", "Target Term", "Priority", "Domain", "Notes", "Project", "Client", "Forbidden", ""])
         terms_table.horizontalHeader().setStretchLastSection(False)
-        terms_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)  # Source
-        terms_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)  # Target
+        terms_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)      # Source — fills remaining space
+        terms_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)      # Target — fills remaining space
+        terms_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Interactive)  # Priority
+        terms_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.Interactive)  # Domain
+        terms_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeMode.Interactive)  # Notes
+        terms_table.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeMode.Interactive)  # Project
+        terms_table.horizontalHeader().setSectionResizeMode(6, QHeaderView.ResizeMode.Interactive)  # Client
+        terms_table.horizontalHeader().setSectionResizeMode(7, QHeaderView.ResizeMode.Interactive)  # Forbidden
+        terms_table.horizontalHeader().setSectionResizeMode(8, QHeaderView.ResizeMode.Fixed)        # Delete button
         terms_table.setColumnWidth(2, 60)   # Priority
         terms_table.setColumnWidth(3, 100)  # Domain
         terms_table.setColumnWidth(4, 120)  # Notes
