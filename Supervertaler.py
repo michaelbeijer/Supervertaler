@@ -33229,10 +33229,18 @@ class SupervertalerQt(QMainWindow):
         if tm_source_text and current_source:
             self._set_compare_panel_text_with_diff(self.match_panel_tm_source, current_source, tm_source_text)
         else:
-            self.match_panel_tm_source.setPlainText(tm_source_text or "(No TM match)")
+            # Apply invisible replacements for display (e.g. ↵ for line breaks)
+            tm_src_display = tm_source_text or "(No TM match)"
+            if tm_source_text and hasattr(self, 'apply_invisible_replacements'):
+                tm_src_display = self.apply_invisible_replacements(tm_src_display)
+            self.match_panel_tm_source.setPlainText(tm_src_display)
 
         # Update TM Target text (no diff highlighting needed for target)
-        self.match_panel_tm_target.setPlainText(target_text if target_text else "")
+        # Apply invisible replacements (e.g. ↵ for line breaks) for display
+        target_display = target_text if target_text else ""
+        if target_display and hasattr(self, 'apply_invisible_replacements'):
+            target_display = self.apply_invisible_replacements(target_display)
+        self.match_panel_tm_target.setPlainText(target_display)
 
         # Update metadata label (TM name, percentage)
         if hasattr(self, 'match_panel_tm_target_label') and self.match_panel_tm_target_label:
@@ -33718,10 +33726,17 @@ class SupervertalerQt(QMainWindow):
         if tm_source and current_source:
             self._set_compare_panel_text_with_diff(self.compare_panel_tm_source, current_source, tm_source)
         else:
-            self.compare_panel_tm_source.setPlainText(tm_source or "(No TM match)")
+            # Apply invisible replacements for display (e.g. ↵ for line breaks)
+            cp_src_display = tm_source or "(No TM match)"
+            if tm_source and hasattr(self, 'apply_invisible_replacements'):
+                cp_src_display = self.apply_invisible_replacements(cp_src_display)
+            self.compare_panel_tm_source.setPlainText(cp_src_display)
         
-        # Update TM Target
-        self.compare_panel_tm_target.setPlainText(match.get('target', ''))
+        # Update TM Target (apply invisible replacements for display, e.g. ↵ for line breaks)
+        tm_target_text = match.get('target', '')
+        if tm_target_text and hasattr(self, 'apply_invisible_replacements'):
+            tm_target_text = self.apply_invisible_replacements(tm_target_text)
+        self.compare_panel_tm_target.setPlainText(tm_target_text)
     
     def set_compare_panel_matches(self, segment_id: int, current_source: str, 
                                    tm_matches: list = None, mt_matches: list = None):
@@ -33793,61 +33808,90 @@ class SupervertalerQt(QMainWindow):
         - Normal text: identical to current
         - Red underline: text added in current (insertion)
         - Red strikethrough: text removed from TM (deletion)
-        
+
         This displays the TM source annotated with tracked changes.
+        Newline characters (\n) are preserved as actual line breaks in the display.
         """
         import difflib
-        
+        import re
+
         text_edit.clear()
         cursor = text_edit.textCursor()
-        
+
         # Create formatters - memoQ track changes style
         normal_format = QTextCharFormat()
-        
+
         # Red strikethrough for deletions (text in TM but not in current)
         delete_format = QTextCharFormat()
         delete_format.setForeground(QColor("#cc0000"))  # Red text
         delete_format.setFontStrikeOut(True)
-        
+
         # Red underline for insertions (text in current but not in TM)
         add_format = QTextCharFormat()
         add_format.setForeground(QColor("#cc0000"))  # Red text
         add_format.setFontUnderline(True)
-        
-        # Use SequenceMatcher at word level for better readability
-        current_words = current.split()
-        tm_words = tm_source.split()
-        
+
+        # Tokenize preserving \n as explicit tokens so they survive the diff
+        def tokenize(text):
+            """Split text into words while preserving \\n as separate tokens."""
+            tokens = []
+            # Split on \n first, keeping \n as tokens
+            parts = re.split(r'(\n)', text)
+            for part in parts:
+                if part == '\n':
+                    tokens.append('\n')
+                elif part:
+                    tokens.extend(part.split())
+            return tokens
+
+        current_words = tokenize(current)
+        tm_words = tokenize(tm_source)
+
         matcher = difflib.SequenceMatcher(None, current_words, tm_words)
-        
-        result_parts = []
+
+        result_parts = []  # list of (type, token_list) tuples
         for tag, i1, i2, j1, j2 in matcher.get_opcodes():
             if tag == 'equal':
-                # Same in both - show normally
-                result_parts.append(('normal', ' '.join(tm_words[j1:j2])))
+                result_parts.append(('normal', tm_words[j1:j2]))
             elif tag == 'replace':
-                # Different text - show TM version strikethrough, then current version underlined
-                result_parts.append(('delete', ' '.join(tm_words[j1:j2])))
-                result_parts.append(('add', ' '.join(current_words[i1:i2])))
+                result_parts.append(('delete', tm_words[j1:j2]))
+                result_parts.append(('add', current_words[i1:i2]))
             elif tag == 'insert':
-                # Text in TM but not in current - strikethrough (it was "deleted" from current's perspective)
-                result_parts.append(('delete', ' '.join(tm_words[j1:j2])))
+                # Text in TM but not in current - strikethrough
+                result_parts.append(('delete', tm_words[j1:j2]))
             elif tag == 'delete':
-                # Text in current but not in TM - underline (it was "inserted" in current)
-                result_parts.append(('add', ' '.join(current_words[i1:i2])))
-        
+                # Text in current but not in TM - underline
+                result_parts.append(('add', current_words[i1:i2]))
+
+        # Helper to insert tokens, using insertBlock() for \n
+        def insert_tokens(cursor, tokens, fmt):
+            first = True
+            for token in tokens:
+                if token == '\n':
+                    # Show ↵ marker if linebreaks invisibles are enabled
+                    if hasattr(self, 'invisible_display_settings') and self.invisible_display_settings.get('linebreaks', False):
+                        cursor.insertText('↵', fmt)
+                    cursor.insertBlock()
+                    first = True  # no leading space after newline
+                else:
+                    if not first:
+                        cursor.insertText(' ', fmt)
+                    cursor.insertText(token, fmt)
+                    first = False
+
         # Render the parts with proper spacing
-        for i, (part_type, text) in enumerate(result_parts):
-            if i > 0:
-                cursor.insertText(' ', normal_format)  # Space between parts
-            
-            if part_type == 'normal':
-                cursor.insertText(text, normal_format)
-            elif part_type == 'delete':
-                cursor.insertText(text, delete_format)
-            elif part_type == 'add':
-                cursor.insertText(text, add_format)
-        
+        need_space = False  # track whether we need a space before next non-newline token
+        for part_type, tokens in result_parts:
+            if not tokens:
+                continue
+            fmt = normal_format if part_type == 'normal' else (delete_format if part_type == 'delete' else add_format)
+            # Add space between parts (unless after a newline or at start)
+            if need_space and tokens[0] != '\n':
+                cursor.insertText(' ', normal_format)
+            insert_tokens(cursor, tokens, fmt)
+            # After rendering, check if last token was a newline
+            need_space = tokens[-1] != '\n'
+
         text_edit.setTextCursor(cursor)
     
     def _refresh_compare_panel_theme(self):
@@ -41812,6 +41856,13 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
 
         # Resize rows since space→middle-dot substitution changes text width
         self.auto_resize_rows()
+
+        # Refresh Match Panel TM panes so ↵ markers appear/disappear with toggling
+        if hasattr(self, 'match_panel_tm_matches') and self.match_panel_tm_matches:
+            try:
+                self._update_match_panel_tm_display()
+            except Exception:
+                pass
 
     def _refresh_source_column_display(self):
         """Refresh grid to reflect hide_outer_wrapping_tags setting.

@@ -2,8 +2,16 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.303 (February 22, 2026)
+**Current Version:** v1.9.304 (February 22, 2026)
 
+
+## v1.9.304 - February 22, 2026
+
+### Bug Fixes
+
+- **Fixed: line breaks not visible in TM Source / TM Target panes** — When a TM entry contained line breaks (`\n`), the Match Panel's TM Source pane collapsed them into spaces because the diff-highlighting tokeniser used `.split()` which strips newlines, then `.join(' ')` which replaced them with spaces. Rewrote the tokeniser with `re.split(r'(\n)', text)` to preserve `\n` as explicit tokens; the renderer now calls `cursor.insertBlock()` for newline tokens and optionally shows the ↵ marker when Show Invisibles line breaks are enabled. The TM Target pane and all fallback paths now also apply `apply_invisible_replacements()` so ↵ markers are shown consistently. Toggling Show Invisibles now also refreshes the Match Panel TM display in real time.
+
+---
 
 ## v1.9.303 - February 22, 2026
 
