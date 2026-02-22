@@ -51225,7 +51225,7 @@ class SuperlookupTab(QWidget):
                 'name': 'Beijerterm',
                 'icon': '📚',
                 'description': 'Dutch-English terminology database (500k+ terms)',
-                'url_template': 'https://beijerterm.com/?q={query}',
+                'url_template': 'https://beijerterm.com/w/index.php?search={query}',
                 'lang_format': None,
                 'bidirectional': True,
             },
@@ -51325,19 +51325,33 @@ class SuperlookupTab(QWidget):
             }
         """)
         sidebar_layout = QVBoxLayout(sidebar)
-        sidebar_layout.setContentsMargins(5, 10, 5, 10)
+        sidebar_layout.setContentsMargins(5, 5, 5, 5)
         sidebar_layout.setSpacing(2)
-        
+
         # Sidebar header
         sidebar_header = QLabel("🌐 Resources")
         sidebar_header.setStyleSheet("font-weight: bold; font-size: 10pt; padding: 5px; color: #1976D2;")
         sidebar_layout.addWidget(sidebar_header)
-        
+
+        # Scrollable area for resource buttons — ensures all resources are
+        # accessible even on smaller screens / when the panel is short.
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll_area.setFrameShape(QFrame.Shape.NoFrame)
+        scroll_area.setStyleSheet("QScrollArea { background: transparent; border: none; }")
+
+        scroll_content = QWidget()
+        scroll_content.setStyleSheet("background: transparent;")
+        scroll_layout = QVBoxLayout(scroll_content)
+        scroll_layout.setContentsMargins(0, 0, 0, 0)
+        scroll_layout.setSpacing(2)
+
         # Resource buttons list
         self.web_resource_buttons = []
         self.web_resource_button_group = QButtonGroup(self)
         self.web_resource_button_group.setExclusive(True)
-        
+
         for i, resource in enumerate(self.web_resources):
             btn = QPushButton(f"{resource['icon']} {resource['name']}")
             btn.setCheckable(True)
@@ -51345,7 +51359,7 @@ class SuperlookupTab(QWidget):
             btn.setStyleSheet("""
                 QPushButton {
                     text-align: left;
-                    padding: 8px 10px;
+                    padding: 5px 8px;
                     border: none;
                     border-radius: 4px;
                     background-color: transparent;
@@ -51368,9 +51382,11 @@ class SuperlookupTab(QWidget):
             btn.clicked.connect(lambda checked, idx=i: self._on_web_resource_selected(idx))
             self.web_resource_button_group.addButton(btn, i)
             self.web_resource_buttons.append(btn)
-            sidebar_layout.addWidget(btn)
-        
-        sidebar_layout.addStretch()
+            scroll_layout.addWidget(btn)
+
+        scroll_layout.addStretch()
+        scroll_area.setWidget(scroll_content)
+        sidebar_layout.addWidget(scroll_area, stretch=1)
         
         # "Search All" button - pre-loads all resources
         search_all_btn = QPushButton("🔎 Search All")
@@ -52198,7 +52214,7 @@ class SuperlookupTab(QWidget):
             ('📖 Wikipedia (Source)', 'Wikipedia in source language'),
             ('📖 Wikipedia (Target)', 'Wikipedia in target language'),
             ('⚖️ Juremy', 'Legal terminology database'),
-            ('📚 michaelbeijer.co.uk', 'Personal terminology wiki'),
+            ('📚 Beijerterm', 'Dutch-English terminology database (500k+ terms)'),
             ('🔤 AcronymFinder', 'Acronym and abbreviation dictionary'),
             ('🌐 BabelNet', 'Multilingual encyclopedic dictionary'),
             ('📓 Wiktionary (Source)', 'Wiktionary in source language'),

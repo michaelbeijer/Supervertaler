@@ -2,8 +2,17 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.308 (February 22, 2026)
+**Current Version:** v1.9.309 (February 22, 2026)
 
+
+## v1.9.309 - February 22, 2026
+
+### Improvements
+
+- **Web Resources sidebar is now scrollable** — The resource list in the Superlookup Web Resources tab is now wrapped in a scroll area, so all resources remain accessible on smaller screens or when the panel height is limited. Button padding was also tightened to fit more items in view.
+- **Updated Beijerterm search URL** — The Beijerterm web resource now uses the MediaWiki full-text search URL (`/w/index.php?search=…`) instead of the old homepage query parameter. Settings label updated from "michaelbeijer.co.uk" to "Beijerterm".
+
+---
 
 ## v1.9.308 - February 22, 2026
 
