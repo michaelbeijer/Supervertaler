@@ -2,8 +2,21 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.305 (February 22, 2026)
+**Current Version:** v1.9.306 (February 22, 2026)
 
+
+## v1.9.306 - February 22, 2026
+
+### Bug Fixes
+
+- **Fixed: glossary/termbase matching broken when Show Invisibles is active** — Multi-word glossary terms like "hinge load" failed to match when invisible space markers (`·\u200B`) were active, because several code paths passed display text (containing markers) instead of clean `segment.source` to the matching functions. Added defensive `reverse_invisible_replacements()` guards in `find_termbase_matches_in_source()` and `_update_both_termviews()` to ensure the termbase search and Termview tokenizer always receive clean text regardless of the source.
+- **Fixed: Ctrl+Shift+F filter searches for marker-containing text** — When selecting text in the grid with Show Invisibles active (e.g. "Wall·soffits") and pressing Ctrl+Shift+F, the filter searched for the marker-containing text instead of "Wall soffits". Added `reverse_invisible_replacements()` to strip markers before using selected text as filter criteria.
+- **Fixed: source cell termbase highlighting with invisible markers** — The `highlight_termbase_matches()` method in `ReadOnlyGridTextEditor` searched for clean glossary terms in display text containing invisible markers. Rewrote to build a clean-text-to-display-text position mapping so term positions are found in clean text and then mapped back to display positions for cursor highlighting.
+- **Fixed: Copy Source to Target wrote invisible markers into segment data** — The "Copy Source to Target" functions (both menu and Ctrl+Shift+S keyboard shortcut) read from `source_widget.toPlainText()` which included invisible character markers (·, →, °, ↵, \u200B), corrupting `segment.target`. Fixed to use clean `segment.source` instead.
+- **Fixed: QuickTrans (Ctrl+M) sent invisible markers to MT providers** — The QuickTrans fallback path read source text from the widget display instead of clean segment data. Fixed to use `segment.source` and strip any markers from selected text before sending to translation APIs.
+- **Fixed: various toPlainText() data contamination paths** — Several code paths that saved widget display text back to segment data or export files could include invisible markers. Added `reverse_invisible_replacements()` guards to match insertion, term extraction, and Trados bilingual export paths.
+
+---
 
 ## v1.9.305 - February 22, 2026
 

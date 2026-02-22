@@ -2317,7 +2317,20 @@ class ReadOnlyGridTextEditor(QTextEdit):
 
         # Get the document and create a cursor
         doc = self.document()
-        text = self.toPlainText()
+        display_text = self.toPlainText()
+
+        # Build a mapping from clean-text positions to display-text positions
+        # so term searches work even when invisible markers (·, →, °, ↵, \u200B) are present.
+        MARKER_CHARS = frozenset('·→°↵\u200B')
+        clean_chars = []
+        clean_to_display = []  # clean_to_display[i] = display position of clean char i
+        for di, ch in enumerate(display_text):
+            if ch not in MARKER_CHARS:
+                clean_to_display.append(di)
+                clean_chars.append(ch)
+        # Sentinel for end-of-text mapping
+        clean_to_display.append(len(display_text))
+        text = ''.join(clean_chars)
         text_lower = text.lower()
         
         # IMPORTANT: Always clear all previous formatting first to prevent inconsistent highlighting
@@ -2408,10 +2421,14 @@ class ReadOnlyGridTextEditor(QTextEdit):
                 skip = exact_duplicate or (hide_shorter and overlaps)
 
                 if not skip:
-                    # Create cursor for this position
+                    # Map clean-text positions back to display-text positions
+                    display_start = clean_to_display[idx]
+                    display_end = clean_to_display[end_idx]
+
+                    # Create cursor for this position (using display positions)
                     cursor = QTextCursor(doc)
-                    cursor.setPosition(idx)
-                    cursor.setPosition(end_idx, QTextCursor.MoveMode.KeepAnchor)
+                    cursor.setPosition(display_start)
+                    cursor.setPosition(display_end, QTextCursor.MoveMode.KeepAnchor)
 
                     # Create format based on style
                     fmt = QTextCharFormat()
@@ -8401,12 +8418,21 @@ class SupervertalerQt(QMainWindow):
                         text_to_translate = cursor.selectedText().strip()
 
             if not text_to_translate:
-                # Fall back to full source text
-                source_widget = self.table.cellWidget(current_row, 2)
-                if not source_widget or not hasattr(source_widget, 'toPlainText'):
-                    self.log("⚠️ Could not get source text")
-                    return
-                text_to_translate = source_widget.toPlainText().strip()
+                # Fall back to full source text — use clean segment.source to avoid
+                # invisible markers (·, →, °, ↵) being sent to MT providers
+                if current_row >= 0 and current_row < len(self.current_project.segments):
+                    text_to_translate = self.current_project.segments[current_row].source.strip()
+                else:
+                    source_widget = self.table.cellWidget(current_row, 2)
+                    if not source_widget or not hasattr(source_widget, 'toPlainText'):
+                        self.log("⚠️ Could not get source text")
+                        return
+                    text_to_translate = source_widget.toPlainText().strip()
+
+            # v1.9.306: Strip any invisible character markers from text before translation
+            if hasattr(self, 'reverse_invisible_replacements'):
+                text_to_translate = self.reverse_invisible_replacements(text_to_translate)
+                text_to_translate = text_to_translate.strip()
 
             if not text_to_translate:
                 self.log("⚠️ No text to translate")
@@ -8458,7 +8484,11 @@ class SupervertalerQt(QMainWindow):
 
                 # Mark segment as modified
                 if hasattr(self, 'segments') and current_row < len(self.segments):
-                    self.segments[current_row].target = target_widget.toPlainText()
+                    new_target = target_widget.toPlainText()
+                    # v1.9.306: Strip invisible markers before saving to segment data
+                    if hasattr(self, 'reverse_invisible_replacements'):
+                        new_target = self.reverse_invisible_replacements(new_target)
+                    self.segments[current_row].target = new_target
                     self.mark_segment_modified(current_row)
 
             popup.translation_selected.connect(insert_translation)
@@ -13489,6 +13519,11 @@ class SupervertalerQt(QMainWindow):
                          'no_termbases_activated' - no glossaries activated for project
                          'wrong_language' - activated glossaries don't match project language
         """
+        # v1.9.306: Defensive guard — strip invisible character markers from source text
+        # so the Termview tokenizer sees clean text (e.g. "hinge load" not "hinge·\u200Bload")
+        if hasattr(self, 'reverse_invisible_replacements'):
+            source_text = self.reverse_invisible_replacements(source_text)
+
         # Update left Termview (under grid)
         if hasattr(self, 'termview_widget') and self.termview_widget:
             try:
@@ -14406,7 +14441,7 @@ class SupervertalerQt(QMainWindow):
                 # Refresh the source cell highlighting
                 source_widget = self.table.cellWidget(current_row, 2)
                 if source_widget and hasattr(source_widget, 'highlight_termbase_matches'):
-                    source_text = source_widget.toPlainText()
+                    source_text = segment.source  # v1.9.306: use clean segment text, not display text
                     nt_matches = self.find_nt_matches_in_source(source_text)
                     if nt_matches and hasattr(source_widget, 'highlight_non_translatables'):
                         source_widget.highlight_non_translatables(nt_matches)
@@ -15520,6 +15555,9 @@ class SupervertalerQt(QMainWindow):
                     source_widget = self.grid_widget.grid.cellWidget(i, self.grid_widget.source_col)
                     if source_widget:
                         text = source_widget.toPlainText().strip()
+                        # v1.9.306: Strip invisible character markers before term extraction
+                        if hasattr(self, 'reverse_invisible_replacements'):
+                            text = self.reverse_invisible_replacements(text).strip()
                         if text:
                             segments.append(text)
                 
@@ -23886,11 +23924,15 @@ class SupervertalerQt(QMainWindow):
                     cursor.insertText(match_text)
                     
                     # Update the segment data
-                    segment.target = target_widget.toPlainText()
-                    
+                    new_target = target_widget.toPlainText()
+                    # v1.9.306: Strip invisible markers before saving to segment data
+                    if hasattr(self, 'reverse_invisible_replacements'):
+                        new_target = self.reverse_invisible_replacements(new_target)
+                    segment.target = new_target
+
                     # Set focus back to the target editor
                     target_widget.setFocus()
-                    
+
                     self.log(f"✓ Match inserted into segment {segment.id} at cursor position")
                 elif col == 3:
                     # Fallback: If no widget exists, create one or set text directly
@@ -30718,6 +30760,9 @@ class SupervertalerQt(QMainWindow):
                 target_widget = self.table.cellWidget(row, 3)  # Target column
                 if target_widget:
                     target_text = target_widget.toPlainText().strip()
+                    # v1.9.306: Strip invisible markers before export
+                    if hasattr(self, 'reverse_invisible_replacements'):
+                        target_text = self.reverse_invisible_replacements(target_text).strip()
                     if target_text:
                         # Row index in handler is 1-based (row 0 is header)
                         translations[row + 1] = target_text
@@ -37086,23 +37131,23 @@ class SupervertalerQt(QMainWindow):
         for segment in selected_segments:
             row = self._find_row_for_segment(segment.id)
             if row >= 0:
-                # Get source text from source widget
-                source_widget = self.table.cellWidget(row, 2)
-                if source_widget:
-                    source_text = source_widget.toPlainText()
-                    
-                    # Update segment object
-                    segment.target = source_text
-                    
-                    # Update target widget
-                    target_widget = self.table.cellWidget(row, 3)
-                    if target_widget:
-                        target_widget.blockSignals(True)
-                        target_widget.setPlainText(source_text)
-                        target_widget.blockSignals(False)
-                    
-                    copied_count += 1
-        
+                # v1.9.306: Use segment.source (clean text) instead of source widget's display text
+                # which may contain invisible markers (·, →, °, ↵, \u200B)
+                source_text = segment.source
+
+                # Update segment object
+                segment.target = source_text
+
+                # Update target widget with display-formatted text
+                target_widget = self.table.cellWidget(row, 3)
+                if target_widget:
+                    target_display = self.apply_invisible_replacements(source_text) if hasattr(self, 'apply_invisible_replacements') else source_text
+                    target_widget.blockSignals(True)
+                    target_widget.setPlainText(target_display)
+                    target_widget.blockSignals(False)
+
+                copied_count += 1
+
         # Auto-resize rows to fit new content
         self.auto_resize_rows()
         self.update_progress_stats()
@@ -37121,21 +37166,22 @@ class SupervertalerQt(QMainWindow):
         for segment in selected_segments:
             row = self._find_row_for_segment(segment.id)
             if row >= 0:
-                source_widget = self.table.cellWidget(row, 2)
-                if source_widget:
-                    source_text = source_widget.toPlainText()
+                # v1.9.306: Use segment.source (clean text) instead of source widget's display text
+                # which may contain invisible markers (·, →, °, ↵, \u200B)
+                source_text = segment.source
 
-                    # Update segment object
-                    segment.target = source_text
+                # Update segment object
+                segment.target = source_text
 
-                    # Update target widget
-                    target_widget = self.table.cellWidget(row, 3)
-                    if target_widget:
-                        target_widget.blockSignals(True)
-                        target_widget.setPlainText(source_text)
-                        target_widget.blockSignals(False)
+                # Update target widget with display-formatted text
+                target_widget = self.table.cellWidget(row, 3)
+                if target_widget:
+                    target_display = self.apply_invisible_replacements(source_text) if hasattr(self, 'apply_invisible_replacements') else source_text
+                    target_widget.blockSignals(True)
+                    target_widget.setPlainText(target_display)
+                    target_widget.blockSignals(False)
 
-                    copied_count += 1
+                copied_count += 1
 
         if copied_count:
             self.auto_resize_rows()
@@ -39127,6 +39173,12 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         """
         if not source_text or not hasattr(self, 'db_manager') or not self.db_manager:
             return {}
+
+        # v1.9.306: Defensive guard — strip any invisible character markers
+        # that may have leaked into the source text (e.g. ·, →, °, ↵, \u200B)
+        # so that multi-word terms like "hinge load" match correctly.
+        if hasattr(self, 'reverse_invisible_replacements'):
+            source_text = self.reverse_invisible_replacements(source_text)
 
         try:
             # v1.9.182: Use in-memory index for instant lookup (1000x faster)
@@ -43438,10 +43490,15 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                         is_target = True
                         break
         
+        # Strip invisible character markers so filtering matches clean segment text
+        if selected_text and hasattr(self, 'reverse_invisible_replacements'):
+            selected_text = self.reverse_invisible_replacements(selected_text)
+            selected_text = selected_text.strip()
+
         if not selected_text:
             self.log("⚠️ No text selected. Select text in source or target column first.")
             return
-        
+
         # Put selected text in appropriate filter box and apply filter
         if is_source and hasattr(self, 'source_filter') and self.source_filter:
             self.source_filter.setText(selected_text)
@@ -43456,18 +43513,20 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         """Copy source to target in currently selected grid row"""
         if not hasattr(self, 'table') or not self.table:
             return
-        
+
         current_row = self.table.currentRow()
         if current_row < 0 or not self.current_project or current_row >= len(self.current_project.segments):
             return
-        
+
         segment = self.current_project.segments[current_row]
         segment.target = segment.source
-        
+
         # Update grid cell - target is column 3 (ID=0, Status=1, Source=2, Target=3)
+        # v1.9.306: Apply invisible markers for display
         target_widget = self.table.cellWidget(current_row, 3)
         if target_widget and isinstance(target_widget, EditableGridTextEditor):
-            target_widget.setPlainText(segment.source)
+            display_text = self.apply_invisible_replacements(segment.source) if hasattr(self, 'apply_invisible_replacements') else segment.source
+            target_widget.setPlainText(display_text)
         
         self.project_modified = True
         self.log(f"📋 Copied source to target in segment {segment.id}")
