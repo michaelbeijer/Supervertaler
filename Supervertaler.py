@@ -9257,7 +9257,7 @@ class SupervertalerQt(QMainWindow):
         # v1.9.307: TM pane layout toggle (horizontal ↔ vertical)
         self.match_panel_vertical_action = QAction("Stack TM Panes &Vertically", self)
         self.match_panel_vertical_action.setCheckable(True)
-        self.match_panel_vertical_action.setChecked(getattr(self, 'match_panel_tm_vertical', False))
+        self.match_panel_vertical_action.setChecked(getattr(self, 'match_panel_tm_vertical', True))
         self.match_panel_vertical_action.triggered.connect(lambda _checked: self._toggle_match_panel_tm_layout())
         match_panel_zoom_menu.addAction(self.match_panel_vertical_action)
 
@@ -22980,9 +22980,10 @@ class SupervertalerQt(QMainWindow):
             SupervertalerQt.match_panel_font_family = _mp_family
             SupervertalerQt.match_panel_font_bold = _pre_settings.get('match_panel_font_bold', False)
             # v1.9.307: Load TM pane layout preference (horizontal vs vertical stacking)
-            self.match_panel_tm_vertical = _pre_settings.get('match_panel_tm_vertical', False)
+            # Default: True (vertical) — stacked gives each pane the full panel width
+            self.match_panel_tm_vertical = _pre_settings.get('match_panel_tm_vertical', True)
         except Exception:
-            self.match_panel_tm_vertical = False
+            self.match_panel_tm_vertical = True
 
         # Create tabbed container for right panel
         right_tabs = QTabWidget()
@@ -33190,8 +33191,12 @@ class SupervertalerQt(QMainWindow):
         
         # BOTTOM: Container for TM Source + TM Target boxes
         # v1.9.307: Store references for layout switching (horizontal ↔ vertical)
+        # Default layout matches self.match_panel_tm_vertical (True = vertical)
         self._tm_container = QWidget()
-        self._tm_layout = QHBoxLayout(self._tm_container)
+        if getattr(self, 'match_panel_tm_vertical', True):
+            self._tm_layout = QVBoxLayout(self._tm_container)
+        else:
+            self._tm_layout = QHBoxLayout(self._tm_container)
         self._tm_layout.setContentsMargins(0, 0, 0, 0)
         self._tm_layout.setSpacing(0)
 
@@ -33241,11 +33246,6 @@ class SupervertalerQt(QMainWindow):
 
         main_layout.addWidget(splitter)
 
-        # v1.9.307: Restore TM pane layout preference (vertical stacking)
-        if getattr(self, 'match_panel_tm_vertical', False):
-            # Reset to False so the toggle switches it to True
-            self.match_panel_tm_vertical = False
-            self._toggle_match_panel_tm_layout(save=False)
 
         return widget
 
@@ -33402,7 +33402,7 @@ class SupervertalerQt(QMainWindow):
 
         # v1.9.307: Layout toggle — always available (even with no TM matches)
         menu.addSeparator()
-        is_vertical = getattr(self, 'match_panel_tm_vertical', False)
+        is_vertical = getattr(self, 'match_panel_tm_vertical', True)
         layout_action = QAction("↕ Stack TM Source / Target Vertically", menu)
         layout_action.setCheckable(True)
         layout_action.setChecked(is_vertical)
