@@ -2,8 +2,17 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.304 (February 22, 2026)
+**Current Version:** v1.9.305 (February 22, 2026)
 
+
+## v1.9.305 - February 22, 2026
+
+### Bug Fixes
+
+- **Fixed: ↵ line break markers not showing in grid cells** — After loading a project, `_refresh_grid_display_mode()` (for WYSIWYG/Tags toggle) overwrote the grid cell text with raw `segment.source`/`segment.target` that had no invisible-character markers applied. The ↵ markers set during `load_segments_to_grid()` were immediately lost. Fixed by applying `apply_invisible_replacements()` in `_refresh_grid_display_mode()` before calling `update_display_mode()` on each cell.
+- **Fixed: double ↵↵ markers in TM Target pane** — When a TM entry had been saved with stale invisible markers (e.g. `↵\n` already baked into the stored target text), `apply_invisible_replacements()` would convert the surviving `\n` into another `↵\n`, producing `↵↵\n`. Fixed by calling `reverse_invisible_replacements()` on all TM text before re-applying the current display settings, and by stripping markers in `save_segment_to_activated_tms()` to prevent marker leakage into the TM in the first place.
+
+---
 
 ## v1.9.304 - February 22, 2026
 

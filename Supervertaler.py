@@ -25374,6 +25374,11 @@ class SupervertalerQt(QMainWindow):
         if not self.current_project:
             return
 
+        # Strip invisible character markers (↵, ·, →, °) to prevent marker leakage into TM
+        if hasattr(self, 'reverse_invisible_replacements'):
+            source = self.reverse_invisible_replacements(source)
+            target = self.reverse_invisible_replacements(target)
+
         # Strip outer structural tags if setting is enabled (for cleaner TM matching)
         if self.hide_outer_wrapping_tags:
             source, _ = strip_outer_wrapping_tags(source)
@@ -33225,19 +33230,26 @@ class SupervertalerQt(QMainWindow):
             self.match_panel_tm_nav_label.setText(nav_html)
 
         # Update TM Source text with diff highlighting
+        # Strip any stale invisible markers from TM data before processing
         current_source = getattr(self, 'match_panel_current_source', '')
-        if tm_source_text and current_source:
-            self._set_compare_panel_text_with_diff(self.match_panel_tm_source, current_source, tm_source_text)
+        clean_tm_source = tm_source_text
+        if clean_tm_source and hasattr(self, 'reverse_invisible_replacements'):
+            clean_tm_source = self.reverse_invisible_replacements(clean_tm_source)
+        if clean_tm_source and current_source:
+            self._set_compare_panel_text_with_diff(self.match_panel_tm_source, current_source, clean_tm_source)
         else:
             # Apply invisible replacements for display (e.g. ↵ for line breaks)
-            tm_src_display = tm_source_text or "(No TM match)"
-            if tm_source_text and hasattr(self, 'apply_invisible_replacements'):
+            tm_src_display = clean_tm_source or "(No TM match)"
+            if clean_tm_source and hasattr(self, 'apply_invisible_replacements'):
                 tm_src_display = self.apply_invisible_replacements(tm_src_display)
             self.match_panel_tm_source.setPlainText(tm_src_display)
 
         # Update TM Target text (no diff highlighting needed for target)
-        # Apply invisible replacements (e.g. ↵ for line breaks) for display
+        # Strip any stale invisible markers first (in case TM data was saved with markers),
+        # then re-apply current invisible display settings for clean rendering
         target_display = target_text if target_text else ""
+        if target_display and hasattr(self, 'reverse_invisible_replacements'):
+            target_display = self.reverse_invisible_replacements(target_display)
         if target_display and hasattr(self, 'apply_invisible_replacements'):
             target_display = self.apply_invisible_replacements(target_display)
         self.match_panel_tm_target.setPlainText(target_display)
@@ -33721,8 +33733,11 @@ class SupervertalerQt(QMainWindow):
             self.compare_panel_tm_target_label.setText(nav_html)
         
         # Update TM Source with diff highlighting
+        # Strip any stale invisible markers from TM data before processing
         current_source = self.compare_panel_current_source.toPlainText()
         tm_source = match.get('source', '')
+        if tm_source and hasattr(self, 'reverse_invisible_replacements'):
+            tm_source = self.reverse_invisible_replacements(tm_source)
         if tm_source and current_source:
             self._set_compare_panel_text_with_diff(self.compare_panel_tm_source, current_source, tm_source)
         else:
@@ -33731,9 +33746,11 @@ class SupervertalerQt(QMainWindow):
             if tm_source and hasattr(self, 'apply_invisible_replacements'):
                 cp_src_display = self.apply_invisible_replacements(cp_src_display)
             self.compare_panel_tm_source.setPlainText(cp_src_display)
-        
-        # Update TM Target (apply invisible replacements for display, e.g. ↵ for line breaks)
+
+        # Update TM Target — strip stale markers, then re-apply current settings
         tm_target_text = match.get('target', '')
+        if tm_target_text and hasattr(self, 'reverse_invisible_replacements'):
+            tm_target_text = self.reverse_invisible_replacements(tm_target_text)
         if tm_target_text and hasattr(self, 'apply_invisible_replacements'):
             tm_target_text = self.apply_invisible_replacements(tm_target_text)
         self.compare_panel_tm_target.setPlainText(tm_target_text)
@@ -44863,6 +44880,10 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                 # Strip outer wrapping tags from target
                 stripped_target, _ = strip_outer_wrapping_tags(segment.target)
                 target_for_display = stripped_target
+
+            # Apply invisible character replacements (e.g. ↵ for line breaks)
+            source_for_display = self.apply_invisible_replacements(source_for_display)
+            target_for_display = self.apply_invisible_replacements(target_for_display)
 
             # Update source cell (column 2)
             source_widget = self.table.cellWidget(row, 2)
