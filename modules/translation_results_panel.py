@@ -202,12 +202,16 @@ class CompactMatchItem(QFrame):
             import re
             # Escape HTML entities first to prevent double-escaping
             text = text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+            # Convert newlines to <br> so QLabel (RichText mode) renders them as line breaks
+            text = text.replace('\n', '<br>')
             # Now color the escaped tags
             tag_pattern = re.compile(r'&lt;/?[a-zA-Z][a-zA-Z0-9]*/?&gt;')
             text = tag_pattern.sub(lambda m: f'<span style="color: {self.tag_highlight_color};">{m.group()}</span>', text)
             return text
         else:
-            # Let QLabel interpret as HTML (tags will be rendered/hidden)
+            # QLabel interprets this as HTML; convert newlines to <br> so they render as line breaks
+            text = text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+            text = text.replace('\n', '<br>')
             return text
     
     def update_tag_color(self, color: str):
@@ -240,26 +244,28 @@ class CompactMatchItem(QFrame):
     
     def _show_context_menu(self, pos):
         """Show context menu for this match item"""
-        # Only show edit option for termbase matches
-        if self.match.match_type != "Termbase":
-            return
-        
         from PyQt6.QtWidgets import QMenu
         from PyQt6.QtGui import QAction
-        
-        menu = QMenu()
-        
-        # Edit entry action
-        edit_action = QAction("✏️ Edit Glossary Entry", menu)
-        edit_action.triggered.connect(self._edit_termbase_entry)
-        menu.addAction(edit_action)
-        
-        # Delete entry action
-        delete_action = QAction("🗑️ Delete Glossary Entry", menu)
-        delete_action.triggered.connect(self._delete_termbase_entry)
-        menu.addAction(delete_action)
-        
-        menu.exec(pos)
+
+        if self.match.match_type == "Termbase":
+            menu = QMenu()
+            edit_action = QAction("✏️ Edit Glossary Entry", menu)
+            edit_action.triggered.connect(self._edit_termbase_entry)
+            menu.addAction(edit_action)
+            delete_action = QAction("🗑️ Delete Glossary Entry", menu)
+            delete_action.triggered.connect(self._delete_termbase_entry)
+            menu.addAction(delete_action)
+            menu.exec(pos)
+
+        elif self.match.match_type == "TM":
+            menu = QMenu()
+            edit_action = QAction("✏️ Edit TM Entry", menu)
+            edit_action.triggered.connect(self._edit_tm_entry)
+            menu.addAction(edit_action)
+            delete_action = QAction("🗑️ Delete TM Entry", menu)
+            delete_action.triggered.connect(self._delete_tm_entry)
+            menu.addAction(delete_action)
+            menu.exec(pos)
     
     def _edit_termbase_entry(self):
         """Open termbase entry editor for this match"""
@@ -371,7 +377,158 @@ class CompactMatchItem(QFrame):
                         self.hide()
                     except Exception as e:
                         QMessageBox.critical(parent_window, "Error", f"Failed to delete entry: {e}")
-    
+
+    # ------------------------------------------------------------------
+    # TM entry edit / delete
+    # ------------------------------------------------------------------
+
+    def _edit_tm_entry(self):
+        """Open an inline editor dialog to edit this TM entry's target text."""
+        if self.match.match_type != "TM":
+            return
+
+        from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout,
+                                     QLabel, QTextEdit, QDialogButtonBox,
+                                     QMessageBox)
+
+        tm_id = self.match.metadata.get('tm_id', '')
+        tm_name = self.match.metadata.get('tm_name', tm_id or 'TM')
+        old_source = self.match.source
+        old_target = self.match.target
+
+        if not tm_id:
+            QMessageBox.warning(self.window(), "Cannot Edit",
+                                "TM identifier is not available for this entry.")
+            return
+
+        parent_window = self.window()
+
+        # Build a simple edit dialog
+        dialog = QDialog(parent_window)
+        dialog.setWindowTitle(f"Edit TM Entry — {tm_name}")
+        dialog.setMinimumWidth(520)
+        layout = QVBoxLayout(dialog)
+        layout.setSpacing(8)
+
+        # Source (read-only for display context only)
+        layout.addWidget(QLabel("Source (read-only):"))
+        source_edit = QTextEdit()
+        source_edit.setPlainText(old_source)
+        source_edit.setReadOnly(True)
+        source_edit.setMaximumHeight(90)
+        layout.addWidget(source_edit)
+
+        # Target (editable)
+        layout.addWidget(QLabel("Target:"))
+        target_edit = QTextEdit()
+        target_edit.setPlainText(old_target)
+        target_edit.setMaximumHeight(120)
+        layout.addWidget(target_edit)
+
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        layout.addWidget(buttons)
+
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+
+        new_target = target_edit.toPlainText()
+        if new_target == old_target:
+            return  # Nothing changed
+
+        # Perform update via tm_manager or db_manager
+        tm_manager = getattr(parent_window, 'tm_manager', None)
+        db_manager = getattr(parent_window, 'db_manager', None)
+
+        updated = False
+        try:
+            if tm_manager and hasattr(tm_manager, 'update_entry'):
+                updated = tm_manager.update_entry(tm_id, old_source, old_target,
+                                                  old_source, new_target)
+            elif db_manager and hasattr(db_manager, 'update_entry'):
+                updated = db_manager.update_entry(tm_id, old_source, old_target,
+                                                  old_source, new_target)
+        except Exception as e:
+            QMessageBox.critical(parent_window, "Error", f"Failed to update TM entry:\n{e}")
+            return
+
+        if updated:
+            if hasattr(parent_window, 'log'):
+                parent_window.log(f"✏️ Updated TM entry in '{tm_name}'")
+            # Update the in-memory match object so the card reflects the change immediately
+            self.match.target = new_target
+            if self.target_label:
+                self.target_label.setText(self._format_text(new_target))
+            # Invalidate TM cache so the next lookup picks up the new value
+            if hasattr(parent_window, '_last_selected_row'):
+                parent_window._last_selected_row = None
+        else:
+            QMessageBox.warning(parent_window, "Not Found",
+                                "The entry could not be found in the database.\n"
+                                "It may have already been changed or deleted.")
+
+    def _delete_tm_entry(self):
+        """Delete this TM entry from the database."""
+        if self.match.match_type != "TM":
+            return
+
+        from PyQt6.QtWidgets import QMessageBox
+
+        tm_id = self.match.metadata.get('tm_id', '')
+        tm_name = self.match.metadata.get('tm_name', tm_id or 'TM')
+        source_text = self.match.source
+        target_text = self.match.target
+
+        if not tm_id:
+            QMessageBox.warning(self.window(), "Cannot Delete",
+                                "TM identifier is not available for this entry.")
+            return
+
+        parent_window = self.window()
+
+        reply = QMessageBox.question(
+            parent_window,
+            "Confirm Deletion",
+            f"Delete TM entry from '{tm_name}'?\n\n"
+            f"Source: {source_text[:120]}\n"
+            f"Target: {target_text[:120]}\n\n"
+            "This action cannot be undone.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
+        )
+
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+
+        tm_manager = getattr(parent_window, 'tm_manager', None)
+        db_manager = getattr(parent_window, 'db_manager', None)
+
+        try:
+            if tm_manager and hasattr(tm_manager, 'delete_entry'):
+                tm_manager.delete_entry(tm_id, source_text, target_text)
+            elif db_manager and hasattr(db_manager, 'delete_entry'):
+                db_manager.delete_entry(tm_id, source_text, target_text)
+            else:
+                QMessageBox.critical(parent_window, "Error",
+                                     "No TM manager available to perform deletion.")
+                return
+        except Exception as e:
+            QMessageBox.critical(parent_window, "Error", f"Failed to delete TM entry:\n{e}")
+            return
+
+        if hasattr(parent_window, 'log'):
+            parent_window.log(f"🗑️ Deleted TM entry from '{tm_name}'")
+
+        # Invalidate row cache so the next navigation re-runs the TM search
+        if hasattr(parent_window, '_last_selected_row'):
+            parent_window._last_selected_row = None
+
+        # Hide this card — it no longer exists in the DB
+        self.hide()
+
     def select(self):
         """Select this match"""
         self.is_selected = True
@@ -1127,6 +1284,9 @@ class TranslationResultsPanel(QWidget):
                 color: {text_color};
             }}
         """)
+        # Enable custom context menu so we can inject TM edit/delete actions
+        text_edit.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        text_edit.customContextMenuRequested.connect(self._show_compare_box_context_menu)
         layout.addWidget(text_edit)
 
         # Track this text edit for font size updates
@@ -1812,87 +1972,264 @@ class TranslationResultsPanel(QWidget):
         """Update segment info display"""
         self.segment_label.setText(f"Segment {segment_num}: {source_text[:50]}...")
         self.compare_current.setText(source_text)
-    
+
+    def _show_compare_box_context_menu(self, pos):
+        """Context menu for the TM Source / TM Target compare boxes.
+
+        Augments the standard QTextEdit context menu with Edit / Delete actions
+        when the currently selected match is a TM entry.
+        """
+        from PyQt6.QtWidgets import QMenu
+        from PyQt6.QtGui import QAction
+
+        sender = self.sender()  # the QTextEdit that was right-clicked
+
+        # Build the standard copy/select-all menu first
+        menu = sender.createStandardContextMenu()
+
+        match = self.current_selection
+        if match is None or match.match_type != "TM":
+            menu.exec(sender.mapToGlobal(pos))
+            return
+
+        tm_id = match.metadata.get('tm_id', '')
+        tm_name = match.metadata.get('tm_name', tm_id or 'TM')
+
+        if tm_id:
+            menu.addSeparator()
+            edit_action = QAction(f"✏️ Edit TM Entry ({tm_name})", menu)
+            edit_action.triggered.connect(self._edit_current_tm_entry)
+            menu.addAction(edit_action)
+
+            delete_action = QAction(f"🗑️ Delete TM Entry ({tm_name})", menu)
+            delete_action.triggered.connect(self._delete_current_tm_entry)
+            menu.addAction(delete_action)
+
+        menu.exec(sender.mapToGlobal(pos))
+
+    def _edit_current_tm_entry(self):
+        """Edit the TM entry currently shown in the compare boxes."""
+        match = self.current_selection
+        if match is None or match.match_type != "TM":
+            return
+
+        from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QLabel,
+                                     QTextEdit, QDialogButtonBox, QMessageBox)
+
+        tm_id = match.metadata.get('tm_id', '')
+        tm_name = match.metadata.get('tm_name', tm_id or 'TM')
+        old_source = match.source
+        old_target = match.target
+
+        if not tm_id:
+            QMessageBox.warning(self.window(), "Cannot Edit",
+                                "TM identifier is not available for this entry.")
+            return
+
+        parent_window = self.window()
+
+        dialog = QDialog(parent_window)
+        dialog.setWindowTitle(f"Edit TM Entry — {tm_name}")
+        dialog.setMinimumWidth(520)
+        layout = QVBoxLayout(dialog)
+        layout.setSpacing(8)
+
+        layout.addWidget(QLabel("Source (read-only):"))
+        source_edit = QTextEdit()
+        source_edit.setPlainText(old_source)
+        source_edit.setReadOnly(True)
+        source_edit.setMaximumHeight(90)
+        layout.addWidget(source_edit)
+
+        layout.addWidget(QLabel("Target:"))
+        target_edit = QTextEdit()
+        target_edit.setPlainText(old_target)
+        target_edit.setMaximumHeight(120)
+        layout.addWidget(target_edit)
+
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        layout.addWidget(buttons)
+
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+
+        new_target = target_edit.toPlainText()
+        if new_target == old_target:
+            return
+
+        tm_manager = getattr(parent_window, 'tm_manager', None)
+        db_manager = getattr(parent_window, 'db_manager', None)
+
+        updated = False
+        try:
+            if tm_manager and hasattr(tm_manager, 'update_entry'):
+                updated = tm_manager.update_entry(tm_id, old_source, old_target,
+                                                  old_source, new_target)
+            elif db_manager and hasattr(db_manager, 'update_entry'):
+                updated = db_manager.update_entry(tm_id, old_source, old_target,
+                                                  old_source, new_target)
+        except Exception as e:
+            QMessageBox.critical(parent_window, "Error", f"Failed to update TM entry:\n{e}")
+            return
+
+        if updated:
+            if hasattr(parent_window, 'log'):
+                parent_window.log(f"✏️ Updated TM entry in '{tm_name}'")
+            # Update the live match object and compare box so the change is visible immediately
+            match.target = new_target
+            self.compare_tm_target.setPlainText(new_target)
+            if hasattr(parent_window, '_last_selected_row'):
+                parent_window._last_selected_row = None
+        else:
+            QMessageBox.warning(parent_window, "Not Found",
+                                "The entry could not be found in the database.\n"
+                                "It may have already been changed or deleted.")
+
+    def _delete_current_tm_entry(self):
+        """Delete the TM entry currently shown in the compare boxes."""
+        match = self.current_selection
+        if match is None or match.match_type != "TM":
+            return
+
+        from PyQt6.QtWidgets import QMessageBox
+
+        tm_id = match.metadata.get('tm_id', '')
+        tm_name = match.metadata.get('tm_name', tm_id or 'TM')
+        source_text = match.source
+        target_text = match.target
+
+        if not tm_id:
+            QMessageBox.warning(self.window(), "Cannot Delete",
+                                "TM identifier is not available for this entry.")
+            return
+
+        parent_window = self.window()
+
+        reply = QMessageBox.question(
+            parent_window,
+            "Confirm Deletion",
+            f"Delete TM entry from '{tm_name}'?\n\n"
+            f"Source: {source_text[:120]}\n"
+            f"Target: {target_text[:120]}\n\n"
+            "This action cannot be undone.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+
+        tm_manager = getattr(parent_window, 'tm_manager', None)
+        db_manager = getattr(parent_window, 'db_manager', None)
+
+        try:
+            if tm_manager and hasattr(tm_manager, 'delete_entry'):
+                tm_manager.delete_entry(tm_id, source_text, target_text)
+            elif db_manager and hasattr(db_manager, 'delete_entry'):
+                db_manager.delete_entry(tm_id, source_text, target_text)
+            else:
+                QMessageBox.critical(parent_window, "Error",
+                                     "No TM manager available to perform deletion.")
+                return
+        except Exception as e:
+            QMessageBox.critical(parent_window, "Error", f"Failed to delete TM entry:\n{e}")
+            return
+
+        if hasattr(parent_window, 'log'):
+            parent_window.log(f"🗑️ Deleted TM entry from '{tm_name}'")
+
+        if hasattr(parent_window, '_last_selected_row'):
+            parent_window._last_selected_row = None
+
+        # Hide the compare frame since this entry no longer exists
+        self.compare_frame.hide()
+        self.current_selection = None
+
     def _apply_diff_highlighting(self, current_source: str, tm_source: str):
         """
         Apply diff highlighting between current source and TM source.
         Shows differences memoQ-style in the TM Source box:
         - Red strikethrough for text in TM that's not in current segment (will need to be removed)
         - Red underline for text in current that's not in TM (translator needs to add this)
-        
+
         The Current Source box shows the plain text without highlighting.
         This helps translators quickly see what changed between the fuzzy match and the current segment.
         """
+        import re
+
+        def tokenize(text):
+            """Split text into tokens, preserving newlines as separate '\n' tokens."""
+            # Split on whitespace, keeping newlines as distinct tokens
+            tokens = []
+            for part in re.split(r'(\n)', text):
+                if part == '\n':
+                    tokens.append('\n')
+                else:
+                    tokens.extend(part.split())
+            return tokens
+
+        def insert_tokens(cursor, tokens, fmt, normal_fmt, is_first):
+            """Insert a list of tokens into cursor with the given format, handling newlines."""
+            for tok in tokens:
+                if tok == '\n':
+                    cursor.insertBlock()
+                    is_first = True  # no leading space after a newline
+                else:
+                    if not is_first:
+                        cursor.insertText(' ', normal_fmt)
+                    cursor.insertText(tok, fmt)
+                    is_first = False
+            return is_first
+
         # Use difflib's SequenceMatcher to find differences at word level
-        current_words = current_source.split()
-        tm_words = tm_source.split()
-        
+        current_words = tokenize(current_source)
+        tm_words = tokenize(tm_source)
+
         # Get opcodes that describe how to transform tm_source into current_source
         matcher = difflib.SequenceMatcher(None, tm_words, current_words)
         opcodes = matcher.get_opcodes()
-        
+
         # Define formatting styles
         # Red strikethrough for deletions (text in TM but not in current)
         delete_format = QTextCharFormat()
         delete_format.setForeground(QColor("#CC0000"))  # Red text
         delete_format.setFontStrikeOut(True)
-        
+
         # Red underline for additions (text in current but not in TM)
         insert_format = QTextCharFormat()
         insert_format.setForeground(QColor("#CC0000"))  # Red text
         insert_format.setFontUnderline(True)
-        
+
         # Normal format (for unchanged text)
         normal_format = QTextCharFormat()
         if self.theme_manager:
             normal_format.setForeground(QColor(self.theme_manager.current_theme.text))
         else:
             normal_format.setForeground(QColor("#333333"))
-        
+
         # Current Source box: just show plain text (already set by set_segment_info, but reset to ensure no formatting)
         self.compare_current.setText(current_source)
-        
+
         # TM Source box: show with diff highlighting
         # Red strikethrough = text in TM but not in current (needs to be removed/changed)
         # Red underline = text in current but not in TM (needs to be added to translation)
         self.compare_tm_source.clear()
         tm_cursor = self.compare_tm_source.textCursor()
-        
+
         first_word = True
         for tag, i1, i2, j1, j2 in opcodes:
             if tag == 'equal':
-                # Unchanged words - show in normal format
-                text = ' '.join(tm_words[i1:i2])
-                if not first_word:
-                    tm_cursor.insertText(' ', normal_format)
-                tm_cursor.insertText(text, normal_format)
-                first_word = False
+                first_word = insert_tokens(tm_cursor, tm_words[i1:i2], normal_format, normal_format, first_word)
             elif tag == 'replace':
-                # Words were replaced
-                # Show what's in TM (being replaced) as strikethrough
-                # Show what's in current (replacing it) as underlined
-                old_text = ' '.join(tm_words[i1:i2])
-                new_text = ' '.join(current_words[j1:j2])
-                if not first_word:
-                    tm_cursor.insertText(' ', normal_format)
-                tm_cursor.insertText(old_text, delete_format)
-                tm_cursor.insertText(' ', normal_format)
-                tm_cursor.insertText(new_text, insert_format)
-                first_word = False
+                first_word = insert_tokens(tm_cursor, tm_words[i1:i2], delete_format, normal_format, first_word)
+                first_word = insert_tokens(tm_cursor, current_words[j1:j2], insert_format, normal_format, first_word)
             elif tag == 'delete':
-                # Words in TM but not in current - strikethrough (will be removed)
-                text = ' '.join(tm_words[i1:i2])
-                if not first_word:
-                    tm_cursor.insertText(' ', normal_format)
-                tm_cursor.insertText(text, delete_format)
-                first_word = False
+                first_word = insert_tokens(tm_cursor, tm_words[i1:i2], delete_format, normal_format, first_word)
             elif tag == 'insert':
-                # Words in current but not in TM - underlined (needs to be added)
-                text = ' '.join(current_words[j1:j2])
-                if not first_word:
-                    tm_cursor.insertText(' ', normal_format)
-                tm_cursor.insertText(text, insert_format)
-                first_word = False
+                first_word = insert_tokens(tm_cursor, current_words[j1:j2], insert_format, normal_format, first_word)
     
     def clear(self):
         """Clear all matches (but NOT notes - those are managed separately)"""

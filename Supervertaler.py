@@ -7158,9 +7158,9 @@ class SupervertalerQt(QMainWindow):
         self.invisible_char_color = '#999999'  # Light gray color for invisible characters
         self.invisible_display_settings = {
             'spaces': False,
-            'tabs': False,
-            'nbsp': False,
-            'linebreaks': False
+            'tabs': True,
+            'nbsp': True,
+            'linebreaks': True
         }
 
         # Grid row color settings (memoQ-style alternating row colors)
@@ -22209,17 +22209,17 @@ class SupervertalerQt(QMainWindow):
 
         self.show_tabs_action = show_invisibles_menu.addAction("Tabs (→)")
         self.show_tabs_action.setCheckable(True)
-        self.show_tabs_action.setChecked(False)
+        self.show_tabs_action.setChecked(True)
         self.show_tabs_action.triggered.connect(lambda: self.toggle_invisible_display('tabs'))
 
         self.show_nbsp_action = show_invisibles_menu.addAction("Non-breaking Spaces (°)")
         self.show_nbsp_action.setCheckable(True)
-        self.show_nbsp_action.setChecked(False)
+        self.show_nbsp_action.setChecked(True)
         self.show_nbsp_action.triggered.connect(lambda: self.toggle_invisible_display('nbsp'))
 
         self.show_linebreaks_action = show_invisibles_menu.addAction("Line Breaks (↵)")
         self.show_linebreaks_action.setCheckable(True)
-        self.show_linebreaks_action.setChecked(False)
+        self.show_linebreaks_action.setChecked(True)
         self.show_linebreaks_action.triggered.connect(lambda: self.toggle_invisible_display('linebreaks'))
 
         show_invisibles_menu.addSeparator()
@@ -22455,17 +22455,17 @@ class SupervertalerQt(QMainWindow):
 
             self.show_tabs_action = show_invisibles_menu_home.addAction("Tabs (→)")
             self.show_tabs_action.setCheckable(True)
-            self.show_tabs_action.setChecked(False)
+            self.show_tabs_action.setChecked(True)
             self.show_tabs_action.triggered.connect(lambda: self.toggle_invisible_display('tabs'))
 
             self.show_nbsp_action = show_invisibles_menu_home.addAction("Non-breaking Spaces (°)")
             self.show_nbsp_action.setCheckable(True)
-            self.show_nbsp_action.setChecked(False)
+            self.show_nbsp_action.setChecked(True)
             self.show_nbsp_action.triggered.connect(lambda: self.toggle_invisible_display('nbsp'))
 
             self.show_linebreaks_action = show_invisibles_menu_home.addAction("Line Breaks (¶)")
             self.show_linebreaks_action.setCheckable(True)
-            self.show_linebreaks_action.setChecked(False)
+            self.show_linebreaks_action.setChecked(True)
             self.show_linebreaks_action.triggered.connect(lambda: self.toggle_invisible_display('linebreaks'))
 
             show_invisibles_menu_home.addSeparator()
@@ -33148,12 +33148,18 @@ class SupervertalerQt(QMainWindow):
         if tm_nav_btns:
             tm_nav_btns[0].clicked.connect(lambda: self._match_panel_nav_tm(-1))
             tm_nav_btns[1].clicked.connect(lambda: self._match_panel_nav_tm(1))
+        # Right-click context menu for TM Source
+        self.match_panel_tm_source.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.match_panel_tm_source.customContextMenuRequested.connect(self._match_panel_tm_context_menu)
         tm_layout.addWidget(tm_source_container, 1)
-        
+
         # TM Target box (GREEN, with metadata and shortcut badge)
         tm_target_container, self.match_panel_tm_target, self.match_panel_tm_target_label, _ = self._create_compare_panel_box(
             "✅ TM Target", tm_box_bg, text_color, border_color, has_navigation=False, show_metadata_label=True,
             shortcut_badge_text="0", shortcut_badge_tooltip="Alt+0")
+        # Right-click context menu for TM Target
+        self.match_panel_tm_target.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.match_panel_tm_target.customContextMenuRequested.connect(self._match_panel_tm_context_menu)
         tm_layout.addWidget(tm_target_container, 1)
         
         # Force stylesheet on the tm_container itself (the parent widget holding both boxes)
@@ -33192,32 +33198,246 @@ class SupervertalerQt(QMainWindow):
         match = self.match_panel_tm_matches[self.match_panel_tm_index]
         total = len(self.match_panel_tm_matches)
         idx = self.match_panel_tm_index + 1
-        
+
+        # Support both dict and TranslationMatch objects
+        if isinstance(match, dict):
+            tm_source_text = match.get('source', '')
+            target_text = match.get('target', '')
+            tm_name = match.get('tm_name', 'Unknown TM')
+            match_pct = match.get('match_pct', 0)
+        else:
+            tm_source_text = getattr(match, 'compare_source', '') or getattr(match, 'source', '')
+            target_text = getattr(match, 'target', '')
+            md = match.metadata if hasattr(match, 'metadata') and match.metadata else {}
+            tm_name = md.get('tm_name', 'Unknown TM')
+            match_pct = getattr(match, 'relevance', 0)
+
         # Update navigation label
         if hasattr(self, 'match_panel_tm_nav_label') and self.match_panel_tm_nav_label:
             nav_html = f"(<span style='font-size:8px'>{idx}/{total}</span>)"
             self.match_panel_tm_nav_label.setText(nav_html)
-        
+
         # Update TM Source text with diff highlighting
-        tm_source_text = match.get('source', '')
         current_source = getattr(self, 'match_panel_current_source', '')
         if tm_source_text and current_source:
             self._set_compare_panel_text_with_diff(self.match_panel_tm_source, current_source, tm_source_text)
         else:
             self.match_panel_tm_source.setPlainText(tm_source_text or "(No TM match)")
-        
+
         # Update TM Target text (no diff highlighting needed for target)
-        # Badge is now in the title bar (QLabel), so just set plain text here
-        target_text = match.get('target', '')
         self.match_panel_tm_target.setPlainText(target_text if target_text else "")
-        
+
         # Update metadata label (TM name, percentage)
         if hasattr(self, 'match_panel_tm_target_label') and self.match_panel_tm_target_label:
-            tm_name = match.get('tm_name', 'Unknown TM')
-            match_pct = match.get('match_pct', 0)
             metadata_html = f"<span style='font-size:10px'>{tm_name}</span> (<span style='font-size:8px'>{match_pct}%</span>)"
             self.match_panel_tm_target_label.setText(metadata_html)
     
+    def _match_panel_tm_context_menu(self, pos):
+        """Right-click context menu for the TM Source / TM Target boxes in the Match Panel."""
+        from PyQt6.QtWidgets import QMenu
+        from PyQt6.QtGui import QAction
+
+        sender = self.sender()
+        menu = sender.createStandardContextMenu()
+
+        # Fix blurry context menu rendering (high-DPI / transparent background inheritance)
+        menu.setStyleSheet("""
+            QMenu {
+                background-color: palette(window);
+                border: 1px solid palette(mid);
+            }
+            QMenu::item {
+                padding: 4px 20px;
+            }
+            QMenu::item:selected {
+                background-color: palette(highlight);
+                color: palette(highlighted-text);
+            }
+            QMenu::separator {
+                height: 1px;
+                background: palette(mid);
+                margin: 4px 8px;
+            }
+        """)
+
+        if not self.match_panel_tm_matches:
+            menu.exec(sender.mapToGlobal(pos))
+            return
+
+        match = self.match_panel_tm_matches[self.match_panel_tm_index]
+
+        # Support both dict and TranslationMatch objects
+        if isinstance(match, dict):
+            tm_id = match.get('tm_id', '')
+            tm_name = match.get('tm_name', '') or tm_id or 'TM'
+        else:
+            # TranslationMatch object
+            tm_id = match.metadata.get('tm_id', '') if hasattr(match, 'metadata') and match.metadata else ''
+            tm_name = match.metadata.get('tm_name', '') if hasattr(match, 'metadata') and match.metadata else ''
+            tm_name = tm_name or tm_id or 'TM'
+
+        menu.addSeparator()
+        edit_action = QAction(f"✏️ Edit TM Entry ({tm_name})", menu)
+        edit_action.triggered.connect(self._match_panel_edit_tm_entry)
+        if not tm_id:
+            edit_action.setEnabled(False)
+            edit_action.setText("✏️ Edit TM Entry (no TM ID available)")
+        menu.addAction(edit_action)
+
+        delete_action = QAction(f"🗑️ Delete TM Entry ({tm_name})", menu)
+        delete_action.triggered.connect(self._match_panel_delete_tm_entry)
+        if not tm_id:
+            delete_action.setEnabled(False)
+            delete_action.setText("🗑️ Delete TM Entry (no TM ID available)")
+        menu.addAction(delete_action)
+
+        menu.exec(sender.mapToGlobal(pos))
+
+    def _get_match_panel_tm_fields(self, match):
+        """Extract tm_id, tm_name, source, target from a Match Panel match (dict or TranslationMatch)."""
+        if isinstance(match, dict):
+            return (match.get('tm_id', ''),
+                    match.get('tm_name', '') or match.get('tm_id', '') or 'TM',
+                    match.get('source', ''),
+                    match.get('target', ''))
+        else:
+            md = match.metadata if hasattr(match, 'metadata') and match.metadata else {}
+            return (md.get('tm_id', ''),
+                    md.get('tm_name', '') or md.get('tm_id', '') or 'TM',
+                    getattr(match, 'source', ''),
+                    getattr(match, 'target', ''))
+
+    def _match_panel_edit_tm_entry(self):
+        """Edit the TM entry currently displayed in the Match Panel."""
+        if not self.match_panel_tm_matches:
+            return
+
+        from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QLabel,
+                                     QTextEdit, QDialogButtonBox, QMessageBox)
+
+        match = self.match_panel_tm_matches[self.match_panel_tm_index]
+        tm_id, tm_name, old_source, old_target = self._get_match_panel_tm_fields(match)
+
+        if not tm_id:
+            QMessageBox.warning(self, "Cannot Edit",
+                                "TM identifier is not available for this entry.")
+            return
+
+        dialog = QDialog(self)
+        dialog.setWindowTitle(f"Edit TM Entry — {tm_name}")
+        dialog.setMinimumWidth(520)
+        layout = QVBoxLayout(dialog)
+        layout.setSpacing(8)
+
+        layout.addWidget(QLabel("Source (read-only):"))
+        source_edit = QTextEdit()
+        source_edit.setPlainText(old_source)
+        source_edit.setReadOnly(True)
+        source_edit.setMaximumHeight(90)
+        layout.addWidget(source_edit)
+
+        layout.addWidget(QLabel("Target:"))
+        target_edit = QTextEdit()
+        target_edit.setPlainText(old_target)
+        target_edit.setMaximumHeight(120)
+        layout.addWidget(target_edit)
+
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        layout.addWidget(buttons)
+
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+
+        new_target = target_edit.toPlainText()
+        if new_target == old_target:
+            return  # Nothing changed
+
+        updated = False
+        try:
+            if hasattr(self, 'tm_manager') and self.tm_manager and hasattr(self.tm_manager, 'update_entry'):
+                updated = self.tm_manager.update_entry(tm_id, old_source, old_target,
+                                                       old_source, new_target)
+            elif hasattr(self, 'db_manager') and self.db_manager and hasattr(self.db_manager, 'update_entry'):
+                updated = self.db_manager.update_entry(tm_id, old_source, old_target,
+                                                       old_source, new_target)
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to update TM entry:\n{e}")
+            return
+
+        if updated:
+            self.log(f"✏️ Updated TM entry in '{tm_name}'")
+            # Patch the in-memory match so the display reflects the change immediately
+            if isinstance(match, dict):
+                match['target'] = new_target
+            else:
+                match.target = new_target
+            self._update_match_panel_tm_display()
+            # Force re-lookup next time this segment is navigated to
+            if hasattr(self, '_last_selected_row'):
+                self._last_selected_row = None
+        else:
+            QMessageBox.warning(self, "Not Found",
+                                "The entry could not be found in the database.\n"
+                                "It may have already been changed or deleted.")
+
+    def _match_panel_delete_tm_entry(self):
+        """Delete the TM entry currently displayed in the Match Panel."""
+        if not self.match_panel_tm_matches:
+            return
+
+        from PyQt6.QtWidgets import QMessageBox
+
+        match = self.match_panel_tm_matches[self.match_panel_tm_index]
+        tm_id, tm_name, source_text, target_text = self._get_match_panel_tm_fields(match)
+
+        if not tm_id:
+            QMessageBox.warning(self, "Cannot Delete",
+                                "TM identifier is not available for this entry.")
+            return
+
+        reply = QMessageBox.question(
+            self,
+            "Confirm Deletion",
+            f"Delete TM entry from '{tm_name}'?\n\n"
+            f"Source: {source_text[:120]}\n"
+            f"Target: {target_text[:120]}\n\n"
+            "This action cannot be undone.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+
+        try:
+            if hasattr(self, 'tm_manager') and self.tm_manager and hasattr(self.tm_manager, 'delete_entry'):
+                self.tm_manager.delete_entry(tm_id, source_text, target_text)
+            elif hasattr(self, 'db_manager') and self.db_manager and hasattr(self.db_manager, 'delete_entry'):
+                self.db_manager.delete_entry(tm_id, source_text, target_text)
+            else:
+                QMessageBox.critical(self, "Error",
+                                     "No TM manager available to perform deletion.")
+                return
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to delete TM entry:\n{e}")
+            return
+
+        self.log(f"🗑️ Deleted TM entry from '{tm_name}'")
+
+        # Remove from the in-memory list and update display
+        self.match_panel_tm_matches.pop(self.match_panel_tm_index)
+        # Clamp index in case we deleted the last item
+        if self.match_panel_tm_index >= len(self.match_panel_tm_matches):
+            self.match_panel_tm_index = max(0, len(self.match_panel_tm_matches) - 1)
+        self._update_match_panel_tm_display()
+
+        # Force re-lookup next time this segment is navigated to
+        if hasattr(self, '_last_selected_row'):
+            self._last_selected_row = None
+
     def _create_compare_panel_box(self, label: str, bg_color: str, text_color: str, border_color: str,
                                    has_navigation: bool = False, show_metadata_label: bool = False,
                                    shortcut_badge_text: str = None, shortcut_badge_tooltip: str = None) -> tuple:
@@ -34708,11 +34928,11 @@ class SupervertalerQt(QMainWindow):
         # Measure the width of the largest number (as string)
         text_width = fm.horizontalAdvance(str(max_segment))
         
-        # Add padding (6px on each side = 12px total)
-        new_width = text_width + 12
+        # Add padding (8px on each side = 16px total)
+        new_width = text_width + 16
 
-        # Ensure minimum width for very small numbers, cap at width for ~1000
-        new_width = max(30, min(new_width, 55))
+        # Ensure minimum width for very small numbers
+        new_width = max(30, new_width)
 
         self.table.setColumnWidth(0, new_width)
     
@@ -35794,6 +36014,7 @@ class SupervertalerQt(QMainWindow):
                         'source': batch_match.get('source', search_source),
                         'target': batch_match.get('target', ''),
                         'tm_name': batch_match.get('tm_name', 'TM'),
+                        'tm_id': batch_match.get('tm_id', ''),
                         'match_pct': batch_match.get('match_pct', 100)
                     }]
                     self.set_compare_panel_matches(segment.id, search_source, tm_matches, [])
@@ -35998,10 +36219,12 @@ class SupervertalerQt(QMainWindow):
                         tm_matches_for_panel = []
                         for tm in cached_matches.get("TM", []):
                             tm_name = tm.metadata.get('tm_name', 'TM') if tm.metadata else 'TM'
+                            tm_id = tm.metadata.get('tm_id', '') if tm.metadata else ''
                             tm_matches_for_panel.append({
                                 'source': tm.compare_source or tm.source,
                                 'target': tm.target,
                                 'tm_name': tm_name,
+                                'tm_id': tm_id,
                                 'match_pct': int(tm.relevance)
                             })
                         self.set_compare_panel_matches(
@@ -37929,6 +38152,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                                     metadata={
                                         'context': match.get('context', ''),
                                         'tm_name': match.get('tm_name', ''),
+                                        'tm_id': match.get('tm_id', ''),
                                         'timestamp': match.get('created_at', ''),
                                         'direction': 'reverse' if 'Reverse' in match.get('tm_name', '') else 'primary'
                                     },
@@ -40265,6 +40489,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                 relevance=int(tm_match.get('similarity', 0) * 100),
                 metadata={
                     'tm_name': tm_match.get('tm_name', 'TM'),
+                    'tm_id': tm_match.get('tm_id', ''),
                 },
                 match_type='TM',
                 compare_source=tm_match.get('source', ''),
@@ -49343,6 +49568,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                     metadata={
                         'context': match.get('context', ''),
                         'tm_name': match.get('tm_name', ''),
+                        'tm_id': match.get('tm_id', ''),
                         'timestamp': match.get('created_at', ''),
                         'direction': 'reverse' if 'Reverse' in match.get('tm_name', '') else 'primary'
                     },
@@ -49381,10 +49607,12 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                 tm_matches_for_panel = []
                 for tm in tm_match_objects:
                     tm_name = tm.metadata.get('tm_name', 'TM') if tm.metadata else 'TM'
+                    tm_id = tm.metadata.get('tm_id', '') if tm.metadata else ''
                     tm_matches_for_panel.append({
                         'source': tm.compare_source or tm.source,
                         'target': tm.target,
                         'tm_name': tm_name,
+                        'tm_id': tm_id,
                         'match_pct': int(tm.relevance)
                     })
                 self._compare_panel_tm_matches = tm_matches_for_panel

@@ -2,8 +2,26 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.301 (February 21, 2026)
+**Current Version:** v1.9.302 (February 22, 2026)
 
+
+## v1.9.302 - February 22, 2026
+
+### New Features
+
+- **Right-click Edit / Delete TM entries from the Match Panel** — Right-clicking the TM Source or TM Target pane in the Match Panel now shows "Edit TM Entry" and "Delete TM Entry" options alongside the standard Copy / Select All actions. Edit opens a dialog with the source (read-only) and an editable target field; changes are written to the database immediately and reflected live in the panel. Delete removes the entry after a confirmation prompt. Both actions work on all TM types (project TM, imported TMs, etc.).
+
+### Improvements
+
+- **Show Invisibles: better defaults** — Tabs, non-breaking spaces, and line breaks are now visible by default for new users. Spaces remain hidden. Users can still change any combination via the Show Invisibles dropdown.
+- **Segment number column auto-sizes to fit content** — The # column in the grid no longer caps at 55 px; it now grows to accommodate any number of digits, so projects with hundreds or thousands of segments display the full segment number.
+
+### Bug Fixes
+
+- **Fixed: TM Source pane in Match Panel lost line breaks** — When a TM entry contained line endings (e.g. multi-line segments from Trados Studio), the TM Source pane in the Match Panel collapsed them into spaces because the diff-highlighting tokeniser used `.split()` which eats newlines. Fixed by tokenising with a regex that preserves `\n` as explicit tokens and emitting `insertBlock()` in the QTextEdit cursor when a newline token is encountered.
+- **Fixed: blurry right-click context menu on TM Source / TM Target panes** — The QTextEdit widgets use `background-color: transparent` for seamless rendering inside their coloured container, but this style leaked into the context menu, causing fuzzy text on high-DPI displays. The context menu now gets an explicit opaque palette-based stylesheet.
+
+---
 
 ## v1.9.301 - February 21, 2026
 

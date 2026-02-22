@@ -1605,7 +1605,52 @@ class DatabaseManager:
         """, (entry_id,))
         
         self.connection.commit()
-    
+
+    def update_entry(self, tm_id: str, old_source: str, old_target: str,
+                     new_source: str, new_target: str) -> bool:
+        """Update an existing TM entry (source and/or target text).
+
+        Preserves created_date, usage_count, notes, and other metadata.
+        Returns True if the entry was found and updated, False otherwise.
+        """
+        import hashlib
+
+        self.cursor.execute("""
+            SELECT id, source_lang, target_lang, context_before, context_after, notes,
+                   usage_count, created_by, created_date
+            FROM translation_units
+            WHERE tm_id = ? AND source_text = ? AND target_text = ?
+        """, (tm_id, old_source, old_target))
+
+        row = self.cursor.fetchone()
+        if not row:
+            return False
+
+        entry_id = row['id']
+        new_source_stripped = new_source.strip()
+        new_target_stripped = new_target.strip()
+        new_hash = hashlib.md5(new_source_stripped.lower().encode('utf-8')).hexdigest()
+
+        # Update FTS5 index
+        try:
+            self.cursor.execute("""
+                UPDATE tm_fts SET source_text = ?, target_text = ?
+                WHERE rowid = ?
+            """, (new_source_stripped, new_target_stripped, entry_id))
+        except Exception:
+            pass  # FTS5 table might not exist
+
+        # Update main table
+        self.cursor.execute("""
+            UPDATE translation_units
+            SET source_text = ?, target_text = ?, source_hash = ?,
+                modified_date = CURRENT_TIMESTAMP
+            WHERE id = ?
+        """, (new_source_stripped, new_target_stripped, new_hash, entry_id))
+
+        self.connection.commit()
+        return True
+
     def concordance_search(self, query: str, tm_ids: List[str] = None, direction: str = 'both',
                             source_lang = None, target_lang = None) -> List[Dict]:
         """

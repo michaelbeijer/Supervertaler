@@ -429,7 +429,15 @@ class TMDatabase:
     def delete_entry(self, tm_id: str, source: str, target: str):
         """Delete a specific entry from a TM"""
         self.db.delete_entry(tm_id, source, target)
-    
+
+    def update_entry(self, tm_id: str, old_source: str, old_target: str,
+                     new_source: str, new_target: str) -> bool:
+        """Update an existing TM entry's source and/or target text.
+
+        Returns True if the entry was found and updated, False otherwise.
+        """
+        return self.db.update_entry(tm_id, old_source, old_target, new_source, new_target)
+
     def add_custom_tm(self, name: str, tm_id: str = None, read_only: bool = False):
         """Register a custom TM"""
         if tm_id is None:
@@ -811,3 +819,11 @@ class TMAgent:
     def delete_entry(self, tm_id: str, source: str, target: str):
         """Delete a specific entry from a TM"""
         self.tm_database.delete_entry(tm_id, source, target)
+
+    def update_entry(self, tm_id: str, old_source: str, old_target: str,
+                     new_source: str, new_target: str) -> bool:
+        """Update an existing TM entry's source and/or target text.
+
+        Returns True if the entry was found and updated, False otherwise.
+        """
+        return self.tm_database.update_entry(tm_id, old_source, old_target, new_source, new_target)
