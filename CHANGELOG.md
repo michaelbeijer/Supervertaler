@@ -2,8 +2,16 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.309 (February 22, 2026)
+**Current Version:** v1.9.310 (February 22, 2026)
 
+
+## v1.9.310 - February 22, 2026
+
+### Improvements
+
+- **Tools tabs converted to vertical sidebar** — The 11 tool modules (AutoFingers, Superconverter, PDF Rescue, Superbench, Superbrowser, Supercleaner, Superlookup, Supervoice, Text Encoding Repair, TMX Editor, Tracked Changes) now use the same vertical sidebar navigation as the Settings tab instead of horizontal tabs. This saves vertical space, looks cleaner, and works much better on smaller screens. Dark mode and font scaling are fully supported.
+
+---
 
 ## v1.9.309 - February 22, 2026
 

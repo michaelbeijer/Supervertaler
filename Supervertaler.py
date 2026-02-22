@@ -11484,37 +11484,33 @@ class SupervertalerQt(QMainWindow):
         return tab
     
     def create_specialised_tools_tab(self):
-        """Create the Specialised Tools tab with nested sub-tabs"""
-        from PyQt6.QtWidgets import QTabWidget
-        
+        """Create the Specialised Tools tab with vertical sidebar navigation"""
+        from modules.settings_sidebar import SettingsSidebar
+
         tab = QWidget()
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
-        
-        # Create nested tab widget
-        modules_tabs = QTabWidget()
-        modules_tabs.tabBar().setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        modules_tabs.tabBar().setDrawBase(False)
-        modules_tabs.tabBar().setExpanding(False)
-        modules_tabs.setStyleSheet("QTabBar::tab { outline: 0; } QTabBar::tab:focus { outline: none; } QTabBar::tab:selected { border-bottom: 1px solid #2196F3; background-color: rgba(33, 150, 243, 0.08); }")
+
+        # Vertical sidebar (same pattern as Settings) — drop-in QTabWidget replacement
+        modules_tabs = SettingsSidebar()
         self.modules_tabs = modules_tabs  # Store for navigation
-        
-        # Add nested tabs (alphabetical order)
+
+        # Add tool tabs (alphabetical order)
         autofingers_tab = AutoFingersWidget(self)
         modules_tabs.addTab(autofingers_tab, "✋ AutoFingers")
-        
+
         # Superconverter - Format conversion tools
         superconverter_tab = self.create_superconverter_tab()
         modules_tabs.addTab(superconverter_tab, "🔄 Superconverter")
-        
+
         pdf_tab = self.create_pdf_rescue_tab()
         modules_tabs.addTab(pdf_tab, "📄 PDF Rescue")
-        
+
         # Superbench
         leaderboard_tab = self.create_llm_leaderboard_tab()
         modules_tabs.addTab(leaderboard_tab, "📊 Superbench")
-        
+
         # Superbrowser - Multi-Chat AI Browser
         superbrowser_tab = self.create_superbrowser_tab()
         modules_tabs.addTab(superbrowser_tab, "🌐 Superbrowser")
@@ -11534,14 +11530,17 @@ class SupervertalerQt(QMainWindow):
 
         encoding_tab = self.create_encoding_repair_tab()
         modules_tabs.addTab(encoding_tab, "🔧 Text Encoding Repair")
-        
+
         tmx_tab = self.create_tmx_editor_tab()
         modules_tabs.addTab(tmx_tab, "✏️ TMX Editor")
-        
+
         tracked_tab = self.create_tracked_changes_tab()
         modules_tabs.addTab(tracked_tab, "🔄 Tracked Changes")
 
         layout.addWidget(modules_tabs)
+
+        # Apply dark sidebar style if current theme is dark
+        self._update_tools_sidebar_theme()
 
         return tab
     
@@ -17095,6 +17094,20 @@ class SupervertalerQt(QMainWindow):
         else:
             self.settings_tabs._apply_style()
 
+    def _update_tools_sidebar_theme(self):
+        """Update the tools sidebar styling based on the current theme."""
+        if not hasattr(self, 'modules_tabs'):
+            return
+        from modules.settings_sidebar import SettingsSidebar
+        if not isinstance(self.modules_tabs, SettingsSidebar):
+            return
+        is_dark = (hasattr(self, 'theme_manager') and self.theme_manager
+                   and 'dark' in self.theme_manager.current_theme.name.lower())
+        if is_dark:
+            self.modules_tabs.apply_dark_style()
+        else:
+            self.modules_tabs._apply_style()
+
     def _create_language_pair_tab(self):
         """Create Language Pair Settings tab content"""
         tab = QWidget()
@@ -22186,11 +22199,12 @@ class SupervertalerQt(QMainWindow):
         base_size = int(10 * scale_percent / 100)
         if hasattr(self, 'main_tabs') and self.main_tabs is not None:
             self.main_tabs.tabBar().setStyleSheet(f"font-size: {base_size}pt;")
-        # Also scale the settings sidebar list font
-        if hasattr(self, 'settings_tabs') and self.settings_tabs is not None:
-            from modules.settings_sidebar import SettingsSidebar
-            if isinstance(self.settings_tabs, SettingsSidebar):
-                self.settings_tabs.set_font_size(base_size)
+        # Also scale the sidebar list fonts (Settings + Tools)
+        from modules.settings_sidebar import SettingsSidebar
+        if hasattr(self, 'settings_tabs') and isinstance(self.settings_tabs, SettingsSidebar):
+            self.settings_tabs.set_font_size(base_size)
+        if hasattr(self, 'modules_tabs') and isinstance(self.modules_tabs, SettingsSidebar):
+            self.modules_tabs.set_font_size(base_size)
 
     def _get_global_ui_font_scale(self) -> int:
         """Get the current global UI font scale percentage"""
@@ -49499,8 +49513,9 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             if hasattr(self.termview_widget_match, 'apply_theme'):
                 self.termview_widget_match.apply_theme()
 
-        # Refresh settings sidebar theme
+        # Refresh sidebar themes (Settings + Tools)
         self._update_settings_sidebar_theme()
+        self._update_tools_sidebar_theme()
 
     def show_file_progress_dialog(self):
         """Show file progress - redirects to Project Info dialog, File Progress tab."""
