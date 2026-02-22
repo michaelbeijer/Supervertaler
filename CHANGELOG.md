@@ -2,8 +2,16 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.306 (February 22, 2026)
+**Current Version:** v1.9.307 (February 22, 2026)
 
+
+## v1.9.307 - February 22, 2026
+
+### New Features
+
+- **Toggle TM Source / TM Target layout: horizontal ↔ vertical** — Right-click on the TM Source or TM Target pane in the Match Panel and select "↕ Stack TM Source / Target Vertically" to switch from side-by-side to vertically stacked layout (giving each pane the full width). Also available via View > Match Panel > "Stack TM Panes Vertically". The preference is persisted across sessions.
+
+---
 
 ## v1.9.306 - February 22, 2026
 

@@ -9252,6 +9252,15 @@ class SupervertalerQt(QMainWindow):
         match_panel_zoom_reset_action.triggered.connect(self.match_panel_zoom_reset)
         match_panel_zoom_menu.addAction(match_panel_zoom_reset_action)
 
+        match_panel_zoom_menu.addSeparator()
+
+        # v1.9.307: TM pane layout toggle (horizontal ↔ vertical)
+        self.match_panel_vertical_action = QAction("Stack TM Panes &Vertically", self)
+        self.match_panel_vertical_action.setCheckable(True)
+        self.match_panel_vertical_action.setChecked(getattr(self, 'match_panel_tm_vertical', False))
+        self.match_panel_vertical_action.triggered.connect(lambda _checked: self._toggle_match_panel_tm_layout())
+        match_panel_zoom_menu.addAction(self.match_panel_vertical_action)
+
         view_menu.addSeparator()
         
         # Termview visibility toggle
@@ -22970,8 +22979,10 @@ class SupervertalerQt(QMainWindow):
             _mp_family = _pre_settings.get('match_panel_font_family', '')
             SupervertalerQt.match_panel_font_family = _mp_family
             SupervertalerQt.match_panel_font_bold = _pre_settings.get('match_panel_font_bold', False)
+            # v1.9.307: Load TM pane layout preference (horizontal vs vertical stacking)
+            self.match_panel_tm_vertical = _pre_settings.get('match_panel_tm_vertical', False)
         except Exception:
-            pass
+            self.match_panel_tm_vertical = False
 
         # Create tabbed container for right panel
         right_tabs = QTabWidget()
@@ -33178,10 +33189,11 @@ class SupervertalerQt(QMainWindow):
         splitter.addWidget(termview_container)
         
         # BOTTOM: Container for TM Source + TM Target boxes
-        tm_container = QWidget()
-        tm_layout = QHBoxLayout(tm_container)
-        tm_layout.setContentsMargins(0, 0, 0, 0)
-        tm_layout.setSpacing(0)
+        # v1.9.307: Store references for layout switching (horizontal ↔ vertical)
+        self._tm_container = QWidget()
+        self._tm_layout = QHBoxLayout(self._tm_container)
+        self._tm_layout.setContentsMargins(0, 0, 0, 0)
+        self._tm_layout.setSpacing(0)
 
         # Get theme-aware colors for TM boxes (same as Compare Panel)
         if hasattr(self, 'theme_manager') and self.theme_manager:
@@ -33195,12 +33207,12 @@ class SupervertalerQt(QMainWindow):
             tm_box_bg = "#d4edda"    # Green (light mode)
             text_color = "#333"
             border_color = "#ddd"
-        
+
         # TM Source box (GREEN, with navigation)
         self.match_panel_tm_matches = []  # Separate match list
         self.match_panel_tm_index = 0     # Separate navigation index
-        
-        tm_source_container, self.match_panel_tm_source, self.match_panel_tm_nav_label, tm_nav_btns = self._create_compare_panel_box(
+
+        self._tm_source_container, self.match_panel_tm_source, self.match_panel_tm_nav_label, tm_nav_btns = self._create_compare_panel_box(
             "📚 TM Source", tm_box_bg, text_color, border_color, has_navigation=True)
         if tm_nav_btns:
             tm_nav_btns[0].clicked.connect(lambda: self._match_panel_nav_tm(-1))
@@ -33208,29 +33220,85 @@ class SupervertalerQt(QMainWindow):
         # Right-click context menu for TM Source
         self.match_panel_tm_source.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.match_panel_tm_source.customContextMenuRequested.connect(self._match_panel_tm_context_menu)
-        tm_layout.addWidget(tm_source_container, 1)
+        self._tm_layout.addWidget(self._tm_source_container, 1)
 
         # TM Target box (GREEN, with metadata and shortcut badge)
-        tm_target_container, self.match_panel_tm_target, self.match_panel_tm_target_label, _ = self._create_compare_panel_box(
+        self._tm_target_container, self.match_panel_tm_target, self.match_panel_tm_target_label, _ = self._create_compare_panel_box(
             "✅ TM Target", tm_box_bg, text_color, border_color, has_navigation=False, show_metadata_label=True,
             shortcut_badge_text="0", shortcut_badge_tooltip="Alt+0")
         # Right-click context menu for TM Target
         self.match_panel_tm_target.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.match_panel_tm_target.customContextMenuRequested.connect(self._match_panel_tm_context_menu)
-        tm_layout.addWidget(tm_target_container, 1)
-        
+        self._tm_layout.addWidget(self._tm_target_container, 1)
+
         # Force stylesheet on the tm_container itself (the parent widget holding both boxes)
-        tm_container.setStyleSheet("background-color: transparent;")
-        
-        splitter.addWidget(tm_container)
-        
+        self._tm_container.setStyleSheet("background-color: transparent;")
+
+        splitter.addWidget(self._tm_container)
+
         # Set initial splitter sizes (60% Termview, 40% TM boxes)
         splitter.setSizes([600, 400])
-        
+
         main_layout.addWidget(splitter)
-        
+
+        # v1.9.307: Restore TM pane layout preference (vertical stacking)
+        if getattr(self, 'match_panel_tm_vertical', False):
+            # Reset to False so the toggle switches it to True
+            self.match_panel_tm_vertical = False
+            self._toggle_match_panel_tm_layout(save=False)
+
         return widget
-    
+
+    def _toggle_match_panel_tm_layout(self, save=True):
+        """Toggle TM Source / TM Target panes between horizontal (side-by-side)
+        and vertical (stacked) layout in the Match Panel.
+
+        v1.9.307: Accessible via right-click context menu and View > Match Panel menu.
+
+        Args:
+            save: If True, persist the preference to general_settings.json.
+                  Set to False during startup restore to avoid redundant writes.
+        """
+        from PyQt6.QtWidgets import QHBoxLayout, QVBoxLayout
+
+        if not hasattr(self, '_tm_container') or not hasattr(self, '_tm_source_container'):
+            return
+
+        # Remove widgets from current layout (keeps widget alive)
+        self._tm_layout.removeWidget(self._tm_source_container)
+        self._tm_layout.removeWidget(self._tm_target_container)
+
+        # Delete the old layout by orphaning it onto a temporary widget
+        QWidget().setLayout(self._tm_container.layout())
+
+        # Flip the orientation
+        self.match_panel_tm_vertical = not self.match_panel_tm_vertical
+
+        # Create new layout with the desired orientation
+        if self.match_panel_tm_vertical:
+            self._tm_layout = QVBoxLayout(self._tm_container)
+        else:
+            self._tm_layout = QHBoxLayout(self._tm_container)
+        self._tm_layout.setContentsMargins(0, 0, 0, 0)
+        self._tm_layout.setSpacing(0)
+
+        # Re-add widgets in the same order
+        self._tm_layout.addWidget(self._tm_source_container, 1)
+        self._tm_layout.addWidget(self._tm_target_container, 1)
+
+        # Sync View menu checkbox
+        if hasattr(self, 'match_panel_vertical_action'):
+            self.match_panel_vertical_action.setChecked(self.match_panel_tm_vertical)
+
+        # Persist preference
+        if save:
+            try:
+                settings = self._load_general_settings_from_file()
+                settings['match_panel_tm_vertical'] = self.match_panel_tm_vertical
+                self.save_general_settings(settings)
+            except Exception:
+                pass
+
     def _match_panel_nav_tm(self, direction: int):
         """Navigate TM matches in Match Panel (-1 = prev, 1 = next)"""
         if not self.match_panel_tm_matches:
@@ -33331,6 +33399,15 @@ class SupervertalerQt(QMainWindow):
                 margin: 4px 8px;
             }
         """)
+
+        # v1.9.307: Layout toggle — always available (even with no TM matches)
+        menu.addSeparator()
+        is_vertical = getattr(self, 'match_panel_tm_vertical', False)
+        layout_action = QAction("↕ Stack TM Source / Target Vertically", menu)
+        layout_action.setCheckable(True)
+        layout_action.setChecked(is_vertical)
+        layout_action.triggered.connect(lambda _checked: self._toggle_match_panel_tm_layout())
+        menu.addAction(layout_action)
 
         if not self.match_panel_tm_matches:
             menu.exec(sender.mapToGlobal(pos))
