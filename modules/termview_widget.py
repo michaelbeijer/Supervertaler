@@ -21,6 +21,15 @@ import re
 from modules.shortcut_display import format_shortcut_for_display
 
 
+class LineBreakWidget(QWidget):
+    """Zero-size sentinel widget that forces FlowLayout to start a new line"""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setFixedSize(0, 0)
+        self.hide()  # Invisible — only used as a layout hint
+
+
 class FlowLayout(QLayout):
     """Flow layout that wraps widgets to next line when needed"""
     
@@ -96,25 +105,34 @@ class FlowLayout(QLayout):
         spacing = self.horizontalSpacing()
         if spacing < 0:
             spacing = 5  # Default spacing
-        
+
         for item in self.itemList:
             wid = item.widget()
+
+            # LineBreakWidget sentinel → force a new line
+            if isinstance(wid, LineBreakWidget):
+                if lineHeight > 0:
+                    x = rect.x()
+                    y = y + lineHeight + spacing
+                    lineHeight = 0
+                continue  # Don't place the sentinel itself
+
             spaceX = spacing
             spaceY = spacing
-            
+
             nextX = x + item.sizeHint().width() + spaceX
             if nextX - spaceX > rect.right() and lineHeight > 0:
                 x = rect.x()
                 y = y + lineHeight + spaceY
                 nextX = x + item.sizeHint().width() + spaceX
                 lineHeight = 0
-            
+
             if not testOnly:
                 item.setGeometry(QRect(QPoint(x, y), item.sizeHint()))
-            
+
             x = nextX
             lineHeight = max(lineHeight, item.sizeHint().height())
-        
+
         return y + lineHeight - rect.y()
     
     def smartSpacing(self, pm):
@@ -758,6 +776,8 @@ class TermviewWidget(QWidget):
         # memoQ content tags: [uicontrol id="..."}  or  {uicontrol]  or  [tagname ...}  or  {tagname]
         display_text = re.sub(r'\[[^\[\]]*\}', '', display_text)  # Opening: [anything}
         display_text = re.sub(r'\{[^\{\}]*\]', '', display_text)  # Closing: {anything]
+        # Strip leading/trailing whitespace including newlines at edges,
+        # but preserve internal newlines for line-break rendering in the flow layout
         display_text = display_text.strip()
 
         # If stripping tags leaves nothing, fall back to original
@@ -850,11 +870,17 @@ class TermviewWidget(QWidget):
         assigned_shortcuts = set()
         
         for token in tokens:
+            # Handle newline sentinel tokens — insert a line break in the flow layout
+            if token == '\n':
+                lb = LineBreakWidget(self.terms_container)
+                self.terms_layout.addWidget(lb)
+                continue
+
             # Strip leading and trailing punctuation/quotes for lookup
             token_clean = token.rstrip(PUNCT_CHARS)
             token_clean = token_clean.lstrip(PUNCT_CHARS)
             lookup_key = token_clean.lower()
-            
+
             # Check if this is a non-translatable
             if lookup_key in nt_dict:
                 nt_block = NTBlock(token, nt_dict[lookup_key], self, theme_manager=self.theme_manager, 
@@ -896,6 +922,9 @@ class TermviewWidget(QWidget):
                 if translations:
                     blocks_with_translations += 1
         
+        # Count only real word tokens (exclude '\n' sentinels)
+        word_count = sum(1 for t in tokens if t != '\n')
+
         info_parts = []
         if blocks_with_translations > 0:
             info_parts.append(f"{blocks_with_translations} terms")
@@ -903,16 +932,16 @@ class TermviewWidget(QWidget):
             info_parts.append(f"{blocks_with_nt} NTs")
 
         if info_parts:
-            self.info_label.setText(f"✓ Found {', '.join(info_parts)} in {len(tokens)} words")
+            self.info_label.setText(f"✓ Found {', '.join(info_parts)} in {word_count} words")
         else:
             # Show appropriate message based on status hint when no matches
             status_hint = getattr(self, '_status_hint', None)
             if status_hint == 'no_termbases_activated':
-                self.info_label.setText(f"No glossaries activated ({len(tokens)} words)")
+                self.info_label.setText(f"No glossaries activated ({word_count} words)")
             elif status_hint == 'wrong_language':
-                self.info_label.setText(f"Glossaries don't match language pair ({len(tokens)} words)")
+                self.info_label.setText(f"Glossaries don't match language pair ({word_count} words)")
             else:
-                self.info_label.setText(f"No matches in {len(tokens)} words")
+                self.info_label.setText(f"No matches in {word_count} words")
     
     def get_all_termbase_matches(self, text: str) -> Dict[str, List[Dict]]:
         """
@@ -1030,12 +1059,34 @@ class TermviewWidget(QWidget):
     
     def tokenize_with_multiword_terms(self, text: str, matches: Dict[str, List[Dict]]) -> List[str]:
         """
-        Tokenize text, preserving multi-word terms found in termbase
-        
+        Tokenize text, preserving multi-word terms found in termbase.
+        Newline characters (\n) in the source are preserved as '\n' sentinel tokens.
+
         Args:
             text: Source text
             matches: Dict of termbase matches (from get_all_termbase_matches)
-            
+
+        Returns:
+            List of tokens (words/phrases/numbers/newlines), with multi-word terms kept together
+        """
+        # Split by newlines, tokenize each line, and insert '\n' sentinels between lines
+        lines = text.split('\n')
+        all_tokens = []
+        for i, line in enumerate(lines):
+            if i > 0:
+                all_tokens.append('\n')  # sentinel token for line break
+            line_tokens = self._tokenize_line(line, matches)
+            all_tokens.extend(line_tokens)
+        return all_tokens
+
+    def _tokenize_line(self, text: str, matches: Dict[str, List[Dict]]) -> List[str]:
+        """
+        Tokenize a single line of text, preserving multi-word terms found in termbase.
+
+        Args:
+            text: Single line of source text (no newlines)
+            matches: Dict of termbase matches (from get_all_termbase_matches)
+
         Returns:
             List of tokens (words/phrases/numbers), with multi-word terms kept together
         """
@@ -1045,38 +1096,38 @@ class TermviewWidget(QWidget):
             self.log(f"🔍 Tokenize: Looking for {len(multi_word_terms)} multi-word terms:")
             for term in sorted(multi_word_terms, key=len, reverse=True)[:3]:
                 self.log(f"    - '{term}'")
-        
+
         # Sort matched terms by length (longest first) to match multi-word terms first
         matched_terms = sorted(matches.keys(), key=len, reverse=True)
-        
+
         # Track which parts of the text have been matched
         text_lower = text.lower()
         used_positions = set()
         tokens_with_positions = []
-        
+
         # First pass: find multi-word terms with proper word boundary checking
         for term in matched_terms:
             if ' ' in term:  # Only process multi-word terms in first pass
                 # Use regex with word boundaries to find term
                 term_escaped = re.escape(term)
-                
+
                 # Check if term has punctuation - use different pattern
                 if any(char in term for char in ['.', '%', ',', '-', '/']):
                     pattern = r'(?<!\w)' + term_escaped + r'(?!\w)'
                 else:
                     pattern = r'\b' + term_escaped + r'\b'
-                
+
                 # DEBUG: Check if multi-word term is found (only if debug_tokenize enabled)
                 found = re.search(pattern, text_lower)
                 if self.debug_tokenize:
                     self.log(f"🔍 Tokenize: Pattern '{pattern}' for '{term}' → {'FOUND' if found else 'NOT FOUND'}")
                     if found:
                         self.log(f"    Match at position {found.span()}: '{text[found.start():found.end()]}'")
-                
+
                 # Find all matches using regex
                 for match in re.finditer(pattern, text_lower):
                     pos = match.start()
-                    
+
                     # Check if this position overlaps with already matched terms
                     term_positions = set(range(pos, pos + len(term)))
                     if not term_positions.intersection(used_positions):
@@ -1086,12 +1137,12 @@ class TermviewWidget(QWidget):
                         used_positions.update(term_positions)
                         if self.debug_tokenize:
                             self.log(f"    ✅ Added multi-word token: '{original_term}' covering positions {pos}-{pos+len(term)}")
-        
+
         # DEBUG: Log used_positions after first pass (only if debug_tokenize enabled)
         if matches and ' ' in sorted(matches.keys(), key=len, reverse=True)[0] and self.debug_tokenize:
             self.log(f"🔍 After first pass: {len(used_positions)} positions marked as used")
             self.log(f"    Used positions: {sorted(list(used_positions))[:20]}...")
-        
+
         # Read the "hide shorter matches" setting from the parent app (respects Settings checkbox)
         hide_shorter = False
         p = self.parent()
@@ -1133,11 +1184,11 @@ class TermviewWidget(QWidget):
             # words inside a long phrase from being duplicated)
             if not already_covered:
                 used_positions.update(word_positions)
-        
+
         # Sort by position and extract tokens
         tokens_with_positions.sort(key=lambda x: x[0])
         tokens = [token for pos, length, token in tokens_with_positions]
-        
+
         return tokens
     
     def search_term(self, term: str) -> List[Dict]:

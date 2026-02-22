@@ -2,8 +2,16 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.307 (February 22, 2026)
+**Current Version:** v1.9.308 (February 22, 2026)
 
+
+## v1.9.308 - February 22, 2026
+
+### Improvements
+
+- **Termview respects line breaks from source text** — When the source segment contains line breaks (e.g. multi-line content), the Termview flow layout now starts a new row at each `\n`, matching the visual structure of the source grid cell instead of flowing all words into a single continuous block.
+
+---
 
 ## v1.9.307 - February 22, 2026
 
