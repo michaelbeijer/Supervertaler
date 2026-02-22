@@ -2180,37 +2180,44 @@ class ReadOnlyGridTextEditor(QTextEdit):
         super().keyPressEvent(event)
     
     def mouseDoubleClickEvent(self, event):
-        """Handle double-click to select words properly when invisibles are shown"""
-        from PyQt6.QtCore import Qt
-        from PyQt6.QtGui import QTextCursor
-        
-        main_window = self._get_main_window()
-        # Check if invisible spaces are being shown
-        if main_window and hasattr(main_window, 'invisible_display_settings'):
-            if main_window.invisible_display_settings.get('spaces', False):
-                # Get cursor position at click
-                cursor = self.cursorForPosition(event.pos())
-                pos = cursor.position()
-                text = self.toPlainText()
-                
-                # Find word boundaries using middle dot (·) or zero-width space as delimiters
-                # Find start of word (search backwards for · or start of text)
-                start = pos
-                while start > 0 and text[start - 1] not in ('·', '\u200B', '\n', '\t', '→', '°', '↵'):
-                    start -= 1
+        """Handle double-click to select words properly when invisibles are shown.
 
-                # Find end of word (search forwards for · or end of text)
-                end = pos
-                while end < len(text) and text[end] not in ('·', '\u200B', '\n', '\t', '→', '°', '↵'):
-                    end += 1
-                
-                # Select the word
-                cursor.setPosition(start)
-                cursor.setPosition(end, QTextCursor.MoveMode.KeepAnchor)
-                self.setTextCursor(cursor)
-                return
-        
-        # Default behavior
+        When any invisible-character substitutions are active the text contains
+        marker characters (·, →, °, ↵) and zero-width spaces (\u200B).
+        We use the visible markers plus regular space as word delimiters.
+        \u200B is intentionally excluded — it is a word-wrap hint, not a delimiter.
+        """
+        from PyQt6.QtGui import QTextCursor
+
+        main_window = self._get_main_window()
+        any_invisibles = False
+        if main_window and hasattr(main_window, 'invisible_display_settings'):
+            any_invisibles = any(main_window.invisible_display_settings.values())
+
+        if any_invisibles:
+            DELIMITERS = {' ', '·', '→', '°', '↵', '\n', '\t'}
+
+            cursor = self.cursorForPosition(event.pos())
+            pos = cursor.position()
+            text = self.toPlainText()
+
+            start = pos
+            while start > 0 and text[start - 1] not in DELIMITERS:
+                start -= 1
+
+            end = pos
+            while end < len(text) and text[end] not in DELIMITERS:
+                end += 1
+
+            # Trim leading \u200B (part of '·\u200B' marker pairs)
+            while start < end and text[start] == '\u200B':
+                start += 1
+
+            cursor.setPosition(start)
+            cursor.setPosition(end, QTextCursor.MoveMode.KeepAnchor)
+            self.setTextCursor(cursor)
+            return
+
         super().mouseDoubleClickEvent(event)
 
     def _handle_quick_add_to_termbase(self):
@@ -3537,10 +3544,10 @@ class EditableGridTextEditor(QTextEdit):
             any_invisibles = any(main_window.invisible_display_settings.values())
 
         if any_invisibles:
-            # Visible marker characters that serve as word delimiters
+            # Word delimiters: regular space + visible invisible-character markers.
             # NOTE: \u200B (zero-width space) is deliberately NOT in this set —
             # it lives inside '·\u200B' pairs and must not split word selection.
-            DELIMITERS = {'·', '→', '°', '↵', '\n', '\t'}
+            DELIMITERS = {' ', '·', '→', '°', '↵', '\n', '\t'}
 
             cursor = self.cursorForPosition(event.pos())
             pos = cursor.position()

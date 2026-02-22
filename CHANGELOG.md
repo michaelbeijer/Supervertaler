@@ -2,8 +2,16 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.302 (February 22, 2026)
+**Current Version:** v1.9.303 (February 22, 2026)
 
+
+## v1.9.303 - February 22, 2026
+
+### Bug Fixes
+
+- **Fixed: double-clicking in target box selects entire segment instead of individual word** — Changing the Show Invisibles defaults (tabs, non-breaking spaces, line breaks ON) activated the custom double-click handler in `EditableGridTextEditor`, but its word-delimiter set was missing the regular space character (`' '`). When spaces weren't displayed as markers, the scan found no delimiters and selected the entire segment text. Fixed by adding `' '` to the `DELIMITERS` set in both `EditableGridTextEditor` and `ReadOnlyGridTextEditor`. Also rewrote `ReadOnlyGridTextEditor.mouseDoubleClickEvent()` to match the improved pattern (checks `any(invisible_display_settings.values())` instead of only spaces).
+
+---
 
 ## v1.9.302 - February 22, 2026
 
