@@ -51275,15 +51275,6 @@ class SuperlookupTab(QWidget):
                 'bidirectional': True,
             },
             {
-                'id': 'github_beijerterm',
-                'name': 'GitHub Code (Beijerterm)',
-                'icon': '💻',
-                'description': 'Search Beijerterm terminology repo on GitHub',
-                'url_template': 'https://github.com/search?q={query}+repo%3Amichaelbeijer%2Fbeijerterm&type=code',
-                'lang_format': None,
-                'bidirectional': True,
-            },
-            {
                 'id': 'opus_corpus',
                 'name': 'OPUS Corpus',
                 'icon': '📚',
