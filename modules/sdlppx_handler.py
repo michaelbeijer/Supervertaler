@@ -24,6 +24,7 @@ Author: Supervertaler
 
 import os
 import re
+import uuid
 import zipfile
 import shutil
 import tempfile
@@ -482,6 +483,119 @@ def _markers_to_xml(text: str) -> str:
     return result
 
 
+def _find_max_locked_id(content: str) -> int:
+    """
+    Find the highest 'lockedN' element id number in the file content.
+
+    Lock elements use ids like ``id="locked1417"``. When creating new lock
+    elements for target content we must generate ids that don't collide with
+    existing ones.
+
+    Returns:
+        The highest N found, or 0 if none.
+    """
+    ids = re.findall(r'\bid="locked(\d+)"', content)
+    return max((int(n) for n in ids), default=0)
+
+
+def _remap_lock_xids(target_fragment: str, locked_id_counter: int
+                     ) -> Tuple[str, List[Tuple[str, str, str, str]], int]:
+    """
+    Remap lock element ids and xids in *target_fragment* to fresh values.
+
+    For every ``<x id="lockedN" xid="lockTU_UUID"/>`` found in the fragment:
+    * A new sequential element id ``locked{counter}`` is assigned.
+    * A new UUID-based ``lockTU_`` xid is generated.
+
+    Args:
+        target_fragment: XML fragment that will become the new ``<target>``
+            inner content.  May contain zero or more lock elements.
+        locked_id_counter: Current counter value for generating sequential
+            ``locked{N}`` ids.  The caller is responsible for persisting the
+            returned (incremented) counter across calls.
+
+    Returns:
+        A 3-tuple:
+        * The rewritten *target_fragment* with new ids/xids.
+        * A list of ``(old_xid, new_xid, old_elem_id, new_elem_id)`` tuples
+          describing each remapping.
+        * The updated *locked_id_counter* after all remappings.
+    """
+    mappings: List[Tuple[str, str, str, str]] = []
+
+    # Pattern matches: <x id="lockedN" xid="lockTU_UUID" />
+    # (attributes may appear in any order, optional whitespace before />)
+    lock_elem_re = re.compile(
+        r'<x\s+'
+        r'(?=[^>]*\bid="(locked\d+)")'     # capture old element id
+        r'(?=[^>]*\bxid="(lockTU_[^"]+)")'  # capture old xid
+        r'[^>]*/>'
+    )
+
+    def _remap(m: re.Match) -> str:
+        nonlocal locked_id_counter
+        old_elem_id = m.group(1)  # e.g. "locked1418"
+        old_xid = m.group(2)      # e.g. "lockTU_9056fa06-..."
+
+        locked_id_counter += 1
+        new_elem_id = f'locked{locked_id_counter}'
+        new_xid = f'lockTU_{uuid.uuid4()}'
+
+        mappings.append((old_xid, new_xid, old_elem_id, new_elem_id))
+
+        # Rebuild the element with new ids
+        tag = m.group(0)
+        tag = tag.replace(f'id="{old_elem_id}"', f'id="{new_elem_id}"')
+        tag = tag.replace(f'xid="{old_xid}"', f'xid="{new_xid}"')
+        return tag
+
+    new_fragment = lock_elem_re.sub(_remap, target_fragment)
+    return new_fragment, mappings, locked_id_counter
+
+
+def _insert_lock_tus(content: str,
+                     xid_mappings: List[Tuple[str, str, str, str]]) -> str:
+    """
+    Insert new lock TU ``<trans-unit>`` elements for remapped xids.
+
+    For each ``(old_xid, new_xid, …)`` in *xid_mappings*, find the original
+    lock TU (whose ``id`` equals *old_xid*), clone it with ``id=new_xid``,
+    and insert the clone immediately before the original.  This matches the
+    layout that Trados Studio produces.
+
+    Args:
+        content: Full SDLXLIFF file content.
+        xid_mappings: List of ``(old_xid, new_xid, old_elem_id, new_elem_id)``
+            tuples as returned by :func:`_remap_lock_xids`.
+
+    Returns:
+        Modified file content with the new lock TU trans-units inserted.
+    """
+    if not xid_mappings:
+        return content
+
+    for old_xid, new_xid, _old_eid, _new_eid in xid_mappings:
+        # Find the original lock TU.  The id attribute may not be the first
+        # attribute, so use a flexible regex.
+        esc_old = re.escape(old_xid)
+        lock_tu_re = re.compile(
+            rf'<trans-unit\s+(?=[^>]*\bid="{esc_old}")[^>]*>.*?</trans-unit>',
+            re.DOTALL
+        )
+        m = lock_tu_re.search(content)
+        if not m:
+            continue
+
+        original_tu = m.group(0)
+        # Clone with new id
+        new_tu = original_tu.replace(f'id="{old_xid}"', f'id="{new_xid}"', 1)
+
+        # Insert the clone immediately before the original
+        content = content[:m.start()] + new_tu + content[m.start():]
+
+    return content
+
+
 def _replace_target_content(content: str, xliff_file: SDLXLIFFFile,
                             segment_map: Dict[str, 'SDLSegment']) -> str:
     """
@@ -496,15 +610,103 @@ def _replace_target_content(content: str, xliff_file: SDLXLIFFFile,
     3. Missing target: no <target> element — create one from seg-source structure
     4. Unsegmented: no mrk tags at all — use tu_id as segment_id
 
+    Also handles lock TU xid remapping: when building new target content from
+    seg-source for partial-lock segments, lock element xids are remapped to
+    fresh UUIDs so each context (source, seg-source, target) has unique
+    lock TU references.  Corresponding lock TU trans-units are inserted into
+    the file after all per-TU replacements.
+
     The mrk regex handles any attribute order (mtype before mid or vice versa)
     since XML does not guarantee attribute ordering.
     """
+    # Find the highest existing locked element id for sequential numbering
+    locked_id_counter = _find_max_locked_id(content)
+    # Accumulate lock TU xid mappings across all trans-units
+    all_xid_mappings: List[Tuple[str, str, str, str]] = []
+
+    def _get_seg_source_lock_xids(tu_block: str, mid: str) -> Dict[str, str]:
+        """
+        Extract lock element id → xid mappings from the seg-source mrk
+        with the given mid.
+
+        Returns a dict like ``{'locked1418': 'lockTU_9056fa06-...'}``
+        so that when we produce target content via _markers_to_xml()
+        (which loses the xid), we can re-attach the correct xid reference
+        and then remap it to a fresh UUID.
+        """
+        # Find the seg-source mrk for this mid
+        seg_source_m = re.search(
+            r'<seg-source[^>]*>(.*?)</seg-source>', tu_block, re.DOTALL)
+        if not seg_source_m:
+            return {}
+
+        seg_source = seg_source_m.group(1)
+        # Find the mrk with this mid
+        mrk_re = re.compile(
+            r'<mrk\s+'
+            r'(?=[^>]*\bmtype="seg")'
+            r'(?=[^>]*\bmid="' + re.escape(mid) + r'")'
+            r'[^>]*>(.*?)</mrk>',
+            re.DOTALL
+        )
+        mrk_m = mrk_re.search(seg_source)
+        if not mrk_m:
+            return {}
+
+        mrk_content = mrk_m.group(1)
+        # Extract all lock element id→xid pairs
+        result = {}
+        for lock_m in re.finditer(
+                r'<x\s+[^>]*?\bid="(locked\d+)"[^>]*?\bxid="(lockTU_[^"]+)"[^>]*/>', mrk_content):
+            result[lock_m.group(1)] = lock_m.group(2)
+        # Also handle reversed attribute order
+        for lock_m in re.finditer(
+                r'<x\s+[^>]*?\bxid="(lockTU_[^"]+)"[^>]*?\bid="(locked\d+)"[^>]*/>', mrk_content):
+            result[lock_m.group(2)] = lock_m.group(1)
+        return result
+
+    def _restore_and_remap_lock_xids(new_content: str, seg_source_xids: Dict[str, str]) -> str:
+        """
+        After _markers_to_xml(), lock elements look like ``<x id="locked1418"/>``
+        (missing xid).  This function re-attaches the xid from the seg-source
+        and remaps both to fresh values for the target context.
+        """
+        nonlocal locked_id_counter
+
+        if not seg_source_xids:
+            return new_content
+
+        for old_elem_id, old_xid in seg_source_xids.items():
+            # Find <x id="lockedN"/> (without xid) in new_content
+            pattern = rf'<x\s+id="{re.escape(old_elem_id)}"(\s*)/>'
+            m = re.search(pattern, new_content)
+            if not m:
+                continue
+
+            # Generate new ids
+            locked_id_counter += 1
+            new_elem_id = f'locked{locked_id_counter}'
+            new_xid = f'lockTU_{uuid.uuid4()}'
+
+            all_xid_mappings.append((old_xid, new_xid, old_elem_id, new_elem_id))
+
+            # Replace with full lock element including new xid
+            new_elem = f'<x id="{new_elem_id}" xid="{new_xid}"/>'
+            new_content = new_content[:m.start()] + new_elem + new_content[m.end():]
+
+        return new_content
+
     def _replace_tu_target(tu_match):
+        nonlocal locked_id_counter
         tu_block = tu_match.group(0)
         tu_id_m = re.search(r'<trans-unit\s+[^>]*?id="([^"]+)"', tu_block)
         if not tu_id_m:
             return tu_block
         tu_id = tu_id_m.group(1)
+
+        # Skip lock TUs themselves
+        if tu_id.startswith('lockTU_'):
+            return tu_block
 
         # Collect all translations for segments in this TU
         tu_translations = {}
@@ -519,17 +721,21 @@ def _replace_target_content(content: str, xliff_file: SDLXLIFFFile,
 
         if not target_m:
             # No <target> element — create one by cloning seg-source structure
-            new_target = _build_target_from_seg_source(tu_block, tu_id, segment_map)
-            if new_target:
-                # Insert <target> after </seg-source> or </source>
-                insert_after = '</seg-source>'
+            result = _build_target_from_seg_source(
+                tu_block, tu_id, segment_map, locked_id_counter)
+            if result is None:
+                return tu_block
+            new_target, mappings, locked_id_counter = result
+            all_xid_mappings.extend(mappings)
+            # Insert <target> after </seg-source> or </source>
+            insert_after = '</seg-source>'
+            insert_pos = tu_block.find(insert_after)
+            if insert_pos == -1:
+                insert_after = '</source>'
                 insert_pos = tu_block.find(insert_after)
-                if insert_pos == -1:
-                    insert_after = '</source>'
-                    insert_pos = tu_block.find(insert_after)
-                if insert_pos != -1:
-                    insert_pos += len(insert_after)
-                    return tu_block[:insert_pos] + new_target + tu_block[insert_pos:]
+            if insert_pos != -1:
+                insert_pos += len(insert_after)
+                return tu_block[:insert_pos] + new_target + tu_block[insert_pos:]
             return tu_block
 
         target_open = target_m.group(1)
@@ -555,6 +761,32 @@ def _replace_target_content(content: str, xliff_file: SDLXLIFFFile,
             segment = segment_map.get(segment_id)
             if segment and segment.target_text:
                 new_content = _markers_to_xml(segment.target_text)
+                if 'xid=' in mrk_content:
+                    # Already-translated segment whose target mrk already has
+                    # lock xids.  _markers_to_xml() strips xids, so we must
+                    # re-attach them from the existing target content.
+                    existing_xids: Dict[str, str] = {}
+                    for lm in re.finditer(
+                            r'<x\s+[^>]*?\bid="(locked\d+)"[^>]*?\bxid="(lockTU_[^"]+)"[^>]*/>', mrk_content):
+                        existing_xids[lm.group(1)] = lm.group(2)
+                    for lm in re.finditer(
+                            r'<x\s+[^>]*?\bxid="(lockTU_[^"]+)"[^>]*?\bid="(locked\d+)"[^>]*/>', mrk_content):
+                        existing_xids[lm.group(2)] = lm.group(1)
+                    # Re-attach xids to the bare <x id="lockedN"/> tags
+                    for eid, xid_val in existing_xids.items():
+                        bare_pattern = rf'<x\s+id="{re.escape(eid)}"(\s*)/>'
+                        new_content = re.sub(
+                            bare_pattern,
+                            f'<x id="{eid}" xid="{xid_val}"/>',
+                            new_content
+                        )
+                elif re.search(r'<x\s+id="locked\d+"', new_content):
+                    # Target mrk was empty but translated text has lock
+                    # markers — restore xids from seg-source and remap.
+                    seg_xids = _get_seg_source_lock_xids(tu_block, mid)
+                    if seg_xids:
+                        new_content = _restore_and_remap_lock_xids(
+                            new_content, seg_xids)
                 replaced_count += 1
                 return f'{mrk_open}{new_content}</mrk>'
             return mrk_match.group(0)
@@ -572,6 +804,13 @@ def _replace_target_content(content: str, xliff_file: SDLXLIFFFile,
             segment = segment_map.get(segment_id)
             if segment and segment.target_text:
                 new_content = _markers_to_xml(segment.target_text)
+                # Self-closing mrk means the target was empty.  If the
+                # translated text references lock elements (e.g. <x id="locked1418"/>)
+                # we must restore the xid from seg-source and remap to new values.
+                seg_xids = _get_seg_source_lock_xids(tu_block, mid)
+                if seg_xids:
+                    new_content = _restore_and_remap_lock_xids(
+                        new_content, seg_xids)
                 replaced_count += 1
                 # Build a proper opening tag by removing the self-close slash
                 open_tag = re.sub(r'\s*/?>$', '>', full_tag)
@@ -581,11 +820,13 @@ def _replace_target_content(content: str, xliff_file: SDLXLIFFFile,
         # Flexible mrk pattern: match <mrk ...> where both mtype="seg" and
         # mid="N" appear as attributes (in any order), then content, then </mrk>.
         # Lookaheads ensure both attributes are present without assuming order.
+        # The negative lookbehind (?<!/) before > ensures we do NOT match
+        # self-closing tags like <mrk ... /> (those are handled in pass 2).
         mrk_pattern = (
             r'(<mrk\s+'                  # opening <mrk + space
             r'(?=[^>]*\bmtype="seg")'    # lookahead: mtype="seg" present
             r'(?=[^>]*\bmid="\d+")'      # lookahead: mid="N" present
-            r'[^>]*>)'                   # consume all attributes + >
+            r'[^>]*(?<!/)>)'             # consume all attributes + > (not />)
             r'(.*?)'                     # content (non-greedy)
             r'(</mrk>)'                  # closing tag
         )
@@ -628,8 +869,11 @@ def _replace_target_content(content: str, xliff_file: SDLXLIFFFile,
             else:
                 # Second: target has no mrk tags but translations exist with _mid suffix.
                 # Rebuild target content from seg-source structure with translations.
-                rebuilt = _build_target_from_seg_source(tu_block, tu_id, segment_map)
-                if rebuilt:
+                result = _build_target_from_seg_source(
+                    tu_block, tu_id, segment_map, locked_id_counter)
+                if result is not None:
+                    rebuilt, mappings, locked_id_counter = result
+                    all_xid_mappings.extend(mappings)
                     # Extract inner content from the rebuilt <target>...</target>
                     rebuilt_m = re.match(r'<target[^>]*>(.*)</target>', rebuilt, re.DOTALL)
                     if rebuilt_m:
@@ -645,18 +889,39 @@ def _replace_target_content(content: str, xliff_file: SDLXLIFFFile,
         content,
         flags=re.DOTALL
     )
+
+    # Insert new lock TU trans-units for all remapped xids
+    if all_xid_mappings:
+        content = _insert_lock_tus(content, all_xid_mappings)
+
     return content
 
 
 def _build_target_from_seg_source(tu_block: str, tu_id: str,
-                                   segment_map: Dict[str, 'SDLSegment']) -> Optional[str]:
+                                   segment_map: Dict[str, 'SDLSegment'],
+                                   locked_id_counter: int = 0
+                                   ) -> Optional[Tuple[str, List[Tuple[str, str, str, str]], int]]:
     """
     Build a <target> element by cloning the <seg-source> structure and
     replacing each <mrk mtype="seg" mid="N"> content with translations.
 
-    Returns the full <target>...</target> string, or None if no translations
-    are available for this TU.
+    Lock elements (``<x id="lockedN" xid="lockTU_..."/>``) in the cloned
+    seg-source content are remapped to fresh xids so that the target context
+    has its own unique lock TU references.
+
+    Args:
+        tu_block: The full trans-unit XML text.
+        tu_id: The trans-unit id.
+        segment_map: Segment id → SDLSegment mapping.
+        locked_id_counter: Current counter for generating sequential locked
+            element ids.
+
+    Returns:
+        A 3-tuple ``(target_xml, xid_mappings, updated_counter)`` or ``None``
+        if no translations are available for this TU.
     """
+    xid_mappings: List[Tuple[str, str, str, str]] = []
+
     # Extract seg-source inner content
     seg_source_m = re.search(r'<seg-source[^>]*>(.*?)</seg-source>', tu_block, re.DOTALL)
     if not seg_source_m:
@@ -666,7 +931,7 @@ def _build_target_from_seg_source(tu_block: str, tu_id: str,
             segment = segment_map.get(tu_id)
             if segment and segment.target_text:
                 new_content = _markers_to_xml(segment.target_text)
-                return f'<target>{new_content}</target>'
+                return f'<target>{new_content}</target>', [], locked_id_counter
         return None
 
     seg_source_inner = seg_source_m.group(1)
@@ -691,7 +956,7 @@ def _build_target_from_seg_source(tu_block: str, tu_id: str,
         r'(<mrk\s+'
         r'(?=[^>]*\bmtype="seg")'
         r'(?=[^>]*\bmid="\d+")'
-        r'[^>]*>)'
+        r'[^>]*(?<!/)>)'             # consume all attributes + > (not />)
         r'(.*?)'
         r'(</mrk>)'
     )
@@ -702,7 +967,13 @@ def _build_target_from_seg_source(tu_block: str, tu_id: str,
     if not any_replaced:
         return None
 
-    return f'<target>{target_inner}</target>'
+    # Remap any lock element xids in the target content so the target
+    # context has its own unique lock TU references.
+    if 'xid="lockTU_' in target_inner:
+        target_inner, xid_mappings, locked_id_counter = _remap_lock_xids(
+            target_inner, locked_id_counter)
+
+    return f'<target>{target_inner}</target>', xid_mappings, locked_id_counter
 
 
 def _replace_seg_attributes(content: str, xliff_file: SDLXLIFFFile,
@@ -1017,7 +1288,7 @@ class TradosPackageHandler:
             
             total_segments = sum(len(f.segments) for f in self.package.xliff_files)
             self.log(f"Loaded package: {self.package.project_name}")
-            self.log(f"  Languages: {self.package.source_lang} → {self.package.target_lang}")
+            self.log(f"  Languages: {self.package.source_lang} -> {self.package.target_lang}")
             self.log(f"  Files: {len(self.package.xliff_files)}")
             self.log(f"  Segments: {total_segments}")
             
@@ -1073,7 +1344,7 @@ class TradosPackageHandler:
         if target_folder.exists():
             # Load from target language folder
             self.log(f"Loading SDLXLIFF files from target folder: {target_lang}/")
-            for xliff_path in target_folder.glob('*.sdlxliff'):
+            for xliff_path in target_folder.rglob('*.sdlxliff'):
                 xliff_file = self.parser.parse_file(str(xliff_path))
                 if xliff_file:
                     self.package.xliff_files.append(xliff_file)
@@ -1092,7 +1363,7 @@ class TradosPackageHandler:
                             continue
                         
                         self.log(f"Loading SDLXLIFF files from folder: {folder.name}/")
-                        for xliff_path in folder.glob('*.sdlxliff'):
+                        for xliff_path in folder.rglob('*.sdlxliff'):
                             xliff_file = self.parser.parse_file(str(xliff_path))
                             if xliff_file:
                                 self.package.xliff_files.append(xliff_file)

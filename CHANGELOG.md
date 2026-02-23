@@ -2,8 +2,28 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.311 (February 23, 2026)
+**Current Version:** v1.9.312 (February 23, 2026)
 
+
+## v1.9.312 - February 23, 2026
+
+### New Features
+
+- **SDLPPX multi-file views** — When importing a Trados Studio package (SDLPPX) containing multiple SDLXLIFF files, the multi-file views system now activates automatically. Each file appears in the file filter dropdown, letting you select individual files to work on or create custom views — just like the existing multi-file folder import. Previously, all files were lumped together with no way to filter by file.
+
+### Improvements
+
+- **memoQ submenu in Import/Export menus** — The three memoQ import formats (Bilingual Table DOCX, Bilingual Table RTF, XLIFF .mqxliff) and their corresponding exports are now grouped under a "memoQ" submenu, matching the existing Trados Studio submenu pattern. Declutters the Import and Export menus.
+- **SDLPPX import performance** — Locked and non-translatable segments (lock TUs, `translate="no"` structural segments) are now filtered out before loading into the UI grid. A package with ~42,000 total segments but only ~1,700 translatable ones now loads in seconds instead of 5–10 minutes.
+
+### Bug Fixes
+
+- **SDLPPX import: fix "Total segments: 0"** — SDLXLIFF files inside Trados packages are stored in subdirectories (e.g. `nl-NL/import/...`), but the loader used non-recursive `.glob('*.sdlxliff')` which only searched the top level. Changed to `.rglob('*.sdlxliff')` so files in nested folders are found correctly.
+- **SDLXLIFF export: lock TU handling for partial-lock segments** — When exporting translations for segments containing inline lock elements (`<x id="lockedN" xid="lockTU_UUID"/>`), each target context now gets its own unique lock TU with a fresh UUID-based xid. Previously, new targets either lost their lock xids entirely or reused the seg-source xids, which could cause Trados Studio to reject the file. Already-translated segments preserve their existing target lock xids.
+- **SDLXLIFF export: fix self-closing mrk regex cross-matching** — The mrk regex `[^>]*>` could match through the `/>` of a self-closing `<mrk ... />` and grab the next `</mrk>` as its closing tag, causing incorrect content substitution in TUs with mixed self-closing and regular mrk elements. Fixed with a negative lookbehind `(?<!/)` before `>`.
+- **Unicode crash on Windows console** — A `→` (Unicode arrow) character in a log message caused `UnicodeEncodeError` on Windows cp1252 consoles, crashing `load_package()`. Replaced with ASCII `->`.
+
+---
 
 ## v1.9.311 - February 23, 2026
 

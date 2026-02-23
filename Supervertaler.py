@@ -8843,17 +8843,20 @@ class SupervertalerQt(QMainWindow):
         
         import_menu.addSeparator()  # Separate monolingual from bilingual tools
         
-        import_memoq_action = QAction("memoQ &Bilingual Table (DOCX)...", self)
+        # memoQ submenu - group all memoQ imports together
+        memoq_submenu = import_menu.addMenu("&memoQ")
+
+        import_memoq_action = QAction("Bilingual Table (&DOCX)...", self)
         import_memoq_action.triggered.connect(self.import_memoq_bilingual)
-        import_menu.addAction(import_memoq_action)
+        memoq_submenu.addAction(import_memoq_action)
 
-        import_memoq_rtf_action = QAction("memoQ Bilingual Table (&RTF)...", self)
+        import_memoq_rtf_action = QAction("Bilingual Table (&RTF)...", self)
         import_memoq_rtf_action.triggered.connect(self.import_memoq_rtf)
-        import_menu.addAction(import_memoq_rtf_action)
+        memoq_submenu.addAction(import_memoq_rtf_action)
 
-        import_memoq_xliff_action = QAction("memoQ &XLIFF (.mqxliff)...", self)
+        import_memoq_xliff_action = QAction("&XLIFF (.mqxliff)...", self)
         import_memoq_xliff_action.triggered.connect(self.import_memoq_xliff)
-        import_menu.addAction(import_memoq_xliff_action)
+        memoq_submenu.addAction(import_memoq_xliff_action)
         
         import_cafetran_action = QAction("&CafeTran Bilingual Table (DOCX)...", self)
         import_cafetran_action.triggered.connect(self.import_cafetran_bilingual)
@@ -8912,18 +8915,20 @@ class SupervertalerQt(QMainWindow):
 
         export_menu.addSeparator()
 
-        # --- Bilingual CAT tool exports ---
-        export_memoq_action = QAction("memoQ &Bilingual Table - Translated (DOCX)...", self)
+        # memoQ submenu - group all memoQ exports together
+        memoq_export_submenu = export_menu.addMenu("&memoQ")
+
+        export_memoq_action = QAction("Bilingual Table - Translated (&DOCX)...", self)
         export_memoq_action.triggered.connect(self.export_memoq_bilingual)
-        export_menu.addAction(export_memoq_action)
+        memoq_export_submenu.addAction(export_memoq_action)
 
-        export_memoq_rtf_action = QAction("memoQ Bilingual Table - Translated (&RTF)...", self)
+        export_memoq_rtf_action = QAction("Bilingual Table - Translated (&RTF)...", self)
         export_memoq_rtf_action.triggered.connect(self.export_memoq_rtf)
-        export_menu.addAction(export_memoq_rtf_action)
+        memoq_export_submenu.addAction(export_memoq_rtf_action)
 
-        export_memoq_xliff_action = QAction("memoQ &XLIFF - Translated (.mqxliff)...", self)
+        export_memoq_xliff_action = QAction("&XLIFF - Translated (.mqxliff)...", self)
         export_memoq_xliff_action.triggered.connect(self.export_memoq_xliff)
-        export_menu.addAction(export_memoq_xliff_action)
+        memoq_export_submenu.addAction(export_memoq_xliff_action)
 
         export_cafetran_action = QAction("&CafeTran Bilingual Table - Translated (DOCX)...", self)
         export_cafetran_action.triggered.connect(self.export_cafetran_bilingual)
@@ -30880,46 +30885,69 @@ class SupervertalerQt(QMainWindow):
                 handler.cleanup()
                 return
             
-            # Get all segments from the package
-            all_segments = handler.get_all_segments()
-            
-            if not all_segments:
+            # Build segments per-file so the multi-file views system activates.
+            # Filter out non-translatable segments (lock TUs, translate="no"
+            # structural segments) — Trados Studio also hides these.
+            is_multifile = len(package.xliff_files) > 1
+            segments = []
+            file_metadata = []
+            global_index = 0
+            total_locked_filtered = 0
+
+            for file_idx, xliff_file in enumerate(package.xliff_files):
+                file_id = file_idx + 1
+                file_name = Path(xliff_file.file_path).name
+                file_start = global_index
+
+                for sdl_seg in xliff_file.segments:
+                    if sdl_seg.locked or sdl_seg.trans_unit_id.startswith('lockTU_'):
+                        total_locked_filtered += 1
+                        continue
+                    seg = self._map_sdlxliff_segment(
+                        sdl_seg, global_index,
+                        file_id=file_id if is_multifile else None,
+                        file_name=file_name if is_multifile else ""
+                    )
+                    segments.append(seg)
+                    global_index += 1
+
+                if is_multifile:
+                    file_segs = segments[file_start:global_index]
+                    file_metadata.append({
+                        'id': file_id,
+                        'name': file_name,
+                        'path': xliff_file.file_path,
+                        'type': 'sdlxliff',
+                        'segment_count': len(file_segs),
+                        'start_segment_id': file_segs[0].id if file_segs else None,
+                        'end_segment_id': file_segs[-1].id if file_segs else None,
+                    })
+
+            if total_locked_filtered:
+                self.log(f"Filtered {total_locked_filtered} "
+                         f"locked/non-translatable segments "
+                         f"({len(segments)} translatable)")
+
+            if not segments:
                 QMessageBox.warning(
                     self, "No Segments",
                     "No translatable segments found in the package."
                 )
                 handler.cleanup()
                 return
-            
-            # Convert to internal Segment format using shared status mapper
-            segments = [self._map_sdlxliff_segment(sdl_seg, i)
-                        for i, sdl_seg in enumerate(all_segments)]
 
-            # Map language codes to full names
-            lang_map = {
-                'en': 'English', 'en-us': 'English', 'en-gb': 'English',
-                'nl': 'Dutch', 'nl-nl': 'Dutch', 'nl-be': 'Dutch',
-                'de': 'German', 'de-de': 'German', 'de-at': 'German', 'de-ch': 'German',
-                'fr': 'French', 'fr-fr': 'French', 'fr-be': 'French', 'fr-ca': 'French',
-                'es': 'Spanish', 'es-es': 'Spanish', 'es-mx': 'Spanish',
-                'it': 'Italian', 'it-it': 'Italian',
-                'pt': 'Portuguese', 'pt-pt': 'Portuguese', 'pt-br': 'Portuguese',
-                'pl': 'Polish', 'pl-pl': 'Polish',
-                'zh': 'Chinese', 'zh-cn': 'Chinese', 'zh-tw': 'Chinese',
-                'ja': 'Japanese', 'ja-jp': 'Japanese',
-                'ko': 'Korean', 'ko-kr': 'Korean',
-                'ru': 'Russian', 'ru-ru': 'Russian',
-            }
-            
-            source_lang = lang_map.get(package.source_lang.lower(), package.source_lang)
-            target_lang = lang_map.get(package.target_lang.lower(), package.target_lang)
-            
-            # Create new project
+            # Normalize language codes to full names
+            source_lang = self._normalize_language_code(package.source_lang)
+            target_lang = self._normalize_language_code(package.target_lang)
+
+            # Create new project (multi-file when package has multiple SDLXLIFF files)
             self.current_project = Project(
                 name=package.project_name or Path(file_path).stem,
                 segments=segments,
                 source_lang=source_lang,
-                target_lang=target_lang
+                target_lang=target_lang,
+                is_multifile=is_multifile,
+                files=file_metadata if is_multifile else None
             )
             
             # Store handler and package info for round-trip export
@@ -30949,17 +30977,23 @@ class SupervertalerQt(QMainWindow):
             # Initialize spellcheck for target language
             self._initialize_spellcheck_for_target_language(target_lang)
 
+            # Activate multi-file views dropdown if applicable
+            self._update_file_filter_combo()
+
             # Count pretranslated segments
             pretrans_count = sum(1 for s in segments if s.target)
 
             self.log(f"✓ Imported {len(segments)} segments from Trados package: {Path(file_path).name}")
             if pretrans_count:
                 self.log(f"  {pretrans_count} segments are pretranslated")
-            
+            if is_multifile:
+                self.log(f"  {len(file_metadata)} files in package (multi-file view active)")
+
             QMessageBox.information(
                 self, "Import Successful",
                 f"Successfully imported {len(segments)} segment(s) from Trados Studio package.\n\n"
-                f"File: {Path(file_path).name}\n"
+                f"Package: {Path(file_path).name}\n"
+                f"Files: {len(package.xliff_files)}\n"
                 f"Languages: {source_lang} → {target_lang}\n"
                 f"Pretranslated: {pretrans_count}\n\n"
                 f"After translation, export back as SDLRPX to return to the Trados user."
@@ -31232,6 +31266,16 @@ class SupervertalerQt(QMainWindow):
                 return
 
             all_sdl_segments = handler.get_all_segments()
+            # Filter out locked/non-translatable segments (lock TUs, translate="no")
+            total_before = len(all_sdl_segments)
+            all_sdl_segments = [
+                s for s in all_sdl_segments
+                if not s.locked and not s.trans_unit_id.startswith('lockTU_')
+            ]
+            if total_before != len(all_sdl_segments):
+                self.log(f"Filtered {total_before - len(all_sdl_segments)} "
+                         f"locked/non-translatable segments "
+                         f"({len(all_sdl_segments)} translatable)")
             if not all_sdl_segments:
                 QMessageBox.warning(
                     self, "No Segments",
@@ -31353,6 +31397,16 @@ class SupervertalerQt(QMainWindow):
                 return
 
             all_sdl_segments = handler.get_all_segments()
+            # Filter out locked/non-translatable segments (lock TUs, translate="no")
+            total_before = len(all_sdl_segments)
+            all_sdl_segments = [
+                s for s in all_sdl_segments
+                if not s.locked and not s.trans_unit_id.startswith('lockTU_')
+            ]
+            if total_before != len(all_sdl_segments):
+                self.log(f"Filtered {total_before - len(all_sdl_segments)} "
+                         f"locked/non-translatable segments "
+                         f"({len(all_sdl_segments)} translatable)")
             if not all_sdl_segments:
                 QMessageBox.warning(
                     self, "No Segments",
@@ -31372,6 +31426,9 @@ class SupervertalerQt(QMainWindow):
                 file_start = global_index
 
                 for sdl_seg in xliff_file.segments:
+                    # Skip locked/non-translatable segments
+                    if sdl_seg.locked or sdl_seg.trans_unit_id.startswith('lockTU_'):
+                        continue
                     seg = self._map_sdlxliff_segment(
                         sdl_seg, global_index,
                         file_id=file_id if is_multifile else None,
