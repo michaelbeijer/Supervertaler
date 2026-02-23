@@ -6,7 +6,7 @@
 
 **Professional AI-enhanced translation workbench** with multi-LLM support (GPT-4, Claude, Gemini, Ollama), translation memory, glossary management, and seamless CAT tool integration (memoQ, Trados, CafeTran, Phrase, Déjà Vu).
 
-**Latest release:** v1.9.285 - Import folder of SDLXLIFF files (issue #80).
+**Latest release:** v1.9.311 - Fix SDLXLIFF export for self-closing mrk segments.
 
 ---
 

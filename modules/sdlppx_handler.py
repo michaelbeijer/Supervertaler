@@ -543,7 +543,7 @@ def _replace_target_content(content: str, xliff_file: SDLXLIFFFile,
 
         def _replace_mrk(mrk_match):
             nonlocal replaced_count
-            mrk_open = mrk_match.group(1)   # full opening tag
+            mrk_open = mrk_match.group(1)   # full opening tag (including > or />)
             mrk_content = mrk_match.group(2)  # content between tags
             # Extract mid value from the opening tag
             mid_m = re.search(r'\bmid="(\d+)"', mrk_open)
@@ -558,6 +558,25 @@ def _replace_target_content(content: str, xliff_file: SDLXLIFFFile,
                 replaced_count += 1
                 return f'{mrk_open}{new_content}</mrk>'
             return mrk_match.group(0)
+
+        def _replace_mrk_selfclose(mrk_match):
+            """Replace self-closing <mrk mtype="seg" mid="N" /> with translated content."""
+            nonlocal replaced_count
+            full_tag = mrk_match.group(0)  # e.g. '<mrk mtype="seg" mid="50" />'
+            mid_m = re.search(r'\bmid="(\d+)"', full_tag)
+            if not mid_m:
+                return full_tag
+            mid = mid_m.group(1)
+
+            segment_id = f"{tu_id}_{mid}"
+            segment = segment_map.get(segment_id)
+            if segment and segment.target_text:
+                new_content = _markers_to_xml(segment.target_text)
+                replaced_count += 1
+                # Build a proper opening tag by removing the self-close slash
+                open_tag = re.sub(r'\s*/?>$', '>', full_tag)
+                return f'{open_tag}{new_content}</mrk>'
+            return full_tag
 
         # Flexible mrk pattern: match <mrk ...> where both mtype="seg" and
         # mid="N" appear as attributes (in any order), then content, then </mrk>.
@@ -575,6 +594,24 @@ def _replace_target_content(content: str, xliff_file: SDLXLIFFFile,
             mrk_pattern,
             _replace_mrk,
             target_inner,
+            flags=re.DOTALL
+        )
+
+        # Second pass: handle self-closing <mrk mtype="seg" mid="N" /> tags.
+        # Trados uses these for empty/untranslated segments. The first pass only
+        # matches the <mrk ...>content</mrk> form, so self-closing tags are skipped.
+        mrk_selfclose_pattern = (
+            r'<mrk\s+'                   # opening <mrk + space
+            r'(?=[^>]*\bmtype="seg")'    # lookahead: mtype="seg" present
+            r'(?=[^>]*\bmid="\d+")'      # lookahead: mid="N" present
+            r'[^>]*?'                    # attributes (non-greedy)
+            r'\s*/>'                     # self-closing />
+        )
+
+        new_target_inner = re.sub(
+            mrk_selfclose_pattern,
+            _replace_mrk_selfclose,
+            new_target_inner,
             flags=re.DOTALL
         )
 

@@ -2,8 +2,16 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.310 (February 22, 2026)
+**Current Version:** v1.9.311 (February 23, 2026)
 
+
+## v1.9.311 - February 23, 2026
+
+### Bug Fixes
+
+- **SDLXLIFF export: fix missing translations for self-closing mrk segments** — When Trados SDLXLIFF files contained self-closing `<mrk mtype="seg" mid="N" />` tags in the `<target>` element (used for empty/untranslated segments), Supervertaler's export would silently skip them because the regex only matched the `<mrk ...>content</mrk>` open+close form. This caused translated segments to appear empty when re-opened in Trados Studio. The export now handles both forms correctly via a second replacement pass for self-closing tags.
+
+---
 
 ## v1.9.310 - February 22, 2026
 
