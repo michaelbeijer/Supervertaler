@@ -2,8 +2,16 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.313 (February 23, 2026)
+**Current Version:** v1.9.314 (February 23, 2026)
 
+
+## v1.9.314 - February 23, 2026
+
+### Bug Fixes
+
+- **Show correct keyboard shortcuts on Mac/Linux (GitHub #167)** — Fixed remaining hardcoded "Ctrl+" references in user-visible text that weren't using the platform-aware `format_shortcut_for_display()` function. On macOS, shortcuts now correctly display with ⌘/⌥/⇧ symbols instead of Ctrl/Alt/Shift. Fixes: glossary quick-add dialog ("Ctrl+E" → "⌘E" on Mac), and the HTML keyboard shortcuts cheatsheet export (both shortcut column and description text now formatted for the current platform).
+
+---
 
 ## v1.9.313 - February 23, 2026
 

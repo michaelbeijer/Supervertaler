@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from PyQt6.QtGui import QKeySequence
 from PyQt6.QtCore import QSettings
+from modules.shortcut_display import format_shortcut_for_display, format_shortcuts_in_text
 
 class ShortcutManager:
     """Manages all keyboard shortcuts for Supervertaler"""
@@ -933,12 +934,12 @@ class ShortcutManager:
             html += "        <tr><th>Action</th><th>Shortcut</th></tr>\n"
             
             for shortcut_id, data in sorted(shortcuts, key=lambda x: x[1]["description"]):
-                description = data["description"]
-                current = data["current"]
+                description = format_shortcuts_in_text(data["description"])
+                current = format_shortcut_for_display(data["current"])
                 is_custom = data["is_custom"]
-                
+
                 custom_mark = " <span class='custom'>(Custom)</span>" if is_custom else ""
-                
+
                 html += f"        <tr>\n"
                 html += f"            <td>{description}{custom_mark}</td>\n"
                 html += f"            <td><span class='shortcut'>{current}</span></td>\n"

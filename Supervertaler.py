@@ -2238,7 +2238,7 @@ class ReadOnlyGridTextEditor(QTextEdit):
                 self,
                 "Selection Required",
                 "Please select text in both Source and Target cells before quick-adding to glossary.\n\n"
-                f"Tip: Use Ctrl+E to add with a dialogue where you can choose a glossary and add metadata."
+                f"Tip: Use {format_shortcut_for_display('Ctrl+E')} to add with a dialogue where you can choose a glossary and add metadata."
             )
             return
 
