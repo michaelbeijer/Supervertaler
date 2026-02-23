@@ -30860,19 +30860,41 @@ class SupervertalerQt(QMainWindow):
             info_text = f"<b>Project:</b> {package.project_name}<br>"
             info_text += f"<b>Languages:</b> {package.source_lang} → {package.target_lang}<br>"
             
-            # Count segments
+            # Count segments and locked segments
             total_segments = sum(len(f.segments) for f in package.xliff_files)
+            locked_count = sum(
+                1 for f in package.xliff_files for s in f.segments
+                if s.locked or s.trans_unit_id.startswith('lockTU_')
+            )
+            translatable_count = total_segments - locked_count
             file_info = [(Path(f.file_path).name, len(f.segments)) for f in package.xliff_files]
-            
-            info_text += f"<b>Total segments:</b> {total_segments}<br><br>"
+
+            info_text += f"<b>Total segments:</b> {total_segments}"
+            if locked_count:
+                info_text += f" ({translatable_count} translatable, {locked_count} locked)"
+            info_text += "<br><br>"
             info_text += "<b>Files in package:</b><br>"
             for fname, count in file_info:
                 info_text += f"  • {fname}: {count} segments<br>"
-            
+
             info_label = QLabel(info_text)
             info_label.setWordWrap(True)
             info_layout.addWidget(info_label)
-            
+
+            # Option to include locked segments
+            include_locked_cb = None
+            if locked_count:
+                include_locked_cb = CheckmarkCheckBox(
+                    f"Include locked/non-translatable segments for context ({locked_count} segments)"
+                )
+                include_locked_cb.setChecked(False)
+                include_locked_cb.setToolTip(
+                    "Locked segments are non-translatable content that Trados marks as protected.\n"
+                    "Including them provides context but may slow loading for large packages."
+                )
+                info_layout.addWidget(include_locked_cb)
+                info_layout.addSpacing(5)
+
             # Buttons
             buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
             buttons.button(QDialogButtonBox.StandardButton.Ok).setText("Import")
@@ -30886,8 +30908,10 @@ class SupervertalerQt(QMainWindow):
                 return
             
             # Build segments per-file so the multi-file views system activates.
-            # Filter out non-translatable segments (lock TUs, translate="no"
-            # structural segments) — Trados Studio also hides these.
+            # Filter out lock TU structural segments always; optionally include
+            # locked (translate="no") segments if user checked the box.
+            include_locked = (include_locked_cb.isChecked()
+                              if include_locked_cb else False)
             is_multifile = len(package.xliff_files) > 1
             segments = []
             file_metadata = []
@@ -30900,13 +30924,20 @@ class SupervertalerQt(QMainWindow):
                 file_start = global_index
 
                 for sdl_seg in xliff_file.segments:
-                    if sdl_seg.locked or sdl_seg.trans_unit_id.startswith('lockTU_'):
+                    # Lock TU structural segments are always excluded
+                    if sdl_seg.trans_unit_id.startswith('lockTU_'):
+                        total_locked_filtered += 1
+                        continue
+                    # Locked (translate="no") segments: include or skip
+                    is_locked = sdl_seg.locked
+                    if is_locked and not include_locked:
                         total_locked_filtered += 1
                         continue
                     seg = self._map_sdlxliff_segment(
                         sdl_seg, global_index,
                         file_id=file_id if is_multifile else None,
-                        file_name=file_name if is_multifile else ""
+                        file_name=file_name if is_multifile else "",
+                        locked=is_locked
                     )
                     segments.append(seg)
                     global_index += 1
@@ -31174,7 +31205,8 @@ class SupervertalerQt(QMainWindow):
 
     # ─── Standalone SDLXLIFF import/export ────────────────────────────────────
 
-    def _map_sdlxliff_segment(self, sdl_seg, index: int, file_id: int = None, file_name: str = "") -> 'Segment':
+    def _map_sdlxliff_segment(self, sdl_seg, index: int, file_id: int = None,
+                              file_name: str = "", locked: bool = False) -> 'Segment':
         """
         Convert an SDLSegment to an internal Segment with proper status mapping.
 
@@ -31186,6 +31218,7 @@ class SupervertalerQt(QMainWindow):
             index: 0-based index used to assign segment ID
             file_id: Optional file ID for multi-file projects
             file_name: Optional file name for multi-file projects
+            locked: Whether this segment is locked/non-translatable
         """
         # Determine status based on origin, match percent, and text-match attribute
         if sdl_seg.target_text:
@@ -31237,6 +31270,7 @@ class SupervertalerQt(QMainWindow):
             target=sdl_seg.target_text if sdl_seg.target_text else "",
             status=status,
             notes=f"SDLXLIFF: {Path(sdl_seg.file_path).name} | Segment: {sdl_seg.segment_id}{origin_info}",
+            locked=locked,
             file_id=file_id,
             file_name=file_name
         )
@@ -31266,26 +31300,44 @@ class SupervertalerQt(QMainWindow):
                 return
 
             all_sdl_segments = handler.get_all_segments()
-            # Filter out locked/non-translatable segments (lock TUs, translate="no")
-            total_before = len(all_sdl_segments)
-            all_sdl_segments = [
-                s for s in all_sdl_segments
-                if not s.locked and not s.trans_unit_id.startswith('lockTU_')
-            ]
-            if total_before != len(all_sdl_segments):
-                self.log(f"Filtered {total_before - len(all_sdl_segments)} "
-                         f"locked/non-translatable segments "
-                         f"({len(all_sdl_segments)} translatable)")
-            if not all_sdl_segments:
+
+            # Count locked segments and ask user whether to include them
+            total_count = len(all_sdl_segments)
+            locked_count = sum(
+                1 for s in all_sdl_segments
+                if s.locked or s.trans_unit_id.startswith('lockTU_')
+            )
+            include_locked = False
+            if locked_count and (total_count - locked_count) > 0:
+                reply = QMessageBox.question(
+                    self, "Locked Segments Detected",
+                    f"Found {locked_count:,} locked/non-translatable segments "
+                    f"out of {total_count:,} total.\n\n"
+                    f"Include locked segments in the grid?\n"
+                    f"(They provide context but may slow loading.)",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                    QMessageBox.StandardButton.No
+                )
+                include_locked = (reply == QMessageBox.StandardButton.Yes)
+
+            # Filter: always exclude lockTU_ structural segments;
+            # exclude locked segments unless user opted to include them
+            segments = []
+            for i, sdl_seg in enumerate(all_sdl_segments):
+                if sdl_seg.trans_unit_id.startswith('lockTU_'):
+                    continue
+                is_locked = sdl_seg.locked
+                if is_locked and not include_locked:
+                    continue
+                segments.append(self._map_sdlxliff_segment(
+                    sdl_seg, len(segments), locked=is_locked))
+
+            if not segments:
                 QMessageBox.warning(
                     self, "No Segments",
                     "No translatable segments found in the selected file(s)."
                 )
                 return
-
-            # Convert SDLSegments to internal Segments using shared status mapper
-            segments = [self._map_sdlxliff_segment(sdl_seg, i)
-                        for i, sdl_seg in enumerate(all_sdl_segments)]
 
             # Normalize language codes to full names
             source_lang = self._normalize_language_code(handler.get_source_lang())
@@ -31397,16 +31449,26 @@ class SupervertalerQt(QMainWindow):
                 return
 
             all_sdl_segments = handler.get_all_segments()
-            # Filter out locked/non-translatable segments (lock TUs, translate="no")
-            total_before = len(all_sdl_segments)
-            all_sdl_segments = [
-                s for s in all_sdl_segments
-                if not s.locked and not s.trans_unit_id.startswith('lockTU_')
-            ]
-            if total_before != len(all_sdl_segments):
-                self.log(f"Filtered {total_before - len(all_sdl_segments)} "
-                         f"locked/non-translatable segments "
-                         f"({len(all_sdl_segments)} translatable)")
+
+            # Count locked segments and ask user whether to include them
+            total_count = len(all_sdl_segments)
+            locked_count = sum(
+                1 for s in all_sdl_segments
+                if s.locked or s.trans_unit_id.startswith('lockTU_')
+            )
+            include_locked = False
+            if locked_count and (total_count - locked_count) > 0:
+                reply = QMessageBox.question(
+                    self, "Locked Segments Detected",
+                    f"Found {locked_count:,} locked/non-translatable segments "
+                    f"out of {total_count:,} total.\n\n"
+                    f"Include locked segments in the grid?\n"
+                    f"(They provide context but may slow loading.)",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                    QMessageBox.StandardButton.No
+                )
+                include_locked = (reply == QMessageBox.StandardButton.Yes)
+
             if not all_sdl_segments:
                 QMessageBox.warning(
                     self, "No Segments",
@@ -31426,13 +31488,18 @@ class SupervertalerQt(QMainWindow):
                 file_start = global_index
 
                 for sdl_seg in xliff_file.segments:
-                    # Skip locked/non-translatable segments
-                    if sdl_seg.locked or sdl_seg.trans_unit_id.startswith('lockTU_'):
+                    # Lock TU structural segments are always excluded
+                    if sdl_seg.trans_unit_id.startswith('lockTU_'):
+                        continue
+                    # Locked (translate="no") segments: include or skip
+                    is_locked = sdl_seg.locked
+                    if is_locked and not include_locked:
                         continue
                     seg = self._map_sdlxliff_segment(
                         sdl_seg, global_index,
                         file_id=file_id if is_multifile else None,
-                        file_name=file_name if is_multifile else ""
+                        file_name=file_name if is_multifile else "",
+                        locked=is_locked
                     )
                     segments.append(seg)
                     global_index += 1
@@ -32933,7 +33000,11 @@ class SupervertalerQt(QMainWindow):
                 target_editor.setFont(font)
                 # Store stripped tag on editor for auto-restore
                 target_editor._stripped_outer_tag = stripped_source_tag or stripped_target_tag
-                
+
+                # Make locked segments read-only (included for context only)
+                if getattr(segment, 'locked', False):
+                    target_editor.setReadOnly(True)
+
                 # Connect text changes to update segment
                 # Use a factory function to create a proper closure that captures the segment ID
                 def make_target_changed_handler(segment_id, editor_widget):
@@ -35273,9 +35344,21 @@ class SupervertalerQt(QMainWindow):
             # The theme system will handle the background colors
             return
         
-        # Determine color based on row index (even/odd)
-        color = settings['even_color'] if row % 2 == 0 else settings['odd_color']
-        row_color = QColor(color)
+        # Check if this row is a locked segment (non-translatable, included for context)
+        segment = None
+        if (self.current_project and self.current_project.segments
+                and 0 <= row < len(self.current_project.segments)):
+            segment = self.current_project.segments[row]
+
+        if segment and getattr(segment, 'locked', False):
+            # Locked segments get a distinct muted background across all themes
+            is_dark = theme.name in ("Dark Blue", "Nord Dark")
+            color = '#3a3a3a' if is_dark else '#E0DDD8'
+            row_color = QColor(color)
+        else:
+            # Normal: determine color based on row index (even/odd)
+            color = settings['even_color'] if row % 2 == 0 else settings['odd_color']
+            row_color = QColor(color)
         
         # Apply to ID column (column 0)
         id_item = self.table.item(row, 0)

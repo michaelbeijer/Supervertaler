@@ -2,8 +2,17 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.312 (February 23, 2026)
+**Current Version:** v1.9.313 (February 23, 2026)
 
+
+## v1.9.313 - February 23, 2026
+
+### New Features
+
+- **Optional locked segment loading for all Trados imports** — When importing SDLPPX packages, standalone SDLXLIFF files, or SDLXLIFF folders that contain locked/non-translatable segments, users are now asked whether to include them in the grid for context. For SDLPPX packages, a checkbox appears in the info dialog showing the locked count (e.g. "Include locked/non-translatable segments for context (40,300 segments)"). For standalone and folder imports, a Yes/No confirmation dialog appears when locked segments are detected. Default is to exclude them (fast). Lock TU structural containers are always excluded regardless.
+- **Locked row visual distinction** — When locked segments are included, they display with a muted tan/grey background (`#E0DDD8` light, `#3a3a3a` dark) and their target cells are read-only, so they're clearly distinguishable from translatable segments. The existing Advanced Filters "Locked Status" filter also works to show/hide them post-import.
+
+---
 
 ## v1.9.312 - February 23, 2026
 
