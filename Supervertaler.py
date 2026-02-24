@@ -17254,17 +17254,17 @@ class SupervertalerQt(QMainWindow):
         # Provider radio buttons (custom styled)
         provider_button_group = QButtonGroup(tab)
         
-        openai_radio = CustomRadioButton("OpenAI (GPT-4o, GPT-5, o1, o3)")
+        openai_radio = CustomRadioButton("OpenAI")
         openai_radio.setChecked(settings.get('provider', 'openai') == 'openai')
         provider_button_group.addButton(openai_radio)
         provider_layout.addWidget(openai_radio)
-        
-        claude_radio = CustomRadioButton("Anthropic Claude (Claude Sonnet 4.6)")
+
+        claude_radio = CustomRadioButton("Anthropic Claude")
         claude_radio.setChecked(settings.get('provider', 'openai') == 'claude')
         provider_button_group.addButton(claude_radio)
         provider_layout.addWidget(claude_radio)
-        
-        gemini_radio = CustomRadioButton("Google Gemini (Gemini 2.5 Flash)")
+
+        gemini_radio = CustomRadioButton("Google Gemini")
         gemini_radio.setChecked(settings.get('provider', 'openai') == 'gemini')
         provider_button_group.addButton(gemini_radio)
         provider_layout.addWidget(gemini_radio)
@@ -17570,6 +17570,40 @@ class SupervertalerQt(QMainWindow):
         custom_info.setWordWrap(True)
         custom_info.setStyleSheet("color: #666; font-size: 9pt; padding: 5px;")
         model_layout.addWidget(custom_info)
+
+        # Helper to extract friendly model name from combo text and update radio label
+        def _friendly_model_name(combo_text: str) -> str:
+            """Extract model ID from combo text like 'gpt-4o (Recommended)' → 'GPT-4o'"""
+            model_id = combo_text.split()[0] if combo_text else ""
+            friendly = {
+                "gpt-4o": "GPT-4o", "gpt-4o-mini": "GPT-4o Mini",
+                "gpt-5": "GPT-5", "o3-mini": "o3-mini", "o1": "o1", "gpt-4-turbo": "GPT-4 Turbo",
+                "claude-sonnet-4-6": "Claude Sonnet 4.6", "claude-opus-4-6": "Claude Opus 4.6",
+                "claude-sonnet-4-5-20250929": "Claude Sonnet 4.5", "claude-haiku-4-5-20251001": "Claude Haiku 4.5",
+                "claude-opus-4-1-20250805": "Claude Opus 4.1",
+                "gemini-2.5-flash": "Gemini 2.5 Flash", "gemini-2.5-flash-lite": "Gemini 2.5 Flash Lite",
+                "gemini-2.5-pro": "Gemini 2.5 Pro", "gemini-3.1-pro-preview": "Gemini 3.1 Pro",
+                "gemini-3-pro-preview": "Gemini 3 Pro", "gemini-2.0-flash-exp": "Gemini 2.0 Flash",
+            }
+            return friendly.get(model_id, model_id)
+
+        def _update_provider_label(radio, base_name, combo):
+            """Update radio button label to show selected model: 'Provider (Model)'"""
+            model_name = _friendly_model_name(combo.currentText())
+            radio.setText(f"{base_name} ({model_name})")
+
+        # Connect combo changes to update radio button labels dynamically
+        openai_combo.currentIndexChanged.connect(
+            lambda: _update_provider_label(openai_radio, "OpenAI", openai_combo))
+        claude_combo.currentIndexChanged.connect(
+            lambda: _update_provider_label(claude_radio, "Anthropic Claude", claude_combo))
+        gemini_combo.currentIndexChanged.connect(
+            lambda: _update_provider_label(gemini_radio, "Google Gemini", gemini_combo))
+
+        # Set initial labels based on current combo selections
+        _update_provider_label(openai_radio, "OpenAI", openai_combo)
+        _update_provider_label(claude_radio, "Anthropic Claude", claude_combo)
+        _update_provider_label(gemini_radio, "Google Gemini", gemini_combo)
 
         # Connect radio buttons to enable/disable combos
         def update_combo_states():

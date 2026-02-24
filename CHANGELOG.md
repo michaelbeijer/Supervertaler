@@ -2,8 +2,16 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.319 (February 24, 2026)
+**Current Version:** v1.9.320 (February 24, 2026)
 
+
+## v1.9.320 - February 24, 2026
+
+### Improvements
+
+- **Dynamic provider labels in AI Settings** — The LLM Provider Selection radio buttons now show the currently selected model in brackets (e.g. "Google Gemini (Gemini 3.1 Pro)") instead of hardcoded generic model names. The label updates automatically when you change the model in the Model Selection dropdowns below.
+
+---
 
 ## v1.9.319 - February 24, 2026
 
