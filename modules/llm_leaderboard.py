@@ -17,6 +17,7 @@ Author: Michael Beijer
 License: MIT
 """
 
+import re
 import time
 import json
 import random
@@ -565,6 +566,45 @@ def create_sample_datasets() -> List[TestDataset]:
     return [business_en_nl, technical_en_nl, legal_nl_en]
 
 
+# Minimum number of word characters required for a segment to be considered
+# "meaningful text" for benchmarking (filters out numbers-only, codes, etc.)
+_MIN_WORD_CHARS = 3
+_MIN_TEXT_LENGTH = 5
+
+# Pattern that matches segments with NO real text content:
+# only digits, whitespace, punctuation, currency symbols, math operators, etc.
+_NON_TEXT_PATTERN = re.compile(r'^[\d\s\W_]+$', re.UNICODE)
+
+
+def _is_benchmarkable_segment(text: str) -> bool:
+    """Check if a segment contains meaningful text worth benchmarking.
+
+    Filters out:
+    - Very short segments (< 5 chars after stripping)
+    - Number-only segments (e.g. "60", "180", "85")
+    - Segments with only digits, punctuation and whitespace
+    - Segments with fewer than 3 word characters (letters)
+
+    Returns True if the segment has enough real text for benchmarking.
+    """
+    stripped = text.strip()
+
+    # Too short
+    if len(stripped) < _MIN_TEXT_LENGTH:
+        return False
+
+    # Only numbers, punctuation, symbols, whitespace
+    if _NON_TEXT_PATTERN.match(stripped):
+        return False
+
+    # Count actual word characters (letters)
+    letter_count = sum(1 for c in stripped if c.isalpha())
+    if letter_count < _MIN_WORD_CHARS:
+        return False
+
+    return True
+
+
 def create_dataset_from_project(
     project,
     sample_size: int = 10,
@@ -594,9 +634,10 @@ def create_dataset_from_project(
         description=f"Sample from current project ({getattr(project, 'source_lang', '??')}→{getattr(project, 'target_lang', '??')})"
     )
 
-    # Get eligible segments
+    # Get eligible segments (must have meaningful text, not just numbers)
     eligible_segments = []
     translated_count = 0
+    skipped_count = 0
 
     for seg in project.segments:
         has_source = seg.source and seg.source.strip()
@@ -605,14 +646,20 @@ def create_dataset_from_project(
         if has_target:
             translated_count += 1
 
+        if not has_source:
+            continue
+
+        # Skip segments without meaningful text (numbers-only, too short, etc.)
+        if not _is_benchmarkable_segment(seg.source):
+            skipped_count += 1
+            continue
+
         if require_targets:
             # Only segments with existing translations
-            if has_source and has_target:
+            if has_target:
                 eligible_segments.append(seg)
         else:
-            # All segments with source text
-            if has_source:
-                eligible_segments.append(seg)
+            eligible_segments.append(seg)
 
     # Check if we have enough segments
     if len(eligible_segments) == 0:
@@ -646,6 +693,7 @@ def create_dataset_from_project(
         "translated_count": translated_count,
         "translation_percentage": (translated_count / len(project.segments) * 100) if project.segments else 0,
         "eligible_segments": len(eligible_segments),
+        "skipped_non_text": skipped_count,
         "sampled_segments": len(sampled),
         "segments_with_references": reference_count,
         "has_references": reference_count > 0,

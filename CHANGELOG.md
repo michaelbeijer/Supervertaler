@@ -2,8 +2,17 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.320 (February 24, 2026)
+**Current Version:** v1.9.321 (February 24, 2026)
 
+
+## v1.9.321 - February 24, 2026
+
+### Improvements
+
+- **SuperBench: Filter non-text segments from datasets** — The dataset creation now automatically skips segments that contain only numbers, very short fragments, or text with fewer than 3 letters. This ensures benchmarks test actual translation quality rather than trivial numeric segments. The log and info dialog report how many segments were skipped.
+- **SuperBench: Add Clear Dataset button** — After creating a dataset, a "Clear" button now appears next to the confirmation label, allowing you to reset and create a new dataset with different settings.
+
+---
 
 ## v1.9.320 - February 24, 2026
 

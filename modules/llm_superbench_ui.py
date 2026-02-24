@@ -394,11 +394,22 @@ class LLMLeaderboardUI(QWidget):
         self.project_status_label.setWordWrap(True)
         project_controls_layout.addWidget(self.project_status_label)
 
-        # Create dataset button
+        # Create / Clear dataset buttons
+        dataset_buttons_layout = QHBoxLayout()
+
         self.create_dataset_button = QPushButton("📊 Create Test Dataset from Project")
         self.create_dataset_button.clicked.connect(self._on_create_project_dataset)
         self.create_dataset_button.setEnabled(False)
-        project_controls_layout.addWidget(self.create_dataset_button)
+        dataset_buttons_layout.addWidget(self.create_dataset_button)
+
+        self.clear_dataset_button = QPushButton("✕ Clear")
+        self.clear_dataset_button.setToolTip("Clear the current dataset so you can create a new one")
+        self.clear_dataset_button.clicked.connect(self._on_clear_dataset)
+        self.clear_dataset_button.setVisible(False)
+        self.clear_dataset_button.setMaximumWidth(80)
+        dataset_buttons_layout.addWidget(self.clear_dataset_button)
+
+        project_controls_layout.addLayout(dataset_buttons_layout)
 
         self.project_controls_widget.setLayout(project_controls_layout)
         self.project_controls_widget.setVisible(False)
@@ -658,7 +669,9 @@ class LLMLeaderboardUI(QWidget):
             # Log creation
             meta = self.project_metadata
             self.log(f"Created project dataset: {self.project_dataset.name}")
-            self.log(f"  • Sampled {meta['sampled_segments']} segments from {meta['total_segments']} total")
+            self.log(f"  • Sampled {meta['sampled_segments']} segments from {meta['eligible_segments']} eligible ({meta['total_segments']} total)")
+            if meta.get('skipped_non_text', 0) > 0:
+                self.log(f"  • Skipped {meta['skipped_non_text']} non-text segments (numbers, short fragments, etc.)")
             self.log(f"  • Method: {sampling_method}")
             self.log(f"  • References available: {meta['segments_with_references']}/{meta['sampled_segments']}")
 
@@ -667,14 +680,20 @@ class LLMLeaderboardUI(QWidget):
             else:
                 self.log(f"  • ⚠️ Quality scoring disabled (no reference translations)")
 
-            # Update button text
+            # Update button text and show clear button
             self.create_dataset_button.setText(f"✓ Dataset Created ({len(self.project_dataset.segments)} segments)")
             self.create_dataset_button.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold;")
+            self.clear_dataset_button.setVisible(True)
+
+            skipped_info = ""
+            if meta.get('skipped_non_text', 0) > 0:
+                skipped_info = f"\nSkipped {meta['skipped_non_text']} non-text segments (numbers, short fragments, etc.)\n"
 
             QMessageBox.information(
                 self,
                 "Dataset Created",
-                f"Successfully created test dataset with {meta['sampled_segments']} segments.\n\n"
+                f"Successfully created test dataset with {meta['sampled_segments']} segments.\n"
+                f"{skipped_info}\n"
                 f"Quality scoring: {'Enabled' if meta['quality_scoring_available'] else 'Disabled (no references)'}\n"
                 f"Ready to benchmark!"
             )
@@ -682,6 +701,20 @@ class LLMLeaderboardUI(QWidget):
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to create dataset:\n{str(e)}")
             self.log(f"ERROR creating project dataset: {str(e)}")
+
+    def _on_clear_dataset(self):
+        """Clear the current project dataset so a new one can be created"""
+        self.project_dataset = None
+        self.current_dataset = None
+        self.project_metadata = None
+
+        # Reset button to original state
+        self.create_dataset_button.setText("📊 Create Test Dataset from Project")
+        self.create_dataset_button.setStyleSheet("")
+        self.create_dataset_button.setEnabled(True)
+        self.clear_dataset_button.setVisible(False)
+
+        self.log("Dataset cleared. You can create a new one.")
 
     def _on_run_benchmark(self):
         """Start benchmark execution"""
