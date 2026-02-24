@@ -212,7 +212,8 @@ Return ONLY the translation, no explanations or additional text."""
         self,
         dataset: TestDataset,
         models: List[ModelConfig],
-        progress_callback=None
+        progress_callback=None,
+        custom_prompt_template: str = None
     ) -> List[BenchmarkResult]:
         """
         Run benchmark comparing multiple models on a test dataset
@@ -221,6 +222,9 @@ Return ONLY the translation, no explanations or additional text."""
             dataset: TestDataset to run
             models: List of ModelConfig to test
             progress_callback: Optional callback(current, total, message)
+            custom_prompt_template: Optional custom prompt from Prompt Manager.
+                When provided, {{SOURCE_TEXT}} is replaced with segment source text
+                and this prompt is used instead of the built-in template.
 
         Returns:
             List of BenchmarkResult objects
@@ -237,13 +241,21 @@ Return ONLY the translation, no explanations or additional text."""
         self.log(f"   Models: {', '.join(m.name for m in enabled_models)}")
         self.log(f"   Segments: {len(dataset.segments)}")
         self.log(f"   Total translations: {total_tests}")
+        if custom_prompt_template:
+            self.log(f"   Using custom prompt from Prompt Manager")
+        else:
+            self.log(f"   Using default benchmark prompt")
 
         for segment in dataset.segments:
             if self.cancel_requested:
                 self.log("Warning: Benchmark cancelled by user")
                 break
 
-            prompt = self.build_translation_prompt(segment)
+            if custom_prompt_template:
+                # Use custom prompt with source text substituted
+                prompt = custom_prompt_template.replace("{{SOURCE_TEXT}}", segment.source)
+            else:
+                prompt = self.build_translation_prompt(segment)
 
             for model_config in enabled_models:
                 if self.cancel_requested:

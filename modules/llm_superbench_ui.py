@@ -212,11 +212,13 @@ class BenchmarkThread(QThread):
     finished = pyqtSignal()  # Completion signal (no data - avoid Qt signal crash with large lists)
     error = pyqtSignal(str)  # error message
 
-    def __init__(self, leaderboard: LLMLeaderboard, dataset: TestDataset, models: List[ModelConfig]):
+    def __init__(self, leaderboard: LLMLeaderboard, dataset: TestDataset, models: List[ModelConfig],
+                 custom_prompt_template: str = None):
         super().__init__()
         self.leaderboard = leaderboard
         self.dataset = dataset
         self.models = models
+        self.custom_prompt_template = custom_prompt_template
         self.results = []  # Store results here, access from main thread
 
     def run(self):
@@ -226,7 +228,8 @@ class BenchmarkThread(QThread):
             self.results = self.leaderboard.run_benchmark(
                 self.dataset,
                 self.models,
-                progress_callback=self._on_progress
+                progress_callback=self._on_progress,
+                custom_prompt_template=self.custom_prompt_template
             )
             print(f"[BENCHMARK THREAD] Benchmark completed with {len(self.results)} results")
             # Don't pass results through signal - causes Qt crash with large lists
@@ -428,6 +431,28 @@ class LLMLeaderboardUI(QWidget):
 
         model_layout.addWidget(QLabel("Select models to test:"))
 
+        # Model ID → friendly display name mapping (shared with _get_selected_models)
+        self._model_display_names = {
+            # OpenAI
+            "gpt-4o": "GPT-4o",
+            "gpt-4o-mini": "GPT-4o Mini",
+            "gpt-5": "GPT-5",
+            "o3-mini": "o3-mini",
+            # Claude
+            "claude-sonnet-4-6": "Sonnet 4.6",
+            "claude-sonnet-4-5-20250929": "Sonnet 4.5",
+            "claude-haiku-4-5-20251001": "Haiku 4.5",
+            "claude-opus-4-6": "Opus 4.6",
+            "claude-opus-4-1-20250805": "Opus 4.1",
+            # Gemini
+            "gemini-2.5-flash": "2.5 Flash",
+            "gemini-2.5-flash-lite": "2.5 Flash Lite",
+            "gemini-2.5-pro": "2.5 Pro",
+            "gemini-3.1-pro-preview": "3.1 Pro Preview",
+            "gemini-3-pro-preview": "3 Pro Preview",
+            "gemini-2.0-flash-exp": "2.0 Flash (Exp)",
+        }
+
         # OpenAI models
         self.openai_checkbox = CheckmarkCheckBox("OpenAI (GPT-4o)")
         self.openai_checkbox.setChecked(True)
@@ -441,10 +466,14 @@ class LLMLeaderboardUI(QWidget):
             "o3-mini"
         ])
         self.openai_model_combo.setEnabled(True)
+        self.openai_model_combo.currentTextChanged.connect(
+            lambda model_id: self.openai_checkbox.setText(
+                f"OpenAI ({self._model_display_names.get(model_id, model_id)})")
+        )
         model_layout.addWidget(self.openai_model_combo)
 
         # Claude models
-        self.claude_checkbox = CheckmarkCheckBox("Claude (Sonnet 4.5)")
+        self.claude_checkbox = CheckmarkCheckBox("Claude (Sonnet 4.6)")
         self.claude_checkbox.setChecked(True)
         model_layout.addWidget(self.claude_checkbox)
 
@@ -457,6 +486,10 @@ class LLMLeaderboardUI(QWidget):
             "claude-opus-4-1-20250805"
         ])
         self.claude_model_combo.setEnabled(True)
+        self.claude_model_combo.currentTextChanged.connect(
+            lambda model_id: self.claude_checkbox.setText(
+                f"Claude ({self._model_display_names.get(model_id, model_id)})")
+        )
         model_layout.addWidget(self.claude_model_combo)
 
         # Gemini models
@@ -473,6 +506,10 @@ class LLMLeaderboardUI(QWidget):
             "gemini-3-pro-preview"
         ])
         self.gemini_model_combo.setEnabled(True)
+        self.gemini_model_combo.currentTextChanged.connect(
+            lambda model_id: self.gemini_checkbox.setText(
+                f"Gemini ({self._model_display_names.get(model_id, model_id)})")
+        )
         model_layout.addWidget(self.gemini_model_combo)
 
         model_layout.addStretch()
@@ -761,8 +798,52 @@ class LLMLeaderboardUI(QWidget):
         # Create leaderboard instance
         self.leaderboard = LLMLeaderboard(self.llm_client_factory, self.log)
 
+        # Get custom prompt from Prompt Manager (if attached to project)
+        custom_prompt_template = None
+        self._benchmark_custom_prompt_name = None  # Track for report
+        self._benchmark_assembled_prompt = None  # Track full assembled prompt for report
+        if self.parent_app and hasattr(self.parent_app, 'prompt_manager_qt') and self.parent_app.prompt_manager_qt:
+            pm = self.parent_app.prompt_manager_qt
+            if pm.library.active_primary_prompt:
+                # Get the prompt name
+                prompt_path = pm.library.active_primary_prompt_path or ""
+                if prompt_path.startswith("[EXTERNAL]"):
+                    self._benchmark_custom_prompt_name = Path(prompt_path.replace("[EXTERNAL] ", "")).stem
+                elif prompt_path in pm.library.prompts:
+                    self._benchmark_custom_prompt_name = pm.library.prompts[prompt_path].get('name', Path(prompt_path).stem)
+                else:
+                    self._benchmark_custom_prompt_name = Path(prompt_path).stem if prompt_path else "Custom Prompt"
+
+                # Build a template with {{SOURCE_TEXT}} placeholder
+                # Use the prompt manager's build_final_prompt with placeholder text
+                try:
+                    # Get project languages
+                    source_lang = "Source Language"
+                    target_lang = "Target Language"
+                    if hasattr(self.parent_app, 'current_project') and self.parent_app.current_project:
+                        source_lang = getattr(self.parent_app.current_project, 'source_lang', source_lang)
+                        target_lang = getattr(self.parent_app.current_project, 'target_lang', target_lang)
+
+                    custom_prompt_template = pm.build_final_prompt(
+                        source_text="{{SOURCE_TEXT}}",
+                        source_lang=source_lang,
+                        target_lang=target_lang
+                    )
+                    self._benchmark_assembled_prompt = custom_prompt_template
+                    self.log(f"✓ Using custom prompt: {self._benchmark_custom_prompt_name}")
+                except Exception as e:
+                    self.log(f"⚠ Failed to build custom prompt, using default: {e}")
+                    custom_prompt_template = None
+
+        if not custom_prompt_template:
+            self._benchmark_custom_prompt_name = None
+            self.log("ℹ No custom prompt attached — using default benchmark prompt")
+
         # Start benchmark in background thread
-        self.benchmark_thread = BenchmarkThread(self.leaderboard, self.current_dataset, models)
+        self.benchmark_thread = BenchmarkThread(
+            self.leaderboard, self.current_dataset, models,
+            custom_prompt_template=custom_prompt_template
+        )
         self.benchmark_thread.progress_update.connect(self._on_progress_update)
         self.benchmark_thread.finished.connect(self._on_benchmark_finished)
         self.benchmark_thread.error.connect(self._on_benchmark_error)
@@ -1014,7 +1095,7 @@ class LLMLeaderboardUI(QWidget):
             dataset_name = dataset_name.replace(char, "_")
         from datetime import datetime
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        default_filename = f"LLM_Leaderboard_{dataset_name}_{timestamp}.xlsx"
+        default_filename = f"Superbench_Translation_Quality_Report_{dataset_name}_{timestamp}.xlsx"
 
         # Ask user for file path and format
         filepath, selected_filter = QFileDialog.getSaveFileName(
@@ -1044,6 +1125,11 @@ class LLMLeaderboardUI(QWidget):
     def _export_to_json(self, filepath: str):
         """Export results to JSON file"""
         export_data = self.leaderboard.export_to_dict()
+        # Add prompt info
+        prompt_name = getattr(self, '_benchmark_custom_prompt_name', None)
+        export_data['custom_prompt_name'] = prompt_name or None
+        assembled_prompt = getattr(self, '_benchmark_assembled_prompt', None)
+        export_data['assembled_prompt'] = assembled_prompt or None
         with open(filepath, 'w', encoding='utf-8') as f:
             json.dump(export_data, f, indent=2, ensure_ascii=False)
 
@@ -1120,6 +1206,18 @@ class LLMLeaderboardUI(QWidget):
         models_tested = set(r.model_name for r in self.current_results)
         ws_info[f'B{row}'] = ", ".join(models_tested)
         ws_info[f'B{row}'].font = info_value_font
+        row += 1
+
+        # Custom prompt info
+        ws_info[f'A{row}'] = "Custom Prompt:"
+        ws_info[f'A{row}'].font = info_label_font
+        prompt_name = getattr(self, '_benchmark_custom_prompt_name', None)
+        if prompt_name:
+            ws_info[f'B{row}'] = prompt_name
+            ws_info[f'B{row}'].font = Font(size=10, bold=True)
+        else:
+            ws_info[f'B{row}'] = "No custom prompt (default benchmark prompt used)"
+            ws_info[f'B{row}'].font = Font(size=10, italic=True, color="999999")
         row += 2
 
         # Explanation section
@@ -1358,6 +1456,71 @@ class LLMLeaderboardUI(QWidget):
         # Set column widths
         ws_results.column_dimensions['A'].width = 20  # Model name column
         ws_results.column_dimensions['B'].width = 80  # Text column (wider for readability)
+
+        # === PROMPT SHEET ===
+        ws_prompt = wb.create_sheet("Prompt")
+
+        # Title
+        ws_prompt['A1'] = "📝 Assembled Prompt"
+        ws_prompt['A1'].font = Font(size=16, bold=True, color="1976D2")
+        ws_prompt.merge_cells('A1:B1')
+
+        ws_prompt['A2'] = "The complete prompt that was sent to the AI for each segment during benchmarking."
+        ws_prompt['A2'].font = Font(size=10, italic=True, color="666666")
+        ws_prompt.merge_cells('A2:B2')
+
+        ws_prompt.row_dimensions[3].height = 10  # Spacing
+
+        prompt_row = 4
+
+        # Custom prompt name
+        prompt_name = getattr(self, '_benchmark_custom_prompt_name', None)
+        ws_prompt[f'A{prompt_row}'] = "Custom Prompt:"
+        ws_prompt[f'A{prompt_row}'].font = Font(bold=True, size=11)
+        if prompt_name:
+            ws_prompt[f'B{prompt_row}'] = prompt_name
+            ws_prompt[f'B{prompt_row}'].font = Font(size=11, bold=True, color="0066CC")
+        else:
+            ws_prompt[f'B{prompt_row}'] = "None (default benchmark prompt)"
+            ws_prompt[f'B{prompt_row}'].font = Font(size=11, italic=True, color="999999")
+        prompt_row += 2
+
+        # Full assembled prompt
+        ws_prompt[f'A{prompt_row}'] = "FULL ASSEMBLED PROMPT"
+        ws_prompt[f'A{prompt_row}'].font = Font(bold=True, size=12, color="366092")
+        prompt_row += 1
+
+        assembled_prompt = getattr(self, '_benchmark_assembled_prompt', None)
+        if assembled_prompt:
+            # Write the full prompt — split into lines for readability
+            ws_prompt[f'A{prompt_row}'] = assembled_prompt
+            ws_prompt[f'A{prompt_row}'].alignment = Alignment(wrap_text=True, vertical="top")
+            ws_prompt[f'A{prompt_row}'].font = Font(name="Consolas", size=9)
+            ws_prompt.merge_cells(f'A{prompt_row}:B{prompt_row}')
+            # Estimate row height based on content
+            line_count = assembled_prompt.count('\n') + 1
+            ws_prompt.row_dimensions[prompt_row].height = max(15, min(line_count * 13, 800))
+        else:
+            # Show the default prompt template
+            default_prompt = (
+                "You are a professional translator. Translate the following text from {source_lang} to {target_lang}.\n\n"
+                "Domain: {domain}\n"
+                "Target language: {target_lang}\n"
+                "Requirements: Be faithful to meaning, natural, and correct. "
+                "Preserve units, numbers, and formatting. Keep terminology consistent.\n\n"
+                "Text to translate:\n"
+                "{source_text}\n\n"
+                "Return ONLY the translation, no explanations or additional text."
+            )
+            ws_prompt[f'A{prompt_row}'] = default_prompt
+            ws_prompt[f'A{prompt_row}'].alignment = Alignment(wrap_text=True, vertical="top")
+            ws_prompt[f'A{prompt_row}'].font = Font(name="Consolas", size=9)
+            ws_prompt.merge_cells(f'A{prompt_row}:B{prompt_row}')
+            ws_prompt.row_dimensions[prompt_row].height = 200
+
+        # Column widths
+        ws_prompt.column_dimensions['A'].width = 100
+        ws_prompt.column_dimensions['B'].width = 50
 
         # Save workbook
         wb.save(filepath)

@@ -2,8 +2,27 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.322 (February 24, 2026)
+**Current Version:** v1.9.323 (February 24, 2026)
 
+
+## v1.9.323 - February 24, 2026
+
+### Bug Fixes
+
+- **Fix Combined Prompt Preview showing raw JSON** — The "Preview Combined" dialog in the Prompt Manager now correctly renders custom prompt content as readable text instead of displaying the raw JSON structure of `.svprompt` files. Fixed both library-loaded and externally-loaded prompts.
+
+### Improvements
+
+- **SuperBench: use project's custom prompt for benchmarking** — SuperBench now uses the custom prompt attached in the Prompt Manager (if any) instead of a generic built-in prompt. This means benchmark results reflect your actual translation workflow. The log indicates which prompt is being used.
+- **SuperBench: custom prompt in exported reports** — The exported Excel report now includes the custom prompt name on the About sheet and a new "Prompt" sheet containing the full assembled prompt that was sent to the AI. JSON exports also include prompt information.
+- **SuperBench: dynamic model labels** — The model selection checkboxes now dynamically update to show the currently selected model (e.g. "OpenAI (GPT-5)" instead of the static "OpenAI (GPT-4o)"), matching the same pattern recently added to AI Settings.
+- **SuperBench: rename exported report file** — Export filename changed from `LLM_Leaderboard_...` to `Superbench_Translation_Quality_Report_...` for clarity.
+
+### Housekeeping
+
+- Removed unused legacy file `superbench_ui.py` (superseded by `llm_superbench_ui.py`).
+
+---
 
 ## v1.9.322 - February 24, 2026
 

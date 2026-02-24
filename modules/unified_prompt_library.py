@@ -123,9 +123,11 @@ class UnifiedPromptLibrary:
     
     def _parse_markdown(self, filepath: Path) -> Optional[Dict]:
         """
-        Parse Markdown file with YAML frontmatter.
-        
-        Format:
+        Parse Markdown file with YAML frontmatter or JSON format.
+
+        Supports two formats:
+
+        1. YAML frontmatter (preferred):
         ---
         name: "Prompt Name"
         description: "Description"
@@ -134,17 +136,55 @@ class UnifiedPromptLibrary:
         folder: "Domain Expertise"
         tags: ["medical", "technical"]
         ---
-        
+
         # Content
         Actual prompt content here...
+
+        2. JSON format (legacy):
+        {"name": "...", "description": "...", "content": "...", "version": "1.0"}
         """
         try:
             content = filepath.read_text(encoding='utf-8')
-            
+
+            # Try JSON format first (for .svprompt files saved as JSON)
+            stripped = content.strip()
+            if stripped.startswith('{'):
+                try:
+                    import json
+                    data = json.loads(stripped)
+                    if isinstance(data, dict) and 'content' in data:
+                        prompt_content = data['content']
+                        prompt_data = {}
+                        if 'name' in data:
+                            prompt_data['name'] = data['name']
+                        if 'description' in data:
+                            prompt_data['description'] = data['description']
+                        if 'version' in data:
+                            prompt_data['version'] = data['version']
+                        # Use filename as name if not specified
+                        if 'name' not in prompt_data:
+                            prompt_data['name'] = filepath.stem
+                        prompt_data['content'] = prompt_content.strip()
+                        # Ensure boolean fields exist
+                        prompt_data.setdefault('favorite', False)
+                        prompt_data.setdefault('quick_run', False)
+                        if 'quickmenu_quickmenu' in prompt_data:
+                            prompt_data['sv_quickmenu'] = prompt_data['quickmenu_quickmenu']
+                        prompt_data['sv_quickmenu'] = bool(
+                            prompt_data.get('sv_quickmenu', prompt_data.get('quick_run', False))
+                        )
+                        prompt_data['quick_run'] = bool(prompt_data['sv_quickmenu'])
+                        prompt_data.setdefault('quickmenu_grid', False)
+                        prompt_data.setdefault('quickmenu_label', prompt_data.get('name', filepath.stem))
+                        prompt_data.setdefault('tags', [])
+                        return prompt_data
+                except (json.JSONDecodeError, ValueError):
+                    pass  # Not valid JSON, fall through to YAML frontmatter parsing
+
             # Split frontmatter from content
             if content.startswith('---'):
                 content = content[3:].lstrip('\n')
-                
+
                 if '---' in content:
                     frontmatter_str, prompt_content = content.split('---', 1)
                     prompt_content = prompt_content.lstrip('\n')
@@ -373,32 +413,62 @@ class UnifiedPromptLibrary:
     def set_external_primary_prompt(self, file_path: str) -> Tuple[bool, str]:
         """
         Set an external file (not in library) as the primary prompt.
-        
+
         Args:
             file_path: Absolute path to the external prompt file
-        
+
         Returns:
             Tuple of (success, display_name or error_message)
         """
         path = Path(file_path)
-        
+
         if not path.exists():
             self.log(f"✗ File not found: {file_path}")
             return False, "File not found"
-        
+
         try:
-            content = path.read_text(encoding='utf-8')
+            raw_content = path.read_text(encoding='utf-8')
         except Exception as e:
             self.log(f"✗ Error reading file: {e}")
             return False, f"Error reading file: {e}"
-        
+
         # Use filename (without extension) as display name
         display_name = path.stem
-        
+
+        # Extract prompt content from structured formats
+        content = raw_content
+        stripped = raw_content.strip()
+
+        # Try JSON format (.svprompt files may be saved as JSON)
+        if stripped.startswith('{'):
+            try:
+                import json
+                data = json.loads(stripped)
+                if isinstance(data, dict) and 'content' in data:
+                    content = data['content']
+                    if data.get('name'):
+                        display_name = data['name']
+            except (json.JSONDecodeError, ValueError):
+                pass
+
+        # Try YAML frontmatter format
+        elif raw_content.startswith('---'):
+            temp = raw_content[3:].lstrip('\n')
+            if '---' in temp:
+                frontmatter_str, prompt_content = temp.split('---', 1)
+                content = prompt_content.lstrip('\n').strip()
+                # Try to extract name from frontmatter
+                for line in frontmatter_str.strip().splitlines():
+                    if line.startswith('name:'):
+                        name_val = line.split(':', 1)[1].strip().strip('"').strip("'")
+                        if name_val:
+                            display_name = name_val
+                        break
+
         # Mark as external with special prefix
         self.active_primary_prompt = content
         self.active_primary_prompt_path = f"[EXTERNAL] {file_path}"
-        
+
         self.log(f"✓ Set external custom prompt: {display_name}")
         return True, display_name
     
