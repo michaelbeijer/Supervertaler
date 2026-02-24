@@ -210,6 +210,15 @@ class MQXLIFFHandler:
             # Get memoQ status if available
             mq_status = trans_unit.get('{MQXliff}status', '')
 
+            # Get memoQ match percentage if available (mq:percent attribute)
+            mq_percent_str = trans_unit.get('{MQXliff}percent', '')
+            mq_percent = None
+            if mq_percent_str:
+                try:
+                    mq_percent = int(mq_percent_str)
+                except ValueError:
+                    pass
+
             # Map memoQ status to internal status
             # memoQ statuses: "NotStarted", "Editing", "Confirmed", "Reviewed", "Rejected", etc.
             status = 'not_started'
@@ -226,7 +235,8 @@ class MQXLIFFHandler:
                 'source': source_text,
                 'target': target_text,
                 'status': status,
-                'mq_status': mq_status
+                'mq_status': mq_status,
+                'match_percent': mq_percent
             })
 
         return segments

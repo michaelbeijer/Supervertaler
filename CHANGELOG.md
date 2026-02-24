@@ -2,8 +2,20 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.314 (February 23, 2026)
+**Current Version:** v1.9.315 (February 24, 2026)
 
+
+## v1.9.315 - February 24, 2026
+
+### New Features
+
+- **TM match rate display for all import formats (GitHub #139)** — When importing bilingual files that contain TM match information, the match percentage is now shown in the status column with color-coded display (green for 100%+, blue for 90–99%, dark blue for fuzzy). Match rates can also be used for filtering and sorting. Previously this data was present in the source files but not carried through to the UI.
+  - **SDLXLIFF / SDLPPX (Trados)** — Match percentages from the SDL `percent` attribute are now displayed: TM matches show their actual percentage, Context Matches show 101%, Perfect Matches show 102%.
+  - **memoQ bilingual DOCX** — Match percentages are extracted from the status column text (e.g. "Pre-translated (97%)") and the proper memoQ status is now mapped to Supervertaler's status hierarchy.
+  - **memoQ bilingual RTF** — Same as DOCX: match percentages from the status column are now parsed and displayed.
+  - **memoQ XLIFF (.mqxliff)** — Match percentages are extracted from the `mq:percent` attribute on trans-units when available.
+
+---
 
 ## v1.9.314 - February 23, 2026
 

@@ -29169,16 +29169,26 @@ class SupervertalerQt(QMainWindow):
             # Create segments with simple sequential IDs
             for idx, source_text in enumerate(source_segments):
                 existing_target = target_segments[idx] if idx < len(target_segments) else ""
-                status = "translated" if existing_target.strip() else "not_started"
-                
+                memoq_status_text = metadata[idx].get('status', '') if idx < len(metadata) else ""
+
+                # Use memoQ status parser to extract proper status + match percentage
+                if memoq_status_text:
+                    status, match_percent = self._interpret_memoq_status(
+                        memoq_status_text, bool(existing_target.strip())
+                    )
+                else:
+                    status = "translated" if existing_target.strip() else "not_started"
+                    match_percent = None
+
                 segment = Segment(
                     id=idx + 1,  # Sequential: 1, 2, 3, 4...
                     source=source_text,
                     target=existing_target,
                     status=status,
+                    match_percent=match_percent,
                     type="para",
                     notes=metadata[idx].get('comment', '') if idx < len(metadata) else "",
-                    memoQ_status=metadata[idx].get('status', '') if idx < len(metadata) else ""
+                    memoQ_status=memoq_status_text
                 )
                 self.current_project.segments.append(segment)
             
@@ -29420,16 +29430,26 @@ class SupervertalerQt(QMainWindow):
             # Create segments
             for idx, source_text in enumerate(source_segments):
                 existing_target = target_segments[idx] if idx < len(target_segments) else ""
-                status = "translated" if existing_target.strip() else "not_started"
+                memoq_status_text = metadata[idx].get('status', '') if idx < len(metadata) else ""
+
+                # Use memoQ status parser to extract proper status + match percentage
+                if memoq_status_text:
+                    status, match_percent = self._interpret_memoq_status(
+                        memoq_status_text, bool(existing_target.strip())
+                    )
+                else:
+                    status = "translated" if existing_target.strip() else "not_started"
+                    match_percent = None
 
                 segment = Segment(
                     id=idx + 1,
                     source=source_text,
                     target=existing_target,
                     status=status,
+                    match_percent=match_percent,
                     type="para",
                     notes=metadata[idx].get('comment', '') if idx < len(metadata) else "",
-                    memoQ_status=metadata[idx].get('status', '') if idx < len(metadata) else ""
+                    memoQ_status=memoq_status_text
                 )
                 self.current_project.segments.append(segment)
 
@@ -29929,6 +29949,7 @@ class SupervertalerQt(QMainWindow):
                     source=mq_seg.get('source', ''),
                     target=mq_seg.get('target', ''),
                     status=status,
+                    match_percent=mq_seg.get('match_percent'),
                     notes="",
                 )
                 segments.append(segment)
@@ -31246,17 +31267,21 @@ class SupervertalerQt(QMainWindow):
         else:
             status = DEFAULT_STATUS.key
 
-        # Build notes with origin info
+        # Build notes with origin info and determine match_percent
         origin_info = ""
+        segment_match_percent = None
         if sdl_seg.origin:
             text_match = getattr(sdl_seg, 'text_match', '')
             if sdl_seg.origin == 'tm' and sdl_seg.match_percent > 0:
                 if text_match == 'SourceAndTarget':
                     origin_info = f" | Origin: CM (101%)"
+                    segment_match_percent = 101
                 else:
                     origin_info = f" | Origin: TM {sdl_seg.match_percent}%"
+                    segment_match_percent = sdl_seg.match_percent
             elif sdl_seg.origin == 'perfect-match':
                 origin_info = " | Origin: PM (102%)"
+                segment_match_percent = 102
             elif sdl_seg.origin in ('nmt', 'mt'):
                 origin_info = " | Origin: MT"
             elif sdl_seg.origin in ('document-match', 'auto-propagated'):
@@ -31269,6 +31294,7 @@ class SupervertalerQt(QMainWindow):
             source=sdl_seg.source_text,
             target=sdl_seg.target_text if sdl_seg.target_text else "",
             status=status,
+            match_percent=segment_match_percent,
             notes=f"SDLXLIFF: {Path(sdl_seg.file_path).name} | Segment: {sdl_seg.segment_id}{origin_info}",
             locked=locked,
             file_id=file_id,
