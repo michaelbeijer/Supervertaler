@@ -2,8 +2,20 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.318 (February 24, 2026)
+**Current Version:** v1.9.319 (February 24, 2026)
 
+
+## v1.9.319 - February 24, 2026
+
+### New Features
+
+- **Update Superbench model lists** — Added latest models to LLM Superbench dropdowns for all three providers:
+  - **OpenAI:** Added `o3-mini` reasoning model
+  - **Claude:** Added `claude-sonnet-4-6` (latest Sonnet) and `claude-opus-4-6` (was missing from legacy UI)
+  - **Gemini:** Added `gemini-3.1-pro-preview` and `gemini-3-pro-preview`
+- Updated both `llm_superbench_ui.py` and `superbench_ui.py` model dropdowns and display name mappings
+
+---
 
 ## v1.9.318 - February 24, 2026
 

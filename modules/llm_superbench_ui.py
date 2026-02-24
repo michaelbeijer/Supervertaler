@@ -426,7 +426,8 @@ class LLMLeaderboardUI(QWidget):
         self.openai_model_combo.addItems([
             "gpt-4o",
             "gpt-4o-mini",
-            "gpt-5"
+            "gpt-5",
+            "o3-mini"
         ])
         self.openai_model_combo.setEnabled(True)
         model_layout.addWidget(self.openai_model_combo)
@@ -438,6 +439,7 @@ class LLMLeaderboardUI(QWidget):
 
         self.claude_model_combo = QComboBox()
         self.claude_model_combo.addItems([
+            "claude-sonnet-4-6",
             "claude-sonnet-4-5-20250929",
             "claude-haiku-4-5-20251001",
             "claude-opus-4-6",
@@ -455,7 +457,9 @@ class LLMLeaderboardUI(QWidget):
         self.gemini_model_combo.addItems([
             "gemini-2.5-flash",
             "gemini-2.5-flash-lite",
-            "gemini-2.5-pro"
+            "gemini-2.5-pro",
+            "gemini-3.1-pro-preview",
+            "gemini-3-pro-preview"
         ])
         self.gemini_model_combo.setEnabled(True)
         model_layout.addWidget(self.gemini_model_combo)
@@ -1335,8 +1339,10 @@ class LLMLeaderboardUI(QWidget):
             "gpt-4o": "GPT-4o",
             "gpt-4o-mini": "GPT-4o Mini",
             "gpt-5": "GPT-5 (Reasoning)",
+            "o3-mini": "o3-mini (Reasoning)",
 
             # Claude
+            "claude-sonnet-4-6": "Claude Sonnet 4.6",
             "claude-sonnet-4-5-20250929": "Claude Sonnet 4.5",
             "claude-haiku-4-5-20251001": "Claude Haiku 4.5",
             "claude-opus-4-6": "Claude Opus 4.6",
@@ -1346,6 +1352,8 @@ class LLMLeaderboardUI(QWidget):
             "gemini-2.5-flash": "Gemini 2.5 Flash",
             "gemini-2.5-flash-lite": "Gemini 2.5 Flash Lite",
             "gemini-2.5-pro": "Gemini 2.5 Pro",
+            "gemini-3.1-pro-preview": "Gemini 3.1 Pro Preview",
+            "gemini-3-pro-preview": "Gemini 3 Pro Preview",
             "gemini-2.0-flash-exp": "Gemini 2.0 Flash (Exp)"
         }
 
