@@ -856,7 +856,9 @@ class LLMClient:
             api_params["system"] = system_prompt
 
         response = client.messages.create(**api_params)
-        
+
+        if not response.content:
+            raise ValueError("Claude returned an empty response (no content blocks)")
         translation = response.content[0].text.strip()
         
         # Clean up translation: remove any prompt remnants

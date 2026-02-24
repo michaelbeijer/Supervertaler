@@ -2,8 +2,23 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.323 (February 24, 2026)
+**Current Version:** v1.9.324 (February 24, 2026)
 
+
+## v1.9.324 - February 24, 2026
+
+### Bug Fixes
+
+- **Fix Claude empty response crash** — Added safety check in `_call_claude()` for when the Claude API returns an empty content list, preventing an `IndexError` crash. Now raises a clear error message instead.
+
+### Improvements
+
+- **SuperBench: tighter segment filter** — Raised minimum benchmarkable segment thresholds from 3→10 word characters and 5→15 total characters. Filters out trivial segments like "V (m/s)", "Tabel 1", etc. that waste API calls without testing real translation quality.
+- **SuperBench: two-column layout** — Moved the log window from the bottom into the right-side column below Model Selection, making better use of screen space.
+- **SuperBench: default to Current Project** — The "Current Project" dataset source is now pre-selected when opening SuperBench instead of "Pre-defined Datasets".
+- **SuperBench: sync model dropdowns with AI Settings** — Model dropdowns now initialize to whatever models are currently selected in Settings > AI Settings > Model Selection.
+
+---
 
 ## v1.9.323 - February 24, 2026
 

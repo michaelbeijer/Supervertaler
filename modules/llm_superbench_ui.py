@@ -371,7 +371,6 @@ class LLMLeaderboardUI(QWidget):
 
         # Radio buttons for dataset source
         self.predefined_radio = CustomRadioButton("Pre-defined Datasets")
-        self.predefined_radio.setChecked(True)
         self.predefined_radio.toggled.connect(self._on_dataset_source_changed)
         dataset_layout.addWidget(self.predefined_radio)
 
@@ -386,6 +385,7 @@ class LLMLeaderboardUI(QWidget):
 
         # Current Project option
         self.project_radio = CustomRadioButton("Current Project")
+        self.project_radio.setChecked(True)
         self.project_radio.toggled.connect(self._on_dataset_source_changed)
         dataset_layout.addWidget(self.project_radio)
 
@@ -540,6 +540,9 @@ class LLMLeaderboardUI(QWidget):
         )
         model_layout.addWidget(self.gemini_model_combo)
 
+        # Sync dropdowns with AI Settings (Settings > AI Settings > Model Selection)
+        self._sync_model_combos_with_settings()
+
         model_layout.addStretch()
 
         # Run button
@@ -562,6 +565,35 @@ class LLMLeaderboardUI(QWidget):
 
         model_group.setLayout(model_layout)
         return model_group
+
+    def _sync_model_combos_with_settings(self):
+        """Set model dropdowns to match the models selected in AI Settings"""
+        if not self.parent_app or not hasattr(self.parent_app, 'load_llm_settings'):
+            return
+
+        try:
+            settings = self.parent_app.load_llm_settings()
+
+            # OpenAI
+            openai_model = settings.get('openai_model', '')
+            idx = self.openai_model_combo.findText(openai_model)
+            if idx >= 0:
+                self.openai_model_combo.setCurrentIndex(idx)
+
+            # Claude
+            claude_model = settings.get('claude_model', '')
+            idx = self.claude_model_combo.findText(claude_model)
+            if idx >= 0:
+                self.claude_model_combo.setCurrentIndex(idx)
+
+            # Gemini
+            gemini_model = settings.get('gemini_model', '')
+            idx = self.gemini_model_combo.findText(gemini_model)
+            if idx >= 0:
+                self.gemini_model_combo.setCurrentIndex(idx)
+
+        except Exception as e:
+            print(f"[SuperBench] Could not sync model settings: {e}")
 
     def _create_results_table(self) -> QTableWidget:
         """Create results comparison table"""

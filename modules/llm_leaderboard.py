@@ -580,8 +580,8 @@ def create_sample_datasets() -> List[TestDataset]:
 
 # Minimum number of word characters required for a segment to be considered
 # "meaningful text" for benchmarking (filters out numbers-only, codes, etc.)
-_MIN_WORD_CHARS = 3
-_MIN_TEXT_LENGTH = 5
+_MIN_WORD_CHARS = 10
+_MIN_TEXT_LENGTH = 15
 
 # Pattern that matches segments with NO real text content:
 # only digits, whitespace, punctuation, currency symbols, math operators, etc.
