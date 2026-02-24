@@ -290,11 +290,16 @@ class DejaVuRTFHandler:
         
         result = re.sub(r'\\u(-?\d+)\?', replace_unicode, result)
         
+        # RTF special-character control symbols
+        result = result.replace('\\~', '\u00a0')   # non-breaking space
+        result = result.replace('\\-', '\u00ad')   # optional (soft) hyphen
+        result = result.replace('\\_', '\u2011')   # non-breaking hyphen
+
         # Unescape RTF special characters
         result = result.replace(r'\{', '{')
         result = result.replace(r'\}', '}')
         result = result.replace(r'\\', '\\')
-        
+
         # Remove RTF control words that might remain (but keep content)
         # Be careful not to remove too much
         result = re.sub(r'\\[a-z]+\d*\s?', '', result)

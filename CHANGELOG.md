@@ -2,8 +2,16 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.316 (February 24, 2026)
+**Current Version:** v1.9.317 (February 24, 2026)
 
+
+## v1.9.317 - February 24, 2026
+
+### Bug Fixes
+
+- **Fix non-breaking space imported as literal `\~` from memoQ RTF (GitHub #171)** — Non-breaking spaces (`\~`), optional hyphens (`\-`), and non-breaking hyphens (`\_`) in memoQ bilingual RTF files were imported as literal text instead of being converted to the correct Unicode characters (U+00A0, U+00AD, U+2011). These RTF control symbols are now properly decoded during import. The same fix was applied to the Déjà Vu RTF handler.
+
+---
 
 ## v1.9.316 - February 24, 2026
 

@@ -6,7 +6,7 @@
 
 **Professional AI-enhanced translation workbench** with multi-LLM support (GPT-4, Claude, Gemini, Ollama), translation memory, glossary management, and seamless CAT tool integration (memoQ, Trados, CafeTran, Phrase, Déjà Vu).
 
-**Latest release:** v1.9.316 - Fix memoQ "Edited" status mapping; TM match rate display for all import formats.
+**Latest release:** v1.9.317 - Fix non-breaking space imported as literal `\~` from memoQ/Déjà Vu RTF.
 
 ---
 

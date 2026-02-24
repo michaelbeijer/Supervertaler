@@ -224,6 +224,11 @@ class MemoQRTFHandler:
         result = re.sub(r'\\u(-?\d+)\?', replace_unicode, result)
         result = re.sub(r'\\u(-?\d+) ', replace_unicode, result)
 
+        # RTF special-character control symbols
+        result = result.replace('\\~', '\u00a0')   # non-breaking space
+        result = result.replace('\\-', '\u00ad')   # optional (soft) hyphen
+        result = result.replace('\\_', '\u2011')   # non-breaking hyphen
+
         # Unescape RTF special characters
         result = result.replace(r'\{', '{')
         result = result.replace(r'\}', '}')
@@ -312,6 +317,11 @@ class MemoQRTFHandler:
         content = re.sub(r'\\bullet\s?', '\u2022', content)     # bullet
         content = re.sub(r'\\line\s?', '\n', content)           # line break
         content = re.sub(r'\\tab\s?', '\t', content)            # tab
+
+        # RTF special-character control symbols (single non-alpha char after backslash)
+        content = content.replace('\\~', '\u00a0')               # non-breaking space
+        content = content.replace('\\-', '\u00ad')               # optional (soft) hyphen
+        content = content.replace('\\_', '\u2011')               # non-breaking hyphen
 
         # Decode Unicode escapes BEFORE generic strip (e.g. \uc0\u8220 → ")
         # The generic strip below would otherwise eat \uc0 and \u8220 as control words.
