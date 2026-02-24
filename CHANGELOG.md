@@ -2,8 +2,16 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.321 (February 24, 2026)
+**Current Version:** v1.9.322 (February 24, 2026)
 
+
+## v1.9.322 - February 24, 2026
+
+### Improvements
+
+- **Resources tab: vertical sidebar navigation** — The Resources tab (TMs, Glossaries, Non-Translatables, Image Context) now uses the same vertical sidebar layout as the Tools and Settings tabs, replacing the old horizontal tab bar for a more consistent and spacious UI.
+
+---
 
 ## v1.9.321 - February 24, 2026
 

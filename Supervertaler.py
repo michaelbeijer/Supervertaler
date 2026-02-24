@@ -11455,37 +11455,36 @@ class SupervertalerQt(QMainWindow):
         self.log("Superlookup re-attached to Home tab")
     
     def create_resources_tab(self):
-        """Create the Project resources tab with nested sub-tabs"""
-        from PyQt6.QtWidgets import QTabWidget
-        
+        """Create the Project resources tab with vertical sidebar navigation"""
+        from modules.settings_sidebar import SettingsSidebar
+
         tab = QWidget()
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
-        
-        # Create nested tab widget
-        resources_tabs = QTabWidget()
-        resources_tabs.tabBar().setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        resources_tabs.tabBar().setDrawBase(False)
-        resources_tabs.tabBar().setExpanding(False)
-        resources_tabs.setStyleSheet("QTabBar::tab { outline: 0; } QTabBar::tab:focus { outline: none; } QTabBar::tab:selected { border-bottom: 1px solid #2196F3; background-color: rgba(33, 150, 243, 0.08); }")
+
+        # Vertical sidebar (same pattern as Settings / Tools)
+        resources_tabs = SettingsSidebar()
         self.resources_tabs = resources_tabs  # Store for navigation
-        
-        # Add nested tabs
+
+        # Add resource tabs
         tm_tab = self.create_translation_memories_tab()
         resources_tabs.addTab(tm_tab, "💾 TMs")
-        
+
         termbase_tab = self.create_termbases_tab()
         resources_tabs.addTab(termbase_tab, "🏷️ Glossaries")
-        
+
         nt_tab = self.create_non_translatables_tab()
         resources_tabs.addTab(nt_tab, "🚫 Non-Translatables")
-        
+
         ref_tab = self.create_reference_images_tab()
         resources_tabs.addTab(ref_tab, "🎯 Image Context")
-        
+
         layout.addWidget(resources_tabs)
-        
+
+        # Apply dark sidebar style if current theme is dark
+        self._update_resources_sidebar_theme()
+
         return tab
     
     def create_specialised_tools_tab(self):
@@ -17112,6 +17111,20 @@ class SupervertalerQt(QMainWindow):
             self.modules_tabs.apply_dark_style()
         else:
             self.modules_tabs._apply_style()
+
+    def _update_resources_sidebar_theme(self):
+        """Update the resources sidebar styling based on the current theme."""
+        if not hasattr(self, 'resources_tabs'):
+            return
+        from modules.settings_sidebar import SettingsSidebar
+        if not isinstance(self.resources_tabs, SettingsSidebar):
+            return
+        is_dark = (hasattr(self, 'theme_manager') and self.theme_manager
+                   and 'dark' in self.theme_manager.current_theme.name.lower())
+        if is_dark:
+            self.resources_tabs.apply_dark_style()
+        else:
+            self.resources_tabs._apply_style()
 
     def _create_language_pair_tab(self):
         """Create Language Pair Settings tab content"""
@@ -49715,9 +49728,10 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             if hasattr(self.termview_widget_match, 'apply_theme'):
                 self.termview_widget_match.apply_theme()
 
-        # Refresh sidebar themes (Settings + Tools)
+        # Refresh sidebar themes (Settings + Tools + Resources)
         self._update_settings_sidebar_theme()
         self._update_tools_sidebar_theme()
+        self._update_resources_sidebar_theme()
 
     def show_file_progress_dialog(self):
         """Show file progress - redirects to Project Info dialog, File Progress tab."""
