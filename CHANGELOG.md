@@ -2,8 +2,20 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.317 (February 24, 2026)
+**Current Version:** v1.9.318 (February 24, 2026)
 
+
+## v1.9.318 - February 24, 2026
+
+### Bug Fixes
+
+- **Fix "Check for New Models" not detecting any models** — The model version checker was looking up API keys using incorrect names (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`) instead of the actual key names returned by `load_api_keys()` (`openai`, `claude`, `google`/`gemini`). All three provider checks silently returned "No API key" and no new models were ever found. Fixed the key name mapping so the checker now correctly authenticates with all configured providers.
+
+### New Features
+
+- **Add Gemini 3.1 Pro Preview model** — Added Google's latest `gemini-3.1-pro-preview` model to the Settings model dropdown, known models list, and vision models registry. Described as the smartest Gemini model for complex tasks.
+
+---
 
 ## v1.9.317 - February 24, 2026
 

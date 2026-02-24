@@ -7982,9 +7982,9 @@ class SupervertalerQt(QMainWindow):
 
             # Run the check
             results = checker.check_all_providers(
-                openai_key=api_keys.get("OPENAI_API_KEY"),
-                anthropic_key=api_keys.get("ANTHROPIC_API_KEY"),
-                google_key=api_keys.get("GOOGLE_API_KEY"),
+                openai_key=api_keys.get("openai"),
+                anthropic_key=api_keys.get("claude"),
+                google_key=api_keys.get("google") or api_keys.get("gemini"),
                 force=force
             )
 
@@ -17357,14 +17357,16 @@ class SupervertalerQt(QMainWindow):
             "gemini-2.5-flash (Recommended - Best Balance)",
             "gemini-2.5-flash-lite (Fastest & Most Economical)",
             "gemini-2.5-pro (Premium - Complex Reasoning)",
-            "gemini-3-pro-preview (Latest - Superior Performance)",
+            "gemini-3.1-pro-preview (Latest - Smartest Gemini)",
+            "gemini-3-pro-preview (Previous Generation)",
             "gemini-2.0-flash-exp (Experimental)"
         ])
         gemini_combo.setToolTip(
             "Gemini 2.5 Flash: Best price-performance balance.\n"
             "Gemini 2.5 Flash-Lite: Fastest and cheapest.\n"
             "Gemini 2.5 Pro: Premium for complex problems.\n"
-            "Gemini 3 Pro Preview: Latest model with superior reasoning and coding."
+            "Gemini 3.1 Pro Preview: Latest, smartest Gemini for complex tasks.\n"
+            "Gemini 3 Pro Preview: Previous generation with superior reasoning."
         )
         current_gemini_model = settings.get('gemini_model', 'gemini-2.5-flash')
         for i in range(gemini_combo.count()):

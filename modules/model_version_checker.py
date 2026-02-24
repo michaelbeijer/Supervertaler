@@ -71,6 +71,7 @@ class ModelVersionChecker:
                 "claude-3-haiku-20240307"
             ],
             "gemini": [
+                "gemini-3.1-pro-preview",
                 "gemini-3-pro-preview",
                 "gemini-2.5-pro",
                 "gemini-2.5-flash",
