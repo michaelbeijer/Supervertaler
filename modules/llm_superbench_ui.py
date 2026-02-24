@@ -292,52 +292,80 @@ class LLMLeaderboardUI(QWidget):
         # Spacing after description
         layout.addSpacing(10)
 
-        # Top section: Dataset and Model selection
-        top_widget = self._create_top_section()
-        layout.addWidget(top_widget)
+        # Main content: two-column layout (left: dataset+results, right: models+log)
+        main_splitter = QSplitter(Qt.Orientation.Horizontal)
+
+        # === LEFT COLUMN: Dataset, progress, results, summary ===
+        left_widget = QWidget()
+        left_layout = QVBoxLayout(left_widget)
+        left_layout.setContentsMargins(0, 0, 0, 0)
+        left_layout.setSpacing(5)
+
+        # Dataset selection
+        self._create_dataset_section(left_layout)
 
         # Progress bar
         self.progress_bar = QProgressBar()
         self.progress_bar.setVisible(False)
-        layout.addWidget(self.progress_bar)
+        left_layout.addWidget(self.progress_bar)
 
         # Status label
         self.status_label = QLabel("Ready")
         self.status_label.setStyleSheet("color: #666; font-size: 9pt;")
-        layout.addWidget(self.status_label)
+        left_layout.addWidget(self.status_label)
 
-        # Splitter for results and log
-        splitter = QSplitter(Qt.Orientation.Vertical)
+        # Splitter for results and summary
+        results_splitter = QSplitter(Qt.Orientation.Vertical)
 
         # Results table
         self.results_table = self._create_results_table()
-        splitter.addWidget(self.results_table)
+        results_splitter.addWidget(self.results_table)
 
         # Summary panel
         self.summary_panel = self._create_summary_panel()
-        splitter.addWidget(self.summary_panel)
+        results_splitter.addWidget(self.summary_panel)
+
+        results_splitter.setStretchFactor(0, 3)  # Results table gets most space
+        results_splitter.setStretchFactor(1, 1)  # Summary panel
+
+        left_layout.addWidget(results_splitter)
+
+        main_splitter.addWidget(left_widget)
+
+        # === RIGHT COLUMN: Model selection + Log ===
+        right_widget = QWidget()
+        right_layout = QVBoxLayout(right_widget)
+        right_layout.setContentsMargins(0, 0, 0, 0)
+        right_layout.setSpacing(5)
+
+        # Model selection
+        model_group = self._create_model_section()
+        right_layout.addWidget(model_group)
 
         # Log output
+        log_group = QGroupBox("Log")
+        log_layout = QVBoxLayout()
+        log_layout.setContentsMargins(5, 5, 5, 5)
         self.log_output = QTextEdit()
         self.log_output.setReadOnly(True)
-        self.log_output.setMaximumHeight(150)
         self.log_output.setPlaceholderText("Benchmark log will appear here...")
-        splitter.addWidget(self.log_output)
+        self.log_output.setStyleSheet("font-size: 8pt;")
+        log_layout.addWidget(self.log_output)
+        log_group.setLayout(log_layout)
+        right_layout.addWidget(log_group, 1)  # stretch factor 1 to fill remaining space
 
-        splitter.setStretchFactor(0, 3)  # Results table gets most space
-        splitter.setStretchFactor(1, 1)  # Summary panel medium space
-        splitter.setStretchFactor(2, 1)  # Log output smallest
+        main_splitter.addWidget(right_widget)
 
-        layout.addWidget(splitter)
+        # Set proportions: left gets ~75%, right gets ~25%
+        main_splitter.setStretchFactor(0, 3)
+        main_splitter.setStretchFactor(1, 1)
+
+        layout.addWidget(main_splitter)
 
         self.setLayout(layout)
 
-    def _create_top_section(self) -> QWidget:
-        """Create dataset selection and model selection section"""
-        widget = QWidget()
-        layout = QHBoxLayout()
-
-        # Left: Dataset selection
+    def _create_dataset_section(self, parent_layout: QVBoxLayout):
+        """Create dataset selection group and add it to the given layout"""
         dataset_group = QGroupBox("Test Dataset")
         dataset_layout = QVBoxLayout()
 
@@ -418,14 +446,14 @@ class LLMLeaderboardUI(QWidget):
         self.project_controls_widget.setVisible(False)
         dataset_layout.addWidget(self.project_controls_widget)
 
-        dataset_layout.addStretch()
         dataset_group.setLayout(dataset_layout)
-        layout.addWidget(dataset_group)
+        parent_layout.addWidget(dataset_group)
 
         # Update project status on init
         self._update_project_status()
 
-        # Right: Model selection
+    def _create_model_section(self) -> QGroupBox:
+        """Create model selection group box"""
         model_group = QGroupBox("Model Selection")
         model_layout = QVBoxLayout()
 
@@ -533,10 +561,7 @@ class LLMLeaderboardUI(QWidget):
         model_layout.addWidget(self.export_button)
 
         model_group.setLayout(model_layout)
-        layout.addWidget(model_group)
-
-        widget.setLayout(layout)
-        return widget
+        return model_group
 
     def _create_results_table(self) -> QTableWidget:
         """Create results comparison table"""
