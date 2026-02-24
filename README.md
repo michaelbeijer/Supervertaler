@@ -6,7 +6,7 @@
 
 **Professional AI-enhanced translation workbench** with multi-LLM support (GPT-4, Claude, Gemini, Ollama), translation memory, glossary management, and seamless CAT tool integration (memoQ, Trados, CafeTran, Phrase, Déjà Vu).
 
-**Latest release:** v1.9.315 - TM match rate display for all import formats (SDLXLIFF, SDLPPX, memoQ DOCX/RTF/XLIFF).
+**Latest release:** v1.9.316 - Fix memoQ "Edited" status mapping; TM match rate display for all import formats.
 
 ---
 

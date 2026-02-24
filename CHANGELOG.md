@@ -2,8 +2,16 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.315 (February 24, 2026)
+**Current Version:** v1.9.316 (February 24, 2026)
 
+
+## v1.9.316 - February 24, 2026
+
+### Bug Fixes
+
+- **Fix memoQ "Edited" status mapping (GitHub #139 follow-up)** — memoQ "Edited" segments (indicating the translator actively edited the segment) were incorrectly mapped: "Edited (101%)" was displayed as CM (context match), and other "Edited" variants like "Edited (98%)" or "Edited (68%)" fell through to "Pre-translated". All "Edited" segments now correctly map to "Translated" status with their match percentage preserved. Also fixed the status matching order so that specific equivalents like "Pre-translated (101%)" are matched before generic ones like "Pre-translated", ensuring CM/PM/TM 100% statuses are correctly distinguished from generic pre-translated.
+
+---
 
 ## v1.9.315 - February 24, 2026
 

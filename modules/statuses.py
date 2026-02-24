@@ -42,7 +42,7 @@ STATUSES: Dict[str, StatusDefinition] = {
         icon="✏️",  # Pencil - indicates manual translation work (matches Trados style)
         color="#e6ffe6",
         memoq_label="Translated",
-        memoQ_equivalents=("translated",),
+        memoQ_equivalents=("translated", "edited"),
         match_symbol="✍️",
     ),
     "confirmed": StatusDefinition(
@@ -100,7 +100,7 @@ STATUSES: Dict[str, StatusDefinition] = {
         icon="⭐",  # Star - perfect/double context match
         color="#b8daff",  # Light blue - highest confidence
         memoq_label="Pre-translated (102%)",
-        memoQ_equivalents=("pre-translated (102%)", "102%", "xlt", "double context", "perfect match", "pm"),
+        memoQ_equivalents=("pre-translated (102%)", "xlt", "double context", "perfect match", "pm"),
         match_symbol="⭐",
         short_label="PM",
     ),
@@ -110,7 +110,7 @@ STATUSES: Dict[str, StatusDefinition] = {
         icon="💎",  # Diamond - context match
         color="#c3e6cb",  # Darker green - very high confidence
         memoq_label="Pre-translated (101%)",
-        memoQ_equivalents=("pre-translated (101%)", "context match", "cm", "101%"),
+        memoQ_equivalents=("pre-translated (101%)", "context match", "cm"),
         match_symbol="💎",
         short_label="CM",
     ),
@@ -120,7 +120,7 @@ STATUSES: Dict[str, StatusDefinition] = {
         icon="✅",  # Checkmark - exact match
         color="#d4edda",  # Light green - high confidence
         memoq_label="Pre-translated (100%)",
-        memoQ_equivalents=("pre-translated (100%)", "100%", "exact match"),
+        memoQ_equivalents=("pre-translated (100%)", "exact match"),
         match_symbol="✅",
         short_label="100%",
     ),
@@ -179,8 +179,17 @@ def match_memoq_status(status_text: str) -> tuple[StatusDefinition, Optional[int
 
     lower = status_clean.lower()
 
+    # Build (equivalent, definition) pairs sorted by equivalent length descending.
+    # This ensures specific matches like "pre-translated (101%)" beat generic
+    # ones like "pre-translated", so e.g. CM status isn't lost to pretranslated.
+    _eq_pairs: list[tuple[str, StatusDefinition]] = []
     for definition in STATUSES.values():
-        if any(eq in lower for eq in definition.memoQ_equivalents):
+        for eq in definition.memoQ_equivalents:
+            _eq_pairs.append((eq, definition))
+    _eq_pairs.sort(key=lambda p: len(p[0]), reverse=True)
+
+    for eq, definition in _eq_pairs:
+        if eq in lower:
             return definition, percent
 
     if "proofread" in lower and "confirm" in lower:
