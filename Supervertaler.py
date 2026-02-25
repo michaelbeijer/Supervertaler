@@ -20880,11 +20880,13 @@ class SupervertalerQt(QMainWindow):
         )
 
         if reply == QMessageBox.StandardButton.Yes:
-            # Get default from unified_prompt_manager
-            if hasattr(self, 'unified_prompt_manager'):
-                default_prompt = self.unified_prompt_manager._get_default_system_template(mode_key)
-                editor.setPlainText(default_prompt)
-                self.log(f"✓ Reset system prompt to default: {selected_mode}")
+            # Get default from prompt_manager_qt
+            if hasattr(self, 'prompt_manager_qt'):
+                default_prompt = self.prompt_manager_qt._get_default_system_template(mode_key)
+            else:
+                default_prompt = "# SYSTEM PROMPT\n\nNo default prompt available."
+            editor.setPlainText(default_prompt)
+            self.log(f"✓ Reset system prompt to default: {selected_mode}")
 
     def _create_debug_settings_tab(self):
         """Create Debug Settings tab content"""

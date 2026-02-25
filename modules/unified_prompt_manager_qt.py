@@ -2968,15 +2968,21 @@ class UnifiedPromptManagerQt:
         dialog.exec()
     
     def _view_current_system_template(self):
-        """View the current system prompt"""
+        """View the current system prompt with option to edit in Settings"""
         template = self.get_system_template(self.current_mode)
-        
+
         dialog = QMessageBox(self.main_widget)
         dialog.setWindowTitle(f"System Prompt: {self._get_mode_display_name()}")
         dialog.setText(f"Current system prompt for {self._get_mode_display_name()} mode:")
         dialog.setDetailedText(template)
         dialog.setIcon(QMessageBox.Icon.Information)
+        # Add Edit button alongside OK
+        edit_btn = dialog.addButton("Edit in Settings", QMessageBox.ButtonRole.ActionRole)
+        dialog.addButton(QMessageBox.StandardButton.Ok)
         dialog.exec()
+
+        if dialog.clickedButton() == edit_btn:
+            self._open_system_prompts_settings()
     
     def _open_system_prompts_settings(self):
         """Open system prompts in settings"""
@@ -2984,20 +2990,23 @@ class UnifiedPromptManagerQt:
             # Navigate to Settings tab if main app has the method
             # Use parent_app (not app)
             if hasattr(self.parent_app, 'main_tabs') and hasattr(self.parent_app, 'settings_tabs'):
-                # Navigate to Settings tab (index 3)
-                self.parent_app.main_tabs.setCurrentIndex(3)
-                # Navigate to System Prompts sub-tab (index 5 - after General, LLM, Language, MT, View)
-                # Verify the index is valid before setting it
-                if self.parent_app.settings_tabs.count() > 5:
-                    self.parent_app.settings_tabs.setCurrentIndex(5)
+                # Navigate to Settings tab (index 4: Grid=0, Resources=1, Prompt Manager=2, Tools=3, Settings=4)
+                self.parent_app.main_tabs.setCurrentIndex(4)
+                # Find System Prompts sub-tab by label text (robust against index changes)
+                target_index = -1
+                for i in range(self.parent_app.settings_tabs.count()):
+                    tab_text = self.parent_app.settings_tabs.tabText(i)
+                    if "System Prompt" in tab_text:
+                        target_index = i
+                        break
+                if target_index >= 0:
+                    self.parent_app.settings_tabs.setCurrentIndex(target_index)
                 else:
-                    # Log warning and fall back to first tab
-                    print(f"[WARNING] settings_tabs only has {self.parent_app.settings_tabs.count()} tabs, cannot navigate to index 5")
-                    self.parent_app.settings_tabs.setCurrentIndex(0)
+                    print(f"[WARNING] Could not find System Prompts tab in settings_tabs")
                     QMessageBox.warning(
                         self.main_widget,
                         "Navigation Issue",
-                        f"Could not navigate to System Prompts tab (expected at index 5, but only {self.parent_app.settings_tabs.count()} tabs exist).\n\n"
+                        "Could not find the System Prompts tab.\n\n"
                         "Please manually navigate to Settings → System Prompts."
                     )
             else:
@@ -3024,22 +3033,36 @@ class UnifiedPromptManagerQt:
     
     def _load_system_templates(self):
         """Load system prompts from files"""
+        import json
+
+        # Priority 1: Load from system_prompts_layer1.json (user-saved edits)
+        system_prompts_file = self.prompt_library_dir / "system_prompts_layer1.json"
+        if system_prompts_file.exists():
+            try:
+                with open(system_prompts_file, 'r', encoding='utf-8') as f:
+                    saved_prompts = json.load(f)
+                for mode in ["single", "batch_docx", "batch_bilingual"]:
+                    if mode in saved_prompts and saved_prompts[mode].strip():
+                        self.system_templates[mode] = saved_prompts[mode]
+            except Exception as e:
+                print(f"[WARNING] Failed to load system_prompts_layer1.json: {e}")
+
+        # Priority 2: Load from old location if exists (migration support)
         system_templates_dir = self.prompt_library_dir / "1_System_Prompts"
-        
         if system_templates_dir.exists():
-            # Load from old location if exists (migration support)
             file_map = {
                 "Single Segment Translation (system prompt).md": "single",
                 "Batch DOCX Translation (system prompt).md": "batch_docx",
                 "Batch Bilingual Translation (system prompt).md": "batch_bilingual"
             }
-            
+
             for filename, mode in file_map.items():
-                filepath = system_templates_dir / filename
-                if filepath.exists():
-                    self.system_templates[mode] = filepath.read_text(encoding='utf-8')
-        
-        # Fill missing with defaults
+                if mode not in self.system_templates:
+                    filepath = system_templates_dir / filename
+                    if filepath.exists():
+                        self.system_templates[mode] = filepath.read_text(encoding='utf-8')
+
+        # Priority 3: Fill missing with defaults
         for mode in ["single", "batch_docx", "batch_bilingual"]:
             if mode not in self.system_templates:
                 self.system_templates[mode] = self._get_default_system_template(mode)
@@ -3050,7 +3073,7 @@ class UnifiedPromptManagerQt:
         return """# SYSTEM PROMPT
 
 ⚠️ **PROFESSIONAL TRANSLATION CONTEXT:**
-You are performing professional technical/medical translation as a licensed service for a commercial translation company. This is legitimate professional work. All medical, technical, or specialized terminology is for professional translation purposes only.
+You are performing professional translation work. The source text may contain specialized terminology from any domain (medical, legal, technical, financial, etc.). Translate all content faithfully and accurately regardless of subject matter.
 
 You are an expert {{SOURCE_LANGUAGE}} to {{TARGET_LANGUAGE}} translator with deep understanding of context and nuance.
 

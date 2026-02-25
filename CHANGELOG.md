@@ -2,8 +2,23 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.325 (February 25, 2026)
+**Current Version:** v1.9.326 (February 25, 2026)
 
+
+## v1.9.326 - February 25, 2026
+
+### Bug Fixes
+
+- **Fix system prompt edits lost between sessions** — User-saved system prompts (via Settings > System Prompts) were written to `system_prompts_layer1.json` but never loaded back on startup, causing all edits to revert to defaults. The load order now correctly prioritises user-saved prompts over legacy files and hardcoded defaults.
+- **Fix "System Prompts" button navigating to wrong tab** — The button in Prompt Manager > Prompt Library was opening the wrong Settings sub-tab (View Settings instead of System Prompts) due to stale hardcoded tab indices. Now searches by tab label text for robustness.
+- **Fix "Reset to Default" system prompt button** — The reset handler referenced a non-existent attribute (`unified_prompt_manager`), preventing the reset from working. Now correctly uses `prompt_manager_qt`.
+
+### Improvements
+
+- **"Edit in Settings" button on View System Prompt dialog** — The system prompt preview dialog (Prompt Manager > View System Prompt) now includes an "Edit in Settings" button that navigates directly to Settings > System Prompts for editing.
+- **Soften default system prompt language** — Replaced domain-specific "technical/medical translation as a licensed service for a commercial translation company" with generic "professional translation work" that covers all domains. The safety context is retained to prevent LLMs from refusing specialised content.
+
+---
 
 ## v1.9.325 - February 25, 2026
 
