@@ -2,8 +2,22 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.327 (February 25, 2026)
+**Current Version:** v1.9.328 (February 25, 2026)
 
+
+## v1.9.328 - February 25, 2026
+
+### Improvements
+
+- **QuickTrans: full provider names in result badges** — QuickTrans result badges now show the full provider name ("Google Translate", "Claude", "Gemini", "OpenAI", etc.) instead of short codes (GT, CL, GEM, GPT). Badge width is now content-driven.
+- **QuickTrans: updated and expanded LLM model lists** — OpenAI list now includes GPT-5, o3, o3-mini; Gemini list now includes 2.5 Flash Lite, 3.1 Pro, 3 Pro, 2.0 Flash. Lists are filtered by the new AI Models settings.
+- **QuickTrans: Ollama support** — Ollama is now available as an LLM provider in QuickTrans. Enable it in Settings > QuickTrans; model name is a free-text field (no API key required).
+- **New Settings tab: AI Models** — A new "AI Models" tab (directly below AI Settings in the sidebar) lets you check/uncheck individual models per provider to control which appear in QuickTrans dropdowns. Includes OpenAI, Claude, Gemini, and Ollama model lists.
+- **Model discovery dialog now works** — The "New Models Found" dialog's "Add Selected Models" button previously did nothing. Selected models are now saved to AI Models settings and appear in QuickTrans dropdowns after reopening Settings.
+- **Fix: Gemini grayed out in QuickTrans settings** — QuickTrans only checked for the key name `gemini`, but many users stored it as `google`. Both are now checked.
+- **Fix: Google/Gemini API key naming standardized** — The canonical key name is now `gemini` everywhere (Settings UI label, `api_keys.example.txt`, internal key lookup). Keys stored as `google` are migrated automatically on load. The confusing bidirectional sync that kept both `google` and `gemini` alive simultaneously is replaced with a clean one-way migration.
+
+---
 
 ## v1.9.327 - February 25, 2026
 

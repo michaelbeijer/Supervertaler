@@ -105,24 +105,23 @@ class MTSuggestionItem(QFrame):
         """)
         layout.addWidget(num_label)
 
-        # Provider icon/code badge
-        provider_label = QLabel(suggestion.provider_code)
-        provider_label.setFixedWidth(36)
+        # Provider name badge — full name, sized to content
+        provider_label = QLabel(suggestion.provider_name)
         provider_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        provider_label.setToolTip(suggestion.provider_name)
 
-        # Color-code by provider
+        # Color-code by provider code (internal key, not displayed)
         provider_colors = {
-            "GT": "#4285F4",   # Google blue
-            "DL": "#042B48",   # DeepL dark blue
-            "MS": "#00A4EF",   # Microsoft blue
-            "AT": "#FF9900",   # Amazon orange
-            "MMT": "#6B4EE6",  # ModernMT purple
-            "MM": "#2ECC71",   # MyMemory green
-            # LLM providers
-            "CL": "#D97706",   # Claude orange/amber
-            "GPT": "#10A37F",  # OpenAI green
-            "GEM": "#4285F4",  # Gemini blue (Google)
+            "GT":  "#4285F4",   # Google blue
+            "DL":  "#042B48",   # DeepL dark blue
+            "MS":  "#00A4EF",   # Microsoft blue
+            "AT":  "#FF9900",   # Amazon orange
+            "MMT": "#6B4EE6",   # ModernMT purple
+            "MM":  "#2ECC71",   # MyMemory green
+            "CL":  "#D97706",   # Claude amber
+            "GPT": "#10A37F",   # OpenAI green
+            "GEM": "#4285F4",   # Gemini blue
+            "OLL": "#555555",   # Ollama dark gray
+            "CUS": "#9C27B0",   # Custom purple
         }
         bg_color = provider_colors.get(suggestion.provider_code, "#666")
         provider_label.setStyleSheet(f"""
@@ -132,7 +131,7 @@ class MTSuggestionItem(QFrame):
                 font-weight: bold;
                 font-size: 9px;
                 border-radius: 3px;
-                padding: 2px 4px;
+                padding: 2px 8px;
             }}
         """)
         layout.addWidget(provider_label)
@@ -512,6 +511,7 @@ class MTQuickPopup(QDialog):
             ("Claude", "CL", "claude", "mtql_claude"),
             ("OpenAI", "GPT", "openai", "mtql_openai"),
             ("Gemini", "GEM", "gemini", "mtql_gemini"),
+            ("Ollama", "OLL", "ollama", "mtql_ollama"),
             ("Custom", "CUS", "custom_openai", "mtql_custom_openai"),
         ]
 
@@ -520,11 +520,11 @@ class MTQuickPopup(QDialog):
             if not mt_quick_settings.get(settings_key, False):
                 continue
 
-            # Check if API key is available (custom_openai may not need one)
+            # Check if API key is available
             if api_key_name == 'gemini':
                 has_key = bool(api_keys.get('gemini') or api_keys.get('google'))
-            elif api_key_name == 'custom_openai':
-                has_key = True
+            elif api_key_name in ('ollama', 'custom_openai'):
+                has_key = True  # No API key needed
             else:
                 has_key = bool(api_keys.get(api_key_name))
 
@@ -553,9 +553,12 @@ class MTQuickPopup(QDialog):
             else:
                 api_keys = load_api_keys()
 
-            api_key = api_keys.get(provider) or (api_keys.get('google') if provider == 'gemini' else None)
+            if provider == 'gemini':
+                api_key = api_keys.get('gemini') or api_keys.get('google')
+            else:
+                api_key = api_keys.get(provider)
 
-            if not api_key and provider != 'custom_openai':
+            if not api_key and provider not in ('ollama', 'custom_openai'):
                 return f"[Error: No API key for {provider}]"
 
             # Reuse main app client wiring when available (supports custom profiles/base_url)

@@ -8069,34 +8069,50 @@ class SupervertalerQt(QMainWindow):
 
     def _on_new_models_selected(self, selected_models: dict):
         """
-        Handle user selection of new models to add
+        Handle user selection of new models from the model discovery dialog.
+        Saves them to model_management settings so they appear in Model Management tab
+        and in QuickTrans/AI Settings dropdowns.
 
         Args:
             selected_models: Dict of {provider: [model_ids]}
         """
         try:
-            # Update the known models in llm_clients.py
-            # For now, just log what would be added
-            self.log("📦 Adding selected models to Supervertaler:")
-
-            for provider, models in selected_models.items():
-                if models:
-                    self.log(f"  {provider.capitalize()}: {len(models)} model(s)")
-                    for model in models:
-                        self.log(f"    • {model}")
-
-            # TODO: Actually add the models to the configuration
-            # This would require modifying llm_clients.py or a separate config file
-            # For now, just show a message
             from PyQt6.QtWidgets import QMessageBox
+
+            general_settings = self.load_general_settings()
+            mm = general_settings.get('model_management', {})
+            user_added = mm.get('user_added_models', {})
+            enabled = mm.get('enabled_models', None)
+            if enabled is None:
+                # First time — seed with defaults
+                enabled = {k: [m[0] for m in v] for k, v in self._ALL_KNOWN_MODELS.items()}
+
+            total_added = 0
+            for provider, model_ids in selected_models.items():
+                if not model_ids:
+                    continue
+                # Add to user_added_models (tracks discovered models separately)
+                existing_added = set(user_added.get(provider, []))
+                existing_added.update(model_ids)
+                user_added[provider] = list(existing_added)
+                # Enable them by default
+                existing_enabled = set(enabled.get(provider, []))
+                existing_enabled.update(model_ids)
+                enabled[provider] = list(existing_enabled)
+                total_added += len(model_ids)
+                self.log(f"📦 Added {len(model_ids)} {provider} model(s): {', '.join(model_ids)}")
+
+            mm['user_added_models'] = user_added
+            mm['enabled_models'] = enabled
+            general_settings['model_management'] = mm
+            self.save_general_settings(general_settings)
+
             QMessageBox.information(
                 self,
                 "Models Added",
-                f"Selected models have been noted:\n\n"
-                f"{sum(len(m) for m in selected_models.values())} model(s) from "
-                f"{len(selected_models)} provider(s)\n\n"
-                f"These models will be available after restarting Supervertaler.\n\n"
-                f"Note: You may need to manually add them to Settings → AI Settings for now."
+                f"✅ {total_added} model(s) saved to your Model Management settings.\n\n"
+                f"Open Settings → 🤖 AI Models to review them.\n"
+                f"They will appear in QuickTrans and AI Settings dropdowns after reopening Settings."
             )
 
         except Exception as e:
@@ -11110,16 +11126,18 @@ class SupervertalerQt(QMainWindow):
             api_keys = self._get_api_keys()
 
             # Map provider names to API key names
-            # (gemini uses "google" as the key name in api_keys.txt)
             provider_to_key = {
                 "openai": "openai",
                 "claude": "claude",
-                "gemini": "google",  # Gemini uses Google API key
+                "gemini": "gemini",
                 "custom_openai": "custom_openai"
             }
 
             key_name = provider_to_key.get(provider, provider)
             api_key = api_keys.get(key_name, "")
+            # Backward compat: if key stored as 'google' instead of 'gemini'
+            if not api_key and provider == 'gemini':
+                api_key = api_keys.get('google', '')
 
             if not api_key and provider not in ('ollama', 'custom_openai'):
                 raise ValueError(f"No API key configured for {provider}. Please add it in Settings.")
@@ -17060,6 +17078,10 @@ class SupervertalerQt(QMainWindow):
         settings_tabs.addTab(ai_scroll, "🤖 AI Settings")
         self.ai_settings_scroll = ai_scroll  # Store reference for scrolling to API keys
 
+        # ===== TAB: AI Models =====
+        model_mgmt_tab = self._create_model_management_tab()
+        settings_tabs.addTab(scroll_area_wrapper(model_mgmt_tab), "🤖 AI Models")
+
         # ===== TAB 3: Language Pair Settings =====
         lang_tab = self._create_language_pair_tab()
         settings_tabs.addTab(scroll_area_wrapper(lang_tab), "🌐 Language Pair")
@@ -17761,7 +17783,7 @@ class SupervertalerQt(QMainWindow):
         llm_key_fields = [
             ("OpenAI:", "openai", "sk-proj-..."),
             ("Claude (Anthropic):", "claude", "sk-ant-api03-..."),
-            ("Google / Gemini:", "google", "AIza..."),
+            ("Gemini (Google AI):", "gemini", "AIza..."),
             ("Ollama Endpoint:", "ollama_endpoint", "http://localhost:11434"),
         ]
 
@@ -18376,29 +18398,44 @@ class SupervertalerQt(QMainWindow):
         # LLM provider checkboxes with model selection
         self._mtql_llm_combos = {}
 
+        # Load model management enabled list for filtering
+        _mm = general_settings.get('model_management', {})
+        _enabled_by_provider = _mm.get('enabled_models', None)  # None = no filter (show all)
+        _user_added_by_provider = _mm.get('user_added_models', {})
+
         llm_providers = [
             ("claude", "Claude", "claude", [
                 ("claude-sonnet-4-6", "Claude Sonnet 4.6 (Recommended)"),
-                ("claude-opus-4-6", "Claude Opus 4.6 (Latest Premium)"),
+                ("claude-opus-4-6", "Claude Opus 4.6 (Premium)"),
                 ("claude-sonnet-4-5-20250929", "Claude Sonnet 4.5"),
                 ("claude-haiku-4-5-20251001", "Claude Haiku 4.5 (Fast)"),
-                ("claude-opus-4-1-20250805", "Claude Opus 4.1 (Premium)"),
+                ("claude-opus-4-1-20250805", "Claude Opus 4.1"),
             ]),
             ("openai", "OpenAI", "openai", [
                 ("gpt-4o", "GPT-4o (Recommended)"),
                 ("gpt-4o-mini", "GPT-4o Mini (Fast)"),
-                ("gpt-4-turbo", "GPT-4 Turbo"),
+                ("gpt-5", "GPT-5 (Reasoning)"),
+                ("o3", "o3 (Reasoning)"),
+                ("o3-mini", "o3-mini (Reasoning)"),
                 ("o1", "o1 (Reasoning)"),
+                ("gpt-4-turbo", "GPT-4 Turbo"),
             ]),
-            ("gemini", "Gemini", "gemini", [
+            ("gemini", "Gemini (Google AI)", "gemini", [
                 ("gemini-2.5-flash", "Gemini 2.5 Flash (Recommended)"),
-                ("gemini-2.5-pro", "Gemini 2.5 Pro"),
+                ("gemini-2.5-flash-lite", "Gemini 2.5 Flash Lite (Fastest)"),
+                ("gemini-2.5-pro", "Gemini 2.5 Pro (Premium)"),
+                ("gemini-3.1-pro-preview", "Gemini 3.1 Pro (Latest)"),
+                ("gemini-3-pro-preview", "Gemini 3 Pro"),
                 ("gemini-2.0-flash", "Gemini 2.0 Flash"),
             ]),
         ]
 
         for code, name, api_key_name, models in llm_providers:
-            has_key = bool(api_keys.get(api_key_name))
+            # Gemini key may be stored as either 'gemini' or 'google' (backward compat)
+            if api_key_name == 'gemini':
+                has_key = bool(api_keys.get('gemini') or api_keys.get('google'))
+            else:
+                has_key = bool(api_keys.get(api_key_name))
 
             # Container for checkbox and model combo
             llm_row = QHBoxLayout()
@@ -18417,10 +18454,19 @@ class SupervertalerQt(QMainWindow):
             self._mtql_checkboxes[f"mtql_{code}"] = checkbox
             llm_row.addWidget(checkbox)
 
-            # Model selection combo
+            # Model selection combo — filtered by model management enabled list
             model_combo = QComboBox()
             model_combo.setMinimumWidth(200)
-            for model_id, model_name in models:
+            provider_enabled_ids = _enabled_by_provider.get(code) if _enabled_by_provider else None
+            visible_models = [(mid, mname) for mid, mname in models
+                              if provider_enabled_ids is None or mid in provider_enabled_ids]
+            # Also append any user-added models not in the base list
+            base_ids = {m[0] for m in models}
+            for extra_id in _user_added_by_provider.get(code, []):
+                if extra_id not in base_ids:
+                    if provider_enabled_ids is None or extra_id in provider_enabled_ids:
+                        visible_models.append((extra_id, extra_id))
+            for model_id, model_name in visible_models:
                 model_combo.addItem(model_name, model_id)
 
             # Restore saved model selection
@@ -18464,6 +18510,25 @@ class SupervertalerQt(QMainWindow):
         custom_row.addStretch()
         llm_layout.addLayout(custom_row)
 
+        # Ollama (local LLM — always available, no API key needed)
+        ollama_row = QHBoxLayout()
+        ollama_cb = CheckmarkCheckBox("🖥️ Ollama (Local LLM)")
+        ollama_cb.setChecked(mt_quick_settings.get("mtql_ollama", False))
+        ollama_cb.setToolTip("Use a locally-running Ollama model for translation (no API key needed)")
+        self._mtql_checkboxes["mtql_ollama"] = ollama_cb
+        ollama_row.addWidget(ollama_cb)
+
+        ollama_model_edit = QLineEdit()
+        ollama_model_edit.setMinimumWidth(200)
+        ollama_model_edit.setPlaceholderText("e.g. translategemma:12b")
+        _ollama_model_saved = mt_quick_settings.get("mtql_ollama_model") or llm_settings.get('ollama_model', 'translategemma:12b')
+        ollama_model_edit.setText(_ollama_model_saved)
+        ollama_model_edit.setToolTip("Ollama model name — must be pulled locally (ollama pull <model>)")
+        self._mtql_llm_combos["mtql_ollama_model"] = ollama_model_edit
+        ollama_row.addWidget(ollama_model_edit)
+        ollama_row.addStretch()
+        llm_layout.addLayout(ollama_row)
+
         llm_group.setLayout(llm_layout)
         layout.addWidget(llm_group)
 
@@ -18499,6 +18564,165 @@ class SupervertalerQt(QMainWindow):
 
         self.log("✓ QuickTrans settings saved")
         QMessageBox.information(self, "Settings Saved", "QuickTrans settings have been saved.")
+
+    # ─────────────────────────────────────────────────────────────
+    # Model Management tab
+    # ─────────────────────────────────────────────────────────────
+
+    # Master list of all known models per provider.
+    # Tuple format: (model_id, display_name, description)
+    _ALL_KNOWN_MODELS = {
+        "openai": [
+            ("gpt-4o",       "GPT-4o",             "Recommended — fast, reliable, excellent for translation"),
+            ("gpt-4o-mini",  "GPT-4o Mini",         "Economical — good quality for simple text"),
+            ("gpt-5",        "GPT-5",               "Advanced reasoning"),
+            ("o3",           "o3",                  "Reasoning model"),
+            ("o3-mini",      "o3-mini",             "Reasoning, efficient"),
+            ("o1",           "o1",                  "Reasoning model"),
+            ("gpt-4-turbo",  "GPT-4 Turbo",         "Previous generation"),
+        ],
+        "claude": [
+            ("claude-sonnet-4-6",          "Claude Sonnet 4.6",  "Recommended — latest flagship"),
+            ("claude-opus-4-6",            "Claude Opus 4.6",    "Premium — exceptional reasoning"),
+            ("claude-sonnet-4-5-20250929", "Claude Sonnet 4.5",  "Previous flagship"),
+            ("claude-haiku-4-5-20251001",  "Claude Haiku 4.5",   "Fast & affordable"),
+            ("claude-opus-4-1-20250805",   "Claude Opus 4.1",    "Premium — complex reasoning"),
+        ],
+        "gemini": [
+            ("gemini-2.5-flash",       "Gemini 2.5 Flash",      "Recommended — best balance"),
+            ("gemini-2.5-flash-lite",  "Gemini 2.5 Flash Lite", "Fastest & most economical"),
+            ("gemini-2.5-pro",         "Gemini 2.5 Pro",        "Premium — complex reasoning"),
+            ("gemini-3.1-pro-preview", "Gemini 3.1 Pro",        "Latest — most capable"),
+            ("gemini-3-pro-preview",   "Gemini 3 Pro",          "Previous generation"),
+            ("gemini-2.0-flash",       "Gemini 2.0 Flash",      "Stable release"),
+            ("gemini-2.0-flash-exp",   "Gemini 2.0 Flash Exp",  "Experimental"),
+        ],
+        "ollama": [
+            ("translategemma:12b", "TranslateGemma 12B", "Recommended for translation"),
+            ("translategemma:7b",  "TranslateGemma 7B",  "Faster, lighter"),
+            ("gemma3:12b",         "Gemma3 12B",         "General purpose"),
+            ("qwen2.5:7b",         "Qwen 2.5 7B",        "Multilingual"),
+            ("llama3.1:8b",        "Llama 3.1 8B",        "General purpose"),
+            ("aya-expanse:8b",     "Aya Expanse 8B",     "Multilingual"),
+        ],
+    }
+
+    # Default enabled model IDs when no user preference has been saved yet
+    _DEFAULT_ENABLED_MODELS = {
+        "openai": ["gpt-4o", "gpt-4o-mini", "gpt-5", "o3", "o3-mini", "o1", "gpt-4-turbo"],
+        "claude": ["claude-sonnet-4-6", "claude-opus-4-6", "claude-sonnet-4-5-20250929",
+                   "claude-haiku-4-5-20251001", "claude-opus-4-1-20250805"],
+        "gemini": ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.5-pro",
+                   "gemini-3.1-pro-preview", "gemini-3-pro-preview", "gemini-2.0-flash"],
+        "ollama": ["translategemma:12b"],
+    }
+
+    def _create_model_management_tab(self):
+        """Create the Model Management settings tab"""
+        from PyQt6.QtWidgets import QGroupBox
+
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(15)
+
+        header = QLabel(
+            "🎛️ <b>Model Management</b> — Select which AI models appear in dropdowns throughout the app.<br>"
+            "Uncheck models you don't use to keep lists clean. "
+            "Changes take effect after reopening Settings."
+        )
+        header.setTextFormat(Qt.TextFormat.RichText)
+        header.setWordWrap(True)
+        header.setStyleSheet(
+            "font-size: 9pt; color: #444; padding: 10px; "
+            "background-color: #E8F5E9; border-radius: 4px;"
+        )
+        layout.addWidget(header)
+
+        # Load current settings
+        general_settings = self.load_general_settings()
+        mm = general_settings.get('model_management', {})
+        saved_enabled = mm.get('enabled_models', None)   # None = first run, use defaults
+        user_added = mm.get('user_added_models', {})
+
+        self._model_mgmt_checkboxes = {}   # provider_key -> {model_id -> QCheckBox}
+
+        provider_labels = {
+            "openai": "OpenAI",
+            "claude": "Claude (Anthropic)",
+            "gemini": "Gemini (Google AI)",
+            "ollama": "Ollama (Local LLM — no API key needed)",
+        }
+
+        for provider_key, built_in_models in self._ALL_KNOWN_MODELS.items():
+            group = QGroupBox(provider_labels.get(provider_key, provider_key))
+            group_layout = QVBoxLayout()
+            group_layout.setSpacing(4)
+
+            provider_enabled_ids = (
+                saved_enabled.get(provider_key)
+                if saved_enabled is not None
+                else self._DEFAULT_ENABLED_MODELS.get(provider_key, [])
+            )
+            self._model_mgmt_checkboxes[provider_key] = {}
+
+            # Built-in models
+            for model_id, model_name, model_desc in built_in_models:
+                # Escape & so Qt doesn't treat it as a keyboard accelerator
+                label_text = f"{model_name}  —  {model_desc}".replace("&", "&&")
+                cb = CheckmarkCheckBox(label_text)
+                cb.setChecked(model_id in provider_enabled_ids)
+                cb.setToolTip(model_id)
+                self._model_mgmt_checkboxes[provider_key][model_id] = cb
+                group_layout.addWidget(cb)
+
+            # User-added models (from model discovery dialog)
+            base_ids = {m[0] for m in built_in_models}
+            for extra_id in user_added.get(provider_key, []):
+                if extra_id not in base_ids:
+                    cb = CheckmarkCheckBox(f"{extra_id}  —  discovered model")
+                    cb.setChecked(extra_id in provider_enabled_ids)
+                    cb.setStyleSheet(cb.styleSheet() + " color: #1565C0;")
+                    self._model_mgmt_checkboxes[provider_key][extra_id] = cb
+                    group_layout.addWidget(cb)
+
+            group.setLayout(group_layout)
+            layout.addWidget(group)
+
+        note = QLabel("💡 Tip: After saving, reopen Settings for changes to appear in QuickTrans and AI Settings dropdowns.")
+        note.setWordWrap(True)
+        note.setStyleSheet("font-size: 8pt; color: #666; font-style: italic; margin-top: 4px;")
+        layout.addWidget(note)
+
+        save_btn = QPushButton("💾 Save Model Settings")
+        save_btn.setStyleSheet("font-weight: bold; padding: 8px;")
+        save_btn.clicked.connect(self._save_model_management_settings)
+        layout.addWidget(save_btn)
+
+        layout.addStretch()
+        return tab
+
+    def _save_model_management_settings(self):
+        """Save model management (enabled/disabled) settings"""
+        if not hasattr(self, '_model_mgmt_checkboxes'):
+            return
+
+        enabled = {
+            provider_key: [mid for mid, cb in checkboxes.items() if cb.isChecked()]
+            for provider_key, checkboxes in self._model_mgmt_checkboxes.items()
+        }
+
+        general_settings = self.load_general_settings()
+        mm = general_settings.get('model_management', {})
+        mm['enabled_models'] = enabled
+        general_settings['model_management'] = mm
+        self.save_general_settings(general_settings)
+
+        self.log("✓ Model management settings saved")
+        QMessageBox.information(
+            self, "Models Saved",
+            "Model settings saved.\n\nReopen Settings to apply changes to QuickTrans and AI Settings dropdowns."
+        )
 
     def open_mt_quick_lookup_settings(self):
         """Open Settings and navigate to MT Quick Lookup tab"""
@@ -21789,11 +22013,9 @@ class SupervertalerQt(QMainWindow):
         for key_name, input_widget in self._api_key_inputs.items():
             value = input_widget.text().strip()
             api_keys[key_name] = value
-        # Sync google/gemini aliases
+        # Migrate legacy 'google' key to canonical 'gemini' key
         if api_keys.get('google') and not api_keys.get('gemini'):
             api_keys['gemini'] = api_keys['google']
-        elif api_keys.get('gemini') and not api_keys.get('google'):
-            api_keys['google'] = api_keys['gemini']
         self.save_api_keys(api_keys)
 
     def _save_mt_settings_from_ui(self, google_cb, deepl_cb, microsoft_cb, amazon_cb, modernmt_cb, mymemory_cb):
@@ -35844,11 +36066,9 @@ class SupervertalerQt(QMainWindow):
                         if line and '=' in line and not line.startswith('#'):
                             key, value = line.split('=', 1)
                             api_keys[key.strip().lower()] = value.strip()
-                # Apply gemini/google alias sync
+                # Migrate legacy 'google' key to canonical 'gemini' key
                 if api_keys.get('google') and not api_keys.get('gemini'):
                     api_keys['gemini'] = api_keys['google']
-                elif api_keys.get('gemini') and not api_keys.get('google'):
-                    api_keys['google'] = api_keys['gemini']
                 unified["api_keys"] = api_keys
                 api_keys_file.rename(api_keys_file.with_suffix('.txt.migrated'))
             except Exception as e:
@@ -49760,11 +49980,9 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         """Load API keys from unified settings"""
         api_keys = self._load_settings_section("api_keys")
 
-        # Normalize gemini/google aliases - users can use either name
+        # Migrate legacy 'google' key to canonical 'gemini' key
         if api_keys.get('google') and not api_keys.get('gemini'):
             api_keys['gemini'] = api_keys['google']
-        elif api_keys.get('gemini') and not api_keys.get('google'):
-            api_keys['google'] = api_keys['gemini']
 
         return api_keys
 

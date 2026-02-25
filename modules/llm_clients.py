@@ -110,11 +110,9 @@ def load_api_keys() -> Dict[str, str]:
                 except Exception:
                     pass
 
-    # Sync 'google' and 'gemini' keys (they're aliases for the same API)
+    # Migrate legacy 'google' key to canonical 'gemini' key
     if api_keys.get('google') and not api_keys.get('gemini'):
         api_keys['gemini'] = api_keys['google']
-    elif api_keys.get('gemini') and not api_keys.get('google'):
-        api_keys['google'] = api_keys['gemini']
 
     # Set environment variable for Ollama endpoint if configured
     if api_keys.get('ollama_endpoint'):
