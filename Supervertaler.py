@@ -6166,15 +6166,15 @@ class AdvancedFiltersDialog(QDialog):
         
         match_layout.addWidget(QLabel("From:"))
         self.match_min_spin = QSpinBox()
-        self.match_min_spin.setRange(0, 100)
+        self.match_min_spin.setRange(0, 102)
         self.match_min_spin.setValue(0)
         self.match_min_spin.setSuffix("%")
         match_layout.addWidget(self.match_min_spin)
         
         match_layout.addWidget(QLabel("To:"))
         self.match_max_spin = QSpinBox()
-        self.match_max_spin.setRange(0, 100)
-        self.match_max_spin.setValue(100)
+        self.match_max_spin.setRange(0, 102)
+        self.match_max_spin.setValue(102)
         self.match_max_spin.setSuffix("%")
         match_layout.addWidget(self.match_max_spin)
         match_layout.addStretch()
@@ -6199,7 +6199,26 @@ class AdvancedFiltersDialog(QDialog):
         status_layout.addWidget(self.status_translated)
         status_layout.addWidget(self.status_confirmed)
         status_layout.addWidget(self.status_draft)
-        
+
+        # Match Origin statuses
+        match_origin_label = QLabel("Match Origin")
+        match_origin_label.setStyleSheet("font-weight: bold; color: #666; margin-top: 8px; margin-bottom: 2px;")
+        status_layout.addWidget(match_origin_label)
+
+        self.status_pm = CheckmarkCheckBox("PM (102%)")
+        self.status_cm = CheckmarkCheckBox("CM (101%)")
+        self.status_tm_100 = CheckmarkCheckBox("TM 100%")
+        self.status_tm_fuzzy = CheckmarkCheckBox("TM Fuzzy")
+        self.status_repetition = CheckmarkCheckBox("Repetition")
+        self.status_mt = CheckmarkCheckBox("MT")
+
+        status_layout.addWidget(self.status_pm)
+        status_layout.addWidget(self.status_cm)
+        status_layout.addWidget(self.status_tm_100)
+        status_layout.addWidget(self.status_tm_fuzzy)
+        status_layout.addWidget(self.status_repetition)
+        status_layout.addWidget(self.status_mt)
+
         status_group.setLayout(status_layout)
         content_layout.addWidget(status_group)
         
@@ -6264,14 +6283,20 @@ class AdvancedFiltersDialog(QDialog):
         """Reset all filters to default"""
         self.match_rate_check.setChecked(False)
         self.match_min_spin.setValue(0)
-        self.match_max_spin.setValue(100)
-        
+        self.match_max_spin.setValue(102)
+
         self.status_not_started.setChecked(False)
         self.status_edited.setChecked(False)
         self.status_pretranslated.setChecked(False)
         self.status_translated.setChecked(False)
         self.status_confirmed.setChecked(False)
         self.status_draft.setChecked(False)
+        self.status_pm.setChecked(False)
+        self.status_cm.setChecked(False)
+        self.status_tm_100.setChecked(False)
+        self.status_tm_fuzzy.setChecked(False)
+        self.status_repetition.setChecked(False)
+        self.status_mt.setChecked(False)
         
         self.locked_both.setChecked(True)
         
@@ -6303,6 +6328,18 @@ class AdvancedFiltersDialog(QDialog):
             row_status.append('confirmed')
         if self.status_draft.isChecked():
             row_status.append('draft')
+        if self.status_pm.isChecked():
+            row_status.append('pm')
+        if self.status_cm.isChecked():
+            row_status.append('cm')
+        if self.status_tm_100.isChecked():
+            row_status.append('tm_100')
+        if self.status_tm_fuzzy.isChecked():
+            row_status.append('tm_fuzzy')
+        if self.status_repetition.isChecked():
+            row_status.append('repetition')
+        if self.status_mt.isChecked():
+            row_status.append('machine_translated')
         filters['row_status'] = row_status
         
         # Locked filter
@@ -9113,7 +9150,9 @@ class SupervertalerQt(QMainWindow):
         edit_menu.addSeparator()
         
         # Bulk Operations submenu
-        bulk_menu = edit_menu.addMenu("Bulk &Operations")
+        self.bulk_menu = edit_menu.addMenu("Bulk &Operations")
+        edit_menu.aboutToShow.connect(self._update_bulk_menu_label)
+        bulk_menu = self.bulk_menu
 
         confirm_selected_action = QAction("✅ &Confirm Selected Segments", self)
         confirm_selected_action.setShortcut("Ctrl+Shift+Return")
@@ -36987,7 +37026,40 @@ class SupervertalerQt(QMainWindow):
                 segments.append(self.current_project.segments[row])
         
         return segments
-    
+
+    def _get_selected_or_filtered_segments(self, operation_name: str) -> list:
+        """Get segments for bulk operation: selected rows first, then filtered rows as fallback.
+
+        Args:
+            operation_name: Human-readable name for the confirmation dialog (e.g. "Confirm Segments")
+
+        Returns:
+            List of Segment objects, or empty list if user cancels or nothing available.
+        """
+        selected = self.get_selected_segments_from_grid()
+        if selected:
+            return selected
+
+        # No selection — check for filtered (visible) rows
+        visible_rows = [row for row in range(self.table.rowCount())
+                        if not self.table.isRowHidden(row)]
+        total_rows = self.table.rowCount()
+
+        if len(visible_rows) < total_rows and len(visible_rows) > 0:
+            reply = QMessageBox.question(
+                self, operation_name,
+                f"No segments selected.\n\n"
+                f"Apply '{operation_name}' to all {len(visible_rows)} filtered (visible) segments?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+            if reply == QMessageBox.StandardButton.Yes:
+                return [self.current_project.segments[row] for row in visible_rows
+                        if row < len(self.current_project.segments)]
+            return []
+
+        QMessageBox.information(self, "No Selection",
+            "Please select one or more segments, or apply a filter first.")
+        return []
+
     def _preview_combined_prompt_from_grid(self):
         """Preview combined prompt with the currently selected segment from grid"""
         from PyQt6.QtWidgets import QDialog, QVBoxLayout, QTextEdit, QPushButton, QHBoxLayout, QMessageBox
@@ -37371,14 +37443,12 @@ class SupervertalerQt(QMainWindow):
             self.log(f"ℹ No translations to clear for selected segments")
     
     def clear_selected_translations_from_menu(self):
-        """Clear translations for selected segments (called from Edit menu)"""
+        """Clear translations for selected/filtered segments (called from Edit menu)"""
         # Only available in Grid view
         if self.current_project and hasattr(self, 'table') and self.table:
-            selected_segments = self.get_selected_segments_from_grid()
-            if selected_segments:
-                self.clear_selected_translations(selected_segments, 'grid')
-            else:
-                QMessageBox.information(self, "No Selection", "Please select one or more segments to clear translations.")
+            segments = self._get_selected_or_filtered_segments("Clear Translations")
+            if segments:
+                self.clear_selected_translations(segments, 'grid')
         else:
             QMessageBox.information(self, "Not Available", "Please load a project first.")
     
@@ -37387,38 +37457,10 @@ class SupervertalerQt(QMainWindow):
         if not self.current_project or not hasattr(self, 'table') or not self.table:
             QMessageBox.information(self, "Not Available", "Please load a project first.")
             return
-        
-        # First check if there's a selection
-        selected_segments = self.get_selected_segments_from_grid()
-        
-        # If no selection, check for visible (filtered) rows
+
+        selected_segments = self._get_selected_or_filtered_segments("Copy Source to Target")
         if not selected_segments:
-            # Get all visible rows (not hidden by filter)
-            visible_rows = []
-            for row in range(self.table.rowCount()):
-                if not self.table.isRowHidden(row):
-                    visible_rows.append(row)
-            
-            # If there's a filter active (some rows hidden), use visible rows
-            total_rows = self.table.rowCount()
-            if len(visible_rows) < total_rows and len(visible_rows) > 0:
-                # Filter is active - ask user if they want to copy for filtered segments
-                reply = QMessageBox.question(
-                    self, 
-                    "Copy Source to Target",
-                    f"No segments selected.\n\nDo you want to copy source to target for all {len(visible_rows)} filtered (visible) segments?",
-                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-                )
-                if reply != QMessageBox.StandardButton.Yes:
-                    return
-                
-                # Get segments for visible rows
-                for row in visible_rows:
-                    if row < len(self.current_project.segments):
-                        selected_segments.append(self.current_project.segments[row])
-            else:
-                QMessageBox.information(self, "No Selection", "Please select one or more segments, or apply a filter first.")
-                return
+            return
         
         # Confirm operation
         count = len(selected_segments)
@@ -42923,6 +42965,22 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         }
         self.log(f"🔍 {filter_names.get(filter_type, 'Quick')} filter: showing {len(matching_rows)} of {len(self.current_project.segments)} segments")
     
+    def _update_bulk_menu_label(self):
+        """Update the Bulk Operations menu label to show filter state."""
+        if not hasattr(self, 'bulk_menu') or not self.bulk_menu:
+            return
+        action = self.bulk_menu.menuAction()
+        if not self.current_project or not hasattr(self, 'table') or not self.table:
+            action.setText("Bulk &Operations")
+            return
+        visible = sum(1 for r in range(self.table.rowCount())
+                      if not self.table.isRowHidden(r))
+        total = self.table.rowCount()
+        if visible < total and visible > 0:
+            action.setText(f"Bulk &Operations ({visible} filtered)")
+        else:
+            action.setText("Bulk &Operations")
+
     def show_advanced_filters_dialog(self):
         """Show advanced filters dialog with detailed filtering options"""
         if not self.current_project:
@@ -42968,7 +43026,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                 if filters.get('match_rate_enabled'):
                     match_percent = getattr(segment, 'match_percent', 0) or 0
                     min_rate = filters.get('match_rate_min', 0)
-                    max_rate = filters.get('match_rate_max', 100)
+                    max_rate = filters.get('match_rate_max', 102)
                     if not (min_rate <= match_percent <= max_rate):
                         show_row = False
                 
@@ -44917,17 +44975,20 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         # No more visible rows
         self.log("✅ No more filtered segments")
     
-    def confirm_selected_segments(self):
+    def confirm_selected_segments(self, segments=None):
         """Confirm all selected segments in the grid.
-        
-        Sets status to 'confirmed' for all selected segments and saves them to TM.
+
+        Sets status to 'confirmed' for all selected/provided segments and saves them to TM.
+
+        Args:
+            segments: Optional list of segments to confirm. If None, uses grid selection.
         """
         if not self.current_project:
             self.log("⚠️ No project loaded")
             return
-        
-        selected_segments = self.get_selected_segments_from_grid()
-        
+
+        selected_segments = segments or self.get_selected_segments_from_grid()
+
         if not selected_segments:
             self.log("⚠️ No segments selected")
             return
@@ -44970,7 +45031,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             self.log(f"ℹ️ All {len(selected_segments)} selected segment(s) were already confirmed")
     
     def confirm_selected_segments_from_menu(self):
-        """Confirm selected segments (called from Edit > Bulk Operations menu)"""
+        """Confirm selected/filtered segments (called from Edit > Bulk Operations menu)"""
         if not self.current_project:
             QMessageBox.information(self, "Not Available", "Please load a project first.")
             return
@@ -44979,14 +45040,12 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             QMessageBox.information(self, "Not Available", "Grid view is not available.")
             return
 
-        selected_segments = self.get_selected_segments_from_grid()
-        if selected_segments:
-            self.confirm_selected_segments()
-        else:
-            QMessageBox.information(self, "No Selection", "Please select one or more segments to confirm.")
+        segments = self._get_selected_or_filtered_segments("Confirm Segments")
+        if segments:
+            self.confirm_selected_segments(segments)
 
     def change_status_selected(self, new_status: str, from_menu: bool = False):
-        """Change status of all selected segments to the specified status.
+        """Change status of all selected/filtered segments to the specified status.
 
         Args:
             new_status: The status key to set (e.g., 'translated', 'pretranslated')
@@ -45004,21 +45063,22 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                 QMessageBox.information(self, "Not Available", "Grid view is not available.")
             return
 
-        selected_segments = self.get_selected_segments_from_grid()
+        # Get status definition for dialog label
+        from modules.statuses import get_status
+        status_def = get_status(new_status)
+
+        if from_menu:
+            selected_segments = self._get_selected_or_filtered_segments(f"Change Status to '{status_def.label}'")
+        else:
+            selected_segments = self.get_selected_segments_from_grid()
 
         if not selected_segments:
-            if from_menu:
-                QMessageBox.information(self, "No Selection", "Please select one or more segments to change.")
-            else:
+            if not from_menu:
                 self.log("⚠️ No segments selected")
             return
 
         # Sync all target text from grid widgets first
         self._sync_grid_targets_to_segments(selected_segments)
-
-        # Get status definition for logging
-        from modules.statuses import get_status
-        status_def = get_status(new_status)
 
         changed_count = 0
         for segment in selected_segments:

@@ -2,8 +2,19 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.324 (February 24, 2026)
+**Current Version:** v1.9.325 (February 25, 2026)
 
+
+## v1.9.325 - February 25, 2026
+
+### Improvements
+
+- **Advanced Filters: match rate up to 102%** — Match Rate spinboxes now go up to 102% so you can filter for CM (101%) and PM (102%) segments from imported SDLXLIFF files.
+- **Advanced Filters: match origin status checkboxes** — Added PM (102%), CM (101%), TM 100%, TM Fuzzy, Repetition, and MT checkboxes under a new "Match Origin" section in the Row Status group.
+- **Bulk Operations act on filtered segments** — Confirm Segments, Change Status, Clear Translations, and Copy Source to Target now all fall back to filtered (visible) segments when no rows are manually selected. A confirmation dialog warns before acting on filtered segments.
+- **Bulk Operations menu shows filter state** — The Edit > Bulk Operations menu dynamically shows the count of filtered segments (e.g. "Bulk Operations (380 filtered)") when filters are active.
+
+---
 
 ## v1.9.324 - February 24, 2026
 
