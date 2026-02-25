@@ -9188,7 +9188,12 @@ class SupervertalerQt(QMainWindow):
         copy_source_to_target_action.setToolTip("Copy source text to target for selected/filtered segments")
         copy_source_to_target_action.triggered.connect(self.copy_source_to_target_bulk)
         bulk_menu.addAction(copy_source_to_target_action)
-        
+
+        copy_nontrans_action = QAction("🔢 Copy Source to Target (&No Letters)", self)
+        copy_nontrans_action.setToolTip("Copy source to target for segments containing no letters (numbers, codes, punctuation only) and mark as Translated")
+        copy_nontrans_action.triggered.connect(self.copy_source_to_target_non_translatable_bulk)
+        bulk_menu.addAction(copy_nontrans_action)
+
         send_to_tm_action = QAction("💾 &Send Segments to TM...", self)
         send_to_tm_action.setToolTip("Send confirmed segments to a writable Translation Memory")
         send_to_tm_action.triggered.connect(self.send_segments_to_tm_dialog)
@@ -37504,6 +37509,125 @@ class SupervertalerQt(QMainWindow):
         
         self.log(f"✓ Copied source to target for {copied_count} segment(s)")
         QMessageBox.information(self, "Copy Complete", f"Copied source to target for {copied_count} segment(s).")
+
+    # --- Non-translatable (number/code) helpers ---
+    # Compiled once at class definition time. Matches text that contains ONLY
+    # digits, whitespace, and punctuation — no Unicode letters of any script.
+    # The character class covers common numeric/code content:
+    #   digits, whitespace, hyphen/dash, period, slash, comma, semicolons,
+    #   colon, parentheses, plus, equals, asterisk, hash, percent, degree,
+    #   currency symbols (€$£¥), ampersand, at-sign, exclamation, question,
+    #   square brackets, curly braces, pipe, tilde, caret, underscore, backslash.
+    # Future locale-aware conversion belongs in _transform_non_translatable only.
+    _NON_TRANSLATABLE_RE = re.compile(
+        r'^[\d\s\-\.\/,;:()+=*#%°€$£¥&@!\?\[\]\{\}|~^_\\\'\"]+$'
+    )
+
+    @staticmethod
+    def _is_non_translatable(source_text: str) -> bool:
+        """Return True if source contains only numbers, codes, and punctuation (no letters)."""
+        if not source_text or not source_text.strip():
+            return False
+        return bool(SupervertalerQt._NON_TRANSLATABLE_RE.match(source_text.strip()))
+
+    @staticmethod
+    def _transform_non_translatable(source_text: str, source_lang: str = None, target_lang: str = None) -> str:
+        """Return the target text for a non-translatable segment.
+
+        Currently returns source verbatim. This is the designed extension point
+        for future locale-aware number/date conversion (e.g. decimal comma ↔ period).
+        When that feature is added, only this method changes; callers and UI stay the same.
+        """
+        return source_text
+
+    def copy_source_to_target_non_translatable_bulk(self):
+        """Copy source to target for number/code-only segments (Edit > Bulk Operations).
+
+        Segments that contain no alphabetic characters (only digits, punctuation,
+        symbols) are considered non-translatable. Their source is copied verbatim
+        into an empty target and the status is set to 'translated'.
+
+        Only acts on segments with an empty target to avoid overwriting existing work.
+        """
+        if not self.current_project or not hasattr(self, 'table') or not self.table:
+            QMessageBox.information(self, "Not Available", "Please load a project first.")
+            return
+
+        selected_segments = self._get_selected_or_filtered_segments("Copy Source to Target (Non-Translatable)")
+        if not selected_segments:
+            return
+
+        # Identify qualifying segments: non-translatable source AND empty target
+        qualifying = [
+            seg for seg in selected_segments
+            if self._is_non_translatable(seg.source) and not seg.target.strip()
+        ]
+
+        total_selected = len(selected_segments)
+        count = len(qualifying)
+
+        if count == 0:
+            QMessageBox.information(
+                self,
+                "No Qualifying Segments",
+                f"None of the {total_selected} selected/filtered segment(s) qualify.\n\n"
+                "Qualifying segments must contain only numbers, codes, or punctuation "
+                "(no letters) and have an empty target.",
+            )
+            return
+
+        reply = QMessageBox.question(
+            self,
+            "Confirm Copy",
+            f"Found {count} non-translatable segment(s) out of {total_selected} selected/filtered.\n\n"
+            "Copy source to target and mark as Translated?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+
+        source_lang = getattr(self.current_project, 'source_language', None)
+        target_lang = getattr(self.current_project, 'target_language', None)
+
+        copied_count = 0
+        for segment in qualifying:
+            row = self._find_row_for_segment(segment.id)
+            if row < 0:
+                continue
+
+            transformed = self._transform_non_translatable(segment.source, source_lang, target_lang)
+
+            # Update segment data
+            segment.target = transformed
+            segment.status = 'translated'
+
+            # Update target widget
+            target_widget = self.table.cellWidget(row, 3)
+            if target_widget:
+                target_display = (
+                    self.apply_invisible_replacements(transformed)
+                    if hasattr(self, 'apply_invisible_replacements')
+                    else transformed
+                )
+                target_widget.blockSignals(True)
+                target_widget.setPlainText(target_display)
+                target_widget.blockSignals(False)
+
+            # Refresh status icon
+            self._refresh_segment_status(segment)
+
+            copied_count += 1
+
+        self.auto_resize_rows()
+        self.update_progress_stats()
+        if hasattr(self, '_mark_project_modified'):
+            self._mark_project_modified()
+
+        self.log(f"✓ Copied source to target (non-translatable) for {copied_count} segment(s)")
+        QMessageBox.information(
+            self, "Copy Complete",
+            f"Copied source to target for {copied_count} non-translatable segment(s)."
+        )
 
     def _copy_source_to_target_selected(self, selected_segments):
         """Copy source to target for the given selected segments (keyboard shortcut path).

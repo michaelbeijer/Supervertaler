@@ -2,8 +2,16 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.326 (February 25, 2026)
+**Current Version:** v1.9.327 (February 25, 2026)
 
+
+## v1.9.327 - February 25, 2026
+
+### Improvements
+
+- **Bulk Operation: Copy Source to Target (No Letters)** — New bulk operation under Edit > Bulk Operations that copies source to target for segments containing no alphabetic characters (numbers, codes, punctuation, symbols). Only acts on empty targets. Segments are marked as Translated. Inspired by CafeTran's "Transfer segments with no letters to target". The underlying transform function is designed as an extension point for future locale-aware number conversion (e.g. decimal comma ↔ period).
+
+---
 
 ## v1.9.326 - February 25, 2026
 
