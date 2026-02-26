@@ -7,6 +7,7 @@ Supports TMX 1.4 format with proper XML structure.
 Extracted from main Supervertaler file for better modularity.
 """
 
+import re
 import xml.etree.ElementTree as ET
 from datetime import datetime
 
@@ -207,18 +208,135 @@ def languages_are_compatible(lang1: str, lang2: str) -> bool:
     return get_base_lang_code(lang1) == get_base_lang_code(lang2)
 
 
+# ---------------------------------------------------------------------------
+# TMX inline tag helpers
+# ---------------------------------------------------------------------------
+
+# Outer wrapping tags that should be stripped entirely before TMX export.
+# These are structural/segment-level tags — they carry no meaning inside a TM.
+_OUTER_TAGS = {
+    'li-o', 'li-b', 'li', 'p', 'td', 'th', 'tr', 'div', 'span',
+    'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'title', 'caption',
+    'blockquote', 'pre', 'code', 'dt', 'dd', 'header', 'footer',
+    'article', 'section', 'aside', 'nav', 'main', 'figure', 'figcaption',
+}
+
+# Inline formatting tags that become <bpt>/<ept> paired tags in TMX.
+_FORMATTING_TAG_TYPES = {
+    'b': 'bold', 'i': 'italic', 'u': 'underline',
+    'em': 'italic', 'strong': 'bold',
+    'sub': 'subscript', 'sup': 'superscript',
+    's': 'strikethrough', 'strike': 'strikethrough',
+    'mark': 'highlight',
+}
+
+# Pre-compiled regex: matches opening or closing formatting tags.
+_FMT_TAG_RE = re.compile(
+    r'<(/?)(' + '|'.join(re.escape(t) for t in _FORMATTING_TAG_TYPES) + r')(?:\s[^>]*)?>',
+    re.IGNORECASE,
+)
+
+# Pre-compiled regex: matches an outer wrapping tag pair.
+_OUTER_OPEN_RE = re.compile(
+    r'^<(' + '|'.join(re.escape(t) for t in _OUTER_TAGS) + r')(?:\s[^>]*)?>',
+    re.IGNORECASE,
+)
+
+
+def _strip_outer_tags(text: str) -> str:
+    """Remove outermost structural tag pair if it wraps the entire text."""
+    text = text.strip()
+    m = _OUTER_OPEN_RE.match(text)
+    if not m:
+        return text
+    tag = m.group(1).lower()
+    closing = f'</{tag}>'
+    if not text.lower().endswith(closing):
+        return text
+    inner = text[m.end():-len(closing)]
+    # Reject if the same tag is nested inside
+    if re.search(rf'<{re.escape(tag)}[\s>]', inner, re.IGNORECASE):
+        return inner  # still strip — nested duplicates are rare and harmless
+    return inner
+
+
+def _build_seg(parent: ET.Element, text: str) -> ET.Element:
+    """Build a <seg> element with proper TMX <bpt>/<ept> inline tags.
+
+    1. Strips outer wrapping tags (``<li-b>``, ``<p>``, …).
+    2. Converts formatting tags (``<b>``, ``<i>``, …) to TMX ``<bpt>``/``<ept>``
+       paired elements following Trados conventions.
+    3. Returns the <seg> element (already attached to *parent*).
+    """
+    seg = ET.SubElement(parent, 'seg')
+    text = _strip_outer_tags(text.strip())
+
+    # Fast path: no formatting tags at all → plain text segment
+    if not _FMT_TAG_RE.search(text):
+        seg.text = text
+        return seg
+
+    # --- Slow path: build mixed content with <bpt>/<ept> children ---------
+    tag_counter = 0
+    open_stack: dict[str, list[int]] = {}   # tag_name → [counter, …]
+    last_end = 0
+    last_elem = None  # most-recently-added child (for setting .tail)
+
+    for match in _FMT_TAG_RE.finditer(text):
+        is_closing = match.group(1) == '/'
+        tag_name = match.group(2).lower()
+
+        # Text fragment before this tag
+        fragment = text[last_end:match.start()]
+        if fragment:
+            if last_elem is None:
+                seg.text = (seg.text or '') + fragment
+            else:
+                last_elem.tail = (last_elem.tail or '') + fragment
+
+        if not is_closing:
+            # Opening tag → <bpt i="N" type="bold">
+            tag_counter += 1
+            bpt = ET.SubElement(seg, 'bpt')
+            bpt.set('i', str(tag_counter))
+            bpt.set('type', _FORMATTING_TAG_TYPES.get(tag_name, tag_name))
+            bpt.tail = ''
+            last_elem = bpt
+            open_stack.setdefault(tag_name, []).append(tag_counter)
+        else:
+            # Closing tag → <ept i="N">
+            i_val = open_stack.get(tag_name, [tag_counter])
+            i_val = i_val.pop() if i_val else tag_counter
+            ept = ET.SubElement(seg, 'ept')
+            ept.set('i', str(i_val))
+            ept.tail = ''
+            last_elem = ept
+
+        last_end = match.end()
+
+    # Remaining text after the last tag
+    remaining = text[last_end:]
+    if remaining:
+        if last_elem is None:
+            seg.text = (seg.text or '') + remaining
+        else:
+            last_elem.tail = (last_elem.tail or '') + remaining
+
+    return seg
+
+
 class TMXGenerator:
     """Helper class for generating TMX (Translation Memory eXchange) files"""
-    
+
     def __init__(self, log_callback=None):
         self.log = log_callback if log_callback else lambda msg: None
-    
+
     def generate_tmx(self, source_segments, target_segments, source_lang, target_lang):
         """Generate TMX content from parallel segments"""
         # Basic TMX structure
         tmx = ET.Element('tmx')
         tmx.set('version', '1.4')
-        
+
         header = ET.SubElement(tmx, 'header')
         header.set('creationdate', datetime.now().strftime('%Y%m%dT%H%M%SZ'))
         header.set('srclang', get_simple_lang_code(source_lang))
@@ -226,32 +344,30 @@ class TMXGenerator:
         header.set('segtype', 'sentence')
         header.set('creationtool', 'Supervertaler')
         header.set('creationtoolversion', '3.6.0-beta')
-        header.set('datatype', 'plaintext')
-        
+        header.set('datatype', 'unknown')
+
         body = ET.SubElement(tmx, 'body')
-        
+
         # Add translation units
         added_count = 0
         for src, tgt in zip(source_segments, target_segments):
             if not src.strip() or not tgt or '[ERR' in str(tgt) or '[Missing' in str(tgt):
                 continue
-                
+
             tu = ET.SubElement(body, 'tu')
-            
-            # Source segment
+
+            # Source segment — outer tags stripped, formatting → bpt/ept
             tuv_src = ET.SubElement(tu, 'tuv')
             tuv_src.set('xml:lang', get_simple_lang_code(source_lang))
-            seg_src = ET.SubElement(tuv_src, 'seg')
-            seg_src.text = src.strip()
-            
-            # Target segment
+            _build_seg(tuv_src, src)
+
+            # Target segment — same treatment
             tuv_tgt = ET.SubElement(tu, 'tuv')
             tuv_tgt.set('xml:lang', get_simple_lang_code(target_lang))
-            seg_tgt = ET.SubElement(tuv_tgt, 'seg')
-            seg_tgt.text = str(tgt).strip()
-            
+            _build_seg(tuv_tgt, str(tgt))
+
             added_count += 1
-        
+
         self.log(f"[TMX Generator] Created TMX with {added_count} translation units")
         return ET.ElementTree(tmx)
     
@@ -268,7 +384,17 @@ class TMXGenerator:
             return False
     
     def _indent(self, elem, level=0):
-        """Add indentation to XML for pretty printing"""
+        """Add indentation to XML for pretty printing.
+
+        Skips <seg> elements entirely — their mixed content (text + bpt/ept
+        children) must not be touched or whitespace will leak into the TM.
+        """
+        if elem.tag == 'seg':
+            # Only set tail so the *parent* structure stays tidy
+            if level and (not elem.tail or not elem.tail.strip()):
+                elem.tail = "\n" + level * "  "
+            return
+
         i = "\n" + level * "  "
         if len(elem):
             if not elem.text or not elem.text.strip():

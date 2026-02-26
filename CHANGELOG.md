@@ -2,8 +2,26 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.331 (February 26, 2026)
+**Current Version:** v1.9.332 (February 26, 2026)
 
+
+## v1.9.332 - February 26, 2026
+
+### Critical Bug Fixes
+
+- **Fix DOCX import silently dropping paragraphs** — The DOCX import filter used Python `id()` values to distinguish body paragraphs from table cell paragraphs. Because Python reuses memory addresses after garbage collection, body paragraphs could be falsely identified as table cells and silently skipped. The number of dropped paragraphs varied per run (non-deterministic), making this especially hard to notice. Fixed by building a stable element→Paragraph mapping once and removing the fragile `id()`-based table check entirely — body-level `<w:p>` elements can never be table paragraphs by definition.
+
+### Improvements
+
+- **Word count verification on DOCX import** — After importing a DOCX, Supervertaler now compares the raw XML word count against the imported segments. If the difference exceeds 5%, a warning dialog alerts the user that text may have been lost during import. This serves as a safety net against future import bugs.
+- **TMX export now uses standard `<bpt>`/`<ept>` pairs** — Exported TMX files now convert inline formatting tags (`<b>`, `<i>`, `<u>`, etc.) to proper TMX 1.4 `<bpt>`/`<ept>` paired elements instead of escaping them as literal text. This ensures compatibility with Trados Studio, memoQ, and other CAT tools.
+
+### Bug Fixes
+
+- **Fix `<b>`/`<i>` tags not hidden by "hide outer wrapping tags"** — When a formatting tag like `<b>` wrapped the entire segment, the "hide outer wrapping tags in grid" option did not strip it. Formatting tags are now included in the strippable set alongside structural tags.
+- **Fix false `<li-o>` tags on non-list paragraphs** — Paragraphs with `numId=0` in the OOXML (Word's explicit "no numbering" override) were incorrectly treated as list items. Also tightened the fallback list detection to require a proper digit+delimiter pattern (e.g. "1. " or "2) ") rather than just a leading digit.
+
+---
 
 ## v1.9.331 - February 26, 2026
 

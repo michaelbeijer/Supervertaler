@@ -6,7 +6,7 @@
 
 **Professional AI-enhanced translation workbench** with multi-LLM support (GPT-4, Claude, Gemini, Ollama), translation memory, glossary management, and seamless CAT tool integration (memoQ, Trados, CafeTran, Phrase, Déjà Vu).
 
-**Latest release:** v1.9.331 - Fix TM/glossary activation leaking between projects; AI prompts now use full language names.
+**Latest release:** v1.9.332 - Fix DOCX import silently dropping paragraphs; add word count verification safety net; TMX export now uses standard bpt/ept pairs.
 
 ---
 

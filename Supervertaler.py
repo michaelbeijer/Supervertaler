@@ -471,11 +471,12 @@ def strip_outer_wrapping_tags(text: str) -> tuple:
     """
     Strip outer wrapping tags from text if the entire segment is wrapped in a single tag pair.
 
-    This handles structural tags like <li-o>...</li-o>, <p>...</p>, <td>...</td>, etc.
-    Inner formatting tags like <b>...</b> are preserved.
+    This handles structural tags like <li-o>...</li-o>, <p>...</p>, <td>...</td>,
+    as well as formatting tags like <b>...</b> when they wrap the *entire* segment.
+    Inner formatting (e.g. "Some <b>bold</b> text") is never affected.
 
     Args:
-        text: Text that may be wrapped in outer structural tags
+        text: Text that may be wrapped in outer tags
 
     Returns:
         Tuple of (stripped_text, tag_name) where tag_name is the outer tag that was stripped,
@@ -485,7 +486,7 @@ def strip_outer_wrapping_tags(text: str) -> tuple:
         "<li-o>Hello <b>world</b></li-o>" -> ("Hello <b>world</b>", "li-o")
         "<p>Simple text</p>" -> ("Simple text", "p")
         "No tags here" -> ("No tags here", None)
-        "<b>Bold text</b>" -> ("<b>Bold text</b>", None)  # <b> is formatting, not structural
+        "<b>Bold text</b>" -> ("Bold text", "b")  # <b> wraps entire segment → stripped
     """
     import re
 
@@ -494,12 +495,19 @@ def strip_outer_wrapping_tags(text: str) -> tuple:
 
     text = text.strip()
 
-    # Structural tags that wrap entire segments (not inline formatting)
-    structural_tags = {
+    # Tags that wrap entire segments — structural AND formatting.
+    # Formatting tags (b, i, u, …) are included because when they wrap
+    # the *entire* segment they act as structural wrappers; the function
+    # already guarantees it only strips the single outermost pair, so
+    # inner formatting like "Some <b>bold</b> text" is never affected.
+    strippable_tags = {
+        # Structural / layout
         'li-o', 'li-b', 'li', 'p', 'td', 'th', 'tr', 'div', 'span',
         'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'title', 'caption',
         'blockquote', 'pre', 'code', 'dt', 'dd', 'header', 'footer',
-        'article', 'section', 'aside', 'nav', 'main', 'figure', 'figcaption'
+        'article', 'section', 'aside', 'nav', 'main', 'figure', 'figcaption',
+        # Formatting (only stripped when wrapping the entire segment)
+        'b', 'i', 'u', 'em', 'strong', 's', 'strike', 'sub', 'sup', 'mark',
     }
 
     # Pattern to match opening tag at start: <tag> or <tag attr="...">
@@ -512,8 +520,8 @@ def strip_outer_wrapping_tags(text: str) -> tuple:
     tag_name = opening_match.group(1).lower()
     rest = opening_match.group(2)
 
-    # Only strip structural tags, not inline formatting like <b>, <i>, <u>, <em>, <strong>
-    if tag_name not in structural_tags:
+    # Only strip recognised tags
+    if tag_name not in strippable_tags:
         return (text, None)
 
     # Check if text ends with matching closing tag
@@ -26773,7 +26781,27 @@ class SupervertalerQt(QMainWindow):
             
             paragraphs = self.docx_handler.import_docx(file_path)
             self.original_docx = file_path
-            
+
+            # ── Word-count safety check ──────────────────────────────
+            # Compare raw DOCX word count against imported paragraphs to
+            # detect any silently dropped content.
+            raw_wc = self.docx_handler.get_raw_word_count()
+            imported_wc = self.docx_handler.get_imported_word_count(paragraphs)
+            wc_diff = raw_wc - imported_wc
+            wc_pct = (abs(wc_diff) / raw_wc * 100) if raw_wc > 0 else 0
+            self.log(f"📊 Word count check: DOCX={raw_wc}, imported={imported_wc} (Δ {wc_diff:+d}, {wc_pct:.1f}%)")
+            if wc_pct > 5:   # >5 % difference = likely missing content
+                QMessageBox.warning(
+                    self,
+                    "Import Word Count Mismatch",
+                    f"⚠️ The imported text may be incomplete.\n\n"
+                    f"Word count in DOCX file: {raw_wc:,}\n"
+                    f"Word count after import: {imported_wc:,}\n"
+                    f"Difference: {abs(wc_diff):,} words ({wc_pct:.1f}%)\n\n"
+                    f"If the difference is large, some text may have been "
+                    f"lost during import. Please verify the imported segments."
+                )
+
             # Segment paragraphs
             self.log("Segmenting text...")
             

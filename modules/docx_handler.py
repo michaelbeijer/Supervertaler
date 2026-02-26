@@ -232,7 +232,13 @@ class DOCXHandler:
                 return ("", None)
             
             numId = numId_elem.val
-            
+
+            # numId=0 is Word's explicit "no numbering" override — the
+            # paragraph style may define numbering, but this paragraph
+            # opts out.  Treat it as a normal paragraph.
+            if numId == 0:
+                return ("", None)
+
             # Check cache first
             if numId in self._list_type_cache:
                 list_type = self._list_type_cache[numId]
@@ -272,9 +278,11 @@ class DOCXHandler:
                                             break
                                 break
                 except Exception as e:
-                    # If we can't determine, check the text for bullet characters
+                    # We know this paragraph HAS numPr with numId > 0, so it IS
+                    # a list item — we just couldn't look up the numbering type.
+                    # Default to numbered unless text starts with a bullet char.
                     text = para.text.strip() if para.text else ""
-                    if text.startswith(('•', '·', '○', '■', '□', '►', '-', '*')):
+                    if text.startswith(('•', '·', '○', '■', '□', '►')):
                         list_type = "bullet"
                     else:
                         list_type = "numbered"
@@ -295,7 +303,7 @@ class DOCXHandler:
             text = para.text.strip() if para.text else ""
             if text.startswith(('•', '·', '○', '■', '□', '►', '-', '*')):
                 return ("bullet", None)
-            elif text and text[0].isdigit():
+            elif len(text) > 2 and text[0].isdigit() and text[1:3] in ('. ', ') '):
                 return ("numbered", None)
             return ("", None)
     
@@ -328,80 +336,75 @@ class DOCXHandler:
         para_counter = 0
         doc_position = 0  # Track actual position in document for proper ordering
         
-        # Build mapping of paragraph objects to their positions for tables
-        para_to_table_info = {}
-        for table_idx, table in enumerate(self.original_document.tables):
-            for row_idx, row in enumerate(table.rows):
-                for cell_idx, cell in enumerate(row.cells):
-                    for para in cell.paragraphs:
-                        para_to_table_info[id(para)] = (table_idx, row_idx, cell_idx)
-        
-        # Process document elements in order
-        # Use document.element.body to get elements in document order
+        # Build an element→Paragraph mapping once, keeping all Paragraph
+        # objects alive for the duration of the import.  This avoids:
+        #  1) O(n²) repeated iteration of doc.paragraphs per body element
+        #  2) Python id() reuse after garbage collection, which caused the
+        #     old id(para)-based table check to silently drop body paragraphs
+        # Body-level <w:p> elements are by definition NOT inside tables
+        # (table paragraphs live inside <w:tbl>/<w:tr>/<w:tc>), so no
+        # table-membership check is needed here.
+        _elem_to_para = {p._element: p for p in self.original_document.paragraphs}
+
         for elem in self.original_document.element.body:
             # Check if it's a paragraph
             if elem.tag.endswith('}p'):
-                # Find corresponding paragraph object
-                for para in self.original_document.paragraphs:
-                    if para._element == elem:
-                        # Use _get_full_paragraph_text to include hyperlink text
-                        text = self._get_full_paragraph_text(para).strip()
+                para = _elem_to_para.get(elem)
+                if para is None:
+                    doc_position += 1
+                    continue
 
-                        # Check if this paragraph is inside a table
-                        if id(para) in para_to_table_info:
-                            # This paragraph is in a table, skip it here
-                            # (tables are handled separately below)
-                            break
-                        
-                        if text:  # Only include non-empty paragraphs
-                            # Extract formatting if requested
-                            if extract_formatting and self.tag_manager:
-                                runs = self.tag_manager.extract_runs(para)
-                                text_with_tags = self.tag_manager.runs_to_tagged_text(runs)
-                                
-                                # Check if this is a list item (bullet or numbered)
-                                list_type, list_number = self._get_list_type(para)
-                                is_list_item = bool(list_type)
-                                
-                                # Also detect from text if not detected from XML
-                                if not is_list_item:
-                                    if text_with_tags.lstrip().startswith(('• ', '· ', '- ', '* ', '○ ', '■ ')):
-                                        is_list_item = True
-                                        list_type = "bullet"
-                                    elif len(text_with_tags) > 2 and text_with_tags[0].isdigit() and text_with_tags[1:3] in ('. ', ') '):
-                                        is_list_item = True
-                                        list_type = "numbered"
-                                
-                                # Wrap list items in appropriate tag
-                                # Use <li-b> for bullets, <li-o> for numbered
-                                if is_list_item:
-                                    if list_type == "bullet":
-                                        text_with_tags = f"<li-b>{text_with_tags}</li-b>"
-                                    else:
-                                        text_with_tags = f"<li-o>{text_with_tags}</li-o>"
-                                
-                                paragraphs.append(text_with_tags)
+                # Use _get_full_paragraph_text to include hyperlink text
+                text = self._get_full_paragraph_text(para).strip()
+
+                if text:  # Only include non-empty paragraphs
+                    # Extract formatting if requested
+                    if extract_formatting and self.tag_manager:
+                        runs = self.tag_manager.extract_runs(para)
+                        text_with_tags = self.tag_manager.runs_to_tagged_text(runs)
+
+                        # Check if this is a list item (bullet or numbered)
+                        list_type, list_number = self._get_list_type(para)
+                        is_list_item = bool(list_type)
+
+                        # Also detect from text if not detected from XML
+                        if not is_list_item:
+                            if text_with_tags.lstrip().startswith(('• ', '· ', '- ', '* ', '○ ', '■ ')):
+                                is_list_item = True
+                                list_type = "bullet"
+                            elif len(text_with_tags) > 2 and text_with_tags[0].isdigit() and text_with_tags[1:3] in ('. ', ') '):
+                                is_list_item = True
+                                list_type = "numbered"
+
+                        # Wrap list items in appropriate tag
+                        # Use <li-b> for bullets, <li-o> for numbered
+                        if is_list_item:
+                            if list_type == "bullet":
+                                text_with_tags = f"<li-b>{text_with_tags}</li-b>"
                             else:
-                                # Even without formatting extraction, detect list type
-                                list_type, list_number = self._get_list_type(para)
-                                paragraphs.append(text)
-                            
-                            # Store paragraph info for reconstruction
-                            para_info = ParagraphInfo(
-                                text=text,
-                                style=para.style.name if para.style else None,
-                                alignment=str(para.alignment) if para.alignment else None,
-                                paragraph_index=para_counter,
-                                document_position=doc_position,
-                                is_table_cell=False,
-                                list_type=list_type,
-                                list_number=list_number
-                            )
-                            self.paragraphs_info.append(para_info)
-                            para_counter += 1
-                        
-                        doc_position += 1
-                        break
+                                text_with_tags = f"<li-o>{text_with_tags}</li-o>"
+
+                        paragraphs.append(text_with_tags)
+                    else:
+                        # Even without formatting extraction, detect list type
+                        list_type, list_number = self._get_list_type(para)
+                        paragraphs.append(text)
+
+                    # Store paragraph info for reconstruction
+                    para_info = ParagraphInfo(
+                        text=text,
+                        style=para.style.name if para.style else None,
+                        alignment=str(para.alignment) if para.alignment else None,
+                        paragraph_index=para_counter,
+                        document_position=doc_position,
+                        is_table_cell=False,
+                        list_type=list_type,
+                        list_number=list_number
+                    )
+                    self.paragraphs_info.append(para_info)
+                    para_counter += 1
+
+                doc_position += 1
             
             # Check if it's a table
             elif elem.tag.endswith('}tbl'):
@@ -467,7 +470,57 @@ class DOCXHandler:
         print(f"  - Regular paragraphs: {len(paragraphs) - table_cell_count}")
         print(f"  - Table cells: {table_cell_count} (from {len(self.original_document.tables)} tables)")
         return paragraphs
-    
+
+    # ------------------------------------------------------------------
+    # Word-count verification
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _count_words(text: str) -> int:
+        """Count words in plain text (split on whitespace)."""
+        return len(text.split())
+
+    def get_raw_word_count(self) -> int:
+        """Count words directly from the loaded DOCX XML — independent of
+        the paragraph extraction logic.  This concatenates all <w:t> text
+        within each paragraph-level element first, then counts words, so
+        that characters split across multiple runs (e.g. sub/superscript
+        formatting in chemical formulas like H₂O) are counted correctly."""
+        if not self.original_document:
+            return 0
+        from docx.oxml.ns import qn
+        total = 0
+        # Iterate body-level elements (paragraphs and tables)
+        for body_child in self.original_document.element.body:
+            # Collect all <w:p> elements (direct for paragraphs,
+            # nested inside <w:tbl>/<w:tr>/<w:tc> for tables)
+            p_elements = []
+            tag = body_child.tag.split('}')[-1] if '}' in body_child.tag else body_child.tag
+            if tag == 'p':
+                p_elements.append(body_child)
+            elif tag == 'tbl':
+                p_elements.extend(body_child.iter(qn('w:p')))
+            # For each paragraph, join all <w:t> text then count words
+            for p_elem in p_elements:
+                para_text = ''.join(
+                    t.text for t in p_elem.iter(qn('w:t'))
+                    if t.text
+                )
+                total += self._count_words(para_text)
+        return total
+
+    @staticmethod
+    def get_imported_word_count(paragraphs: List[str]) -> int:
+        """Count words in the imported paragraph list, stripping any
+        inline tags (e.g. ``<b>``, ``<li-o>``) first so only real words
+        are counted."""
+        import re
+        _TAG_RE = re.compile(r'<[^>]+>')
+        total = 0
+        for p in paragraphs:
+            plain = _TAG_RE.sub('', p)
+            total += len(plain.split())
+        return total
+
     def export_docx(self, segments: List[Dict[str, Any]], output_path: str,
                     preserve_formatting: bool = True, target_lang: str = None):
         """
