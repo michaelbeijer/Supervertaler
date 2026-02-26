@@ -627,7 +627,7 @@ class TermviewWidget(QWidget):
         self.info_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         is_dark = self.theme_manager and self.theme_manager.current_theme.name == "Dark"
         info_label_color = "#909090" if is_dark else info_text
-        self.info_label.setStyleSheet(f"color: {info_label_color}; font-size: 10px; padding: 5px;")
+        self.info_label.setStyleSheet(f"color: {info_label_color}; font-size: 9pt; padding: 5px;")
         layout.addWidget(self.info_label)
         
         # Store references for theme refresh
@@ -673,7 +673,7 @@ class TermviewWidget(QWidget):
         if hasattr(self, 'info_label'):
             is_dark = theme.name == "Dark"
             info_label_color = "#909090" if is_dark else info_text
-            self.info_label.setStyleSheet(f"color: {info_label_color}; font-size: 10px; padding: 5px;")
+            self.info_label.setStyleSheet(f"color: {info_label_color}; font-size: 9pt; padding: 5px;")
 
         # Refresh term blocks to pick up new theme colors
         if hasattr(self, '_last_termbase_matches') and hasattr(self, '_last_nt_matches') and hasattr(self, 'current_source'):

@@ -1714,6 +1714,97 @@ class _DoubleTapShiftEventFilter(QObject):
         return False
 
 
+class _LoneCtrlEventFilter(QObject):
+    """App-level event filter: triggers the term-insert popup when Ctrl is tapped alone.
+
+    A 'lone Ctrl tap' is defined as:
+      - Ctrl KeyPress  (non-repeat)
+      - Ctrl KeyRelease (non-repeat)
+      - with NO other key pressed, wheel-scrolled, or shortcut fired in between
+
+    This mimics memoQ's behaviour where pressing Ctrl alone opens the glossary /
+    non-translatable insert list.  Any other key pressed while Ctrl is held
+    (e.g. Ctrl+C, Ctrl+Shift+Q) cancels the detection and lets the normal
+    shortcut fire as usual.
+
+    Three cancellation layers guard against false positives:
+      1. KeyPress of any non-Ctrl key → immediate cancel  (catches normal shortcuts)
+      2. WheelEvent while Ctrl is held → cancel            (catches Ctrl+scroll zoom)
+      3. ShortcutOverride event → cancel                   (catches registered QShortcuts
+                                                            whose key event may be consumed
+                                                            before reaching layer 1)
+      4. queryKeyboardModifiers() on Ctrl release → cancel if any other modifier is
+         currently held (catches OS-level shortcuts that swallow intermediate keys,
+         e.g. Ctrl+Alt+Dash input-method shortcuts on Windows)
+    """
+
+    def __init__(self, main_window):
+        super().__init__(main_window)
+        self._main_window = main_window
+        self._ctrl_pressed_alone = False
+
+    def eventFilter(self, obj, event):
+        from PyQt6.QtCore import QEvent
+        from PyQt6.QtWidgets import QApplication
+
+        try:
+            if not self._main_window or not self._main_window.isActiveWindow():
+                return False
+
+            etype = event.type()
+
+            # ── Layer 2: Ctrl+scroll-wheel (zoom, etc.) ───────────────────────
+            if etype == QEvent.Type.Wheel:
+                self._ctrl_pressed_alone = False
+                return False
+
+            # ── Layer 3: a registered QShortcut is about to fire ─────────────
+            # ShortcutOverride is sent to the focus widget just before a shortcut
+            # activates; it fires even when the underlying KeyPress event is later
+            # consumed, so we catch Ctrl+= / Ctrl+- / Ctrl+Alt+… shortcuts here.
+            if etype == QEvent.Type.ShortcutOverride:
+                self._ctrl_pressed_alone = False
+                return False
+
+            # ── Layer 1: key presses ──────────────────────────────────────────
+            if etype == QEvent.Type.KeyPress:
+                if event.isAutoRepeat():
+                    self._ctrl_pressed_alone = False
+                    return False
+                if event.key() == Qt.Key.Key_Control:
+                    self._ctrl_pressed_alone = True
+                else:
+                    self._ctrl_pressed_alone = False
+                return False
+
+            # ── Ctrl release: fire only when all layers agree ─────────────────
+            if etype == QEvent.Type.KeyRelease:
+                if event.key() == Qt.Key.Key_Control and not event.isAutoRepeat():
+                    if self._ctrl_pressed_alone:
+                        # Layer 4: live OS modifier state — catches OS-swallowed shortcuts
+                        # (e.g. AltGr/Ctrl+Alt combinations that consume intermediate keys)
+                        live = QApplication.queryKeyboardModifiers()
+                        other = live & ~Qt.KeyboardModifier.ControlModifier
+                        if other == Qt.KeyboardModifier.NoModifier:
+                            self._ctrl_pressed_alone = False
+                            self._main_window.show_term_insert_popup()
+                            return True   # consume this release event
+                    self._ctrl_pressed_alone = False
+                return False
+
+            return False
+
+        except RuntimeError:
+            # The main window's C++ object has been deleted (app is shutting down).
+            # Uninstall this filter so it stops firing, then go silent.
+            app = QApplication.instance()
+            if app:
+                app.removeEventFilter(self)
+            self._main_window = None
+            self._ctrl_pressed_alone = False
+            return False
+
+
 class GridTableEventFilter:
     """Mixin to pass keyboard shortcuts from editor to table"""
     pass
@@ -8358,6 +8449,13 @@ class SupervertalerQt(QMainWindow):
         # Alt+K - Open QuickMenu directly
         create_shortcut("editor_open_quickmenu", "Alt+K", self.open_quickmenu)
 
+        # Lone Ctrl tap — Term Insert Popup (memoQ-style glossary + NT insert list).
+        # Implemented as an app-level event filter rather than a QShortcut because
+        # QShortcut cannot bind to a bare modifier key.
+        if not hasattr(self, '_lone_ctrl_event_filter'):
+            self._lone_ctrl_event_filter = _LoneCtrlEventFilter(self)
+            QApplication.instance().installEventFilter(self._lone_ctrl_event_filter)
+
         # Ctrl+Shift+Q - MT Quick Lookup (GT4T-style popup)
         mt_quick_shortcut = create_shortcut("mt_quick_lookup", "Ctrl+Shift+Q", self.show_mt_quick_popup)
         # Use ApplicationShortcut context so it works even when focus is in QTextEdit widgets
@@ -8434,6 +8532,68 @@ class SupervertalerQt(QMainWindow):
             
         except Exception as e:
             self.log(f"❌ Error opening QuickMenu: {e}")
+
+    def show_term_insert_popup(self):
+        """Show memoQ-style popup listing glossary terms + NTs for the current segment.
+
+        Triggered by a lone Ctrl tap (press and release Ctrl with no other key).
+        Displays a numbered list (1–9) of all termbase matches
+        and non-translatables found in the current segment's source text. The user can:
+          - Press 1–9 to insert directly
+          - Use ↑↓ + Enter to navigate and insert
+          - Press Esc to dismiss
+
+        Glossary terms appear with normal (white/blue) styling; NTs appear with a
+        yellow background and a 🚫 icon so they're immediately distinguishable.
+
+        Smart single-item shortcut: if there is exactly one NT and no glossary terms,
+        the NT text is inserted directly without showing a popup.
+        """
+        if not self.current_project:
+            return
+        current_row = self.table.currentRow()
+        if current_row < 0 or current_row >= len(self.current_project.segments):
+            self.statusBar().showMessage("No segment selected", 2000)
+            return
+
+        segment = self.current_project.segments[current_row]
+        segment_id = segment.id
+
+        # ── Gather glossary matches from cache ──────────────────────────
+        with self.termbase_cache_lock:
+            raw_tb = dict(self.termbase_cache.get(segment_id, {}))
+
+        glossary_matches = []
+        for match in raw_tb.values():
+            if not isinstance(match, dict):
+                continue
+            glossary_matches.append({
+                "source_term":   match.get("source", ""),
+                "target_term":   match.get("translation", ""),
+                "termbase_name": match.get("termbase_name", ""),
+                "ranking":       match.get("ranking", 99),
+            })
+        # Sort by glossary priority rank, then alphabetically
+        glossary_matches.sort(key=lambda x: (x["ranking"], x["source_term"].lower()))
+
+        # ── Gather NT matches ────────────────────────────────────────────
+        nt_matches = self.find_nt_matches_in_source(segment.source)
+
+        if not glossary_matches and not nt_matches:
+            self.statusBar().showMessage("No terms or NTs found for this segment", 2000)
+            return
+
+        # Smart single-NT shortcut: skip the popup
+        if not glossary_matches and len(nt_matches) == 1:
+            self.insert_termview_text(nt_matches[0]["text"])
+            return
+
+        # ── Show popup ───────────────────────────────────────────────────
+        from modules.term_insert_popup import TermInsertPopup
+        popup = TermInsertPopup(glossary_matches, nt_matches, parent=self)
+        popup.term_inserted.connect(self.insert_termview_text)
+        popup.show()
+        popup.setFocus()
 
     def show_mt_quick_popup(self, text_override: str = None):
         """Show GT4T-style MT Quick Lookup popup with translations from all enabled MT engines.
@@ -14329,7 +14489,25 @@ class SupervertalerQt(QMainWindow):
                                 # Call the highlighting function directly with the new matches
                                 self.highlight_source_with_termbase(current_row, segment.source, cached_matches)
                                 self.log(f"✅ Source highlighting updated with new term")
-                        
+
+                                # Invalidate stale cache entries for ALL OTHER segments.
+                                # The batch worker pre-populated these before the new term existed,
+                                # so they may be missing the new term. Clear them now so the next
+                                # navigation triggers a fresh lookup (or the batch worker refills them).
+                                with self.termbase_cache_lock:
+                                    stale_tb = [k for k in self.termbase_cache if k != segment_id]
+                                    for k in stale_tb:
+                                        del self.termbase_cache[k]
+                                with self.translation_matches_cache_lock:
+                                    stale_tm = [k for k in self.translation_matches_cache if k != segment_id]
+                                    for k in stale_tm:
+                                        del self.translation_matches_cache[k]
+
+                                # Re-start the batch worker to re-populate all segments with the new
+                                # term included (fast: ~0.3s for 659 segments in background).
+                                self._start_termbase_batch_worker()
+                                self.log(f"🔄 Cache invalidated for other segments; batch worker re-started")
+
                         except Exception as e:
                             self.log(f"⚠️  Quick cache update failed, falling back to full search: {e}")
                             # Fallback to full refresh if something goes wrong
@@ -33649,14 +33827,27 @@ class SupervertalerQt(QMainWindow):
         termview_layout.setContentsMargins(4, 4, 4, 0)
         termview_layout.setSpacing(2)
         
-        # Termview header label (theme-aware)
-        termview_header = QLabel("📖 Termview")
+        # Termview header row: label (left) + tip (right)
         if hasattr(self, 'theme_manager') and self.theme_manager:
             header_color = self.theme_manager.current_theme.text_disabled
         else:
             header_color = "#666"
-        termview_header.setStyleSheet(f"font-weight: bold; font-size: 9px; color: {header_color};")
-        termview_layout.addWidget(termview_header)
+
+        termview_header_row = QHBoxLayout()
+        termview_header_row.setContentsMargins(0, 0, 0, 0)
+        termview_header_row.setSpacing(0)
+
+        termview_header = QLabel("📖 Termview")
+        termview_header.setStyleSheet(f"font-weight: bold; font-size: 9pt; color: {header_color};")
+        termview_header_row.addWidget(termview_header)
+
+        termview_header_row.addStretch()
+
+        termview_tip = QLabel("💡 Tip: Press F5 to refresh if matches are missing")
+        termview_tip.setStyleSheet(f"font-size: 9pt; color: {header_color}; font-style: italic;")
+        termview_header_row.addWidget(termview_tip)
+
+        termview_layout.addLayout(termview_header_row)
         
         # Third Termview instance for Match Panel
         self.termview_widget_match = TermviewWidget(self, db_manager=self.db_manager, log_callback=self.log, theme_manager=self.theme_manager)
@@ -34098,7 +34289,7 @@ class SupervertalerQt(QMainWindow):
         
         # Title label
         title_label = QLabel(label)
-        title_label.setStyleSheet(f"font-weight: bold; font-size: 9px; color: {text_color}; background: transparent; border: none;")
+        title_label.setStyleSheet(f"font-weight: bold; font-size: 9pt; color: {text_color}; background: transparent; border: none;")
         header_layout.addWidget(title_label)
 
         # Optional shortcut badge (TermView-style blue bubble)
@@ -34132,7 +34323,7 @@ class SupervertalerQt(QMainWindow):
         if has_navigation or show_metadata_label:
             # Navigation: (1/3) ◄ ► provider_name • 95%
             nav_label = QLabel("(0/0)")
-            nav_label.setStyleSheet(f"font-size: 8px; color: {text_color}; background: transparent; border: none;")
+            nav_label.setStyleSheet(f"font-size: 9pt; color: {text_color}; background: transparent; border: none;")
             # Store color so later rich-text updates can preserve theme color
             nav_label._compare_text_color = text_color
             header_layout.addWidget(nav_label)

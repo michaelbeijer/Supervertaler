@@ -2,8 +2,20 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.328 (February 25, 2026)
+**Current Version:** v1.9.329 (February 26, 2026)
 
+
+## v1.9.329 - February 26, 2026
+
+### New Features
+
+- **Term & NT insert popup (Ctrl tap)** — Pressing the Ctrl key alone (a lone tap, not a chord) now opens a memoQ-style floating popup listing all glossary matches and non-translatables for the current segment, numbered 1–9 for instant keyboard insertion. Glossary items show source → target; NT items are highlighted in yellow with a 🚫 icon. Navigate with ↑↓, insert with 1–9 or Enter, dismiss with Esc. The popup is smart: if there is exactly one NT and no glossary terms, it inserts immediately without showing the popup. If the active segment has nothing to offer, Ctrl tap is silently ignored.
+
+### Bug Fixes
+
+- **Fix RuntimeError flood on app close** — The lone-Ctrl event filter (installed on `QApplication`) kept firing events after the main window's C++ object was deleted during shutdown, causing a flood of `RuntimeError: wrapped C/C++ object has been deleted` errors in the terminal and making the app jump/flicker. The filter now catches `RuntimeError`, self-uninstalls from `QApplication`, and goes silent for the rest of the shutdown sequence.
+
+---
 
 ## v1.9.328 - February 25, 2026
 
