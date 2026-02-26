@@ -32,6 +32,32 @@ from modules.ai_actions import AIActionSystem
 from modules.shortcut_display import format_shortcut_for_display
 
 
+# Language code → full name mapping (matches Supervertaler.py available_langs)
+_LANG_CODE_TO_NAME = {
+    "af": "Afrikaans", "sq": "Albanian", "ar": "Arabic", "hy": "Armenian",
+    "eu": "Basque", "bn": "Bengali", "bg": "Bulgarian", "ca": "Catalan",
+    "zh-cn": "Chinese (Simplified)", "zh-tw": "Chinese (Traditional)",
+    "hr": "Croatian", "cs": "Czech", "da": "Danish", "nl": "Dutch",
+    "en": "English", "et": "Estonian", "fi": "Finnish", "fr": "French",
+    "gl": "Galician", "ka": "Georgian", "de": "German", "el": "Greek",
+    "he": "Hebrew", "hi": "Hindi", "hu": "Hungarian", "is": "Icelandic",
+    "id": "Indonesian", "ga": "Irish", "it": "Italian", "ja": "Japanese",
+    "ko": "Korean", "lv": "Latvian", "lt": "Lithuanian", "mk": "Macedonian",
+    "ms": "Malay", "no": "Norwegian", "nb": "Norwegian", "fa": "Persian",
+    "pl": "Polish", "pt": "Portuguese", "ro": "Romanian", "ru": "Russian",
+    "sr": "Serbian", "sk": "Slovak", "sl": "Slovenian", "es": "Spanish",
+    "sw": "Swahili", "sv": "Swedish", "th": "Thai", "tr": "Turkish",
+    "uk": "Ukrainian", "ur": "Urdu", "vi": "Vietnamese", "cy": "Welsh",
+}
+
+
+def _resolve_lang_name(code_or_name):
+    """Convert a language code to its full name; pass through if already a name."""
+    if not code_or_name:
+        return code_or_name
+    return _LANG_CODE_TO_NAME.get(code_or_name.lower().strip(), code_or_name)
+
+
 class CheckmarkCheckBox(QCheckBox):
     """Custom checkbox with green background and white checkmark when checked"""
     
@@ -2878,8 +2904,8 @@ class UnifiedPromptManagerQt:
         if hasattr(self, 'parent_app') and self.parent_app:
             # Get languages if project loaded
             if hasattr(self.parent_app, 'current_project') and self.parent_app.current_project:
-                source_lang = getattr(self.parent_app.current_project, 'source_lang', 'Source Language')
-                target_lang = getattr(self.parent_app.current_project, 'target_lang', 'Target Language')
+                source_lang = _resolve_lang_name(getattr(self.parent_app.current_project, 'source_lang', '')) or 'Source Language'
+                target_lang = _resolve_lang_name(getattr(self.parent_app.current_project, 'target_lang', '')) or 'Target Language'
                 
                 # Try to get selected segment
                 if hasattr(self.parent_app, 'table') and self.parent_app.table:
@@ -3369,13 +3395,13 @@ If the text refers to figures (e.g., 'Figure 1A'), relevant images may be provid
         if hasattr(self.parent_app, 'current_project') and self.parent_app.current_project:
             project = self.parent_app.current_project
             if hasattr(project, 'source_lang') and project.source_lang:
-                source_lang = project.source_lang
+                source_lang = _resolve_lang_name(project.source_lang)
             elif hasattr(project, 'source_language') and project.source_language:
-                source_lang = project.source_language
+                source_lang = _resolve_lang_name(project.source_language)
             if hasattr(project, 'target_lang') and project.target_lang:
-                target_lang = project.target_lang
+                target_lang = _resolve_lang_name(project.target_lang)
             elif hasattr(project, 'target_language') and project.target_language:
-                target_lang = project.target_language
+                target_lang = _resolve_lang_name(project.target_language)
             if hasattr(project, 'segments') and project.segments:
                 segment_count = len(project.segments)
 
@@ -3434,6 +3460,7 @@ You are an expert [domain] translator ({source_lang} → {target_lang}) with 10+
 - If translating FROM Dutch/French/German/Spanish/Italian TO English: Include number format conversion (comma decimal → period decimal, e.g., 718.592,01 → 718,592.01)
 - If translating FROM English TO Dutch/French/German/Spanish/Italian: Include number format conversion (period decimal → comma decimal)
 - Include date localization rules if relevant (e.g., Dutch month names → English: juni → June)
+- Currency symbols MUST be written directly against the number with NO space (e.g., €4,255 NOT € 4,255; $100 NOT $ 100)
 
 ### DOMAIN-SPECIFIC RULES
 - For LEGAL domain (Belgian): Include "Preserve 'Meester' + surname format for Belgian notaries"
@@ -3465,7 +3492,9 @@ Output complete ACTION."""
         if hasattr(self.parent_app, 'current_project') and self.parent_app.current_project:
             project = self.parent_app.current_project
             if hasattr(project, 'source_language') and hasattr(project, 'target_language'):
-                context_parts.append(f"**Language Pair:** {project.source_language} → {project.target_language}")
+                src = _resolve_lang_name(project.source_language) or project.source_language
+                tgt = _resolve_lang_name(project.target_language) or project.target_language
+                context_parts.append(f"**Language Pair:** {src} → {tgt}")
 
         # Full document content
         if hasattr(self.parent_app, 'current_project') and self.parent_app.current_project:

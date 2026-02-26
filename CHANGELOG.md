@@ -2,8 +2,22 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.330 (February 26, 2026)
+**Current Version:** v1.9.331 (February 26, 2026)
 
+
+## v1.9.331 - February 26, 2026
+
+### Improvements
+
+- **AI prompt generation: full language names** — The "Analyze project and generate prompts" feature in the AI Assistant now always uses full language names (e.g. "Dutch → English") instead of ISO codes (e.g. "nl → en") in generated prompts, for better LLM comprehension and consistency.
+- **AI prompt generation: no-space currency rule** — Generated translation prompts now instruct the LLM to write currency symbols directly against the number with no space (e.g. €4,255 not € 4,255).
+
+### Bug Fixes
+
+- **Fix TM and glossary activation leaking between projects** — When importing a new document or creating a new project, TMs and glossaries from a previous project could still appear with "Write" checked, because the read-only flag was stored globally rather than being reset per project. Both Read and Write states are now fully cleared on every new project.
+- **Fix SuperLookup TM/glossary checkboxes defaulting to checked** — The SuperLookup panel's TM and glossary lists hardcoded all checkboxes to checked on every refresh. They now start unchecked, matching the "clean slate" design.
+
+---
 
 ## v1.9.330 - February 26, 2026
 

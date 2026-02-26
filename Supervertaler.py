@@ -39565,19 +39565,21 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         if not project_id:
             return
 
-        # Deactivate all TMs for this project (clean slate)
+        # Deactivate all TMs for this project (clean slate: Read OFF + Write OFF)
         if hasattr(self, 'tm_metadata_mgr') and self.tm_metadata_mgr:
             all_tms = self.tm_metadata_mgr.get_all_tms()
             if all_tms:
                 for tm in all_tms:
                     self.tm_metadata_mgr.deactivate_tm(tm['id'], project_id)
+                    self.tm_metadata_mgr.set_read_only(tm['id'], True)  # Write OFF
 
-        # Deactivate all termbases for this project (clean slate)
+        # Deactivate all termbases for this project (clean slate: Read OFF + Write OFF)
         if hasattr(self, 'termbase_mgr') and self.termbase_mgr:
             all_termbases = self.termbase_mgr.get_all_termbases()
             if all_termbases:
                 for tb in all_termbases:
                     self.termbase_mgr.deactivate_termbase(tb['id'], project_id)
+                    self.termbase_mgr.set_termbase_read_only(tb['id'], True)  # Write OFF
 
         # Deactivate NT lists (global)
         if hasattr(self, 'nt_manager') and self.nt_manager:
@@ -53121,7 +53123,7 @@ class SuperlookupTab(QWidget):
                 
                 for db_id, tm_name, tm_id_str in tms:
                     checkbox = CheckmarkCheckBox(f"{tm_name} (ID: {db_id})")
-                    checkbox.setChecked(True)  # Check all by default
+                    checkbox.setChecked(False)  # Start unchecked; user activates explicitly
                     checkbox.setProperty("tm_id", tm_id_str)  # Store tm_id string for search
                     checkbox.setProperty("db_id", db_id)  # Store db_id for reference
                     self.tm_checkboxes.append(checkbox)
@@ -53163,12 +53165,12 @@ class SuperlookupTab(QWidget):
                     tb_id = tb.get('id')
                     tb_name = tb.get('name', 'Unnamed')
                     checkbox = CheckmarkCheckBox(f"{tb_name} (ID: {tb_id})")
-                    checkbox.setChecked(True)  # Check all by default
+                    checkbox.setChecked(False)  # Start unchecked; user activates explicitly
                     checkbox.setProperty("tb_id", tb_id)
                     self.tb_checkboxes.append(checkbox)
                     # Insert before the stretch at the end
                     self.tb_scroll_layout.insertWidget(len(self.tb_checkboxes) - 1, checkbox)
-                
+
                 print(f"[Superlookup] ✓ Loaded {len(termbases)} termbases via termbase_mgr")
                 return
             except Exception as e:
@@ -53188,7 +53190,7 @@ class SuperlookupTab(QWidget):
                 
                 for tb_id, tb_name in termbases:
                     checkbox = CheckmarkCheckBox(f"{tb_name} (ID: {tb_id})")
-                    checkbox.setChecked(True)  # Check all by default
+                    checkbox.setChecked(False)  # Start unchecked; user activates explicitly
                     checkbox.setProperty("tb_id", tb_id)
                     self.tb_checkboxes.append(checkbox)
                     # Insert before the stretch at the end
