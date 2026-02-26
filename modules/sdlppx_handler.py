@@ -74,6 +74,7 @@ class SDLSegment:
     text_match: str = ""  # SourceAndTarget = CM, Source = 100%
     locked: bool = False
     file_path: str = ""  # Source SDLXLIFF file
+    modified: bool = False  # True when user translates in current session
 
 
 @dataclass
@@ -1003,21 +1004,25 @@ def _replace_seg_attributes(content: str, xliff_file: SDLXLIFFFile,
 
         if matching_segment.status in ('translated', 'approved', 'confirmed'):
             # Update conf — replace existing or add if missing
+            # (applies to ALL translated segments, including TM matches)
             if 'conf="' in seg_text:
                 seg_text = re.sub(r'conf="[^"]*"', 'conf="Translated"', seg_text)
             else:
                 seg_text = seg_text.replace('<sdl:seg ', '<sdl:seg conf="Translated" ', 1)
 
-            # Update origin to interactive — replace existing or add if missing
-            if 'origin="' in seg_text:
-                seg_text = re.sub(r'origin="[^"]*"', 'origin="interactive"', seg_text)
-            else:
-                seg_text = seg_text.replace('<sdl:seg ', '<sdl:seg origin="interactive" ', 1)
+            # Only update origin/percent/text-match for segments the user
+            # translated in this session. Leave TM-matched segments untouched.
+            if matching_segment.modified:
+                # Update origin to interactive — replace existing or add if missing
+                if 'origin="' in seg_text:
+                    seg_text = re.sub(r'origin="[^"]*"', 'origin="interactive"', seg_text)
+                else:
+                    seg_text = seg_text.replace('<sdl:seg ', '<sdl:seg origin="interactive" ', 1)
 
-            # Remove stale TM/MT attributes
-            seg_text = re.sub(r'\s+origin-system="[^"]*"', '', seg_text)
-            seg_text = re.sub(r'\s+percent="[^"]*"', '', seg_text)
-            seg_text = re.sub(r'\s+text-match="[^"]*"', '', seg_text)
+                # Remove stale TM/MT attributes
+                seg_text = re.sub(r'\s+origin-system="[^"]*"', '', seg_text)
+                seg_text = re.sub(r'\s+percent="[^"]*"', '', seg_text)
+                seg_text = re.sub(r'\s+text-match="[^"]*"', '', seg_text)
 
         return seg_text
 
@@ -1174,7 +1179,10 @@ class StandaloneSDLXLIFFHandler:
         for xliff_file in self.xliff_files:
             for segment in xliff_file.segments:
                 if segment.segment_id in translations:
-                    segment.target_text = translations[segment.segment_id]
+                    new_text = translations[segment.segment_id]
+                    if segment.target_text != new_text:
+                        segment.modified = True
+                    segment.target_text = new_text
                     segment.status = 'translated'
                     count += 1
         return count
@@ -1402,6 +1410,10 @@ class TradosPackageHandler:
         for xliff_file in self.package.xliff_files:
             for segment in xliff_file.segments:
                 if segment.segment_id == segment_id:
+                    # Only flag as modified if the target text actually
+                    # changed (skip TM matches re-written with same text).
+                    if segment.target_text != target_text:
+                        segment.modified = True
                     segment.target_text = target_text
                     segment.status = status
                     return True
@@ -1612,9 +1624,10 @@ class TradosPackageHandler:
                 if current_conf != new_conf:
                     seg_elem.set('conf', new_conf)
 
-                # Update origin to 'interactive' for translated segments
-                # (translator takes responsibility for the content)
-                if new_conf in ('Translated', 'ApprovedTranslation') and segment.target_text:
+                # Update origin to 'interactive' only for segments the user
+                # translated in this session. Leave TM-matched segments untouched.
+                if (new_conf in ('Translated', 'ApprovedTranslation')
+                        and segment.target_text and segment.modified):
                     seg_elem.set('origin', 'interactive')
                     # Remove stale TM/MT match attributes
                     for attr in ('origin-system', 'percent', 'text-match'):
@@ -1755,8 +1768,14 @@ class TradosPackageHandler:
                     parts = rel_path.parts
 
                     # Include .sdlproj files at root level
+                    # Strip target language suffix (e.g. _nl-NL) from the
+                    # filename to match the Trados Studio convention.
                     if len(parts) == 1 and file_path.suffix.lower() == '.sdlproj':
-                        zf.write(file_path, rel_path)
+                        proj_name = file_path.name
+                        tgt = self.package.target_lang  # e.g. "nl-NL"
+                        if tgt and f'_{tgt}' in proj_name:
+                            proj_name = proj_name.replace(f'_{tgt}', '')
+                        zf.write(file_path, proj_name)
                         continue
 
                     # Include files in source language folder (unchanged)

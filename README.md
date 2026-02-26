@@ -6,7 +6,7 @@
 
 **Professional AI-enhanced translation workbench** with multi-LLM support (GPT-4, Claude, Gemini, Ollama), translation memory, glossary management, and seamless CAT tool integration (memoQ, Trados, CafeTran, Phrase, Déjà Vu).
 
-**Latest release:** v1.9.322 - Resources tab: vertical sidebar navigation (matches Tools & Settings).
+**Latest release:** v1.9.330 - Fix SDLRPX export overwriting TM metadata on pre-translated segments.
 
 ---
 

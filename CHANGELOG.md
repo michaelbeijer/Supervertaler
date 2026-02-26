@@ -2,8 +2,17 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.329 (February 26, 2026)
+**Current Version:** v1.9.330 (February 26, 2026)
 
+
+## v1.9.330 - February 26, 2026
+
+### Bug Fixes
+
+- **Fix SDLRPX export overwriting TM metadata on pre-translated segments** — When exporting a return package, Supervertaler previously set `origin="interactive"` and stripped `percent` and `text-match` attributes on *all* segments with target text, including segments that were already translated by the TM when the package was loaded. Now only segments the user actually translated in the current session have their metadata updated; TM-matched segments retain their original `origin="tm"`, `percent="100"`, and `text-match` attributes. A new `modified` flag on `SDLSegment` tracks whether a segment was edited by the user.
+- **Fix return package .sdlproj filename** — The `.sdlproj` file inside the SDLRPX return package included the target language code suffix (e.g. `_nl-NL`), which Trados Studio does not produce. The suffix is now stripped to match the Trados naming convention.
+
+---
 
 ## v1.9.329 - February 26, 2026
 
