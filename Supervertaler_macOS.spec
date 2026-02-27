@@ -22,6 +22,10 @@ a = Analysis(
         ('README.md', '.'),
         ('CHANGELOG.md', '.'),
         ('FAQ.md', '.'),
+        # Okapi sidecar (Java-based file filter service)
+        # Note: macOS build needs a macOS JRE bundle (built on Mac with jlink)
+        ('okapi-sidecar/dist/okapi-sidecar.jar', 'okapi-sidecar'),
+        ('okapi-sidecar/dist/jre', 'okapi-sidecar/jre'),
     ],
     hiddenimports=[
         'PyQt6.QtCore',

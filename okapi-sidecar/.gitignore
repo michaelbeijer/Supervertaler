@@ -1,0 +1,17 @@
+# Maven build output
+target/
+
+# Distribution bundle (JAR + JRE)
+dist/
+
+# IDE files
+.idea/
+*.iml
+.vscode/
+.classpath
+.project
+.settings/
+
+# OS files
+.DS_Store
+Thumbs.db

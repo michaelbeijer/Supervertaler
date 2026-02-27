@@ -2,8 +2,31 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.332 (February 26, 2026)
+**Current Version:** v1.9.333 (February 27, 2026)
 
+
+## v1.9.333 - February 27, 2026
+
+### New Feature: Okapi Framework Integration (Experimental)
+
+Supervertaler now ships with an **Okapi Framework sidecar** — an industry-standard, open-source file filter engine used by professional translation tools worldwide. This lays the foundation for significantly improved document import fidelity and support for additional file formats in future releases.
+
+- **Okapi sidecar architecture** — A lightweight Java-based REST service (`okapi-sidecar.jar`) runs locally on `127.0.0.1:8090` as a background process alongside Supervertaler. All document processing happens on the user's machine — no files are sent over the internet. The sidecar starts automatically (with a 1.5s deferred launch) and shuts down cleanly when Supervertaler exits.
+- **Bundled minimal JRE** — The sidecar includes a custom 44 MB Java runtime (built with `jlink`) so users do not need to install Java separately. PyInstaller specs are updated to include the sidecar JAR + JRE in Windows and macOS builds.
+- **Optional DOCX import engine** — When importing a DOCX, users are now presented with a choice dialog:
+  - **Standard (recommended)** — the existing built-in python-docx handler with full formatting tag support
+  - **Okapi Framework (experimental)** — industrial-strength extraction via the Okapi sidecar with SRX sentence segmentation
+
+  The dialog only appears if the sidecar is running; otherwise the standard engine is used silently.
+- **Intelligent segment filtering** — The Okapi extraction path filters out non-body content (headers, footers, textbox names) using sub-document tracking, keeping the segment grid clean.
+- **Formatting tag extraction** — The sidecar detects inline formatting from OOXML run properties and converts them to Supervertaler's `<b>`, `<i>`, `<u>`, `<sup>`, `<sub>`, `<s>` tag system.
+- **SRX segmentation** — The Okapi engine uses industry-standard SRX rules for sentence segmentation, correctly handling abbreviations (Dr., Mr., etc.), decimal numbers, and other tricky boundaries.
+- **Seven REST endpoints** — The sidecar exposes: `/health`, `/filters`, `/extract`, `/merge`, `/tmx/read`, `/tmx/validate`, `/segment` — designed for future integration beyond DOCX import.
+- **Graceful degradation** — If the sidecar JAR or Java runtime is not present, Supervertaler functions exactly as before with no errors or warnings.
+
+> **Note:** The Okapi import engine is marked experimental. The standard import engine remains the recommended choice for production work. The Okapi path will be refined in upcoming releases with improved formatting fidelity and broader file format support.
+
+---
 
 ## v1.9.332 - February 26, 2026
 

@@ -13,6 +13,9 @@ a = Analysis(
         ('README.md', '.'),
         ('CHANGELOG.md', '.'),
         ('FAQ.md', '.'),
+        # Okapi sidecar (Java-based file filter service)
+        ('okapi-sidecar/dist/okapi-sidecar.jar', 'okapi-sidecar'),
+        ('okapi-sidecar/dist/jre', 'okapi-sidecar/jre'),
     ],
     hiddenimports=[
         'PyQt6.QtCore',

@@ -7567,6 +7567,10 @@ class SupervertalerQt(QMainWindow):
         # Apply proxy env vars for Gemini before any API calls are made
         self._apply_gemini_proxy()
 
+        # Initialize Okapi sidecar (local file-processing service)
+        self.okapi_sidecar = None
+        self._init_okapi_sidecar_deferred()
+
         # Load font sizes from preferences (after UI is fully initialized)
         QApplication.instance().processEvents()  # Allow UI to finish initializing
         self.load_font_sizes_from_preferences()
@@ -26773,46 +26777,139 @@ class SupervertalerQt(QMainWindow):
                     # else: new_proj_btn clicked - continue with new project
 
             self.log(f"Importing: {os.path.basename(file_path)}")
-            
-            # Import DOCX using the existing docx_handler
-            if not hasattr(self, 'docx_handler'):
-                from modules.docx_handler import DOCXHandler
-                self.docx_handler = DOCXHandler()
-            
-            paragraphs = self.docx_handler.import_docx(file_path)
-            self.original_docx = file_path
 
-            # ── Word-count safety check ──────────────────────────────
-            # Compare raw DOCX word count against imported paragraphs to
-            # detect any silently dropped content.
-            raw_wc = self.docx_handler.get_raw_word_count()
-            imported_wc = self.docx_handler.get_imported_word_count(paragraphs)
-            wc_diff = raw_wc - imported_wc
-            wc_pct = (abs(wc_diff) / raw_wc * 100) if raw_wc > 0 else 0
-            self.log(f"📊 Word count check: DOCX={raw_wc}, imported={imported_wc} (Δ {wc_diff:+d}, {wc_pct:.1f}%)")
-            if wc_pct > 5:   # >5 % difference = likely missing content
-                QMessageBox.warning(
-                    self,
-                    "Import Word Count Mismatch",
-                    f"⚠️ The imported text may be incomplete.\n\n"
-                    f"Word count in DOCX file: {raw_wc:,}\n"
-                    f"Word count after import: {imported_wc:,}\n"
-                    f"Difference: {abs(wc_diff):,} words ({wc_pct:.1f}%)\n\n"
-                    f"If the difference is large, some text may have been "
-                    f"lost during import. Please verify the imported segments."
+            # ── Determine import engine ───────────────────────────────
+            # If Okapi sidecar is running, let the user choose which
+            # import engine to use.  The Okapi path is experimental and
+            # currently lacks formatting-tag support.
+            used_okapi = False
+            segmented = None
+            use_okapi_engine = False
+
+            if self.okapi_sidecar and self.okapi_sidecar.is_running():
+                engine_dialog = QMessageBox(self)
+                engine_dialog.setWindowTitle("Choose Import Engine")
+                engine_dialog.setText(
+                    f"Two import engines are available for:\n"
+                    f"{os.path.basename(file_path)}"
                 )
+                engine_dialog.setInformativeText(
+                    "<b>Standard (recommended)</b><br>"
+                    "The built-in import engine. Preserves formatting tags "
+                    "(bold, italic, lists).<br><br>"
+                    "<b>Okapi Framework (experimental)</b><br>"
+                    "Industrial-strength extraction via the Okapi sidecar. "
+                    "Better paragraph detection and SRX segmentation, but "
+                    "does not yet preserve formatting tags."
+                )
+                standard_btn = engine_dialog.addButton(
+                    "Standard", QMessageBox.ButtonRole.AcceptRole)
+                okapi_btn = engine_dialog.addButton(
+                    "Okapi (experimental)", QMessageBox.ButtonRole.ActionRole)
+                cancel_btn = engine_dialog.addButton(QMessageBox.StandardButton.Cancel)
 
-            # Segment paragraphs
-            self.log("Segmenting text...")
-            
-            # Use simple segmenter if available, otherwise create segments from paragraphs
-            if hasattr(self, 'segmenter'):
-                segmented = self.segmenter.segment_paragraphs(paragraphs)
-            else:
-                # Simple fallback segmentation
-                from modules.simple_segmenter import SimpleSegmenter
-                segmenter = SimpleSegmenter()
-                segmented = segmenter.segment_paragraphs(paragraphs)
+                engine_dialog.exec()
+                clicked = engine_dialog.clickedButton()
+                if clicked == cancel_btn:
+                    return
+                use_okapi_engine = (clicked == okapi_btn)
+
+            if use_okapi_engine:
+                try:
+                    # Detect source language from current settings
+                    src_lang = getattr(self, '_last_import_source_lang', 'en') or 'en'
+                    trg_lang = getattr(self, '_last_import_target_lang', 'en') or 'en'
+
+                    self.log(f"🔧 Extracting via Okapi sidecar ({src_lang} → {trg_lang})...")
+                    result = self.okapi_sidecar.extract(
+                        file_path,
+                        source_lang=src_lang,
+                        target_lang=trg_lang,
+                        segment=True
+                    )
+
+                    # Convert Okapi segments → (para_id, text) tuples
+                    # Filter out non-body content (headers, footers, textbox
+                    # names) and use formatting tags when available.
+                    tu_id_to_para = {}
+                    next_para = 0
+                    segmented = []
+                    skipped_count = 0
+
+                    for seg in result.get('segments', []):
+                        tu_id = seg.get('id', '')
+                        sub_doc = seg.get('subDocument', 'body') or 'body'
+                        text = seg.get('source', '').strip()
+                        tagged_text = (seg.get('sourceWithTags') or '').strip()
+
+                        # ── Filter: skip non-body content ──────────────
+                        if sub_doc != 'body':
+                            skipped_count += 1
+                            continue
+
+                        # Skip empty segments
+                        if not text:
+                            skipped_count += 1
+                            continue
+
+                        # Assign paragraph IDs (same TU = same paragraph)
+                        if tu_id not in tu_id_to_para:
+                            tu_id_to_para[tu_id] = next_para
+                            next_para += 1
+                        para_id = tu_id_to_para[tu_id]
+
+                        # Use tagged text (with <b>/<i> etc.) if available,
+                        # otherwise use plain text.
+                        display_text = tagged_text if tagged_text else text
+                        segmented.append((para_id, display_text))
+
+                    used_okapi = True
+                    self.log(f"✅ Okapi extracted {len(segmented)} segments "
+                             f"from {result.get('textUnitCount', '?')} text units "
+                             f"(filter: {result.get('filterUsed', '?')}"
+                             f"{f', skipped {skipped_count} non-body' if skipped_count else ''})")
+
+                except Exception as e:
+                    self.log(f"⚠️ Okapi extraction failed, falling back to built-in: {e}")
+                    segmented = None
+
+            # ── Standard: built-in python-docx handler ────────────────
+            if segmented is None:
+                if not hasattr(self, 'docx_handler'):
+                    from modules.docx_handler import DOCXHandler
+                    self.docx_handler = DOCXHandler()
+
+                paragraphs = self.docx_handler.import_docx(file_path)
+
+                # Word-count safety check (only for built-in handler)
+                raw_wc = self.docx_handler.get_raw_word_count()
+                imported_wc = self.docx_handler.get_imported_word_count(paragraphs)
+                wc_diff = raw_wc - imported_wc
+                wc_pct = (abs(wc_diff) / raw_wc * 100) if raw_wc > 0 else 0
+                self.log(f"📊 Word count check: DOCX={raw_wc}, imported={imported_wc} "
+                         f"(Δ {wc_diff:+d}, {wc_pct:.1f}%)")
+                if wc_pct > 5:
+                    QMessageBox.warning(
+                        self,
+                        "Import Word Count Mismatch",
+                        f"⚠️ The imported text may be incomplete.\n\n"
+                        f"Word count in DOCX file: {raw_wc:,}\n"
+                        f"Word count after import: {imported_wc:,}\n"
+                        f"Difference: {abs(wc_diff):,} words ({wc_pct:.1f}%)\n\n"
+                        f"If the difference is large, some text may have been "
+                        f"lost during import. Please verify the imported segments."
+                    )
+
+                # Segment paragraphs
+                self.log("Segmenting text...")
+                if hasattr(self, 'segmenter'):
+                    segmented = self.segmenter.segment_paragraphs(paragraphs)
+                else:
+                    from modules.simple_segmenter import SimpleSegmenter
+                    segmenter = SimpleSegmenter()
+                    segmented = segmenter.segment_paragraphs(paragraphs)
+
+            self.original_docx = file_path
             
             # Create new project with the imported segments
             from dataclasses import dataclass
@@ -26836,9 +26933,9 @@ class SupervertalerQt(QMainWindow):
             # Convert segments
             imported_segments = []
             for seg_id, (para_id, text) in enumerate(segmented, 1):
-                # Get paragraph info if available
+                # Get paragraph info if available (only from built-in handler)
                 para_info = None
-                if hasattr(self.docx_handler, '_get_para_info'):
+                if not used_okapi and hasattr(self, 'docx_handler') and hasattr(self.docx_handler, '_get_para_info'):
                     para_info = self.docx_handler._get_para_info(para_id)
                 
                 is_table = False
@@ -26857,6 +26954,11 @@ class SupervertalerQt(QMainWindow):
                             getattr(para_info, 'cell_index', 0)
                         )
                 
+                # For Okapi imports, set type to "¶" so the preview
+                # renderer recognises paragraph boundaries (it checks
+                # paragraph_id changes only when type is "¶" or "para").
+                seg_type = "¶" if used_okapi else "#"
+
                 segment = ImportedSegment(
                     id=seg_id,
                     source=text,
@@ -26867,7 +26969,8 @@ class SupervertalerQt(QMainWindow):
                     is_table=is_table,
                     table_info=table_info,
                     style=style,
-                    doc_position=doc_position
+                    doc_position=doc_position,
+                    type=seg_type
                 )
                 imported_segments.append(segment)
             
@@ -26942,7 +27045,8 @@ class SupervertalerQt(QMainWindow):
             self.auto_resize_rows()
 
             # Update status
-            self.log(f"✓ Loaded {len(segments)} segments from {len(paragraphs)} paragraphs")
+            para_count = len(paragraphs) if not used_okapi else len(set(pid for pid, _ in segmented))
+            self.log(f"✓ Loaded {len(segments)} segments from {para_count} paragraphs")
             self.log(f"📍 Project language pair: {project.source_lang.upper()} → {project.target_lang.upper()}")
             self.update_window_title()  # Update window title to show project is loaded
             
@@ -47223,20 +47327,23 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
 
             if reply == QMessageBox.StandardButton.Save:
                 self.save_project()
+                self._stop_okapi_sidecar()
                 self._cleanup_web_views()
                 self._close_detached_log_windows()
                 event.accept()
             elif reply == QMessageBox.StandardButton.Discard:
+                self._stop_okapi_sidecar()
                 self._cleanup_web_views()
                 self._close_detached_log_windows()
                 event.accept()
             else:
                 event.ignore()
         else:
+            self._stop_okapi_sidecar()
             self._cleanup_web_views()
             self._close_detached_log_windows()
             event.accept()
-    
+
     def _cleanup_web_views(self):
         """Clean up WebEngine views - DISABLED to prevent crash"""
         # WebEngine cleanup has been disabled because it was causing Python crashes
@@ -47256,6 +47363,45 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                         pass
                 self.detached_log_windows.clear()
         except:
+            pass
+
+    # ── Okapi Sidecar management ─────────────────────────────────
+
+    def _init_okapi_sidecar_deferred(self):
+        """Schedule Okapi sidecar startup after the UI is fully loaded.
+        This is non-blocking — the sidecar starts in the background."""
+        from PyQt6.QtCore import QTimer
+        QTimer.singleShot(1500, self._start_okapi_sidecar)
+
+    def _start_okapi_sidecar(self):
+        """Start the local Okapi sidecar process (if available)."""
+        try:
+            from modules.okapi_sidecar import OkapiSidecar
+            self.okapi_sidecar = OkapiSidecar()
+
+            if not self.okapi_sidecar.is_available:
+                self.log("ℹ️ Okapi sidecar not installed — using built-in filters")
+                self.okapi_sidecar = None
+                return
+
+            if self.okapi_sidecar.start():
+                version = self.okapi_sidecar.get_version() or "?"
+                self.log(f"✅ Okapi sidecar started (v{version}) — "
+                         f"enhanced file filters available")
+            else:
+                self.log("⚠️ Okapi sidecar failed to start — using built-in filters")
+                self.okapi_sidecar = None
+        except Exception as e:
+            self.log(f"⚠️ Okapi sidecar unavailable: {e}")
+            self.okapi_sidecar = None
+
+    def _stop_okapi_sidecar(self):
+        """Stop the Okapi sidecar process on app exit."""
+        try:
+            if self.okapi_sidecar:
+                self.okapi_sidecar.stop()
+                self.okapi_sidecar = None
+        except Exception:
             pass
 
     def _get_whisper_cache_path(self):

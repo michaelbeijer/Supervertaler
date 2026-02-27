@@ -6,7 +6,7 @@
 
 **Professional AI-enhanced translation workbench** with multi-LLM support (GPT-4, Claude, Gemini, Ollama), translation memory, glossary management, and seamless CAT tool integration (memoQ, Trados, CafeTran, Phrase, Déjà Vu).
 
-**Latest release:** v1.9.332 - Fix DOCX import silently dropping paragraphs; add word count verification safety net; TMX export now uses standard bpt/ept pairs.
+**Latest release:** v1.9.333 - Okapi Framework sidecar integration (experimental); industrial-strength DOCX extraction with SRX segmentation, inline formatting tag detection, and sub-document filtering.
 
 ---
 
@@ -45,7 +45,7 @@ macOS will block the app on first launch because it is not signed with an Apple 
 - **Superlookup** - Unified concordance search across TM, glossaries, MT, and web resources
 - **CAT Tool Integration** - memoQ XLIFF, Trados SDLPPX/SDLRPX, CafeTran, Phrase, Déjà Vu X3
 - **Voice Commands** - Hands-free translation with OpenAI Whisper
-- **Document Support** - DOCX, bilingual DOCX/RTF, PDF, Markdown, plain text
+- **Document Support** - DOCX, bilingual DOCX/RTF, PDF, Markdown, plain text + experimental [Okapi Framework](https://okapiframework.org/) sidecar for industrial-strength file extraction
 
 ---
 
