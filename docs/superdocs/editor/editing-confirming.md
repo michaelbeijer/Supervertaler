@@ -34,6 +34,7 @@ If you plan to reimport into a CAT tool, avoid merging/splitting content across 
 
 ## Related pages
 
-- [The Translation Grid](translation-grid.md)
-- [Find & Replace](find-replace.md)
-- [Tag Validation](../qa/tag-validation.md)
+* [Segment Statuses](segment-statuses.md) — full reference for workflow statuses, match origins, and how they map to Trados and memoQ
+* [The Translation Grid](translation-grid.md)
+* [Find & Replace](find-replace.md)
+* [Tag Validation](../qa/tag-validation.md)

@@ -13,6 +13,7 @@
 * [The Translation Grid](editor/translation-grid.md)
 * [Navigating Segments](editor/navigation.md)
 * [Editing & Confirming](editor/editing-confirming.md)
+* [Segment Statuses](editor/segment-statuses.md)
 * [Keyboard Shortcuts](editor/keyboard-shortcuts.md)
 * [Find & Replace](editor/find-replace.md)
 * [Filtering Segments](editor/filtering.md)

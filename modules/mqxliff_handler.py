@@ -225,7 +225,7 @@ class MQXLIFFHandler:
             if mq_status in ['Confirmed', 'ProofRead', 'Reviewed']:
                 status = 'confirmed'
             elif mq_status == 'Editing':
-                status = 'translated'
+                status = 'draft'
             elif target_text.strip():
                 # Has target but unknown status - mark as pre-translated
                 status = 'pre_translated'

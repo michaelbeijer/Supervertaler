@@ -36,13 +36,13 @@ STATUSES: Dict[str, StatusDefinition] = {
         match_symbol="⚡",
         short_label="Pre",
     ),
-    "translated": StatusDefinition(
-        key="translated",
-        label="Translated",
-        icon="✏️",  # Pencil - indicates manual translation work (matches Trados style)
+    "draft": StatusDefinition(
+        key="draft",
+        label="Draft",
+        icon="✏️",  # Pencil - indicates manual translation work, not yet confirmed
         color="#e6ffe6",
-        memoq_label="Translated",
-        memoQ_equivalents=("translated", "edited"),
+        memoq_label="Edited",
+        memoQ_equivalents=("translated", "edited", "draft"),
         match_symbol="✍️",
     ),
     "confirmed": StatusDefinition(
@@ -53,16 +53,6 @@ STATUSES: Dict[str, StatusDefinition] = {
         memoq_label="Confirmed",
         memoQ_equivalents=("confirmed",),
         match_symbol="🛡️",
-    ),
-    "tr_confirmed": StatusDefinition(
-        key="tr_confirmed",
-        label="TR confirmed",
-        icon="🌟",
-        color="#d9f0ff",
-        memoq_label="TR confirmed",
-        memoQ_equivalents=("tr confirmed", "translation review confirmed"),
-        match_symbol="🌐",
-        short_label="TRC",
     ),
     "proofread": StatusDefinition(
         key="proofread",
@@ -158,10 +148,18 @@ STATUSES: Dict[str, StatusDefinition] = {
 
 DEFAULT_STATUS = STATUSES["not_started"]
 
+# Backward-compatibility aliases for renamed / removed statuses.
+# Saved projects may still contain these old keys.
+_STATUS_ALIASES = {
+    "translated": "draft",          # renamed in v1.9.336
+    "tr_confirmed": "confirmed",    # removed in v1.9.336 — merged into confirmed
+}
+
 
 def get_status(key: str) -> StatusDefinition:
     """Return status definition for key, falling back to default."""
-    return STATUSES.get(key, DEFAULT_STATUS)
+    resolved = _STATUS_ALIASES.get(key, key)
+    return STATUSES.get(resolved, DEFAULT_STATUS)
 
 
 def match_memoq_status(status_text: str) -> tuple[StatusDefinition, Optional[int]]:
@@ -194,8 +192,6 @@ def match_memoq_status(status_text: str) -> tuple[StatusDefinition, Optional[int
 
     if "proofread" in lower and "confirm" in lower:
         return STATUSES["approved"], percent
-    if "confirm" in lower and "tr" in lower:
-        return STATUSES["tr_confirmed"], percent
     if "confirm" in lower:
         return STATUSES["confirmed"], percent
     if "lock" in lower:
@@ -204,8 +200,8 @@ def match_memoq_status(status_text: str) -> tuple[StatusDefinition, Optional[int
         return STATUSES["rejected"], percent
     if "proof" in lower:
         return STATUSES["proofread"], percent
-    if "translate" in lower:
-        return STATUSES["translated"], percent
+    if "translate" in lower or "edit" in lower:
+        return STATUSES["draft"], percent
 
     return DEFAULT_STATUS, percent
 

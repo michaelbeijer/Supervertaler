@@ -292,9 +292,8 @@ from modules.termview_widget import TermviewWidget  # Termview widget for glossa
 STATUS_ORDER = [
     "not_started",
     "pretranslated",
-    "translated",
+    "draft",
     "confirmed",
-    "tr_confirmed",
     "proofread",
     "approved",
     "rejected",
@@ -302,7 +301,7 @@ STATUS_ORDER = [
 
 STATUS_CYCLE = STATUS_ORDER
 
-TRANSLATABLE_STATUSES = {"not_started", "pretranslated", "translated", "tm_100", "tm_fuzzy"}
+TRANSLATABLE_STATUSES = {"not_started", "pretranslated", "draft", "tm_100", "tm_fuzzy"}
 
 # Check for PyQt6 and offer to install if missing
 try:
@@ -6423,7 +6422,7 @@ class AdvancedFiltersDialog(QDialog):
         if self.status_pretranslated.isChecked():
             row_status.append('pretranslated')
         if self.status_translated.isChecked():
-            row_status.append('translated')
+            row_status.append('draft')
         if self.status_confirmed.isChecked():
             row_status.append('confirmed')
         if self.status_draft.isChecked():
@@ -6713,7 +6712,7 @@ class PreTranslationWorker(QThread):
                         
                         if translation:
                             segment.target = translation
-                            segment.status = "Translated"
+                            segment.status = "draft"
                             
                             preview = segment.source[:50] + ("..." if len(segment.source) > 50 else "")
                             message = f"[{idx+1}/{len(self.segments)}] ✓ {preview} ({elapsed:.1f}s)"
@@ -6762,7 +6761,7 @@ class PreTranslationWorker(QThread):
                             
                             if translation:
                                 segment.target = translation
-                                segment.status = "Translated"
+                                segment.status = "draft"
                                 
                                 preview = segment.source[:50] + ("..." if len(segment.source) > 50 else "")
                                 message = f"[{absolute_idx+1}/{len(self.segments)}] ✓ {preview}"
@@ -8930,7 +8929,7 @@ class SupervertalerQt(QMainWindow):
             remaining_count = 0
 
             # Statuses that indicate "done" (confirmed or higher)
-            confirmed_statuses = {'confirmed', 'tr_confirmed', 'proofread', 'approved'}
+            confirmed_statuses = {'confirmed', 'proofread', 'approved'}
             # Statuses that need work
             unfinished_statuses = {'not_started', 'pretranslated', 'rejected', 'tm_100', 'tm_fuzzy'}
 
@@ -9356,9 +9355,8 @@ class SupervertalerQt(QMainWindow):
         user_statuses = [
             ("not_started", "❌ &Not started"),
             ("pretranslated", "🤖 &Pre-translated"),
-            ("translated", "✏️ &Translated"),
+            ("draft", "✏️ &Draft"),
             ("confirmed", "✔ &Confirmed"),
-            ("tr_confirmed", "🌟 T&R confirmed"),
             ("proofread", "🟪 Proo&fread"),
             ("approved", "⭐ &Approved"),
             ("rejected", "🚫 Re&jected"),
@@ -13208,10 +13206,8 @@ class SupervertalerQt(QMainWindow):
             def get_status_display(status):
                 """Convert status to user-friendly display text."""
                 status_map = {
-                    'translated': 'Translated',
-                    'tr_confirmed': 'Confirmed',
-                    'confirmed': 'Confirmed',
                     'draft': 'Draft',
+                    'confirmed': 'Confirmed',
                     'not_translated': 'Not Translated',
                     'proofread': 'Proofread',
                     'approved': 'Approved',
@@ -13252,7 +13248,7 @@ class SupervertalerQt(QMainWindow):
                     for run in para.runs:
                         run.font.size = Pt(8)
                         # Color-code status
-                        if status in ('confirmed', 'tr_confirmed', 'proofread', 'approved'):
+                        if status in ('confirmed', 'proofread', 'approved'):
                             run.font.color.rgb = RGBColor(0, 128, 0)  # Green
                         elif status in ('not_translated', 'rejected'):
                             run.font.color.rgb = RGBColor(200, 0, 0)  # Red
@@ -29884,7 +29880,7 @@ class SupervertalerQt(QMainWindow):
                         memoq_status_text, bool(existing_target.strip())
                     )
                 else:
-                    status = "translated" if existing_target.strip() else "not_started"
+                    status = "draft" if existing_target.strip() else "not_started"
                     match_percent = None
 
                 segment = Segment(
@@ -30145,7 +30141,7 @@ class SupervertalerQt(QMainWindow):
                         memoq_status_text, bool(existing_target.strip())
                     )
                 else:
-                    status = "translated" if existing_target.strip() else "not_started"
+                    status = "draft" if existing_target.strip() else "not_started"
                     match_percent = None
 
                 segment = Segment(
@@ -30648,7 +30644,7 @@ class SupervertalerQt(QMainWindow):
             for i, mq_seg in enumerate(mqxliff_segments):
                 # Map status from mqxliff
                 status = mq_seg.get('status', 'not_started')
-                if status not in ['not_started', 'pre_translated', 'translated', 'confirmed', 'locked']:
+                if status not in ['not_started', 'pre_translated', 'draft', 'translated', 'confirmed', 'locked']:
                     status = 'not_started'
 
                 segment = Segment(
@@ -32004,11 +32000,29 @@ class SupervertalerQt(QMainWindow):
             elif sdl_seg.origin in ('nmt', 'mt', 'machine-translation', 'auto-translation'):
                 status = STATUSES["machine_translated"].key
             elif sdl_seg.origin == 'interactive':
-                status = STATUSES["translated"].key
+                status = STATUSES["draft"].key
             else:
                 status = STATUSES["pretranslated"].key
         else:
             status = DEFAULT_STATUS.key
+
+        # Overlay Trados confirmation status (conf attribute) over origin-based status.
+        # In Trados, conf and origin are orthogonal dimensions:
+        #   - origin = how translation was obtained (TM, MT, interactive, etc.)
+        #   - conf   = workflow state (Draft, Translated, ApprovedTranslation, etc.)
+        # When conf indicates an explicit user action (confirmed/approved/rejected),
+        # it takes priority. Draft segments keep the origin-based status (shows TM
+        # match type), and match_percent still preserves match info independently.
+        sdl_conf = getattr(sdl_seg, 'status', 'not_translated')
+        if sdl_seg.target_text:
+            if sdl_conf == 'translated':
+                # Trados conf="Translated" = translator confirmed the segment
+                status = STATUSES["confirmed"].key
+            elif sdl_conf == 'approved':
+                # Trados conf="ApprovedTranslation" or "ApprovedSignOff"
+                status = STATUSES["approved"].key
+            elif sdl_conf == 'rejected':
+                status = STATUSES["rejected"].key
 
         # Determine match_percent from origin
         segment_match_percent = None
@@ -32966,7 +32980,7 @@ class SupervertalerQt(QMainWindow):
                     id=idx + 1,
                     source=seg_data.source_text,
                     target=seg_data.target_text or '',
-                    status="translated" if seg_data.target_text.strip() else "not_started",
+                    status="draft" if seg_data.target_text.strip() else "not_started",
                     type="para",
                     notes=seg_data.comment or '',
                     dejavu_segment_id=seg_data.segment_id,
@@ -33844,15 +33858,15 @@ class SupervertalerQt(QMainWindow):
                                 editor_widget._initial_load_complete = False
                                 editor_widget.blockSignals(False)
 
-                        # Reset 'confirmed' status to 'translated' when user edits the segment
+                        # Reset 'confirmed' status to 'draft' when user edits the segment
                         # This prevents auto-saving to TM until user re-confirms the edit
                         new_status = old_status
                         if old_status == 'confirmed' and new_text != old_target:
                             from PyQt6.QtCore import QTimer as QTimerLocal
-                            new_status = 'translated'
+                            new_status = 'draft'
                             target_segment.status = new_status
                             if self.debug_mode_enabled:
-                                self.log(f"📝 Status reset: confirmed → translated (segment edited)")
+                                self.log(f"📝 Status reset: confirmed → draft (segment edited)")
                             # Refresh the status icon in the grid (debounced to avoid UI lag)
                             QTimerLocal.singleShot(0, lambda sid=segment_id: self._refresh_segment_status_by_id(sid))
                         
@@ -35205,7 +35219,7 @@ class SupervertalerQt(QMainWindow):
                     if seg:
                         if seg.status == 'not_started':
                             fmt.setBackground(QColor('#ffe6e6'))  # Light red
-                        elif seg.status in ('translated', 'pretranslated'):
+                        elif seg.status in ('draft', 'pretranslated'):
                             fmt.setBackground(QColor('#e6ffe6'))  # Light green
                         elif seg.status in ('confirmed', 'approved', 'proofread'):
                             fmt.setBackground(QColor('#e6f3ff'))  # Light blue
@@ -35445,8 +35459,8 @@ class SupervertalerQt(QMainWindow):
             # Set background based on status
             if seg.status == 'not_started':
                 char_format.setBackground(QColor('#ffe6e6'))  # Light red
-            elif seg.status in ('translated', 'pretranslated'):
-                char_format.setBackground(QColor('#e6ffe6'))  # Light green  
+            elif seg.status in ('draft', 'pretranslated'):
+                char_format.setBackground(QColor('#e6ffe6'))  # Light green
             elif seg.status in ('confirmed', 'approved', 'proofread'):
                 char_format.setBackground(QColor('#e6f3ff'))  # Light blue
             else:
@@ -36836,7 +36850,7 @@ class SupervertalerQt(QMainWindow):
             self._auto_resize_single_row(row)
             
             # Save to TM ONLY if segment is confirmed (user explicitly approved)
-            # Do NOT save for 'translated' status - that's just machine/batch translated
+            # Do NOT save for 'draft' status - that's just machine/batch translated
             if segment.status == 'confirmed' and new_text.strip():
                 try:
                     self.save_segment_to_activated_tms(segment.source, new_text)
@@ -36867,7 +36881,7 @@ class SupervertalerQt(QMainWindow):
         self._refresh_segment_status(segment)
         
         # Save to TM ONLY if status changed to confirmed (user explicitly approved)
-        # Do NOT save for 'translated' or 'approved' status - user must confirm first
+        # Do NOT save for 'draft' or 'approved' status - user must confirm first
         find_replace_active = getattr(self, 'find_replace_active', False)
         if not find_replace_active and status == 'confirmed' and segment.target.strip():
             try:
@@ -37949,9 +37963,8 @@ class SupervertalerQt(QMainWindow):
         user_statuses = [
             ("not_started", "❌ Not started"),
             ("pretranslated", "🤖 Pre-translated"),
-            ("translated", "✏️ Translated"),
+            ("draft", "✏️ Draft"),
             ("confirmed", "✔ Confirmed"),
-            ("tr_confirmed", "🌟 TR confirmed"),
             ("proofread", "🟪 Proofread"),
             ("approved", "⭐ Approved"),
             ("rejected", "🚫 Rejected"),
@@ -38195,7 +38208,7 @@ class SupervertalerQt(QMainWindow):
 
         Segments that contain no alphabetic characters (only digits, punctuation,
         symbols) are considered non-translatable. Their source is copied verbatim
-        into an empty target and the status is set to 'translated'.
+        into an empty target and the status is set to 'draft'.
 
         Only acts on segments with an empty target to avoid overwriting existing work.
         """
@@ -38230,7 +38243,7 @@ class SupervertalerQt(QMainWindow):
             self,
             "Confirm Copy",
             f"Found {count} non-translatable segment(s) out of {total_selected} selected/filtered.\n\n"
-            "Copy source to target and mark as Translated?",
+            "Copy source to target and mark as Draft?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
         if reply != QMessageBox.StandardButton.Yes:
@@ -38249,7 +38262,7 @@ class SupervertalerQt(QMainWindow):
 
             # Update segment data
             segment.target = transformed
-            segment.status = 'translated'
+            segment.status = 'draft'
 
             # Update target widget
             target_widget = self.table.cellWidget(row, 3)
@@ -38435,7 +38448,7 @@ class SupervertalerQt(QMainWindow):
         
         # Count segments for each option
         confirmed_count = sum(1 for seg in self.current_project.segments if seg.status == 'confirmed')
-        translated_count = sum(1 for seg in self.current_project.segments if seg.status in ['translated', 'confirmed'])
+        translated_count = sum(1 for seg in self.current_project.segments if seg.status in ['draft', 'confirmed'])
         
         # Count selected rows (not cells)
         selected_count = 0
@@ -38548,7 +38561,7 @@ class SupervertalerQt(QMainWindow):
         if confirmed_radio.isChecked():
             segments_to_check = [(i, seg) for i, seg in enumerate(self.current_project.segments) if seg.status == 'confirmed']
         elif translated_radio.isChecked():
-            segments_to_check = [(i, seg) for i, seg in enumerate(self.current_project.segments) if seg.status in ['translated', 'confirmed']]
+            segments_to_check = [(i, seg) for i, seg in enumerate(self.current_project.segments) if seg.status in ['draft', 'confirmed']]
         elif selected_radio.isChecked():
             selected_rows = set(item.row() for item in self.table.selectedItems())
             segments_to_check = [(i, seg) for i, seg in enumerate(self.current_project.segments) if i in selected_rows]
@@ -38979,8 +38992,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         status_checkboxes = {}
         statuses_to_show = [
             ("confirmed", "Confirmed", True),       # Default checked
-            ("tr_confirmed", "TR Confirmed", True), # Default checked
-            ("translated", "Translated", False),
+            ("draft", "Draft", False),
             ("proofread", "Proofread", True),       # Default checked
             ("approved", "Approved", True),         # Default checked
             ("pretranslated", "Pre-translated", False),
@@ -39915,7 +39927,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                                 
                                 # Fill the segment
                                 segment.target = first_match.get('target', '')
-                                segment.status = "translated"
+                                segment.status = "draft"
                                 segment.modified = True
                                 self.project_modified = True
                                 
@@ -40621,8 +40633,8 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             
             # Update status
             if segment.status in (DEFAULT_STATUS.key, 'pretranslated', 'rejected'):
-                segment.status = 'translated'
-                self.update_status_icon(row, 'translated')
+                segment.status = 'draft'
+                self.update_status_icon(row, 'draft')
             else:
                 self._refresh_segment_status(segment)
             
@@ -41867,9 +41879,9 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         # Calculate statistics
         total_segments = len(proj.segments) if proj.segments else 0
         translated = sum(1 for s in proj.segments if s.target and s.target.strip()) if proj.segments else 0
-        confirmed = sum(1 for s in proj.segments if s.status == "Confirmed") if proj.segments else 0
-        draft = sum(1 for s in proj.segments if s.status == "Translated") if proj.segments else 0
-        not_started = sum(1 for s in proj.segments if s.status in ("Not Started", "")) if proj.segments else 0
+        confirmed = sum(1 for s in proj.segments if s.status == "confirmed") if proj.segments else 0
+        draft = sum(1 for s in proj.segments if s.status == "draft") if proj.segments else 0
+        not_started = sum(1 for s in proj.segments if s.status in ("not_started", "")) if proj.segments else 0
 
         # Word counts
         source_words = sum(len(s.source.split()) for s in proj.segments if s.source) if proj.segments else 0
@@ -42160,7 +42172,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
 
             segments = proj.segments
-            confirmed_statuses = {'confirmed', 'tr_confirmed', 'proofread', 'approved'}
+            confirmed_statuses = {'confirmed', 'proofread', 'approved'}
 
             for row, file_info in enumerate(files):
                 file_id = file_info['id']
@@ -43966,8 +43978,8 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                 self.current_project.segments.sort(key=lambda s: s.modified_at if s.modified_at else "", reverse=True)
                 sort_name = "Last Changed (newest first)"
             elif sort_type == 'status':
-                # Sort by status in a logical order: not_started, draft, translated, confirmed
-                status_order = {'not_started': 0, 'draft': 1, 'translated': 2, 'confirmed': 3}
+                # Sort by status in a logical order: not_started, draft, confirmed
+                status_order = {'not_started': 0, 'draft': 1, 'confirmed': 2, 'approved': 3}
                 self.current_project.segments.sort(key=lambda s: status_order.get(s.status, 99))
                 sort_name = "Row Status"
             else:
@@ -44030,12 +44042,12 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                     seg.target = new_text
                     self.project_modified = True
                     
-                    # Reset 'confirmed' status to 'translated' when user edits the segment
+                    # Reset 'confirmed' status to 'draft' when user edits the segment
                     # This prevents auto-saving to TM until user re-confirms the edit
                     if old_status == 'confirmed' and new_text != old_target:
-                        seg.status = 'translated'
+                        seg.status = 'draft'
                         if self.debug_mode_enabled:
-                            self.log(f"📝 Tab editor: Status reset confirmed → translated (segment edited)")
+                            self.log(f"📝 Tab editor: Status reset confirmed → draft (segment edited)")
                         # Refresh status in all views
                         self._refresh_segment_status(seg)
                     
@@ -45826,7 +45838,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         """Change status of all selected/filtered segments to the specified status.
 
         Args:
-            new_status: The status key to set (e.g., 'translated', 'pretranslated')
+            new_status: The status key to set (e.g., 'draft', 'pretranslated')
             from_menu: If True, show message boxes for errors (called from menu)
         """
         if not self.current_project:
@@ -47685,10 +47697,10 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             if tm_match and auto_insert_100:
                 # Auto-insert the TM match
                 segment.target = tm_match
-                segment.status = "translated"
+                segment.status = "draft"
                 self.project_modified = True
                 self.update_window_title()
-                
+
                 # Update grid (using cell widget)
                 target_widget = self.table.cellWidget(current_row, 3)
                 if target_widget and isinstance(target_widget, EditableGridTextEditor):
@@ -47696,7 +47708,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                 else:
                     # Fallback if widget doesn't exist
                     self.table.setItem(current_row, 3, QTableWidgetItem(tm_match))
-                self.update_status_icon(current_row, "translated")
+                self.update_status_icon(current_row, "draft")
                 
                 # Auto-resize the row to fit the new content
                 self._auto_resize_single_row(current_row)
@@ -47861,8 +47873,8 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             if translation:
                 # Update segment
                 segment.target = translation
-                segment.status = "translated"
-                
+                segment.status = "draft"
+
                 # Update grid - Column 3 is Target (using cell widget)
                 target_widget = self.table.cellWidget(current_row, 3)
                 if target_widget and isinstance(target_widget, EditableGridTextEditor):
@@ -47870,7 +47882,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                 else:
                     # Fallback: create new widget if none exists
                     self.table.setItem(current_row, 3, QTableWidgetItem(translation))
-                self.update_status_icon(current_row, "translated")
+                self.update_status_icon(current_row, "draft")
                 
                 # Auto-resize the row to fit the new content
                 self._auto_resize_single_row(current_row)
@@ -49709,7 +49721,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                         
                         if translation:
                             segment.target = translation
-                            segment.status = "translated"  # Set to 'translated' like single translation mode
+                            segment.status = "draft"  # Set to 'draft' like single translation mode
 
                             if row_index < self.table.rowCount():
                                 target_widget = self.table.cellWidget(row_index, 3)
@@ -49717,7 +49729,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                                     target_widget.setPlainText(translation)
                                 else:
                                     self.table.setItem(row_index, 3, QTableWidgetItem(translation))
-                                    self.update_status_icon(row_index, "translated")
+                                    self.update_status_icon(row_index, "draft")
 
                             if self.tm_database:
                                 try:
@@ -50635,7 +50647,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
         translated_segs = sum(1 for s in segments if s.target and s.target.strip())
         translated_words = sum(len(s.source.split()) for s in segments if s.target and s.target.strip())
         
-        confirmed_statuses = {'confirmed', 'tr_confirmed', 'proofread', 'approved'}
+        confirmed_statuses = {'confirmed', 'proofread', 'approved'}
         confirmed_segs = sum(1 for s in segments if s.status in confirmed_statuses)
         
         trans_percent = (translated_segs / total_segs * 100) if total_segs > 0 else 0
@@ -50988,10 +51000,10 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             # The segment parameter IS a reference to the object in self.current_project.segments
             # No need to look it up - just modify it directly!
             segment.target = target_text
-            segment.status = 'translated'  # Mark as translated
+            segment.status = 'draft'  # Mark as draft (needs confirmation)
             self.project_modified = True
             self.log(f"🔧 Auto-insert: AFTER - segment.id={segment.id}, segment object ID={id(segment)}, new_target='{segment.target[:30] if segment.target else 'EMPTY'}'")
-            self.log(f"🔧 Auto-insert: Updated segment.target, status=translated")
+            self.log(f"🔧 Auto-insert: Updated segment.target, status=draft")
             
             # Update grid view if visible
             if hasattr(self, 'table') and self.table:
@@ -51027,8 +51039,8 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
                         self.log(f"⚠️ Auto-insert: No target widget found at row {target_row}, col 3")
                     
                     # Update status icon
-                    self.update_status_icon(target_row, 'translated')
-                    self.log(f"🔧 Auto-insert: Updated status icon to 'translated'")
+                    self.update_status_icon(target_row, 'draft')
+                    self.log(f"🔧 Auto-insert: Updated status icon to 'draft'")
                     
                     # Auto-resize the row to fit the new content
                     self._auto_resize_single_row(target_row)

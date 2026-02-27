@@ -1041,13 +1041,23 @@ def _replace_seg_attributes(content: str, xliff_file: SDLXLIFFFile,
         if not matching_segment or not matching_segment.target_text:
             return seg_text
 
-        if matching_segment.status in ('translated', 'approved', 'confirmed'):
+        # Map internal status to Trados conf value
+        # Trados "Translated" = confirmed, "ApprovedTranslation" = reviewer-approved
+        _status_to_conf = {
+            'draft': 'Draft',
+            'confirmed': 'Translated',
+            'approved': 'ApprovedTranslation',
+            'proofread': 'ApprovedTranslation',
+            'rejected': 'RejectedTranslation',
+        }
+        new_conf = _status_to_conf.get(matching_segment.status)
+        if new_conf:
             # Update conf — replace existing or add if missing
             # (applies to ALL translated segments, including TM matches)
             if 'conf="' in seg_text:
-                seg_text = re.sub(r'conf="[^"]*"', 'conf="Translated"', seg_text)
+                seg_text = re.sub(r'conf="[^"]*"', f'conf="{new_conf}"', seg_text)
             else:
-                seg_text = seg_text.replace('<sdl:seg ', '<sdl:seg conf="Translated" ', 1)
+                seg_text = seg_text.replace('<sdl:seg ', f'<sdl:seg conf="{new_conf}" ', 1)
 
             # Only update origin/percent/text-match for segments the user
             # translated in this session. Leave TM-matched segments untouched.
@@ -1402,7 +1412,7 @@ class StandaloneSDLXLIFFHandler:
                     if segment.target_text != new_text:
                         segment.modified = True
                     segment.target_text = new_text
-                    segment.status = 'translated'
+                    segment.status = 'draft'
                     count += 1
         return count
 
@@ -1613,7 +1623,7 @@ class TradosPackageHandler:
         
         return segments
     
-    def update_segment(self, segment_id: str, target_text: str, status: str = 'translated') -> bool:
+    def update_segment(self, segment_id: str, target_text: str, status: str = 'draft') -> bool:
         """
         Update a segment's translation.
         
@@ -1813,14 +1823,18 @@ class TradosPackageHandler:
         that have been translated in Supervertaler.
         """
         # Status mapping from internal to SDL format
+        # Trados terminology: "Translated" = confirmed by translator,
+        # "ApprovedTranslation" = approved by reviewer
         status_to_conf = {
-            'translated': 'Translated',
-            'approved': 'ApprovedTranslation',
-            'confirmed': 'ApprovedTranslation',
             'draft': 'Draft',
+            'confirmed': 'Translated',          # Confirmed = Trados "Translated"
+            'approved': 'ApprovedTranslation',
+            'proofread': 'ApprovedTranslation',
+            'rejected': 'RejectedTranslation',
             'not_translated': 'Draft',
+            'not_started': 'Draft',
         }
-        
+
         # Find sdl:seg-defs within this trans-unit (try with namespace first)
         seg_defs = tu.find('.//sdl:seg-defs', {'sdl': NAMESPACES['sdl']})
         if seg_defs is None:
@@ -1831,31 +1845,27 @@ class TradosPackageHandler:
                 if child.tag.endswith('seg-defs'):
                     seg_defs = child
                     break
-        
+
         if seg_defs is None:
             return
-        
+
         # Update each seg element
         for seg_elem in seg_defs:
             if not seg_elem.tag.endswith('seg'):
                 continue
-                
+
             seg_id = seg_elem.get('id', '')
-            
+
             # Build segment_id to look up in our map
             # For segmented content: tu_id_seg_id
             # For single segment: tu_id
             segment = segment_map.get(f"{tu_id}_{seg_id}")
             if not segment:
                 segment = segment_map.get(tu_id)
-            
+
             if segment:
                 # Get the new conf value based on segment status
                 new_conf = status_to_conf.get(segment.status, 'Translated')
-                
-                # If segment has target text and is translated/approved, set to Translated
-                if segment.target_text and segment.status in ('translated', 'approved', 'confirmed'):
-                    new_conf = 'Translated'
 
                 # Update the conf attribute
                 current_conf = seg_elem.get('conf', '')

@@ -69,9 +69,11 @@ Supervertaler preserves CAT tool formatting tags:
 ### Segment Status
 
 Segment statuses map between tools:
-- **Not Started** → Draft/Not Translated
-- **Translated** → Translated
-- **Confirmed** → Confirmed/Approved
+- **Draft** → Trados *Draft* / memoQ *Edited*
+- **Confirmed** → Trados *Translated* ✓ / memoQ *Confirmed*
+- **Approved** → Trados *Sign-off Approved* / memoQ *Reviewer 2 confirmed*
+
+See [Segment Statuses](../editor/segment-statuses.md) for the full reference.
 
 ### Round-Trip Compatibility
 

@@ -2,8 +2,23 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.335 (February 27, 2026)
+**Current Version:** v1.9.336 (February 27, 2026)
 
+
+## v1.9.336 - February 27, 2026
+
+### Major Improvements
+
+- **SDLXLIFF confirmation status now imported correctly** — Segments confirmed in Trados Studio (`conf="Translated"`) are now recognized as Confirmed in Supervertaler instead of being silently ignored. Approved and rejected statuses are also preserved on import.
+- **Renamed "Translated" status to "Draft"** — The status for segments that have content but are not yet confirmed is now called "Draft", which better reflects its meaning and avoids confusion with Trados Studio's "Translated" (which means confirmed). Existing projects are automatically migrated.
+- **Removed "TR Confirmed" status** — This status had no equivalent in Trados or memoQ and has been merged into "Confirmed", giving a clean 1:1 mapping: Confirmed = Trados "Translated" / memoQ "Confirmed", Proofread = Trados "Translation Approved" / memoQ "Reviewer 1 confirmed", Approved = Trados "Sign-off Approved" / memoQ "Reviewer 2 confirmed".
+- **Fixed SDLXLIFF export losing approved status** — Segments with "Approved" status were incorrectly exported as Trados `conf="Translated"` instead of `conf="ApprovedTranslation"`. Both export paths (text-based and XML-based) now preserve the full status hierarchy.
+
+### Documentation
+
+- **New help page: Segment Statuses** — Added a comprehensive reference page to the online help explaining match origins, workflow statuses, and how they map to Trados Studio and memoQ.
+
+---
 
 ## v1.9.335 - February 27, 2026
 
