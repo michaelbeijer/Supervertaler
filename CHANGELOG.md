@@ -2,8 +2,17 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.334 (February 27, 2026)
+**Current Version:** v1.9.335 (February 27, 2026)
 
+
+## v1.9.335 - February 27, 2026
+
+### Improvements
+
+- **Locked segments now show a 🔒 lock icon** — Locked segments in the grid now display a lock icon in the Status column instead of the regular status icon, making them immediately identifiable at a glance.
+- **Locked segment background color more visible** — The background color for locked rows has been changed from a subtle grey (`#E0DDD8`) to a warmer peach (`#F0D9C8`) that stands out clearly against the normal alternating row colors.
+
+---
 
 ## v1.9.334 - February 27, 2026
 

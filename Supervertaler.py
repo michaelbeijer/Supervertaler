@@ -35632,8 +35632,9 @@ class SupervertalerQt(QMainWindow):
         # The ✔ is a text character so font-size controls it; emojis ignore font-size.
         # IMPORTANT: On single-line rows, vertical space is very tight (~20-24px).
         # The icon + container margins + QLabel internal padding must fit within that.
-        icon_text = status_def.icon
-        if segment.status == "confirmed":
+        is_locked = getattr(segment, 'locked', False)
+        icon_text = "🔒" if is_locked else status_def.icon
+        if segment.status == "confirmed" and not is_locked:
             icon_html = f'<span style="color:#2e7d32; font-size:14px; line-height:1;">{icon_text}</span>'
         else:
             icon_html = f'<span style="font-size:14px; line-height:1;">{icon_text}</span>'
@@ -36123,9 +36124,9 @@ class SupervertalerQt(QMainWindow):
             segment = self.current_project.segments[row]
 
         if segment and getattr(segment, 'locked', False):
-            # Locked segments get a distinct muted background across all themes
+            # Locked segments get a clearly distinct background across all themes
             is_dark = theme.name in ("Dark Blue", "Nord Dark")
-            color = '#3a3a3a' if is_dark else '#E0DDD8'
+            color = '#4a3a30' if is_dark else '#F0D9C8'
             row_color = QColor(color)
         else:
             # Normal: determine color based on row index (even/odd)
