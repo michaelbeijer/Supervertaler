@@ -1032,7 +1032,8 @@ class TmxEditorUIQt(QWidget):
         tgt_entry = QLineEdit("nl-NL")
         form.addRow("Target Language:", tgt_entry)
         
-        creator_entry = QLineEdit(os.getlogin() if hasattr(os, 'getlogin') else "user")
+        default_creator = getattr(self, 'translator_name', '') or (os.getlogin() if hasattr(os, 'getlogin') else "user")
+        creator_entry = QLineEdit(default_creator)
         form.addRow("Creator ID:", creator_entry)
         
         layout.addLayout(form)

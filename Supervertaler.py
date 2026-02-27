@@ -1266,6 +1266,7 @@ class Segment:
     file_name: str = ""  # Name of the file this segment belongs to (for multi-file projects)
     dejavu_segment_id: str = ""  # Déjà Vu segment ID for round-trip export
     dejavu_row_index: Optional[int] = None  # Déjà Vu row index for export mapping
+    sdl_segment_id: str = ""  # SDLXLIFF segment ID for round-trip export
     
     def __post_init__(self):
         """Initialize timestamps if not provided"""
@@ -10655,8 +10656,9 @@ class SupervertalerQt(QMainWindow):
         
         # Create TMX Editor widget (embedded mode) - pass database manager
         tmx_editor = TmxEditorUIQt(parent=None, standalone=False, db_manager=self.db_manager)
+        tmx_editor.translator_name = self.get_translator_name()
         layout.addWidget(tmx_editor, 1)  # 1 = stretch factor, expands to fill space
-        
+
         # Store reference for potential future use
         self.tmx_editor_embedded = tmx_editor
         
@@ -17262,7 +17264,11 @@ class SupervertalerQt(QMainWindow):
         general_tab = self._create_general_settings_tab()
         settings_tabs.addTab(scroll_area_wrapper(general_tab), "⚙️ General")
 
-        # ===== TAB 2: AI Settings (LLM, Ollama) =====
+        # ===== TAB 2: User Identity =====
+        identity_tab = self._create_user_identity_tab()
+        settings_tabs.addTab(scroll_area_wrapper(identity_tab), "👤 User Identity")
+
+        # ===== TAB 3: AI Settings (LLM, Ollama) =====
         ai_tab = self._create_ai_settings_tab()
         ai_scroll = scroll_area_wrapper(ai_tab)
         settings_tabs.addTab(ai_scroll, "🤖 AI Settings")
@@ -21306,6 +21312,80 @@ class SupervertalerQt(QMainWindow):
                 default_prompt = "# SYSTEM PROMPT\n\nNo default prompt available."
             editor.setPlainText(default_prompt)
             self.log(f"✓ Reset system prompt to default: {selected_mode}")
+
+    def _create_user_identity_tab(self):
+        """Create User Identity settings tab — translator name used in file exports."""
+        from PyQt6.QtWidgets import QGroupBox, QPushButton
+
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(15)
+
+        settings = self.load_general_settings()
+
+        # Header
+        header = QLabel(
+            "👤 <b>User Identity</b><br>"
+            "<span style='color:#666;'>Configure the translator name that appears in exported files. "
+            "This name is written to SDLXLIFF comments, Trados return packages, TMX files, and other output.</span>"
+        )
+        header.setTextFormat(Qt.TextFormat.RichText)
+        header.setWordWrap(True)
+        header.setStyleSheet("font-size: 9pt; padding: 10px; background-color: #E3F2FD; border-radius: 4px;")
+        layout.addWidget(header)
+
+        # Translator name group
+        name_group = QGroupBox("Translator Name")
+        name_layout = QVBoxLayout()
+
+        name_info = QLabel(
+            "Enter your name or alias as you want it to appear in exported files.\n"
+            "If left empty, your system username will be used as a fallback."
+        )
+        name_info.setWordWrap(True)
+        name_info.setStyleSheet("font-size: 9pt; color: #555;")
+        name_layout.addWidget(name_info)
+
+        name_layout.addSpacing(5)
+
+        name_edit = QLineEdit()
+        name_edit.setPlaceholderText("(uses system username if empty)")
+        name_edit.setText(settings.get('translator_name', ''))
+        name_edit.setMaxLength(100)
+        name_layout.addWidget(name_edit)
+
+        # Show current fallback
+        import os as _os
+        fallback = _os.environ.get('USERNAME', _os.environ.get('USER', ''))
+        if fallback:
+            fallback_label = QLabel(f"Current system username: <b>{fallback}</b>")
+            fallback_label.setTextFormat(Qt.TextFormat.RichText)
+            fallback_label.setStyleSheet("font-size: 8pt; color: #888; margin-top: 3px;")
+            name_layout.addWidget(fallback_label)
+
+        name_group.setLayout(name_layout)
+        layout.addWidget(name_group)
+
+        # Save button
+        save_btn = QPushButton("💾 Save User Identity")
+        save_btn.setStyleSheet("font-weight: bold; padding: 8px;")
+        save_btn.clicked.connect(lambda: self._save_user_identity_from_ui(name_edit))
+        layout.addWidget(save_btn)
+
+        layout.addStretch()
+        return tab
+
+    def _save_user_identity_from_ui(self, name_edit):
+        """Save user identity settings."""
+        general_settings = self.load_general_settings()
+        general_settings['translator_name'] = name_edit.text().strip()
+        self.save_general_settings(general_settings)
+
+        saved_name = name_edit.text().strip()
+        display = saved_name if saved_name else "(system username)"
+        self.log(f"✓ User identity saved: translator name = {display}")
+        QMessageBox.information(self, "Settings Saved", f"User identity saved.\nTranslator name: {display}")
 
     def _create_debug_settings_tab(self):
         """Create Debug Settings tab content"""
@@ -31690,6 +31770,52 @@ class SupervertalerQt(QMainWindow):
             import traceback
             traceback.print_exc()
     
+    def get_translator_name(self) -> str:
+        """Return the user-configured translator name, falling back to system username."""
+        settings = self.load_general_settings()
+        name = settings.get('translator_name', '').strip()
+        if name:
+            return name
+        return os.environ.get('USERNAME', os.environ.get('USER', 'user'))
+
+    def _build_sdlxliff_translations_dict(self):
+        """Build segment_id -> target_text mapping for SDLXLIFF export.
+
+        Uses sdl_segment_id field (preferred) with fallback to parsing
+        from notes for backward compatibility with old project files.
+        """
+        translations = {}
+        for segment in self.current_project.segments:
+            target_text = segment.target.strip() if segment.target else ''
+            if not target_text:
+                continue
+            # Primary: dedicated sdl_segment_id field
+            seg_id = getattr(segment, 'sdl_segment_id', '')
+            # Backward compat: parse from notes (old project files)
+            if not seg_id:
+                notes = getattr(segment, 'notes', '') or ''
+                if "Segment:" in notes:
+                    for part in notes.split("|"):
+                        part = part.strip()
+                        if part.startswith("Segment:"):
+                            seg_id = part.replace("Segment:", "").strip()
+                            break
+            if seg_id:
+                translations[seg_id] = target_text
+        return translations
+
+    def _build_sdlxliff_comments_dict(self):
+        """Build segment_id -> comment_text mapping for SDLXLIFF comment export."""
+        segment_comments = {}
+        for segment in self.current_project.segments:
+            seg_id = getattr(segment, 'sdl_segment_id', '')
+            if not seg_id:
+                continue
+            notes = (getattr(segment, 'notes', '') or '').strip()
+            if notes:
+                segment_comments[seg_id] = notes
+        return segment_comments
+
     def export_sdlrpx_package(self):
         """Export translations back to a Trados Studio SDLRPX return package."""
         if not self.current_project or not self.current_project.segments:
@@ -31770,49 +31896,35 @@ class SupervertalerQt(QMainWindow):
             return
         
         try:
-            # Collect translations from segments (notes are stored in segment objects, not table items)
-            # Build mapping from segment_id to translation
-            translations = {}
-            
-            # First sync grid targets to segment objects to ensure we have latest edits
+            # Sync grid targets to segment objects to ensure we have latest edits
             self._sync_grid_targets_to_segments(self.current_project.segments)
-            
-            for idx, segment in enumerate(self.current_project.segments):
-                notes = getattr(segment, 'notes', '') or ''
-                target_text = segment.target.strip() if segment.target else ''
 
-                # Extract segment_id from notes
-                # Format: "SDLXLIFF: filename.sdlxliff | Segment: {segment_id} | Origin: ..."
-                if "Segment:" in notes and target_text:
-                    parts = notes.split("|")
-                    for part in parts:
-                        part = part.strip()
-                        if part.startswith("Segment:"):
-                            seg_id = part.replace("Segment:", "").strip()
-                            translations[seg_id] = target_text
-                            break
-            
+            # Build translations and comments dicts
+            translations = self._build_sdlxliff_translations_dict()
+            segment_comments = self._build_sdlxliff_comments_dict()
+
             total_segs = len(self.current_project.segments)
             segs_with_target = sum(1 for s in self.current_project.segments if s.target and s.target.strip())
-            segs_with_notes = sum(1 for s in self.current_project.segments if getattr(s, 'notes', '') and 'Segment:' in s.notes)
-            self.log(f"  Project: {total_segs} segments, {segs_with_target} with target text, {segs_with_notes} with SDLXLIFF segment IDs")
-            self.log(f"  Translations to export: {len(translations)}")
+            segs_with_id = sum(1 for s in self.current_project.segments
+                               if getattr(s, 'sdl_segment_id', '') or
+                               ('Segment:' in (getattr(s, 'notes', '') or '')))
+            self.log(f"  Project: {total_segs} segments, {segs_with_target} with target text, {segs_with_id} with SDLXLIFF segment IDs")
+            self.log(f"  Translations to export: {len(translations)}, comments: {len(segment_comments)}")
             if not translations:
                 self.log("  WARNING: No translations found to export!")
                 if segs_with_target == 0:
                     self.log("    → No segments have target text. Translate segments before exporting.")
-                elif segs_with_notes == 0:
-                    self.log("    → No segments have SDLXLIFF segment IDs in their notes. "
+                elif segs_with_id == 0:
+                    self.log("    → No segments have SDLXLIFF segment IDs. "
                              "This project may not have been imported from an SDLPPX package.")
                 else:
-                    self.log("    → Segments have targets and notes, but IDs couldn't be extracted.")
+                    self.log("    → Segments have targets and IDs, but translations couldn't be built.")
                 # Log a few segments for diagnosis
                 for seg in self.current_project.segments[:5]:
-                    notes = getattr(seg, 'notes', '') or ''
+                    sid = getattr(seg, 'sdl_segment_id', '')
                     has_target = bool(seg.target and seg.target.strip())
-                    has_seg_id = 'Segment:' in notes
                     self.log(f"    Seg {seg.id}: target={'yes' if has_target else 'NO'}, "
-                             f"notes_has_id={'yes' if has_seg_id else 'NO'}, notes='{notes[:100]}'")
+                             f"sdl_id='{sid}'")
 
             # Update the handler with translations
             updated = self.sdlppx_handler.update_translations(translations)
@@ -31828,6 +31940,10 @@ class SupervertalerQt(QMainWindow):
                 trans_keys = set(translations.keys())
                 self.log(f"    Translation keys sample: {list(trans_keys)[:3]}")
                 self.log(f"    Handler segment IDs sample: {list(handler_ids)[:3]}")
+
+            # Store comments and translator name on handler for export
+            self.sdlppx_handler.segment_comments = segment_comments
+            self.sdlppx_handler.username = self.get_translator_name()
 
             # Export return package
             result_path = self.sdlppx_handler.create_return_package(file_path)
@@ -31894,27 +32010,24 @@ class SupervertalerQt(QMainWindow):
         else:
             status = DEFAULT_STATUS.key
 
-        # Build notes with origin info and determine match_percent
-        origin_info = ""
+        # Determine match_percent from origin
         segment_match_percent = None
         if sdl_seg.origin:
             text_match = getattr(sdl_seg, 'text_match', '')
             if sdl_seg.origin == 'tm' and sdl_seg.match_percent > 0:
                 if text_match == 'SourceAndTarget':
-                    origin_info = f" | Origin: CM (101%)"
                     segment_match_percent = 101
                 else:
-                    origin_info = f" | Origin: TM {sdl_seg.match_percent}%"
                     segment_match_percent = sdl_seg.match_percent
             elif sdl_seg.origin == 'perfect-match':
-                origin_info = " | Origin: PM (102%)"
                 segment_match_percent = 102
-            elif sdl_seg.origin in ('nmt', 'mt'):
-                origin_info = " | Origin: MT"
-            elif sdl_seg.origin in ('document-match', 'auto-propagated'):
-                origin_info = " | Origin: Repetition"
-            else:
-                origin_info = f" | Origin: {sdl_seg.origin}"
+
+        # Import Trados comments into notes (if any)
+        comment_texts = []
+        if hasattr(sdl_seg, 'comments') and sdl_seg.comments:
+            for cmt in sdl_seg.comments:
+                prefix = f"[{cmt['user']}] " if cmt.get('user') else ""
+                comment_texts.append(f"{prefix}{cmt['text']}")
 
         return Segment(
             id=index + 1,
@@ -31922,10 +32035,11 @@ class SupervertalerQt(QMainWindow):
             target=sdl_seg.target_text if sdl_seg.target_text else "",
             status=status,
             match_percent=segment_match_percent,
-            notes=f"SDLXLIFF: {Path(sdl_seg.file_path).name} | Segment: {sdl_seg.segment_id}{origin_info}",
+            notes="\n".join(comment_texts),
             locked=locked,
             file_id=file_id,
-            file_name=file_name
+            file_name=file_name,
+            sdl_segment_id=sdl_seg.segment_id,
         )
 
     def import_standalone_sdlxliff(self):
@@ -32301,19 +32415,9 @@ class SupervertalerQt(QMainWindow):
             # Sync grid targets to segment objects
             self._sync_grid_targets_to_segments(self.current_project.segments)
 
-            # Build translations dict by extracting segment_id from notes
-            translations = {}
-            for segment in self.current_project.segments:
-                notes = getattr(segment, 'notes', '') or ''
-                target_text = segment.target.strip() if segment.target else ''
-                if "Segment:" in notes and target_text:
-                    parts = notes.split("|")
-                    for part in parts:
-                        part = part.strip()
-                        if part.startswith("Segment:"):
-                            seg_id = part.replace("Segment:", "").strip()
-                            translations[seg_id] = target_text
-                            break
+            # Build translations and comments dicts
+            translations = self._build_sdlxliff_translations_dict()
+            segment_comments = self._build_sdlxliff_comments_dict()
 
             if not translations:
                 QMessageBox.warning(
@@ -32322,9 +32426,11 @@ class SupervertalerQt(QMainWindow):
                 )
                 return
 
-            # Update handler with translations
+            # Update handler with translations, comments, and translator name
             updated = handler.update_translations(translations)
-            self.log(f"Updated {updated} segment(s) in SDLXLIFF handler")
+            handler.segment_comments = segment_comments
+            handler.username = self.get_translator_name()
+            self.log(f"Updated {updated} segment(s) in SDLXLIFF handler, {len(segment_comments)} comment(s)")
 
             # Save file(s)
             if len(handler.xliff_files) == 1:

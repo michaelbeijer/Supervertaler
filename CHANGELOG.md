@@ -2,8 +2,31 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.333 (February 27, 2026)
+**Current Version:** v1.9.334 (February 27, 2026)
 
+
+## v1.9.334 - February 27, 2026
+
+### New Feature: SDLXLIFF Comment Round-Trip
+
+Supervertaler now fully supports **Trados Studio comments** in SDLXLIFF files — both import and export.
+
+- **Comment import** — Existing Trados Studio comments (`<cmt-def>` / `<mrk mtype="x-sdl-comment">`) are parsed during SDLXLIFF import and displayed in the Notes panel, prefixed with the original author name (e.g. `[mbeijer] comment text`).
+- **Comment export** — Any text entered in the Notes field is written back as a standard Trados Studio comment when exporting to SDLXLIFF or SDLRPX. Comments appear correctly in Trados Studio's Comments pane with proper author attribution, timestamp, and severity metadata.
+- **Full round-trip** — Import → edit/add comments → export → re-import preserves all comments. Double round-trips also work correctly.
+
+### New Feature: User Identity Settings
+
+A new **👤 User Identity** tab in Settings lets you configure the translator name that appears in exported files.
+
+- **Translator name** — Set your preferred name or alias. This is used as the author in SDLXLIFF comments, the `PackageCreatedBy` field in Trados return packages (SDLRPX), and the default creator ID when creating new TMX files.
+- **Privacy-friendly fallback** — If left empty, falls back to your system username. The app name is never stamped into exported files.
+
+### Improvements
+
+- **SDLXLIFF segment ID robustness** — Segment IDs for SDLXLIFF round-trip export are now stored in a dedicated internal field (`sdl_segment_id`) instead of being embedded in user-editable notes. This prevents accidental breakage if users edit or clear the notes field. Old projects with metadata-in-notes are still supported via a fallback parser.
+
+---
 
 ## v1.9.333 - February 27, 2026
 

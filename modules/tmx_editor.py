@@ -703,7 +703,8 @@ class TmxEditorUI:
         tk.Label(form_frame, text="Creator ID:").grid(row=2, column=0, sticky='w', pady=5)
         creator_entry = tk.Entry(form_frame, width=20)
         creator_entry.grid(row=2, column=1, pady=5, padx=10)
-        creator_entry.insert(0, os.getlogin() if hasattr(os, 'getlogin') else "user")
+        default_creator = getattr(self, 'translator_name', '') or (os.getlogin() if hasattr(os, 'getlogin') else "user")
+        creator_entry.insert(0, default_creator)
         
         def create():
             src = src_entry.get().strip()

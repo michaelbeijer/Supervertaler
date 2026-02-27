@@ -75,6 +75,7 @@ class SDLSegment:
     locked: bool = False
     file_path: str = ""  # Source SDLXLIFF file
     modified: bool = False  # True when user translates in current session
+    comments: list = field(default_factory=list)  # Trados comments: [{"id", "text", "user", "date", "severity"}]
 
 
 @dataclass
@@ -158,15 +159,34 @@ class SDLXLIFFParser:
                 root=root
             )
             
+            # Parse comment definitions from doc-info header
+            self._comment_defs = {}
+            sdl_ns = '{' + NAMESPACES['sdl'] + '}'
+            for doc_info in root.iter(f'{sdl_ns}doc-info'):
+                for cmt_def in doc_info.iter(f'{sdl_ns}cmt-def'):
+                    cmt_id = cmt_def.get('id', '')
+                    if not cmt_id:
+                        continue
+                    for comment_el in cmt_def.iter(f'{sdl_ns}Comment'):
+                        self._comment_defs[cmt_id] = {
+                            'id': cmt_id,
+                            'text': (comment_el.text or '').strip(),
+                            'user': comment_el.get('user', ''),
+                            'date': comment_el.get('date', ''),
+                            'severity': comment_el.get('severity', 'Low'),
+                        }
+            if self._comment_defs:
+                self.log(f"  Found {len(self._comment_defs)} Trados comment(s)")
+
             # Find all trans-units
             body = file_elem.find('xliff:body', NAMESPACES)
             if body is None:
                 body = file_elem.find('body')
-            
+
             if body is None:
                 self.log(f"ERROR: No <body> element found in {file_path}")
                 return xliff_file
-            
+
             # Process trans-units (may be in groups)
             trans_units = body.findall('.//xliff:trans-unit', NAMESPACES)
             if not trans_units:
@@ -215,13 +235,14 @@ class SDLXLIFFParser:
             # Single segment
             source_xml = self._element_to_string(source_elem)
             source_text = self._extract_text(source_elem)
-            
+
             target_xml = ""
             target_text = ""
             if target_elem is not None:
+                self._current_segment_comments = []
                 target_xml = self._element_to_string(target_elem)
                 target_text = self._extract_text(target_elem)
-            
+
             # Get SDL-specific attributes
             sdl_seg = tu.find('.//sdl:seg', {'sdl': NAMESPACES['sdl']})
             status = self._get_segment_status(tu, sdl_seg)
@@ -229,7 +250,10 @@ class SDLXLIFFParser:
             origin = self._get_origin(sdl_seg)
             text_match = self._get_text_match(sdl_seg)
             locked = self._is_locked(tu, sdl_seg)
-            
+
+            # Capture any comments found during target text extraction
+            segment_comments = list(getattr(self, '_current_segment_comments', []))
+
             segment = SDLSegment(
                 segment_id=tu_id,
                 trans_unit_id=tu_id,
@@ -242,7 +266,8 @@ class SDLXLIFFParser:
                 origin=origin,
                 text_match=text_match,
                 locked=locked,
-                file_path=file_path
+                file_path=file_path,
+                comments=segment_comments,
             )
             segments.append(segment)
         
@@ -289,10 +314,14 @@ class SDLXLIFFParser:
             target_mrk = target_mrk_map.get(mid)
             target_xml = ""
             target_text = ""
+            self._current_segment_comments = []
             if target_mrk is not None:
                 target_xml = self._element_inner_xml(target_mrk)
                 target_text = self._extract_text(target_mrk)
-            
+
+            # Capture any comments found during target text extraction
+            segment_comments = list(getattr(self, '_current_segment_comments', []))
+
             # Get segment definition
             seg_def = seg_def_map.get(mid)
             status = self._get_segment_status(tu, seg_def)
@@ -300,7 +329,7 @@ class SDLXLIFFParser:
             origin = self._get_origin(seg_def)
             text_match = self._get_text_match(seg_def)
             locked = self._is_locked(tu, seg_def)
-            
+
             segment = SDLSegment(
                 segment_id=f"{tu_id}_{mid}",
                 trans_unit_id=tu_id,
@@ -313,7 +342,8 @@ class SDLXLIFFParser:
                 origin=origin,
                 text_match=text_match,
                 locked=locked,
-                file_path=file_path
+                file_path=file_path,
+                comments=segment_comments,
             )
             segments.append(segment)
         
@@ -354,7 +384,16 @@ class SDLXLIFFParser:
                     tag_id = child.get('id', '')
                     text_parts.append(f'<{tag_id}/>')
                 elif tag_name == 'mrk':
-                    # Marker - just process content
+                    # Check for comment markers
+                    mtype = child.get('mtype', '')
+                    if mtype == 'x-sdl-comment':
+                        sdl_ns_uri = '{' + NAMESPACES['sdl'] + '}'
+                        cid = child.get(f'{sdl_ns_uri}cid', '')
+                        if cid and hasattr(self, '_comment_defs') and cid in self._comment_defs:
+                            if not hasattr(self, '_current_segment_comments'):
+                                self._current_segment_comments = []
+                            self._current_segment_comments.append(self._comment_defs[cid])
+                    # Process content regardless of marker type
                     process_element(child, depth + 1)
                 else:
                     # Unknown - include as-is
@@ -1035,8 +1074,173 @@ def _replace_seg_attributes(content: str, xliff_file: SDLXLIFFFile,
     return content
 
 
+def _strip_comment_markers(content: str) -> str:
+    """Remove existing <mrk mtype="x-sdl-comment" ...>CONTENT</mrk>, keeping CONTENT.
+
+    Also removes any orphaned <cmt-def> entries from the header.
+    """
+    # Strip inline comment markers from body
+    content = re.sub(
+        r'<mrk\s+(?=[^>]*\bmtype="x-sdl-comment")[^>]*>(.*?)</mrk>',
+        r'\1', content, flags=re.DOTALL
+    )
+    # Remove orphaned <cmt-def> blocks from header (they all reference stripped markers)
+    content = re.sub(
+        r'<cmt-def\s+id="[^"]*">\s*<Comments>.*?</Comments>\s*</cmt-def>\s*',
+        '', content, flags=re.DOTALL
+    )
+    # Clean up empty <cmt-defs></cmt-defs> if all entries were removed
+    content = re.sub(r'<cmt-defs>\s*</cmt-defs>', '', content)
+    return content
+
+
+def _insert_comment_defs(content: str, seg_to_cmt: Dict[str, Tuple[str, str]],
+                         log_callback=None, username: str = "user") -> str:
+    """Insert <cmt-def> entries into the doc-info header.
+
+    Args:
+        content: Raw SDLXLIFF file content
+        seg_to_cmt: Dict mapping segment_id to (cmt_uuid, comment_text)
+        username: Author name for comments
+    """
+    if not seg_to_cmt:
+        return content
+
+    now = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.0000000+00:00')
+    # Escape username for XML attribute
+    safe_user = (username
+                 .replace('&', '&amp;')
+                 .replace('<', '&lt;')
+                 .replace('>', '&gt;')
+                 .replace('"', '&quot;'))
+
+    cmt_defs_xml_parts = []
+    for seg_id, (cmt_id, comment_text) in seg_to_cmt.items():
+        # Escape XML entities
+        safe_text = (comment_text
+                     .replace('&', '&amp;')
+                     .replace('<', '&lt;')
+                     .replace('>', '&gt;')
+                     .replace('"', '&quot;'))
+        cmt_defs_xml_parts.append(
+            f'<cmt-def id="{cmt_id}">'
+            f'<Comments>'
+            f'<Comment severity="Low" user="{safe_user}" '
+            f'date="{now}" version="1.0">{safe_text}</Comment>'
+            f'</Comments>'
+            f'</cmt-def>'
+        )
+
+    cmt_defs_block = ''.join(cmt_defs_xml_parts)
+
+    # Insert into existing <cmt-defs> or create new one
+    if '<cmt-defs>' in content:
+        content = content.replace('</cmt-defs>', cmt_defs_block + '</cmt-defs>')
+    elif re.search(r'xmlns="http://sdl\.com/FileTypes/SdlXliff/1\.0"', content):
+        # Has doc-info with SDL namespace — insert <cmt-defs> before </doc-info>
+        # The doc-info element uses SDL namespace as default, so children are unprefixed
+        content = re.sub(
+            r'(</doc-info>)',
+            '<cmt-defs>' + cmt_defs_block + '</cmt-defs>' + r'\1',
+            content,
+            count=1
+        )
+    return content
+
+
+def _wrap_targets_with_comments(content: str, seg_to_cmt: Dict[str, Tuple[str, str]],
+                                log_callback=None) -> str:
+    """Wrap target segment content with <mrk mtype="x-sdl-comment"> markers.
+
+    For each segment, finds the matching <mrk mtype="seg" mid="N"> inside
+    the correct trans-unit's <target> and wraps its content.
+
+    Args:
+        content: Raw SDLXLIFF content (after target replacement)
+        seg_to_cmt: Dict mapping segment_id to (cmt_uuid, comment_text)
+    """
+    if not seg_to_cmt:
+        return content
+
+    log = log_callback or (lambda msg: None)
+
+    # Group by trans-unit ID for efficient processing
+    tu_comments = {}  # tu_id -> [(mid, cmt_id)]
+    for seg_id, (cmt_id, _comment_text) in seg_to_cmt.items():
+        parts = seg_id.rsplit('_', 1)
+        if len(parts) == 2:
+            tu_id, mid = parts
+        else:
+            tu_id = seg_id
+            mid = None
+        tu_comments.setdefault(tu_id, []).append((mid, cmt_id))
+
+    wrapped_count = 0
+
+    def _process_tu(tu_match):
+        nonlocal wrapped_count
+        tu_block = tu_match.group(0)
+
+        # Extract trans-unit ID
+        tu_id_m = re.search(r'<trans-unit\s+[^>]*?id="([^"]+)"', tu_block)
+        if not tu_id_m:
+            return tu_block
+        tu_id = tu_id_m.group(1)
+
+        if tu_id not in tu_comments:
+            return tu_block
+
+        # Find <target>...</target>
+        target_m = re.search(r'(<target[^>]*>)(.*?)(</target>)', tu_block, re.DOTALL)
+        if not target_m:
+            return tu_block
+
+        target_open = target_m.group(1)
+        target_inner = target_m.group(2)
+        target_close = target_m.group(3)
+
+        for mid, cmt_id in tu_comments[tu_id]:
+            if mid is not None:
+                # Wrap content of <mrk mtype="seg" mid="N">CONTENT</mrk>
+                mrk_pattern = (
+                    r'(<mrk\s+'
+                    r'(?=[^>]*\bmtype="seg")'
+                    r'(?=[^>]*\bmid="' + re.escape(mid) + r'")'
+                    r'[^>]*(?<!/)>)'
+                    r'(.*?)'
+                    r'(</mrk>)'
+                )
+
+                def _wrap_mrk(m):
+                    nonlocal wrapped_count
+                    wrapped_count += 1
+                    return (m.group(1) +
+                            f'<mrk mtype="x-sdl-comment" sdl:cid="{cmt_id}">' +
+                            m.group(2) + '</mrk>' + m.group(3))
+
+                target_inner = re.sub(mrk_pattern, _wrap_mrk, target_inner,
+                                      flags=re.DOTALL, count=1)
+            else:
+                # Unsegmented TU — wrap entire target content
+                wrapped_count += 1
+                target_inner = (f'<mrk mtype="x-sdl-comment" sdl:cid="{cmt_id}">' +
+                                target_inner + '</mrk>')
+
+        new_target = target_open + target_inner + target_close
+        return tu_block[:target_m.start()] + new_target + tu_block[target_m.end():]
+
+    content = re.sub(
+        r'<trans-unit\s[^>]*>.*?</trans-unit>',
+        _process_tu, content, flags=re.DOTALL
+    )
+
+    log(f"  Wrapped {wrapped_count} segment(s) with comment markers")
+    return content
+
+
 def _save_sdlxliff_file(xliff_file: SDLXLIFFFile, output_path: str,
-                         log_callback=None) -> bool:
+                         segment_comments: Dict[str, str] = None,
+                         log_callback=None, username: str = "user") -> bool:
     """
     Save a single SDLXLIFF file using text-based replacement.
 
@@ -1076,10 +1280,25 @@ def _save_sdlxliff_file(xliff_file: SDLXLIFFFile, output_path: str,
 
         content = raw_bytes.decode('utf-8')
 
+        # Strip existing comment markers FIRST — nested <mrk mtype="x-sdl-comment">
+        # inside <mrk mtype="seg"> would break the lazy regex in _replace_target_content
+        content = _strip_comment_markers(content)
+
         # Apply text-based replacements
         original_content = content
         content = _replace_target_content(content, xliff_file, segment_map)
         content = _replace_seg_attributes(content, xliff_file, segment_map)
+
+        # Insert new comments (if any)
+        if segment_comments:
+            seg_to_cmt = {}
+            for seg_id, comment_text in segment_comments.items():
+                if comment_text.strip():
+                    seg_to_cmt[seg_id] = (str(uuid.uuid4()), comment_text)
+            if seg_to_cmt:
+                content = _insert_comment_defs(content, seg_to_cmt, log, username=username)
+                content = _wrap_targets_with_comments(content, seg_to_cmt, log)
+                log(f"  Exported {len(seg_to_cmt)} comment(s) to SDLXLIFF (author: {username})")
 
         if content == original_content and translated_count > 0:
             log(f"  WARNING: File content unchanged after replacement! "
@@ -1189,7 +1408,9 @@ class StandaloneSDLXLIFFHandler:
 
     def save_file(self, xliff_file: SDLXLIFFFile, output_path: str) -> bool:
         """Save a single SDLXLIFF file to the given path."""
-        return _save_sdlxliff_file(xliff_file, output_path, self.log)
+        comments = getattr(self, 'segment_comments', None)
+        user = getattr(self, 'username', 'user')
+        return _save_sdlxliff_file(xliff_file, output_path, comments, self.log, username=user)
 
     def save_all(self, output_dir: str) -> List[str]:
         """
@@ -1478,10 +1699,27 @@ class TradosPackageHandler:
 
             content = raw_bytes.decode('utf-8')
 
+            # Strip existing comment markers FIRST — nested <mrk mtype="x-sdl-comment">
+            # inside <mrk mtype="seg"> would break the lazy regex in _replace_target_content
+            content = _strip_comment_markers(content)
+
             # Apply text-based replacements
             original_content = content
             content = self._replace_target_content(content, xliff_file, segment_map)
             content = self._replace_seg_attributes(content, xliff_file, segment_map)
+
+            # Apply comment export if available
+            comments = getattr(self, 'segment_comments', None)
+            if comments:
+                seg_to_cmt = {}
+                for seg_id, comment_text in comments.items():
+                    if comment_text.strip():
+                        seg_to_cmt[seg_id] = (str(uuid.uuid4()), comment_text)
+                if seg_to_cmt:
+                    user = getattr(self, 'username', 'user')
+                    content = _insert_comment_defs(content, seg_to_cmt, self.log, username=user)
+                    content = _wrap_targets_with_comments(content, seg_to_cmt, self.log)
+                    self.log(f"  Exported {len(seg_to_cmt)} comment(s) to SDLXLIFF (author: {user})")
 
             # Verify that changes were actually made
             if content == original_content and translated_count > 0:
@@ -1817,7 +2055,7 @@ class TradosPackageHandler:
             content = proj_path.read_text(encoding='utf-8-sig')
 
         now = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.0000000Z')
-        username = os.environ.get('USERNAME', os.environ.get('USER', 'Supervertaler'))
+        username = getattr(self, 'username', '') or os.environ.get('USERNAME', os.environ.get('USER', 'user'))
 
         # 1. PackageType → ReturnPackage
         content = content.replace(
