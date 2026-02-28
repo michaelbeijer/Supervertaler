@@ -2,8 +2,17 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.336 (February 27, 2026)
+**Current Version:** v1.9.337 (February 28, 2026)
 
+
+## v1.9.337 - February 28, 2026
+
+### Improvements
+
+- **Lock/Unlock segments from right-click menu** — You can now right-click selected segments in the grid to lock or unlock them. Segments imported as locked from Trados (`translate="no"`) can now be unlocked directly in Supervertaler without going back to Trados. The context menu adapts to show the appropriate action based on the current lock state of the selection.
+- **Website: renamed "Docs" to "Help"** in the navigation bar for clarity.
+
+---
 
 ## v1.9.336 - February 27, 2026
 

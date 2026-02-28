@@ -37973,6 +37973,24 @@ class SupervertalerQt(QMainWindow):
             action = status_menu.addAction(label)
             action.triggered.connect(lambda checked, s=status_key: self.change_status_selected(s))
 
+        # Lock / Unlock toggle
+        locked_count = sum(1 for seg in selected_segments if getattr(seg, 'locked', False))
+        unlocked_count = len(selected_segments) - locked_count
+        if locked_count and unlocked_count:
+            # Mixed: offer both
+            lock_action = menu.addAction(f"🔒 Lock {unlocked_count} Segment(s)")
+            lock_action.triggered.connect(lambda: self._set_locked_on_selected(selected_segments, True))
+            unlock_action = menu.addAction(f"🔓 Unlock {locked_count} Segment(s)")
+            unlock_action.triggered.connect(lambda: self._set_locked_on_selected(selected_segments, False))
+        elif locked_count:
+            unlock_action = menu.addAction(f"🔓 Unlock {locked_count} Segment(s)")
+            unlock_action.triggered.connect(lambda: self._set_locked_on_selected(selected_segments, False))
+        else:
+            lock_action = menu.addAction(f"🔒 Lock {len(selected_segments)} Segment(s)")
+            lock_action.triggered.connect(lambda: self._set_locked_on_selected(selected_segments, True))
+
+        menu.addSeparator()
+
         # Clear translations action
         clear_action = menu.addAction("🗑️ Clear Translations")
         clear_action.setToolTip(f"Clear translations for {len(selected_segments)} selected segment(s)")
@@ -37994,6 +38012,20 @@ class SupervertalerQt(QMainWindow):
 
         menu.exec(self.table.viewport().mapToGlobal(position))
     
+    def _set_locked_on_selected(self, segments, locked: bool):
+        """Lock or unlock selected segments."""
+        changed = 0
+        for seg in segments:
+            if getattr(seg, 'locked', False) != locked:
+                seg.locked = locked
+                changed += 1
+        if changed:
+            self.project_modified = True
+            self.load_segments_to_grid()
+            self.update_window_title()
+            action = "Locked" if locked else "Unlocked"
+            self.log(f"{'🔒' if locked else '🔓'} {action} {changed} segment{'s' if changed != 1 else ''}")
+
     def _clear_proofreading_from_selected(self, segments):
         """Clear proofreading notes from selected segments"""
         cleared_count = 0
