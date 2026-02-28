@@ -6,7 +6,7 @@
 
 **Professional AI-enhanced translation workbench** with multi-LLM support (GPT-4, Claude, Gemini, Ollama), translation memory, glossary management, and seamless CAT tool integration (memoQ, Trados, CafeTran, Phrase, Déjà Vu).
 
-**Latest release:** v1.9.333 - Okapi Framework sidecar integration (experimental); industrial-strength DOCX extraction with SRX segmentation, inline formatting tag detection, and sub-document filtering.
+**Latest release:** v1.9.338 - QuickMenu response dialog now renders formatted Markdown; lock/unlock segments from context menu.
 
 ---
 

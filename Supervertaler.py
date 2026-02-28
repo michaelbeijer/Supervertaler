@@ -48128,7 +48128,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
 
         out = QTextEdit()
         out.setReadOnly(True)
-        out.setPlainText(output_text or "")
+        out.setMarkdown(output_text or "")
         layout.addWidget(out)
 
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)

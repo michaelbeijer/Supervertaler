@@ -2,8 +2,16 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.337 (February 28, 2026)
+**Current Version:** v1.9.338 (February 28, 2026)
 
+
+## v1.9.338 - February 28, 2026
+
+### Improvements
+
+- **QuickMenu response dialog now renders Markdown** — The "Run (show response)" dialog for QuickMenu prompts now displays formatted Markdown (headings, bold, italic, lists, code blocks, etc.) instead of raw plain text, making LLM responses much easier to read.
+
+---
 
 ## v1.9.337 - February 28, 2026
 
