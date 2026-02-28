@@ -343,6 +343,7 @@ class GlobalHotkeyManager:
         self._win_thread_id = None
         self._win_hotkey_ids: Dict[int, Callable] = {}  # hotkey_id -> callback
         self._next_id = 1
+        self.failed_hotkeys: list = []  # Shortcuts that failed to register
 
         # pynput-specific
         self._listener = None
@@ -429,6 +430,7 @@ class GlobalHotkeyManager:
                 if not user32.RegisterHotKey(None, hk_id, mods, vk):
                     print(f"[GlobalHotkeyManager] Failed to register {shortcut} "
                           f"(may be in use by another application)")
+                    self.failed_hotkeys.append(shortcut)
                     all_ok = False
                 else:
                     print(f"[GlobalHotkeyManager] Registered {shortcut} (WinAPI)")

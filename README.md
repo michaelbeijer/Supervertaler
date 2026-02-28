@@ -6,7 +6,7 @@
 
 **Professional AI-enhanced translation workbench** with multi-LLM support (GPT-4, Claude, Gemini, Ollama), translation memory, glossary management, and seamless CAT tool integration (memoQ, Trados, CafeTran, Phrase, Déjà Vu).
 
-**Latest release:** v1.9.338 - QuickMenu response dialog now renders formatted Markdown; lock/unlock segments from context menu.
+**Latest release:** v1.9.339 - Global QuickMenu hotkey (Ctrl+Alt+K), QuickTrans consolidated into QuickMenu, customizable global hotkeys.
 
 ---
 

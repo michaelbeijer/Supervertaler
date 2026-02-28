@@ -373,18 +373,21 @@ class KeyboardShortcutsWidget(QWidget):
         # Global Hotkeys Settings group (cross-platform)
         # Note: && is used so Qt displays a literal ampersand instead of treating
         # the next character as a mnemonic accelerator.
-        hotkey_group = QGroupBox("⌨️ Global Hotkeys (Superlookup && QuickTrans)")
+        hotkey_group = QGroupBox("⌨️ Global Hotkeys (Superlookup, QuickTrans && QuickMenu)")
         hotkey_layout = QVBoxLayout()
 
         if IS_MACOS:
             sl_key = format_shortcut_for_display('Meta+Ctrl+L')   # ⌃⌘L
             qt_key = format_shortcut_for_display('Meta+Ctrl+M')   # ⌃⌘M
+            qm_key = format_shortcut_for_display('Meta+Ctrl+K')   # ⌃⌘K
         else:
             sl_key = format_shortcut_for_display('Ctrl+Alt+L')
             qt_key = format_shortcut_for_display('Ctrl+Alt+M')
+            qm_key = format_shortcut_for_display('Ctrl+Alt+K')
         hotkey_info = QLabel(
-            f"Global hotkeys allow {sl_key} (Superlookup) and "
-            f"{qt_key} (QuickTrans) to work from any application."
+            f"Global hotkeys allow {sl_key} (Superlookup), "
+            f"{qt_key} (QuickTrans), and "
+            f"{qm_key} (QuickMenu) to work from any application."
         )
         hotkey_info.setWordWrap(True)
         hotkey_info.setStyleSheet("color: #666; font-size: 9pt; padding: 5px;")

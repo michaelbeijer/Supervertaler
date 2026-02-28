@@ -3130,13 +3130,7 @@ class ReadOnlyGridTextEditor(QTextEdit):
             superlookup_action.triggered.connect(self._handle_superlookup_search)
             menu.addAction(superlookup_action)
 
-        # MT Quick Lookup action
-        mt_lookup_action = QAction(f"⚡ QuickTrans ({format_shortcut_for_display('Ctrl+M')})", self)
-        mt_lookup_action.triggered.connect(self._handle_mt_quick_lookup)
-        menu.addAction(mt_lookup_action)
-        menu.addSeparator()
-
-        # QuickMenu (prompt-based actions)
+        # QuickMenu (prompt-based actions + QuickTrans)
         try:
             main_window = self._get_main_window()
             quickmenu_items = []
@@ -3145,8 +3139,15 @@ class ReadOnlyGridTextEditor(QTextEdit):
                 if lib and hasattr(lib, 'get_quickmenu_grid_prompts'):
                     quickmenu_items = lib.get_quickmenu_grid_prompts() or []
 
+            qm_menu = menu.addMenu("⚡ QuickMenu")
+
+            # QuickTrans at the top of the QuickMenu
+            qt_action = QAction(f"⚡ QuickTrans ({format_shortcut_for_display('Ctrl+M')})", self)
+            qt_action.triggered.connect(self._handle_mt_quick_lookup)
+            qm_menu.addAction(qt_action)
+
             if quickmenu_items:
-                qm_menu = menu.addMenu("⚡ QuickMenu")
+                qm_menu.addSeparator()
                 for rel_path, label in sorted(quickmenu_items, key=lambda x: (x[1] or x[0]).lower()):
                     prompt_menu = qm_menu.addMenu(label or rel_path)
 
@@ -3906,13 +3907,7 @@ class EditableGridTextEditor(QTextEdit):
             superlookup_action.triggered.connect(self._handle_superlookup_search)
             menu.addAction(superlookup_action)
 
-        # MT Quick Lookup action
-        mt_lookup_action = QAction(f"⚡ QuickTrans ({format_shortcut_for_display('Ctrl+M')})", self)
-        mt_lookup_action.triggered.connect(self._handle_mt_quick_lookup)
-        menu.addAction(mt_lookup_action)
-        menu.addSeparator()
-
-        # QuickMenu (prompt-based actions)
+        # QuickMenu (prompt-based actions + QuickTrans)
         try:
             main_window = self.table.parent() if self.table else None
             while main_window and not hasattr(main_window, 'run_grid_quickmenu_prompt'):
@@ -3924,8 +3919,15 @@ class EditableGridTextEditor(QTextEdit):
                 if lib and hasattr(lib, 'get_quickmenu_grid_prompts'):
                     quickmenu_items = lib.get_quickmenu_grid_prompts() or []
 
+            qm_menu = menu.addMenu("⚡ QuickMenu")
+
+            # QuickTrans at the top of the QuickMenu
+            qt_action = QAction(f"⚡ QuickTrans ({format_shortcut_for_display('Ctrl+M')})", self)
+            qt_action.triggered.connect(self._handle_mt_quick_lookup)
+            qm_menu.addAction(qt_action)
+
             if quickmenu_items:
-                qm_menu = menu.addMenu("⚡ QuickMenu")
+                qm_menu.addSeparator()
                 for rel_path, label in sorted(quickmenu_items, key=lambda x: (x[1] or x[0]).lower()):
                     prompt_menu = qm_menu.addMenu(label or rel_path)
 
@@ -8511,7 +8513,15 @@ class SupervertalerQt(QMainWindow):
             # Build the menu
             menu = QMenu(self)
             menu.setTitle("⚡ QuickMenu")
-            
+
+            # QuickTrans at the top of the QuickMenu
+            qt_action = QAction(f"⚡ QuickTrans ({format_shortcut_for_display('Ctrl+M')})", self)
+            qt_action.triggered.connect(lambda: self.show_mt_quick_popup(
+                text_override=(focus_widget.textCursor().selectedText() if focus_widget and hasattr(focus_widget, 'textCursor') and focus_widget.textCursor().hasSelection() else None)
+            ))
+            menu.addAction(qt_action)
+            menu.addSeparator()
+
             for rel_path, label in sorted(quickmenu_items, key=lambda x: (x[1] or x[0]).lower()):
                 prompt_menu = menu.addMenu(label or rel_path)
                 
@@ -48267,7 +48277,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
 
         if behavior == "replace":
             if not target_widget or not isinstance(target_widget, QTextEdit):
-                self._quickmenu_show_result_dialog("⚡ QuickMenu result", output_text)
+                self._quickmenu_show_result_dialog("Supervertaler QuickMenu", output_text)
                 return
 
             apply_replacement()
@@ -48275,7 +48285,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
 
         # Default: show dialog (with optional Replace button)
         can_apply = target_widget is not None and isinstance(target_widget, QTextEdit)
-        title = "⚡ QuickMenu result"
+        title = "Supervertaler QuickMenu"
         self._quickmenu_show_result_dialog(title, output_text, apply_callback=apply_replacement if can_apply else None)
     
     def translate_multiple_segments(self, scope: str):
@@ -55041,38 +55051,63 @@ class SuperlookupTab(QWidget):
             )
     
     def register_global_hotkey(self):
-        """Register global hotkeys for Superlookup and QuickTrans.
+        """Register global hotkeys for Superlookup, QuickTrans, and QuickMenu.
 
         Strategy:
-        1. Try pynput GlobalHotKeys (works on all platforms)
-        2. On Windows, fall back to AHK external script if pynput fails
+        1. Try WinAPI RegisterHotKey / pynput GlobalHotKeys (cross-platform)
+        2. On Windows, fall back to AHK external script if that fails
         3. On macOS/Linux, if pynput fails, hotkeys are unavailable
+
+        Shortcut keys are read from the ShortcutManager (customizable in Settings).
         """
         global _ahk_process, _hotkey_manager
 
         self._using_pynput = False
         self._hotkey_manager = None
 
+        # Read customizable shortcuts from ShortcutManager
+        sm = getattr(self.main_window, 'shortcut_manager', None) if self.main_window else None
+        if sm:
+            sl_shortcut = sm.get_shortcut('global_superlookup').lower().replace('+', '+')
+            qt_shortcut = sm.get_shortcut('global_quicktrans').lower().replace('+', '+')
+            qm_shortcut = sm.get_shortcut('global_quickmenu').lower().replace('+', '+')
+        else:
+            sl_shortcut = 'ctrl+alt+l'
+            qt_shortcut = 'ctrl+alt+m'
+            qm_shortcut = 'ctrl+alt+k'
+
+        # On macOS, replace 'alt' with 'cmd' in the shortcuts
+        if IS_MACOS:
+            sl_shortcut = sl_shortcut.replace('alt', 'cmd')
+            qt_shortcut = qt_shortcut.replace('alt', 'cmd')
+            qm_shortcut = qm_shortcut.replace('alt', 'cmd')
+
         # --- Attempt 1: WinAPI / pynput (cross-platform) ---
         try:
             from modules.platform_helpers import GlobalHotkeyManager, CrossPlatformKeySender
             manager = GlobalHotkeyManager()
             if manager.is_available:
-                if IS_MACOS:
-                    # macOS: Ctrl+Cmd+L / Ctrl+Cmd+M
-                    manager.register('ctrl+cmd+l', self._on_pynput_superlookup)
-                    manager.register('ctrl+cmd+m', self._on_pynput_quicktrans)
-                else:
-                    # Windows/Linux: Ctrl+Alt+L / Ctrl+Alt+M
-                    manager.register('ctrl+alt+l', self._on_pynput_superlookup)
-                    manager.register('ctrl+alt+m', self._on_pynput_quicktrans)
+                manager.register(sl_shortcut, self._on_pynput_superlookup)
+                manager.register(qt_shortcut, self._on_pynput_quicktrans)
+                manager.register(qm_shortcut, self._on_pynput_quickmenu)
                 started = manager.start()
                 if started:
                     self._hotkey_manager = manager
                     _hotkey_manager = manager  # global for atexit cleanup
                     self._using_pynput = True
                     self.hotkey_registered = True
-                    print(f"[Superlookup] Global hotkeys registered via {manager._backend}")
+                    # Log to both stdout and in-app log
+                    failed = getattr(manager, 'failed_hotkeys', [])
+                    if failed:
+                        fail_msg = f"⚠️ [Global Hotkeys] Failed to register: {', '.join(failed)} (claimed by another app)"
+                        print(fail_msg)
+                        if self.main_window and hasattr(self.main_window, 'log'):
+                            self.main_window.log(fail_msg)
+                    ok_keys = [k for k in [sl_shortcut, qt_shortcut, qm_shortcut] if k not in failed]
+                    msg = f"[Global Hotkeys] Registered via {manager._backend}: {', '.join(ok_keys)}"
+                    print(msg)
+                    if self.main_window and hasattr(self.main_window, 'log'):
+                        self.main_window.log(f"⌨️ {msg}")
                     return
         except Exception as e:
             print(f"[Superlookup] Global hotkey registration failed: {e}")
@@ -55116,6 +55151,20 @@ class SuperlookupTab(QWidget):
             )
         except Exception as e:
             print(f"[QuickTrans] Error signaling main thread: {e}")
+
+    def _on_pynput_quickmenu(self):
+        """Called from pynput background thread when Ctrl+Alt+K is pressed.
+
+        IMPORTANT: Do NO work here — see _on_pynput_superlookup docstring.
+        """
+        try:
+            from PyQt6.QtCore import QMetaObject, Qt as QtConst
+            QMetaObject.invokeMethod(
+                self, "_handle_quickmenu_hotkey",
+                QtConst.ConnectionType.QueuedConnection,
+            )
+        except Exception as e:
+            print(f"[QuickMenu] Error signaling main thread: {e}")
 
     def _try_ahk_library_method(self):
         """Try to register hotkey using ahk Python library
@@ -55366,6 +55415,26 @@ class SuperlookupTab(QWidget):
         if text:
             self.on_ahk_mt_lookup_capture(text)
 
+    @pyqtSlot()
+    def _handle_quickmenu_hotkey(self):
+        """Runs on Qt main thread after the QuickMenu global hotkey fires."""
+        try:
+            from modules.platform_helpers import CrossPlatformKeySender, get_foreground_window
+            self._quickmenu_source_window = get_foreground_window()
+            print(f"[QuickMenu] Captured source window: {self._quickmenu_source_window}")
+
+            sender = CrossPlatformKeySender()
+            sender.send_copy()
+            QTimer.singleShot(350, self._read_clipboard_for_quickmenu)
+        except Exception as e:
+            print(f"[QuickMenu] Error in hotkey handler: {e}")
+
+    def _read_clipboard_for_quickmenu(self):
+        """Read clipboard and dispatch to external QuickMenu (main thread)."""
+        text = pyperclip.paste()
+        if text:
+            self.show_quickmenu_external(text)
+
     def on_ahk_capture(self, text):
         """Handle text captured by AHK"""
         try:
@@ -55507,6 +55576,158 @@ class SuperlookupTab(QWidget):
 
         except Exception as e:
             print(f"[QuickTrans] Error pasting translation: {e}")
+
+    def show_quickmenu_external(self, text):
+        """Show QuickMenu popup with text captured from an external app (global hotkey).
+
+        Builds a floating QMenu with QuickTrans + all prompt-based items.
+        Prompt results are shown in a dialog; QuickTrans opens its own popup.
+        """
+        try:
+            from PyQt6.QtWidgets import QMenu
+            from PyQt6.QtGui import QAction, QCursor
+
+            print(f"[QuickMenu] show_quickmenu_external called with text: {text[:50]}...")
+
+            main_window = self.main_window or self.window()
+            if not main_window:
+                print("[QuickMenu] ERROR: Could not find main window")
+                return
+
+            # Build the menu
+            menu = QMenu()
+            menu.setWindowTitle("⚡ QuickMenu")
+
+            # QuickTrans at the top
+            qt_action = QAction(f"⚡ QuickTrans", menu)
+            qt_action.triggered.connect(lambda: self.show_mt_quick_lookup_from_ahk(text))
+            menu.addAction(qt_action)
+
+            # Prompt-based items
+            quickmenu_items = []
+            if hasattr(main_window, 'prompt_manager_qt') and main_window.prompt_manager_qt:
+                lib = getattr(main_window.prompt_manager_qt, 'library', None)
+                if lib and hasattr(lib, 'get_quickmenu_grid_prompts'):
+                    quickmenu_items = lib.get_quickmenu_grid_prompts() or []
+
+            if quickmenu_items:
+                menu.addSeparator()
+                for rel_path, label in sorted(quickmenu_items, key=lambda x: (x[1] or x[0]).lower()):
+                    prompt_submenu = menu.addMenu(label or rel_path)
+
+                    run_show = QAction("▶ Run (show response)…", prompt_submenu)
+                    run_show.triggered.connect(
+                        lambda checked=False, p=rel_path: self._run_external_quickmenu_prompt(p, text, behavior="show")
+                    )
+                    prompt_submenu.addAction(run_show)
+
+                    run_paste = QAction("↺ Run and paste into app", prompt_submenu)
+                    run_paste.triggered.connect(
+                        lambda checked=False, p=rel_path: self._run_external_quickmenu_prompt(p, text, behavior="paste")
+                    )
+                    prompt_submenu.addAction(run_paste)
+
+            # Show at mouse cursor position
+            menu.exec(QCursor.pos())
+
+        except Exception as e:
+            print(f"[QuickMenu] Error showing external menu: {e}")
+            import traceback
+            traceback.print_exc()
+
+    def _run_external_quickmenu_prompt(self, prompt_relative_path: str, source_text: str, behavior: str = "show"):
+        """Run a QuickMenu prompt on text captured from an external app.
+
+        Similar to run_grid_quickmenu_prompt() but works without a grid widget.
+        """
+        from PyQt6.QtWidgets import QMessageBox, QApplication
+        from modules.llm_clients import LLMClient
+
+        main_window = self.main_window or self.window()
+        if not main_window:
+            return
+
+        # Determine project languages
+        source_lang = "English"
+        target_lang = "Dutch"
+        if hasattr(main_window, 'current_project') and main_window.current_project:
+            source_lang = getattr(main_window.current_project, 'source_lang', source_lang) or source_lang
+            target_lang = getattr(main_window.current_project, 'target_lang', target_lang) or target_lang
+
+        # Get current segment's target text for {{TARGET_TEXT}} placeholder
+        current_target_text = ""
+        if hasattr(main_window, 'table') and main_window.table and hasattr(main_window, 'current_project') and main_window.current_project:
+            current_row = main_window.table.currentRow()
+            if 0 <= current_row < len(main_window.current_project.segments):
+                current_target_text = main_window.current_project.segments[current_row].target or ""
+
+        # Determine provider/model
+        settings = main_window.load_llm_settings()
+        provider = settings.get('provider', 'openai')
+        model_key = f'{provider}_model'
+        model = settings.get(model_key)
+
+        # Load API keys
+        api_keys = main_window.load_api_keys()
+        if provider == 'ollama':
+            api_key = api_keys.get('ollama', '') or 'not-needed'
+        elif provider == 'custom_openai':
+            profile = main_window._get_active_custom_profile(settings)
+            profile_key = (profile.get('api_key') or '').strip() if profile else ''
+            api_key = profile_key or api_keys.get('custom_openai', '') or 'not-needed'
+        else:
+            if not api_keys:
+                QMessageBox.warning(main_window, "QuickMenu", "No API keys found. Configure them in Settings first.")
+                return
+            api_key = api_keys.get(provider) or (api_keys.get('google') if provider == 'gemini' else None)
+            if not api_key:
+                QMessageBox.warning(main_window, "QuickMenu", f"No API key found for provider '{provider}'.")
+                return
+
+        try:
+            main_window.status_bar.showMessage(f"⚡ QuickMenu: running '{prompt_relative_path}'…")
+            QApplication.processEvents()
+
+            custom_prompt = main_window._quickmenu_build_custom_prompt(
+                prompt_relative_path=prompt_relative_path,
+                source_text=source_text,
+                source_lang=source_lang,
+                target_lang=target_lang,
+                target_text=current_target_text
+            )
+
+            base_url = None
+            if provider == 'custom_openai':
+                profile = main_window._get_active_custom_profile(settings)
+                base_url = profile.get('endpoint') or None if profile else None
+            client = LLMClient(api_key=api_key, provider=provider, model=model, base_url=base_url)
+
+            output_text = client.translate(
+                text="",
+                source_lang="en",
+                target_lang="en",
+                custom_prompt=custom_prompt
+            )
+
+            if not output_text:
+                QMessageBox.warning(main_window, "QuickMenu", "No response received from the LLM.")
+                return
+
+        except Exception as e:
+            QMessageBox.critical(main_window, "QuickMenu", f"QuickMenu failed:\n\n{e}")
+            return
+        finally:
+            try:
+                main_window.status_bar.clearMessage()
+            except Exception:
+                pass
+
+        if behavior == "paste":
+            # Copy result to clipboard and paste into external app
+            self._paste_translation_to_external_app(output_text)
+        else:
+            # Show result dialog (with Copy button)
+            main_window._quickmenu_show_result_dialog("Supervertaler QuickMenu", output_text)
 
     def show_superlookup(self, text):
         """Show Superlookup with pre-filled text"""

@@ -608,6 +608,29 @@ class ShortcutManager:
             "action": "show_mt_quick_popup",
             "context": "editor"
         },
+
+        # Global hotkeys (system-wide, work from any application)
+        "global_superlookup": {
+            "category": "Global",
+            "description": "Superlookup (global — works from any app)",
+            "default": "Ctrl+Alt+L",
+            "action": "global_superlookup",
+            "context": "global"
+        },
+        "global_quicktrans": {
+            "category": "Global",
+            "description": "QuickTrans (global — works from any app)",
+            "default": "Ctrl+Alt+M",
+            "action": "global_quicktrans",
+            "context": "global"
+        },
+        "global_quickmenu": {
+            "category": "Global",
+            "description": "QuickMenu (global — works from any app)",
+            "default": "Ctrl+Alt+K",
+            "action": "global_quickmenu",
+            "context": "global"
+        },
     }
     
     def __init__(self, settings_file: Optional[Path] = None):

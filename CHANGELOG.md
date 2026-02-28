@@ -2,14 +2,21 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.338 (February 28, 2026)
+**Current Version:** v1.9.339 (February 28, 2026)
 
 
-## v1.9.338 - February 28, 2026
+## v1.9.339 - February 28, 2026
+
+### New Features
+
+- **Global QuickMenu hotkey (Ctrl+Alt+K)** — Launch the QuickMenu from any application on your computer. Select text in any app, press Ctrl+Alt+K, and a floating menu appears with QuickTrans and all your QuickMenu prompts. Choose "Run (show response)" to view the result, or "Run and paste into app" to insert the LLM response directly into the external application.
+- **QuickTrans consolidated into QuickMenu** — QuickTrans is now the first item inside the QuickMenu submenu (both in the right-click context menu and the Alt+K hotkey menu), streamlining the menu structure.
+- **Customizable global hotkeys** — All three global hotkeys (Superlookup, QuickTrans, QuickMenu) can now be customized in Settings → Keyboard Shortcuts under the "Global" category.
 
 ### Improvements
 
-- **QuickMenu response dialog now renders Markdown** — The "Run (show response)" dialog for QuickMenu prompts now displays formatted Markdown (headings, bold, italic, lists, code blocks, etc.) instead of raw plain text, making LLM responses much easier to read.
+- **QuickMenu response dialog now renders Markdown** — The "Run (show response)" dialog now displays formatted Markdown (headings, bold, italic, lists, code blocks) instead of raw plain text.
+- **Improved clipboard timing** for the global QuickMenu hotkey, ensuring reliable text capture in slower applications like emEditor.
 
 ---
 
