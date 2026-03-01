@@ -28,6 +28,11 @@ All notable changes to Supervertaler are documented in this file.
 - **QuickLauncher response dialog now renders Markdown** — The "Run (show response)" dialog now displays formatted Markdown (headings, bold, italic, lists, code blocks) instead of raw plain text.
 - **Improved clipboard timing** for the global QuickLauncher hotkey, ensuring reliable text capture in slower applications like emEditor.
 
+### Documentation
+
+- **New QuickLauncher help page** — Added a comprehensive help page for the QuickLauncher feature covering all access methods, QuickTrans, Supervertaler Assistant, custom prompts, context variables, and hotkey customization.
+- **Help docs updated for new naming** — Updated all references across the help system: Prompt Library → Prompt Manager, AI Assistant → Supervertaler Assistant, Prompt Manager tab → AI tab (27 renames across 6 files).
+
 ---
 
 ## v1.9.339 - February 28, 2026
