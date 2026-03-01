@@ -22,4 +22,4 @@ If your text contains formatting or CAT tool tags, instruct the model to preserv
 
 ## Next
 
-- [Prompt Library](prompt-library.md)
+- [Prompt Manager](prompt-library.md)

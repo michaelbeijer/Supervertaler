@@ -1,6 +1,6 @@
-# Prompt Library
+# Prompt Manager
 
-Supervertaler includes a prompt library so you can reuse prompts across projects.
+Supervertaler includes a Prompt Manager so you can create, organize, and reuse prompts across projects.
 
 ## Common uses
 

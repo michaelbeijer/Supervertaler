@@ -25,7 +25,7 @@ Welcome to the Supervertaler FAQ! Find answers to common questions about install
 - [Features & Capabilities](#features-capabilities)
    - [What are the key features of v1.9.27?](#what-are-the-key-features-of-v1927)
    - [What are the three view modes?](#what-are-the-three-view-modes)
-   - [What is the Unified Prompt Library?](#what-is-the-unified-prompt-library)
+   - [What is the Prompt Manager?](#what-is-the-prompt-manager)
    - [What is figure/image context support?](#what-is-figureimage-context-support)
    - [How does the translation memory work?](#how-does-the-translation-memory-work)
    - [How do keyboard shortcuts work?](#how-do-keyboard-shortcuts-work)
@@ -90,9 +90,9 @@ Supervertaler is **The Ultimate Translation Workbench**. It works alongside your
 - **AI-enhanced translation** with GPT-4, Claude, and Gemini
 - **Project termbases** with automatic term extraction
 - **Translation memory** with fuzzy matching
-- **AI Assistant** for conversational prompt generation
+- **Supervertaler Assistant** for conversational AI help
 - **Voice dictation** (100+ languages via Whisper)
-- **Unified prompt library** with 38+ built-in prompts
+- **Prompt Manager** with 38+ built-in prompts
 - **CAT tool integration** (memoQ, Trados, CafeTran)
 
 Think of it as a **professional CAT tool** that specializes in AI integration and prompt management, designed to complement (not replace) your existing workflow.
@@ -135,14 +135,14 @@ Developed with assistance from **Claude AI** (Anthropic) using collaborative hum
 **vs. CAT Tools (memoQ, Trados):**
 - ✅ Works *alongside* CAT tools as companion
 - ✅ Better AI integration with prompt management
-- ✅ Conversational AI Assistant for prompt generation
+- ✅ Conversational Supervertaler Assistant for AI help
 - ✅ Voice dictation built-in (100+ languages)
 - ⚠️ Not a full CAT tool replacement (no alignment, LiveDocs, etc.)
 
 **vs. AI Translation Plugins:**
 - ✅ Provider-agnostic (switch between OpenAI, Claude, Gemini)
 - ✅ Open source - audit and customize the code
-- ✅ Advanced features: Superbench, AI Assistant, project termbases
+- ✅ Advanced features: Superbench, Supervertaler Assistant, project termbases
 - ✅ No vendor lock-in or monthly subscriptions
 
 **Unique Selling Points:**
@@ -335,8 +335,8 @@ Full guide: [Installation](../get-started/installation.md)
 - Automatic project.json and TMX backups
 - Never lose your work during translation
 
-**🤖 AI Assistant**
-- Conversational interface in Prompt Manager tab
+**💬 Supervertaler Assistant**
+- Conversational AI interface in the AI tab
 - Analyze documents and generate custom prompts
 - Attach files (PDF, DOCX, TXT, MD) for context
 - Ask questions about segments and terminology
@@ -382,7 +382,7 @@ Supervertaler previously offered three editing views. Current versions focus on 
 
 **Note:** Document/List views were removed during cleanup because the grid workflow is the core production workflow.
 
-### What is the Unified Prompt Library?
+### What is the Prompt Manager?
 
 **2-Layer Prompt Architecture:**
 
@@ -400,15 +400,15 @@ Supervertaler previously offered three editing views. Current versions focus on 
 **Key Features:**
 - **Multi-attach**: Combine multiple prompts
 - **Favorites**: Star frequently-used prompts
-- **AI-generated**: Ask AI Assistant to create prompts
+- **AI-generated**: Ask the Supervertaler Assistant to create prompts
 - **Unlimited folders**: Organize your way
 
 **Usage:**
-1. Prompt Manager tab → Browse folders
+1. AI tab → Prompt Manager → Browse folders
 2. Right-click prompt → "Set as Primary" or "Attach"
 3. Translate normally - prompts automatically applied
 
-See: [Prompt Library](../ai-translation/prompt-library.md)
+See: [Prompt Manager](../ai-translation/prompt-library.md)
 
 ### What is figure/image context support?
 
@@ -457,7 +457,7 @@ Load images to provide visual context for AI translation - essential for technic
 - F5: Translate selected segments (or active segment if none selected)
 - F9: Start/stop voice dictation (global hotkey - works in any app)
 - Ctrl+Alt+L: Universal Lookup (system-wide TM search)
-- Ctrl+P: Open Unified Prompt Library
+- Ctrl+P: Open Prompt Manager
 
 **Navigation:**
 - Ctrl+1/2/3: Switch between Grid/Document/List views
@@ -629,7 +629,7 @@ Supervertaler provides AI with multiple layers of context:
 **Online Features (require internet):**
 - AI translation via OpenAI/Claude/Gemini APIs
 - Superbench model testing
-- AI Assistant (document analysis, prompt generation)
+- Supervertaler Assistant (document analysis, prompt generation)
 
 **Offline Features:**
 - Edit existing translations in Grid/Document/List views
@@ -795,7 +795,7 @@ This is a **known false positive** that affects applications built with PyInstal
    - Import document (DOCX/XLIFF/TMX)
    - Activate relevant TMs (TM tab)
    - Activate termbases (Termbases tab)
-   - Select prompts (Prompt Manager tab)
+   - Select prompts (AI tab → Prompt Manager)
 
 2. **Translate:**
    - Select segments to translate
@@ -812,7 +812,7 @@ This is a **known false positive** that affects applications built with PyInstal
 4. **Quality Assurance:**
    - Search for specific terms (Ctrl+F)
    - Check consistency of key terminology
-   - Review AI Assistant suggestions
+   - Review Supervertaler Assistant suggestions
 
 5. **Export & Deliver:**
    - Export to DOCX/TMX/XLIFF
@@ -859,7 +859,7 @@ This is a **known false positive** that affects applications built with PyInstal
 
 ### Can I customize the AI prompts?
 
-**Yes!** The Unified Prompt Library provides complete control:
+**Yes!** The Prompt Manager provides complete control:
 
 **Built-in Prompts (38+):**
 - Organized in folders: Legal, Medical, Financial, Technical, Creative, etc.
@@ -868,13 +868,13 @@ This is a **known false positive** that affects applications built with PyInstal
 - CAT tag handling templates
 
 **Custom Prompts:**
-1. Prompt Manager tab → Right-click folder → New Prompt
+1. AI tab → Prompt Manager → Right-click folder → New Prompt
 2. Write your instructions in plain language
 3. Save to appropriate folder
 4. Right-click prompt → "Set as Primary" or "Attach"
 
 **AI-Generated Prompts:**
-1. AI Assistant tab → Attach document (PDF/DOCX)
+1. AI tab → Supervertaler Assistant → Attach document (PDF/DOCX)
 2. Ask: "Analyze this style guide and create a prompt"
 3. AI generates custom prompt based on document
 4. Save and use for your projects
@@ -894,7 +894,7 @@ This is a **known false positive** that affects applications built with PyInstal
 - `{target_lang}` - Automatically filled with target language
 - `{client_name}` - Custom variable (if supported)
 
-See: [Prompt Library](../ai-translation/prompt-library.md) for full details
+See: [Prompt Manager](../ai-translation/prompt-library.md) for full details
 
 ### How do I use Universal Lookup?
 
@@ -1344,7 +1344,7 @@ The Superlookup Web Resources tab includes an **embedded browser** that lets you
 - https://github.com/michaelbeijer/Supervertaler/blob/main/AGENTS.md
 
 **Feature Guides:**
-- [Prompt Library](../ai-translation/prompt-library.md)
+- [Prompt Manager](../ai-translation/prompt-library.md)
 - [Voice Commands](../tools/voice-commands.md)
 
 **Online:**

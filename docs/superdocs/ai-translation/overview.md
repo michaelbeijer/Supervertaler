@@ -70,7 +70,7 @@ Keep all formatting tags like {1}, <b>, </b> in place.
 Translate naturally while preserving the original meaning.
 ```
 
-See [Creating Prompts](prompts.md) and [Prompt Library](prompt-library.md) for more.
+See [Creating Prompts](prompts.md) and [Prompt Manager](prompt-library.md) for more.
 
 ## Provider Selection
 

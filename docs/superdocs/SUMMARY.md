@@ -26,7 +26,7 @@
 * [Single Segment Translation](ai-translation/single-segment.md)
 * [Batch Translation](ai-translation/batch-translation.md)
 * [Creating Prompts](ai-translation/prompts.md)
-* [Prompt Library](ai-translation/prompt-library.md)
+* [Prompt Manager](ai-translation/prompt-library.md)
 * [Using Local LLMs (Ollama)](ai-translation/ollama.md)
 
 ## 🔗 CAT Tool Integration

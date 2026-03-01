@@ -44,7 +44,7 @@ Start with the Quick Start if you're installing for the first time, or browse Gu
 4. Translate using AI
 
    - Select segments and press the Translate button or use the Batch Translate dialog.
-   - Configure prompts in the Prompt Manager; use the AI Assistant for suggestions.
+   - Configure prompts in the AI tab; use the Supervertaler Assistant for suggestions.
 
 5. Export changes back to your CAT tool
 
@@ -55,7 +55,7 @@ Start with the Quick Start if you're installing for the first time, or browse Gu
 ## Suggested Section Titles & Short Descriptions
 
 - Quick Start — Get up and running in five minutes
-- AI Translation — Prompt library, assistant, and provider setup
+- AI Translation — Prompt Manager, Supervertaler Assistant, and provider setup
 - CAT Tool Integration — memoQ, Trados, Phrase, CafeTran workflows
 - Translation Memory — TM import/export, fuzzy matching, Supermemory
 - Termbases & Glossaries — Create, import, and prioritize terms
