@@ -2,21 +2,48 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.339 (February 28, 2026)
+**Current Version:** v1.9.340 (March 1, 2026)
 
+
+## v1.9.340 - March 1, 2026
+
+### New Features
+
+- **Supervertaler Assistant** — Access the AI Assistant directly from any QuickLauncher menu. Selected text is inserted into the chat input for conversational follow-up. Press Escape to return to the Grid, or back to the external app you launched from via Ctrl+Alt+K.
+- **Escape-to-return from Assistant** — Pressing Escape in the Supervertaler Assistant returns you to where you came from: back to the Grid when launched in-app (Alt+K or right-click), or back to the external application (e.g. Notepad, Word, browser) when launched via the Ctrl+Alt+K global hotkey.
+- **QuickLauncher menu heading** — All QuickLauncher menus now display a bold "Supervertaler QuickLauncher" heading at the top, making it immediately clear what the menu is.
+
+### UI Renames
+
+- **Main tab: "Prompt Manager" → "AI"** — The main tab is now simply called "✨ AI", which is cleaner and more inviting for translators exploring AI features.
+- **Sub-tab: "Prompt Library" → "Prompt Manager"** — The prompt management sub-tab has been renamed to better reflect its full capabilities (creating, organizing, and running prompts).
+- **Sub-tab: "Placeholders" → "Variables"** — Renamed to avoid confusion with the CAT tool concept of placeholders (inline formatting tags). All internal labels, column headers, and tips text updated accordingly.
+- **Renamed QuickMenu → QuickLauncher** — The QuickMenu feature has been renamed to QuickLauncher across the entire application for better clarity.
+
+### Improvements
+
+- **Global QuickLauncher hotkey (Ctrl+Alt+K)** — Launch the QuickLauncher from any application on your computer. Select text in any app, press Ctrl+Alt+K, and a floating menu appears with QuickTrans, the Supervertaler Assistant, and all your QuickLauncher prompts.
+- **QuickTrans consolidated into QuickLauncher** — QuickTrans is now the first item inside the QuickLauncher submenu (both in the right-click context menu and the Alt+K hotkey menu), streamlining the menu structure.
+- **Customizable global hotkeys** — All three global hotkeys (Superlookup, QuickTrans, QuickLauncher) can now be customized in Settings → Keyboard Shortcuts under the "Global" category.
+- **QuickLauncher response dialog now renders Markdown** — The "Run (show response)" dialog now displays formatted Markdown (headings, bold, italic, lists, code blocks) instead of raw plain text.
+- **Improved clipboard timing** for the global QuickLauncher hotkey, ensuring reliable text capture in slower applications like emEditor.
+
+---
 
 ## v1.9.339 - February 28, 2026
 
 ### New Features
 
-- **Global QuickMenu hotkey (Ctrl+Alt+K)** — Launch the QuickMenu from any application on your computer. Select text in any app, press Ctrl+Alt+K, and a floating menu appears with QuickTrans and all your QuickMenu prompts. Choose "Run (show response)" to view the result, or "Run and paste into app" to insert the LLM response directly into the external application.
-- **QuickTrans consolidated into QuickMenu** — QuickTrans is now the first item inside the QuickMenu submenu (both in the right-click context menu and the Alt+K hotkey menu), streamlining the menu structure.
-- **Customizable global hotkeys** — All three global hotkeys (Superlookup, QuickTrans, QuickMenu) can now be customized in Settings → Keyboard Shortcuts under the "Global" category.
+- **Global QuickLauncher hotkey (Ctrl+Alt+K)** — Launch the QuickLauncher from any application on your computer. Select text in any app, press Ctrl+Alt+K, and a floating menu appears with QuickTrans, the Supervertaler Assistant, and all your QuickLauncher prompts. Choose "Run (show response)" to view the result, or "Run and paste into app" to insert the LLM response directly into the external application.
+- **QuickTrans consolidated into QuickLauncher** — QuickTrans is now the first item inside the QuickLauncher submenu (both in the right-click context menu and the Alt+K hotkey menu), streamlining the menu structure.
+- **Supervertaler Assistant** — Access the AI Assistant from any QuickLauncher menu. Selected text is inserted into the chat input. Press Escape to return to the Grid (or the external app you launched from).
+- **Customizable global hotkeys** — All three global hotkeys (Superlookup, QuickTrans, QuickLauncher) can now be customized in Settings → Keyboard Shortcuts under the "Global" category.
+- **Renamed QuickMenu → QuickLauncher** — The QuickMenu feature has been renamed to QuickLauncher across the entire application for better clarity.
 
 ### Improvements
 
-- **QuickMenu response dialog now renders Markdown** — The "Run (show response)" dialog now displays formatted Markdown (headings, bold, italic, lists, code blocks) instead of raw plain text.
-- **Improved clipboard timing** for the global QuickMenu hotkey, ensuring reliable text capture in slower applications like emEditor.
+- **QuickLauncher response dialog now renders Markdown** — The "Run (show response)" dialog now displays formatted Markdown (headings, bold, italic, lists, code blocks) instead of raw plain text.
+- **Improved clipboard timing** for the global QuickLauncher hotkey, ensuring reliable text capture in slower applications like emEditor.
 
 ---
 

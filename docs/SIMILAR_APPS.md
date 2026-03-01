@@ -103,7 +103,7 @@ A curated list of translation tools and AI-powered assistants that offer similar
 ### LLM-AutoHotkey-Assistant
 - **Website:** [github.com/kdalanon/LLM-AutoHotkey-Assistant](https://github.com/kdalanon/LLM-AutoHotkey-Assistant)
 - **Type:** Open-source AutoHotkey v2 script (Windows)
-- **Description:** AutoHotkey v2 script that uses OpenRouter.ai to bring any LLM into your daily workflow via a global hotkey. Select text anywhere, press the hotkey (backtick by default), pick a prompt from the menu, and get the result — including translation. Supports multiple AI models simultaneously. Highly customisable via prompt arrays. *Conceptually similar to Supervertaler QuickMenu.*
+- **Description:** AutoHotkey v2 script that uses OpenRouter.ai to bring any LLM into your daily workflow via a global hotkey. Select text anywhere, press the hotkey (backtick by default), pick a prompt from the menu, and get the result — including translation. Supports multiple AI models simultaneously. Highly customisable via prompt arrays. *Conceptually similar to Supervertaler QuickLauncher.*
 - **Key Features:**
   - Global hotkey (backtick) works system-wide in any app
   - Any LLM via OpenRouter.ai (ChatGPT, Claude, Gemini, and more)

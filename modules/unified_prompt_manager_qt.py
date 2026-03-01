@@ -1,9 +1,9 @@
 """
-Unified Prompt Manager Module - Qt Edition
+Unified Prompt Manager Module - Qt Edition (powers the AI tab)
 Simplified 2-Layer Architecture:
 
 1. System Prompts (in Settings) - mode-specific, auto-selected based on document type
-2. Prompt Library (main UI) - unified workspace with folders, favorites, multi-attach
+2. Prompt Manager (main UI) - unified workspace with folders, favorites, multi-attach
 
 This replaces the old 4-layer system (System/Domain/Project/Style Guides).
 """
@@ -545,7 +545,7 @@ class UnifiedPromptManagerQt:
     """
     Unified Prompt Manager - Single-tab interface with:
     - Tree view with nested folders
-    - Favorites and QuickMenu
+    - Favorites and QuickLauncher
     - Multi-attach capability
     - Active prompt configuration panel
     """
@@ -626,6 +626,9 @@ class UnifiedPromptManagerQt:
         self.include_tm_data = False
         self.include_termbase_data = False
 
+        # Escape-to-return state
+        self._assistant_return_external = False
+
         self._init_llm_client()
         self._load_conversation_history()
         self._load_persisted_attachments()
@@ -659,27 +662,27 @@ class UnifiedPromptManagerQt:
         main_layout.setContentsMargins(10, 10, 10, 10)
         main_layout.setSpacing(5)
         
-        # Main header for Prompt Manager
+        # Main header for AI tab
         header = self._create_main_header()
         main_layout.addWidget(header, 0)
-        
-        # Sub-tabs: Prompt Library and AI Assistant
+
+        # Sub-tabs: Prompt Manager, Supervertaler Assistant, Variables
         self.sub_tabs = QTabWidget()
         self.sub_tabs.tabBar().setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.sub_tabs.tabBar().setDrawBase(False)
         self.sub_tabs.setStyleSheet("QTabBar::tab { outline: 0; } QTabBar::tab:focus { outline: none; } QTabBar::tab:selected { border-bottom: 1px solid #2196F3; background-color: rgba(33, 150, 243, 0.08); }")
 
-        # Tab 1: Prompt Library
+        # Tab 1: Prompt Manager (was Prompt Library)
         library_tab = self._create_prompt_library_tab()
-        self.sub_tabs.addTab(library_tab, "📚 Prompt Library")
+        self.sub_tabs.addTab(library_tab, "📋 Prompt Manager")
 
-        # Tab 2: AI Assistant (placeholder for now)
+        # Tab 2: Supervertaler Assistant
         assistant_tab = self._create_ai_assistant_tab()
-        self.sub_tabs.addTab(assistant_tab, "✨ AI Assistant")
+        self.sub_tabs.addTab(assistant_tab, "💬 Supervertaler Assistant")
 
-        # Tab 3: Placeholders Reference
-        placeholders_tab = self._create_placeholders_tab()
-        self.sub_tabs.addTab(placeholders_tab, "📝 Placeholders")
+        # Tab 3: Variables Reference (was Placeholders)
+        variables_tab = self._create_placeholders_tab()
+        self.sub_tabs.addTab(variables_tab, "📝 Variables")
 
         # Connect tab change signal to update context
         self.sub_tabs.currentChanged.connect(self._on_tab_changed)
@@ -690,6 +693,60 @@ class UnifiedPromptManagerQt:
         """Handle tab change - update context when switching to AI Assistant"""
         if index == 1:  # AI Assistant tab
             self._update_context_sidebar()
+
+    def receive_text_for_assistant(self, text: str, from_external: bool = False):
+        """
+        Switch to the Supervertaler Assistant sub-tab, insert text into the chat input,
+        and focus the input field. Called from QuickLauncher "Supervertaler Assistant".
+
+        Pressing Escape while in the Assistant tab will return the user to the Grid tab,
+        or re-activate the external app if launched via the global hotkey.
+        """
+        # Remember where to return on Escape
+        self._assistant_return_external = from_external
+
+        # Switch to the Supervertaler Assistant sub-tab
+        self.sub_tabs.setCurrentIndex(1)
+
+        # Insert text into the chat input (append if there's already text)
+        if text and text.strip():
+            current = self.chat_input.toPlainText()
+            if current.strip():
+                # There's existing text — append on a new line
+                self.chat_input.setPlainText(current + "\n" + text.strip())
+            else:
+                self.chat_input.setPlainText(text.strip())
+
+        # Focus the chat input so user can immediately type or press Enter to send
+        self.chat_input.setFocus()
+
+        # Move cursor to end
+        cursor = self.chat_input.textCursor()
+        cursor.movePosition(cursor.MoveOperation.End)
+        self.chat_input.setTextCursor(cursor)
+
+    def _return_from_assistant(self):
+        """Return to the Grid tab (or external app) after Escape in the Assistant."""
+        pa = self.parent_app
+        if getattr(self, '_assistant_return_external', False):
+            # Try to re-activate the external app that launched the QuickLauncher
+            try:
+                source_window = getattr(pa, '_quickmenu_source_window', None)
+                if source_window:
+                    from modules.platform_helpers import activate_foreground_window
+                    activate_foreground_window(source_window)
+                    print("[Assistant] Returned focus to external app")
+                    # Also switch back to Grid so Supervertaler isn't left on the Assistant
+                    if hasattr(pa, 'main_tabs'):
+                        pa.main_tabs.setCurrentIndex(0)
+                    return
+            except Exception as e:
+                print(f"[Assistant] Could not reactivate external app: {e}")
+
+        # Default: switch back to Grid tab
+        if hasattr(pa, 'main_tabs'):
+            pa.main_tabs.setCurrentIndex(0)
+            print("[Assistant] Returned to Grid tab")
 
     def refresh_context(self):
         """
@@ -718,17 +775,17 @@ class UnifiedPromptManagerQt:
         self._update_context_sidebar()
     
     def _create_main_header(self) -> QWidget:
-        """Create main Prompt Manager header"""
+        """Create main AI tab header"""
         header_container = QWidget()
         layout = QVBoxLayout(header_container)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(5)
-        
+
         # Title
-        title = QLabel("📝 Prompt Manager")
+        title = QLabel("✨ AI")
         title.setStyleSheet("font-size: 16pt; font-weight: bold; color: #1976D2;")
         layout.addWidget(title, 0)
-        
+
         # Description
         desc = QLabel(
             "Manage AI instructions and get AI assistance for your translation projects.\n"
@@ -741,7 +798,7 @@ class UnifiedPromptManagerQt:
         return header_container
     
     def _create_prompt_library_tab(self) -> QWidget:
-        """Create the Prompt Library sub-tab"""
+        """Create the Prompt Manager sub-tab (was Prompt Library)"""
         tab = QWidget()
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(0, 5, 0, 0)
@@ -817,12 +874,12 @@ class UnifiedPromptManagerQt:
         btn_layout.addWidget(btn_refresh)
 
         btn_collapse_all = QPushButton("▸ Collapse all")
-        btn_collapse_all.setToolTip("Collapse all folders in the Prompt Library tree")
+        btn_collapse_all.setToolTip("Collapse all folders in the Prompt Manager tree")
         btn_collapse_all.clicked.connect(self._collapse_prompt_library_tree)
         btn_layout.addWidget(btn_collapse_all)
 
         btn_expand_all = QPushButton("▾ Expand all")
-        btn_expand_all.setToolTip("Expand all folders in the Prompt Library tree")
+        btn_expand_all.setToolTip("Expand all folders in the Prompt Manager tree")
         btn_expand_all.clicked.connect(self._expand_prompt_library_tree)
         btn_layout.addWidget(btn_expand_all)
         
@@ -886,20 +943,20 @@ class UnifiedPromptManagerQt:
         return tab
     
     def _create_placeholders_tab(self) -> QWidget:
-        """Create the Placeholders Reference sub-tab"""
+        """Create the Variables Reference sub-tab"""
         tab = QWidget()
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(10, 10, 10, 10)
         layout.setSpacing(5)
-        
+
         # Header (matches standard tool style: Superbench, AutoFingers, TMX Editor)
-        header = QLabel("📝 Available Placeholders")
+        header = QLabel("📝 Available Variables")
         header.setStyleSheet("font-size: 16pt; font-weight: bold; color: #1976D2;")
         layout.addWidget(header, 0)
-        
+
         # Description box (matches standard tool style)
         description = QLabel(
-            "Use these placeholders in your prompts. They will be replaced with actual values when the prompt runs."
+            "Use these variables in your prompts. They will be replaced with actual values when the prompt runs."
         )
         description.setWordWrap(True)
         description.setStyleSheet("color: #666; padding: 5px; background-color: #E3F2FD; border-radius: 3px;")
@@ -909,18 +966,18 @@ class UnifiedPromptManagerQt:
         splitter = QSplitter(Qt.Orientation.Horizontal)
         splitter.setHandleWidth(3)
         
-        # Left: Table with placeholders
+        # Left: Table with variables
         table = QTableWidget()
         table.setColumnCount(3)
-        table.setHorizontalHeaderLabels(["Placeholder", "Description", "Example"])
+        table.setHorizontalHeaderLabels(["Variable", "Description", "Example"])
         table.horizontalHeader().setStretchLastSection(True)
         table.verticalHeader().setVisible(False)
         table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         table.setAlternatingRowColors(True)
         
-        # Placeholder data
-        placeholders = [
+        # Variable data
+        variables = [
             (
                 "{{SELECTION}}",
                 "Currently selected text in the grid (source or target cell)",
@@ -963,12 +1020,12 @@ class UnifiedPromptManagerQt:
             )
         ]
         
-        table.setRowCount(len(placeholders))
-        for row, (placeholder, description, example) in enumerate(placeholders):
-            # Placeholder column (monospace, bold)
-            item_placeholder = QTableWidgetItem(placeholder)
-            item_placeholder.setFont(QFont("Courier New", 10, QFont.Weight.Bold))
-            table.setItem(row, 0, item_placeholder)
+        table.setRowCount(len(variables))
+        for row, (variable, description, example) in enumerate(variables):
+            # Variable column (monospace, bold)
+            item_variable = QTableWidgetItem(variable)
+            item_variable.setFont(QFont("Courier New", 10, QFont.Weight.Bold))
+            table.setItem(row, 0, item_variable)
             
             # Description column
             item_desc = QTableWidgetItem(description)
@@ -1005,18 +1062,18 @@ class UnifiedPromptManagerQt:
         tips_layout.addWidget(tips_header)
         
         tips_intro = QLabel(
-            "Use these placeholders in your prompts. They will be replaced with actual values when the prompt runs."
+            "Use these variables in your prompts. They will be replaced with actual values when the prompt runs."
         )
         tips_intro.setWordWrap(True)
         tips_intro.setStyleSheet("color: #666; margin-bottom: 15px; font-style: italic;")
         tips_layout.addWidget(tips_intro)
         
         tips_text = QLabel(
-            "• Placeholders are case-sensitive (use UPPERCASE)\n\n"
-            "• Surround placeholders with double curly braces: {{ }}\n\n"
-            "• You can combine multiple placeholders in one prompt\n\n"
+            "• Variables are case-sensitive (use UPPERCASE)\n\n"
+            "• Surround variables with double curly braces: {{ }}\n\n"
+            "• You can combine multiple variables in one prompt\n\n"
             "• {{TARGET_TEXT}} is useful for review/proofreading prompts\n\n"
-            "• Context placeholders (SOURCE_CONTEXT etc.) use the percentage set in Settings → AI Settings"
+            "• Context variables (SOURCE_CONTEXT etc.) use the percentage set in Settings → AI Settings"
         )
         tips_text.setWordWrap(True)
         tips_text.setStyleSheet("color: #666; line-height: 1.6;")
@@ -1073,7 +1130,7 @@ class UnifiedPromptManagerQt:
         # Prompts from Library
         prompt_count = len(self.library.prompts)
         self.context_prompts = self._create_context_section(
-            f"💡 Prompt Library ({prompt_count})",
+            f"💡 Prompt Manager ({prompt_count})",
             f"{prompt_count} prompts available\nClick to select specific prompts"
         )
         self.context_prompts.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -1573,7 +1630,7 @@ class UnifiedPromptManagerQt:
         
         self.chat_input = QPlainTextEdit()
         self.chat_input.setPlaceholderText(
-            f"Type your message here... ({format_shortcut_for_display('Shift+Enter')} for new line)"
+            f"Type your message here... ({format_shortcut_for_display('Shift+Enter')} for new line, Esc to return)"
         )
         self.chat_input.setMaximumHeight(80)
         self.chat_input.setStyleSheet("""
@@ -1585,6 +1642,14 @@ class UnifiedPromptManagerQt:
                 padding: 4px;
             }
         """)
+        # Intercept Escape key to return to Grid / external app
+        _original_key_press = self.chat_input.keyPressEvent
+        def _chat_key_press(event):
+            if event.key() == Qt.Key.Key_Escape:
+                self._return_from_assistant()
+                return
+            _original_key_press(event)
+        self.chat_input.keyPressEvent = _chat_key_press
         input_layout.addWidget(self.chat_input, 1)
         
         send_btn = QPushButton("Send")
@@ -1622,7 +1687,7 @@ class UnifiedPromptManagerQt:
         layout.setSpacing(5)  # Reduced from 10 to 5 for tighter spacing
         
         # Header (matches TMX Editor style)
-        title = QLabel("📚 Prompt Library")
+        title = QLabel("📋 Prompt Manager")
         title.setStyleSheet("font-size: 16pt; font-weight: bold; color: #1976D2;")
         layout.addWidget(title, 0)  # 0 = no stretch, stays compact
         
@@ -1660,12 +1725,12 @@ class UnifiedPromptManagerQt:
         toolbar_layout.addWidget(btn_refresh)
 
         btn_collapse_all = QPushButton("▸ Collapse all")
-        btn_collapse_all.setToolTip("Collapse all folders in the Prompt Library tree")
+        btn_collapse_all.setToolTip("Collapse all folders in the Prompt Manager tree")
         btn_collapse_all.clicked.connect(self._collapse_prompt_library_tree)
         toolbar_layout.addWidget(btn_collapse_all)
 
         btn_expand_all = QPushButton("▾ Expand all")
-        btn_expand_all.setToolTip("Expand all folders in the Prompt Library tree")
+        btn_expand_all.setToolTip("Expand all folders in the Prompt Manager tree")
         btn_expand_all.clicked.connect(self._expand_prompt_library_tree)
         toolbar_layout.addWidget(btn_expand_all)
         
@@ -1683,7 +1748,7 @@ class UnifiedPromptManagerQt:
         
         # Tree widget
         self.tree_widget = PromptLibraryTreeWidget(self)
-        self.tree_widget.setHeaderLabels(["Prompt Library"])
+        self.tree_widget.setHeaderLabels(["Prompt Manager"])
         self.tree_widget.setAlternatingRowColors(True)
         self.tree_widget.itemClicked.connect(self._on_tree_item_clicked)
         self.tree_widget.itemDoubleClicked.connect(self._on_tree_item_double_clicked)
@@ -1846,18 +1911,18 @@ class UnifiedPromptManagerQt:
         
         layout.addLayout(metadata_layout)
 
-        # QuickMenu fields
+        # QuickLauncher fields
         quickmenu_layout = QHBoxLayout()
 
-        quickmenu_layout.addWidget(QLabel("QuickMenu label:"))
+        quickmenu_layout.addWidget(QLabel("QuickLauncher label:"))
         self.editor_quickmenu_label_input = QLineEdit()
-        self.editor_quickmenu_label_input.setPlaceholderText("Label shown in QuickMenu")
+        self.editor_quickmenu_label_input.setPlaceholderText("Label shown in QuickLauncher")
         quickmenu_layout.addWidget(self.editor_quickmenu_label_input, 2)
 
-        self.editor_quickmenu_in_grid_cb = CheckmarkCheckBox("Show in QuickMenu (in-app)")
+        self.editor_quickmenu_in_grid_cb = CheckmarkCheckBox("Show in QuickLauncher (in-app)")
         quickmenu_layout.addWidget(self.editor_quickmenu_in_grid_cb, 2)
 
-        self.editor_quickmenu_in_quickmenu_cb = CheckmarkCheckBox("Show in QuickMenu (global)")
+        self.editor_quickmenu_in_quickmenu_cb = CheckmarkCheckBox("Show in QuickLauncher (global)")
         quickmenu_layout.addWidget(self.editor_quickmenu_in_quickmenu_cb, 1)
 
         layout.addLayout(quickmenu_layout)
@@ -1910,7 +1975,7 @@ class UnifiedPromptManagerQt:
             item.setFlags(item.flags() | Qt.ItemFlag.ItemIsDragEnabled)
             favorites_root.addChild(item)
         
-        # Library folders (QuickMenu parent folder removed - folder hierarchy now defines menu structure)
+        # Library folders (QuickLauncher parent folder removed - folder hierarchy now defines menu structure)
         self.log_message(f"🔍 DEBUG: Building tree from {self.unified_library_dir}")
         self._build_tree_recursive(None, self.unified_library_dir, "")
         
@@ -2246,12 +2311,12 @@ class UnifiedPromptManagerQt:
         return True
 
     def _collapse_prompt_library_tree(self):
-        """Collapse all folders in the Prompt Library tree."""
+        """Collapse all folders in the Prompt Manager tree."""
         if hasattr(self, 'tree_widget') and self.tree_widget:
             self.tree_widget.collapseAll()
 
     def _expand_prompt_library_tree(self):
-        """Expand all folders in the Prompt Library tree."""
+        """Expand all folders in the Prompt Manager tree."""
         if hasattr(self, 'tree_widget') and self.tree_widget:
             self.tree_widget.expandAll()
     
@@ -2382,18 +2447,18 @@ class UnifiedPromptManagerQt:
                 action_fav = menu.addAction("☆ Add to Favorites")
             action_fav.triggered.connect(lambda: self._toggle_favorite(path))
             
-            # Toggle QuickMenu (legacy: quick_run)
+            # Toggle QuickLauncher (legacy: quick_run)
             if prompt_data.get('sv_quickmenu', prompt_data.get('quick_run', False)):
-                action_qr = menu.addAction("⚡ Remove from QuickMenu")
+                action_qr = menu.addAction("⚡ Remove from QuickLauncher")
             else:
-                action_qr = menu.addAction("⚡ Add to QuickMenu")
+                action_qr = menu.addAction("⚡ Add to QuickLauncher")
             action_qr.triggered.connect(lambda: self._toggle_quick_run(path))
 
-            # Toggle Grid right-click QuickMenu
+            # Toggle Grid right-click QuickLauncher
             if prompt_data.get('quickmenu_grid', False):
-                action_grid = menu.addAction("🖱️ Remove from Grid QuickMenu")
+                action_grid = menu.addAction("🖱️ Remove from Grid QuickLauncher")
             else:
-                action_grid = menu.addAction("🖱️ Add to Grid QuickMenu")
+                action_grid = menu.addAction("🖱️ Add to Grid QuickLauncher")
             action_grid.triggered.connect(lambda: self._toggle_quickmenu_grid(path))
             
             menu.addSeparator()
@@ -2552,7 +2617,7 @@ class UnifiedPromptManagerQt:
                     'version': '1.0',
                     'task_type': 'Translation',
                     'favorite': False,
-                    # QuickMenu
+                    # QuickLauncher
                     'quickmenu_label': quickmenu_label or name,
                     'quickmenu_grid': quickmenu_grid,
                     'sv_quickmenu': sv_quickmenu,
@@ -2761,12 +2826,12 @@ class UnifiedPromptManagerQt:
             self._refresh_tree()
     
     def _toggle_quick_run(self, relative_path: str):
-        """Toggle QuickMenu (future app menu) status (legacy name: quick_run)."""
+        """Toggle QuickLauncher (future app menu) status (legacy name: quick_run)."""
         if self.library.toggle_quick_run(relative_path):
             self._refresh_tree()
 
     def _toggle_quickmenu_grid(self, relative_path: str):
-        """Toggle whether this prompt appears in the Grid right-click QuickMenu."""
+        """Toggle whether this prompt appears in the Grid right-click QuickLauncher."""
         if self.library.toggle_quickmenu_grid(relative_path):
             self._refresh_tree()
     
@@ -3016,7 +3081,7 @@ class UnifiedPromptManagerQt:
             # Navigate to Settings tab if main app has the method
             # Use parent_app (not app)
             if hasattr(self.parent_app, 'main_tabs') and hasattr(self.parent_app, 'settings_tabs'):
-                # Navigate to Settings tab (index 4: Grid=0, Resources=1, Prompt Manager=2, Tools=3, Settings=4)
+                # Navigate to Settings tab (index 4: Grid=0, Resources=1, AI=2, Tools=3, Settings=4)
                 self.parent_app.main_tabs.setCurrentIndex(4)
                 # Find System Prompts sub-tab by label text (robust against index changes)
                 target_index = -1
@@ -4028,7 +4093,7 @@ Output complete ACTION."""
                     parts.append(f"\nCURRENT DOCUMENT CONTENT (first 3000 characters):")
                     parts.append(doc_content)
 
-        parts.append(f"- Prompt Library: {len(self.library.prompts)} prompts")
+        parts.append(f"- Prompt Manager: {len(self.library.prompts)} prompts")
         parts.append(f"- Attached Files: {len(self.attached_files)} files")
 
         # Add action system instructions (Phase 2)
