@@ -27,6 +27,7 @@
 * [Batch Translation](ai-translation/batch-translation.md)
 * [Creating Prompts](ai-translation/prompts.md)
 * [Prompt Manager](ai-translation/prompt-library.md)
+* [QuickLauncher](ai-translation/quicklauncher.md)
 * [Using Local LLMs (Ollama)](ai-translation/ollama.md)
 
 ## 🔗 CAT Tool Integration
