@@ -310,8 +310,8 @@ class UnifiedPromptLibrary:
             
             # Fields to include in frontmatter (in order)
             frontmatter_fields = [
-                'name', 'description', 'domain', 'version', 'task_type', 
-                'favorite',
+                'name', 'description', 'domain', 'version', 'task_type',
+                'favorite', 'read_only',
                 # QuickLauncher
                 'quickmenu_label', 'quickmenu_grid', 'sv_quickmenu',
                 # Legacy (kept for backward compatibility)
@@ -355,7 +355,11 @@ class UnifiedPromptLibrary:
             if 'sv_quickmenu' in prompt_data:
                 prompt_data['quick_run'] = bool(prompt_data.get('sv_quickmenu', False))
             self.prompts[relative_path] = prompt_data
-            
+
+            # Refresh QuickLauncher caches so changes take effect immediately
+            self._update_quick_run_list()
+            self._update_quickmenu_grid_list()
+
             self.log(f"✓ Saved prompt: {prompt_data.get('name', relative_path)}")
             return True
             

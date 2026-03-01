@@ -2,8 +2,29 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.340 (March 1, 2026)
+**Current Version:** v1.9.341 (March 1, 2026)
 
+
+## v1.9.341 - March 1, 2026
+
+### New Features
+
+- **Proofreading cancel button** — The proofreading operation (Edit > Bulk Operations > Proofread Translation) now runs in a background thread, keeping the UI fully responsive. A cancel button lets you stop proofreading at any time instead of waiting for all batches to complete.
+- **Prompt Library integration for proofreading** — The proofreading dialog now has a prompt dropdown that loads prompts from the `Bulk Operations/Proofreading` folder in the Prompt Library. Create custom proofreading prompts in this folder and they appear in the dropdown automatically.
+- **Read-only prompts** — Prompts can now be marked as read-only via a checkbox in the Prompt Editor. Read-only prompts cannot be edited or overwritten, protecting built-in and curated prompts from accidental changes.
+- **Default Bulk Operations folder** — A new `Bulk Operations/Proofreading` folder is created by default in the Prompt Library, containing a built-in (read-only) default proofreading prompt.
+
+### Improvements
+
+- **QuickLauncher checkboxes take effect immediately** — Toggling "Show in QuickLauncher (in-app)" or "Show in QuickLauncher (global)" and saving now updates the QuickLauncher menus immediately, without requiring a restart.
+- **Default folders for new users** — New installations now get a useful starting set of Prompt Library folders: Domain Expertise, Project Prompts, Proofreading, Style Guides, Translation Help, and Bulk Operations/Proofreading.
+- **Prompt Library tree header renamed** — The folder tree header now reads "Prompt Library" to distinguish it from the "Prompt Manager" tab name.
+
+### Bug Fixes
+
+- **Fixed custom_openai provider for proofreading** — The proofreading operation previously crashed with a NameError when using a custom OpenAI provider due to an undefined `settings` variable. Now properly resolved.
+
+---
 
 ## v1.9.340 - March 1, 2026
 
@@ -18,15 +39,6 @@ All notable changes to Supervertaler are documented in this file.
 - **Main tab: "Prompt Manager" → "AI"** — The main tab is now simply called "✨ AI", which is cleaner and more inviting for translators exploring AI features.
 - **Sub-tab: "Prompt Library" → "Prompt Manager"** — The prompt management sub-tab has been renamed to better reflect its full capabilities (creating, organizing, and running prompts).
 - **Sub-tab: "Placeholders" → "Variables"** — Renamed to avoid confusion with the CAT tool concept of placeholders (inline formatting tags). All internal labels, column headers, and tips text updated accordingly.
-- **Renamed QuickMenu → QuickLauncher** — The QuickMenu feature has been renamed to QuickLauncher across the entire application for better clarity.
-
-### Improvements
-
-- **Global QuickLauncher hotkey (Ctrl+Alt+K)** — Launch the QuickLauncher from any application on your computer. Select text in any app, press Ctrl+Alt+K, and a floating menu appears with QuickTrans, the Supervertaler Assistant, and all your QuickLauncher prompts.
-- **QuickTrans consolidated into QuickLauncher** — QuickTrans is now the first item inside the QuickLauncher submenu (both in the right-click context menu and the Alt+K hotkey menu), streamlining the menu structure.
-- **Customizable global hotkeys** — All three global hotkeys (Superlookup, QuickTrans, QuickLauncher) can now be customized in Settings → Keyboard Shortcuts under the "Global" category.
-- **QuickLauncher response dialog now renders Markdown** — The "Run (show response)" dialog now displays formatted Markdown (headings, bold, italic, lists, code blocks) instead of raw plain text.
-- **Improved clipboard timing** for the global QuickLauncher hotkey, ensuring reliable text capture in slower applications like emEditor.
 
 ### Documentation
 
@@ -41,7 +53,6 @@ All notable changes to Supervertaler are documented in this file.
 
 - **Global QuickLauncher hotkey (Ctrl+Alt+K)** — Launch the QuickLauncher from any application on your computer. Select text in any app, press Ctrl+Alt+K, and a floating menu appears with QuickTrans, the Supervertaler Assistant, and all your QuickLauncher prompts. Choose "Run (show response)" to view the result, or "Run and paste into app" to insert the LLM response directly into the external application.
 - **QuickTrans consolidated into QuickLauncher** — QuickTrans is now the first item inside the QuickLauncher submenu (both in the right-click context menu and the Alt+K hotkey menu), streamlining the menu structure.
-- **Supervertaler Assistant** — Access the AI Assistant from any QuickLauncher menu. Selected text is inserted into the chat input. Press Escape to return to the Grid (or the external app you launched from).
 - **Customizable global hotkeys** — All three global hotkeys (Superlookup, QuickTrans, QuickLauncher) can now be customized in Settings → Keyboard Shortcuts under the "Global" category.
 - **Renamed QuickMenu → QuickLauncher** — The QuickMenu feature has been renamed to QuickLauncher across the entire application for better clarity.
 

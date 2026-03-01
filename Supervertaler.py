@@ -7134,6 +7134,161 @@ class PreTranslationWorker(QThread):
             return [None] * len(batch_segments)
 
 
+class ProofreadWorker(QThread):
+    """Background worker thread for proofreading translations."""
+
+    # Signals
+    progress_update = pyqtSignal(int, str)  # checked_count, status_message
+    stats_update = pyqtSignal(int, int, int)  # checked, issues, ok
+    batch_error = pyqtSignal(int, int, str)  # batch_start, batch_end, error_message
+    segment_issue = pyqtSignal(int, str)  # row_idx, issue_text
+    finished_proofreading = pyqtSignal(int, int, int)  # checked, issues, ok
+
+    def __init__(self, segments_to_check, provider, model, custom_prompt, api_keys, source_lang, target_lang, base_url=None, custom_api_key=None):
+        super().__init__()
+        self.segments_to_check = segments_to_check
+        self.provider = provider
+        self.model = model
+        self.custom_prompt = custom_prompt
+        self.api_keys = api_keys
+        self.source_lang = source_lang
+        self.target_lang = target_lang
+        self.base_url = base_url
+        self.custom_api_key = custom_api_key
+        self._cancelled = False
+
+    def cancel(self):
+        self._cancelled = True
+
+    def run(self):
+        """Main proofreading loop - runs in background thread."""
+        import re
+
+        # Build prompt if not custom
+        if not self.custom_prompt:
+            lang_specific = ""
+            if self.target_lang.lower() in ['dutch', 'nl', 'nl-nl', 'nl-be', 'nederlands']:
+                lang_specific = """
+5. Dutch Compound Words – Verify correct spelling of compound words (e.g., "persoonsgegevens" NOT "persoongegevens", "bedrijfsnaam" NOT "bedrijfnaam"). Pay special attention to connecting letters like 's', 'e', 'en'.
+6. Dutch Spelling – Check for common Dutch spelling errors including de/het articles, dt-errors, and capitalization."""
+            elif self.target_lang.lower() in ['german', 'de', 'de-de', 'deutsch']:
+                lang_specific = """
+5. German Compound Words – Verify correct compound noun formation and capitalization of all nouns.
+6. German Cases – Check correct use of cases (Nominativ, Akkusativ, Dativ, Genitiv)."""
+            elif self.target_lang.lower() in ['french', 'fr', 'fr-fr', 'français']:
+                lang_specific = """
+5. French Accents – Verify correct use of accents (é, è, ê, à, ù, ô, etc.).
+6. French Agreement – Check gender/number agreement between nouns, adjectives, and articles."""
+
+            self.custom_prompt = f"""You are a translation proofreader. Your task is to analyze translations for errors.
+
+DO NOT translate anything. DO NOT provide corrected translations unless specifically requested.
+ONLY identify errors using the exact format specified below.
+
+Task: Proofread this translation from {self.source_lang} to {self.target_lang}.
+
+For each segment, verify:
+1. Accuracy – Does the translation correctly convey the source meaning?
+2. Completeness – Is anything missing or added?
+3. Terminology – Are technical terms translated correctly and consistently?
+4. Grammar & Style – Is the text natural and error-free?{lang_specific}
+
+CRITICAL OUTPUT FORMAT (FOLLOW EXACTLY):
+- If segment is OK: [SEGMENT XXXX] ✓
+- If segment has issues: [SEGMENT XXXX] ⚠
+  Issue: <brief description>
+  Suggestion: <recommended fix>
+
+OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
+
+        # Initialize LLM client
+        try:
+            from modules.llm_clients import LLMClient
+
+            if self.provider == 'openai':
+                api_key = self.api_keys.get('openai', '')
+            elif self.provider == 'claude':
+                api_key = self.api_keys.get('claude', '')
+            elif self.provider == 'gemini':
+                api_key = self.api_keys.get('gemini', '')
+            elif self.provider == 'ollama':
+                api_key = self.api_keys.get('ollama', '') or 'not-needed'
+            elif self.provider == 'custom_openai':
+                api_key = self.custom_api_key or self.api_keys.get('custom_openai', '') or 'not-needed'
+            else:
+                api_key = ''
+
+            llm_client = LLMClient(api_key=api_key, provider=self.provider, model=self.model, base_url=self.base_url)
+        except Exception as e:
+            self.batch_error.emit(0, 0, f"Failed to initialize LLM client:\n{str(e)}")
+            self.finished_proofreading.emit(0, 0, 0)
+            return
+
+        # Process in batches of 20 segments
+        batch_size = 20
+        checked_count = 0
+        issues_count = 0
+        ok_count = 0
+
+        for batch_start in range(0, len(self.segments_to_check), batch_size):
+            if self._cancelled:
+                break
+
+            batch_end = min(batch_start + batch_size, len(self.segments_to_check))
+            batch = self.segments_to_check[batch_start:batch_end]
+
+            # Format batch for API
+            batch_text = ""
+            for row_idx, segment in batch:
+                segment_num = f"{row_idx + 1:04d}"
+                batch_text += f"[SEGMENT {segment_num}]\n{self.source_lang}: {segment.source}\n{self.target_lang}: {segment.target}\n\n"
+
+            self.progress_update.emit(checked_count, f"Proofreading segments {batch_start + 1}-{batch_end}...")
+
+            # Send to LLM
+            try:
+                full_prompt = f"{self.custom_prompt}\n\n{batch_text}"
+
+                response = llm_client.translate(
+                    text="",
+                    source_lang=self.source_lang,
+                    target_lang=self.target_lang,
+                    custom_prompt=full_prompt
+                )
+
+                if self._cancelled:
+                    break
+
+                # Parse response
+                for row_idx, segment in batch:
+                    if self._cancelled:
+                        break
+
+                    segment_num = f"{row_idx + 1:04d}"
+
+                    pattern_ok = f"\\[SEGMENT {segment_num}\\]\\s*✓"
+                    pattern_issue = f"\\[SEGMENT {segment_num}\\]\\s*⚠"
+
+                    if re.search(pattern_ok, response, re.IGNORECASE):
+                        ok_count += 1
+                    elif re.search(pattern_issue, response, re.IGNORECASE):
+                        issue_pattern = f"\\[SEGMENT {segment_num}\\]\\s*⚠\\s*\\n(.+?)(?=\\[SEGMENT|$)"
+                        issue_match = re.search(issue_pattern, response, re.DOTALL)
+
+                        if issue_match:
+                            issue_text = issue_match.group(1).strip()
+                            self.segment_issue.emit(row_idx, issue_text)
+                            issues_count += 1
+
+                    checked_count += 1
+                    self.stats_update.emit(checked_count, issues_count, ok_count)
+
+            except Exception as e:
+                self.batch_error.emit(batch_start, batch_end, str(e))
+
+        self.finished_proofreading.emit(checked_count, issues_count, ok_count)
+
+
 class LiveProgressDialog(QDialog):
     """Progress dialog with live console output."""
     
@@ -38654,21 +38809,66 @@ class SupervertalerQt(QMainWindow):
         layout.addSpacing(10)
         
         # Custom prompt override
-        prompt_group = QGroupBox("Proofreading Prompt (Optional)")
+        prompt_group = QGroupBox("Proofreading Prompt")
         prompt_layout = QVBoxLayout()
-        
+
+        # Load prompts from Bulk Operations/ folder in Prompt Library
+        library_prompts = []
+        default_prompt_name = "Default Proofreading Prompt"
+        if hasattr(self, 'prompt_manager_qt') and self.prompt_manager_qt:
+            lib = getattr(self.prompt_manager_qt, 'library', None)
+            if lib:
+                # Reload from disk to pick up any recently created prompts
+                lib.load_all_prompts()
+                for rel_path, data in lib.prompts.items():
+                    folder = data.get('_folder', '')
+                    # Only include prompts under Bulk Operations/
+                    if not folder.startswith('Bulk Operations'):
+                        continue
+                    # Skip the default built-in prompt (it's the "Default" entry)
+                    if data.get('name', '') == default_prompt_name:
+                        continue
+                    label = data.get('name', rel_path)
+                    library_prompts.append((rel_path, label, data.get('content', '')))
+                library_prompts.sort(key=lambda x: x[1].lower())
+
+        prompt_source_layout = QHBoxLayout()
+        prompt_source_label = QLabel("Prompt:")
+        prompt_source_layout.addWidget(prompt_source_label)
+
+        prompt_combo = QComboBox()
+        prompt_combo.addItem("Default (built-in)", "")
+        for rel_path, label, content in library_prompts:
+            prompt_combo.addItem(label, rel_path)
+        prompt_combo.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        prompt_source_layout.addWidget(prompt_combo)
+        prompt_layout.addLayout(prompt_source_layout)
+
         prompt_text = QTextEdit()
         prompt_text.setPlaceholderText(
-            "Leave empty to use default prompt, or customize here...\n\n"
             "Default checks:\n"
             "1. Accuracy – Does target correctly convey source meaning?\n"
             "2. Completeness – Is anything missing or added?\n"
             "3. Terminology – Are technical terms correct and consistent?\n"
-            "4. Grammar & Style – Is the text natural and error-free?"
+            "4. Grammar & Style – Is the text natural and error-free?\n\n"
+            "Select a prompt from the library above, or type a custom prompt here."
         )
-        prompt_text.setMaximumHeight(120)
+        prompt_text.setMaximumHeight(150)
         prompt_layout.addWidget(prompt_text)
-        
+
+        # When combo changes, load prompt content into text area
+        def on_prompt_source_changed(index):
+            rel_path = prompt_combo.itemData(index)
+            if rel_path:
+                # Load from library
+                for rp, label, content in library_prompts:
+                    if rp == rel_path:
+                        prompt_text.setPlainText(content)
+                        break
+            else:
+                prompt_text.clear()
+        prompt_combo.currentIndexChanged.connect(on_prompt_source_changed)
+
         prompt_group.setLayout(prompt_layout)
         layout.addWidget(prompt_group)
         
@@ -38712,197 +38912,141 @@ class SupervertalerQt(QMainWindow):
         custom_prompt = prompt_text.toPlainText().strip()
         
         # Start proofreading
-        self._run_proofreading(segments_to_check, llm_provider, llm_model, custom_prompt)
+        self._run_proofreading(segments_to_check, llm_provider, llm_model, custom_prompt, settings)
     
-    def _run_proofreading(self, segments_to_check, provider, model, custom_prompt=""):
-        """Run proofreading on selected segments"""
+    def _run_proofreading(self, segments_to_check, provider, model, custom_prompt="", settings=None):
+        """Run proofreading on selected segments using a background thread"""
         # Create progress dialog
         progress_dialog = QDialog(self)
         progress_dialog.setWindowTitle("Proofreading in Progress")
         progress_dialog.setModal(True)
         progress_dialog.setMinimumWidth(600)
         progress_dialog.setMinimumHeight(300)
-        
+
         dialog_layout = QVBoxLayout(progress_dialog)
-        
+
         current_label = QLabel("Initializing...")
         dialog_layout.addWidget(current_label)
-        
+
         progress_bar = QProgressBar()
         progress_bar.setMaximum(len(segments_to_check))
         progress_bar.setValue(0)
         dialog_layout.addWidget(progress_bar)
-        
+
         stats_label = QLabel("Checked: 0 | Issues Found: 0 | OK: 0")
         dialog_layout.addWidget(stats_label)
-        
+
+        button_layout = QHBoxLayout()
+        button_layout.addStretch()
+
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.setStyleSheet("background-color: #e74c3c; color: white; font-weight: bold; padding: 6px 20px;")
+        button_layout.addWidget(cancel_btn)
+
         close_btn = QPushButton("Close")
         close_btn.setEnabled(False)
         close_btn.clicked.connect(progress_dialog.accept)
-        dialog_layout.addWidget(close_btn)
-        
-        progress_dialog.show()
-        QApplication.processEvents()
-        
-        # Default prompt with language-specific instructions
-        if not custom_prompt:
-            # Add language-specific checks
-            lang_specific = ""
-            if self.current_project.target_lang.lower() in ['dutch', 'nl', 'nl-nl', 'nl-be', 'nederlands']:
-                lang_specific = """
-5. Dutch Compound Words – Verify correct spelling of compound words (e.g., "persoonsgegevens" NOT "persoongegevens", "bedrijfsnaam" NOT "bedrijfnaam"). Pay special attention to connecting letters like 's', 'e', 'en'.
-6. Dutch Spelling – Check for common Dutch spelling errors including de/het articles, dt-errors, and capitalization."""
-            elif self.current_project.target_lang.lower() in ['german', 'de', 'de-de', 'deutsch']:
-                lang_specific = """
-5. German Compound Words – Verify correct compound noun formation and capitalization of all nouns.
-6. German Cases – Check correct use of cases (Nominativ, Akkusativ, Dativ, Genitiv)."""
-            elif self.current_project.target_lang.lower() in ['french', 'fr', 'fr-fr', 'français']:
-                lang_specific = """
-5. French Accents – Verify correct use of accents (é, è, ê, à, ù, ô, etc.).
-6. French Agreement – Check gender/number agreement between nouns, adjectives, and articles."""
-            
-            custom_prompt = f"""You are a translation proofreader. Your task is to analyze translations for errors.
+        button_layout.addWidget(close_btn)
 
-DO NOT translate anything. DO NOT provide corrected translations unless specifically requested.
-ONLY identify errors using the exact format specified below.
+        dialog_layout.addLayout(button_layout)
 
-Task: Proofread this translation from {self.current_project.source_lang} to {self.current_project.target_lang}.
-
-For each segment, verify:
-1. Accuracy – Does the translation correctly convey the source meaning?
-2. Completeness – Is anything missing or added?
-3. Terminology – Are technical terms translated correctly and consistently?
-4. Grammar & Style – Is the text natural and error-free?{lang_specific}
-
-CRITICAL OUTPUT FORMAT (FOLLOW EXACTLY):
-- If segment is OK: [SEGMENT XXXX] ✓
-- If segment has issues: [SEGMENT XXXX] ⚠
-  Issue: <brief description>
-  Suggestion: <recommended fix>
-
-OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
-        
-        # Initialize LLM client
+        # Resolve custom_openai settings before spawning thread
         api_keys = self.load_api_keys()
-        llm_client = None
-        
-        try:
-            from modules.llm_clients import LLMClient
-            
-            # Get appropriate API key for provider
-            # Note: api_keys is normalized so both 'gemini' and 'google' exist if either is set
-            if provider == 'openai':
-                api_key = api_keys.get('openai', '')
-            elif provider == 'claude':
-                api_key = api_keys.get('claude', '')
-            elif provider == 'gemini':
-                api_key = api_keys.get('gemini', '')
-            elif provider == 'ollama':
-                api_key = api_keys.get('ollama', '') or 'not-needed'
-            elif provider == 'custom_openai':
-                profile = self._get_active_custom_profile(settings)
-                profile_key = (profile.get('api_key') or '').strip() if profile else ''
-                api_key = profile_key or api_keys.get('custom_openai', '') or 'not-needed'
-            else:
-                api_key = ''
+        base_url = None
+        custom_api_key = None
+        if provider == 'custom_openai' and settings:
+            profile = self._get_active_custom_profile(settings)
+            if profile:
+                profile_key = (profile.get('api_key') or '').strip()
+                if profile_key:
+                    custom_api_key = profile_key
+                base_url = profile.get('endpoint') or None
 
-            base_url = None
-            if provider == 'custom_openai':
-                profile = self._get_active_custom_profile(settings)
-                base_url = profile.get('endpoint') or None if profile else None
-            llm_client = LLMClient(api_key=api_key, provider=provider, model=model, base_url=base_url)
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Failed to initialize LLM client:\n{str(e)}")
-            return
-        
-        # Process in batches of 20 segments
-        batch_size = 20
-        checked_count = 0
-        issues_count = 0
-        ok_count = 0
-        
-        for batch_start in range(0, len(segments_to_check), batch_size):
-            batch_end = min(batch_start + batch_size, len(segments_to_check))
-            batch = segments_to_check[batch_start:batch_end]
-            
-            # Format batch for API
-            batch_text = ""
-            for row_idx, segment in batch:
-                segment_num = f"{row_idx + 1:04d}"
-                batch_text += f"[SEGMENT {segment_num}]\n{self.current_project.source_lang}: {segment.source}\n{self.current_project.target_lang}: {segment.target}\n\n"
-            
-            current_label.setText(f"Proofreading segments {batch_start + 1}-{batch_end}...")
-            QApplication.processEvents()
-            
-            # Send to LLM
-            try:
-                # Build full prompt with instructions and segments
-                full_prompt = f"{custom_prompt}\n\n{batch_text}"
-                
-                # Log the prompt being sent (first 500 chars)
-                self.log(f"📤 Sending proofreading request for {len(batch)} segments...")
-                self.log(f"📝 Prompt preview: {full_prompt[:500]}...")
-                
-                # Use translate() method but with a proofreading context
-                # We're not actually translating, just using the LLM to analyze
-                response = llm_client.translate(
-                    text="",  # Empty text since we're including everything in custom_prompt
-                    source_lang=self.current_project.source_lang,
-                    target_lang=self.current_project.target_lang,
-                    custom_prompt=full_prompt
-                )
-                
-                # Log the response
-                self.log(f"📥 Received response ({len(response)} chars)")
-                self.log(f"📄 Response (full): {response}")
-                
-                # Parse response
-                for row_idx, segment in batch:
-                    segment_num = f"{row_idx + 1:04d}"
-                    
-                    # Look for [SEGMENT XXXX] markers
-                    pattern_ok = f"\\[SEGMENT {segment_num}\\]\\s*✓"
-                    pattern_issue = f"\\[SEGMENT {segment_num}\\]\\s*⚠"
-                    
-                    if re.search(pattern_ok, response, re.IGNORECASE):
-                        # Segment is OK
-                        ok_count += 1
-                    elif re.search(pattern_issue, response, re.IGNORECASE):
-                        # Segment has issues - extract details
-                        issue_pattern = f"\\[SEGMENT {segment_num}\\]\\s*⚠\\s*\\n(.+?)(?=\\[SEGMENT|$)"
-                        issue_match = re.search(issue_pattern, response, re.DOTALL)
-                        
-                        if issue_match:
-                            issue_text = issue_match.group(1).strip()
-                            
-                            # Add to notes with prefix
-                            existing_notes = segment.notes or ""
-                            if existing_notes:
-                                segment.notes = f"⚠️ PROOFREAD:\n{issue_text}\n\n---\n{existing_notes}"
-                            else:
-                                segment.notes = f"⚠️ PROOFREAD:\n{issue_text}"
-                            
-                            issues_count += 1
-                            self.project_modified = True
-                    
-                    checked_count += 1
-                    progress_bar.setValue(checked_count)
-                    stats_label.setText(f"Checked: {checked_count} | Issues Found: {issues_count} | OK: {ok_count}")
-                    QApplication.processEvents()
-            
-            except Exception as e:
-                self.log(f"⚠️ Proofreading error for batch {batch_start}-{batch_end}: {e}")
-        
-        # Complete
-        current_label.setText(f"✓ Proofreading Complete!")
-        close_btn.setEnabled(True)
-        self.load_segments_to_grid()  # Refresh grid to show orange indicators
-        self.update_window_title()
-        
-        self.log(f"═══════════════════════════════════════════════════════════")
-        self.log(f"✓ Proofreading Complete")
-        self.log(f"   Checked: {checked_count} | Issues: {issues_count} | OK: {ok_count}")
-        self.log(f"═══════════════════════════════════════════════════════════")
+        # Create worker thread
+        worker = ProofreadWorker(
+            segments_to_check=segments_to_check,
+            provider=provider,
+            model=model,
+            custom_prompt=custom_prompt,
+            api_keys=api_keys,
+            source_lang=self.current_project.source_lang,
+            target_lang=self.current_project.target_lang,
+            base_url=base_url,
+            custom_api_key=custom_api_key,
+        )
+
+        # Keep reference to prevent GC
+        self._proofread_worker = worker
+
+        # Connect cancel button
+        def on_cancel():
+            worker.cancel()
+            cancel_btn.setEnabled(False)
+            cancel_btn.setText("Cancelling...")
+            current_label.setText("Cancelling after current batch...")
+
+        cancel_btn.clicked.connect(on_cancel)
+
+        # Also cancel if dialog is closed via X button
+        def on_dialog_rejected():
+            worker.cancel()
+        progress_dialog.rejected.connect(on_dialog_rejected)
+
+        # Connect worker signals
+        def on_progress(checked_count, message):
+            progress_bar.setValue(checked_count)
+            current_label.setText(message)
+            self.log(f"📤 {message}")
+
+        def on_stats(checked, issues, ok):
+            progress_bar.setValue(checked)
+            stats_label.setText(f"Checked: {checked} | Issues Found: {issues} | OK: {ok}")
+
+        def on_segment_issue(row_idx, issue_text):
+            segment = self.current_project.segments[row_idx]
+            existing_notes = segment.notes or ""
+            if existing_notes:
+                segment.notes = f"⚠️ PROOFREAD:\n{issue_text}\n\n---\n{existing_notes}"
+            else:
+                segment.notes = f"⚠️ PROOFREAD:\n{issue_text}"
+            self.project_modified = True
+
+        def on_batch_error(batch_start, batch_end, error_msg):
+            if batch_start == 0 and batch_end == 0:
+                # LLM init error
+                current_label.setText(f"Error: {error_msg}")
+            else:
+                self.log(f"⚠️ Proofreading error for batch {batch_start}-{batch_end}: {error_msg}")
+
+        def on_finished(checked, issues, ok):
+            cancel_btn.setEnabled(False)
+            cancel_btn.hide()
+            close_btn.setEnabled(True)
+
+            if worker._cancelled:
+                current_label.setText(f"Proofreading cancelled. Checked: {checked} segments before cancellation.")
+            else:
+                current_label.setText("✓ Proofreading Complete!")
+
+            self.load_segments_to_grid()
+            self.update_window_title()
+
+            self.log(f"═══════════════════════════════════════════════════════════")
+            self.log(f"{'⊘ Proofreading Cancelled' if worker._cancelled else '✓ Proofreading Complete'}")
+            self.log(f"   Checked: {checked} | Issues: {issues} | OK: {ok}")
+            self.log(f"═══════════════════════════════════════════════════════════")
+
+            self._proofread_worker = None
+
+        worker.progress_update.connect(on_progress)
+        worker.stats_update.connect(on_stats)
+        worker.segment_issue.connect(on_segment_issue)
+        worker.batch_error.connect(on_batch_error)
+        worker.finished_proofreading.connect(on_finished)
+
+        # Start worker and show dialog
+        worker.start()
+        progress_dialog.exec()
     
     def show_proofreading_results_dialog(self):
         """Show dialog with all proofreading results"""
