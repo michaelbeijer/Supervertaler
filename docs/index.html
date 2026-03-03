@@ -70,7 +70,7 @@
                     Supervertaler
                     <span class="gradient-text">The Ultimate Translation Workbench</span>
                 </h1>
-                <p class="version-badge">v1.9.341</p>
+                <p class="version-badge">v1.9.342</p>
                 <p class="hero-subtitle">
                     AI-enhanced translation workbench. Work with ChatGPT, Claude, and Gemini simultaneously.
                     Built by translators, for translators and writers.
@@ -90,6 +90,7 @@
                     <span class="badge badge-cat">Translation Memory</span>
                     <span class="badge badge-cat">Terminology Management</span>
                     <span class="badge badge-cat">CAT Tool Integration</span>
+                    <span class="badge badge-cat" style="background: linear-gradient(135deg, #059669, #10b981); border-color: #059669;">Okapi File Filters</span>
                     <span class="badge badge-cat">Voice Commands</span>
                     <span class="badge badge-cat">Cross-Platform</span>
                 </div>
@@ -115,6 +116,42 @@
                                 style="width: 100%; border-radius: 4px; margin-top: 8px;">
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Okapi Sidecar Announcement Banner -->
+    <section style="background: linear-gradient(135deg, #059669 0%, #0d9488 50%, #0891b2 100%); padding: 70px 0; color: white;">
+        <div class="container">
+            <div style="text-align: center; margin-bottom: 40px;">
+                <span style="display: inline-block; background: rgba(255,255,255,0.2); color: white; padding: 6px 18px; border-radius: 20px; font-size: 0.85em; font-weight: 600; letter-spacing: 1px; margin-bottom: 16px;">NEW IN v1.9.342</span>
+                <h2 style="font-size: 2.2em; margin: 10px 0 10px; color: white;">Okapi Framework File Filters &mdash; Built In</h2>
+                <p style="font-size: 1.15em; opacity: 0.92; max-width: 700px; margin: 0 auto;">
+                    The same industry-standard localization toolkit used by Trados Studio, memoQ, and OmegaT is now integrated directly into Supervertaler.
+                </p>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 30px; max-width: 960px; margin: 0 auto;">
+                <div style="background: rgba(255,255,255,0.12); border-radius: 12px; padding: 28px; backdrop-filter: blur(10px);">
+                    <div style="font-size: 1.8em; margin-bottom: 10px;">&#128218;</div>
+                    <h3 style="color: white; font-size: 1.15em; margin-bottom: 10px;">What It Is</h3>
+                    <p style="opacity: 0.9; font-size: 0.95em; line-height: 1.6;">
+                        The <strong>Okapi Framework</strong> is the open-source standard for localization file processing. Its thoroughly battle-tested filters handle DOCX, XLSX, PPTX, HTML, XML, IDML, and dozens more formats with proper inline formatting, segmentation, and round-trip fidelity.
+                    </p>
+                </div>
+                <div style="background: rgba(255,255,255,0.12); border-radius: 12px; padding: 28px; backdrop-filter: blur(10px);">
+                    <div style="font-size: 1.8em; margin-bottom: 10px;">&#9881;&#65039;</div>
+                    <h3 style="color: white; font-size: 1.15em; margin-bottom: 10px;">How It Works</h3>
+                    <p style="opacity: 0.9; font-size: 0.95em; line-height: 1.6;">
+                        A lightweight Java <strong>sidecar</strong> process starts automatically in the background. Supervertaler communicates with it over a local REST API &mdash; sending files for extraction and translations for merging. You never have to interact with it; it just works.
+                    </p>
+                </div>
+                <div style="background: rgba(255,255,255,0.12); border-radius: 12px; padding: 28px; backdrop-filter: blur(10px);">
+                    <div style="font-size: 1.8em; margin-bottom: 10px;">&#10024;</div>
+                    <h3 style="color: white; font-size: 1.15em; margin-bottom: 10px;">What You Get</h3>
+                    <p style="opacity: 0.9; font-size: 0.95em; line-height: 1.6;">
+                        Exported documents that are <strong>exact replicas</strong> of the original &mdash; bold, italic, colored text, heading styles, fonts, lists, everything preserved faithfully. Plus semantic formatting tags (<code style="background: rgba(255,255,255,0.2); padding: 2px 6px; border-radius: 3px;">&lt;b&gt;</code>, <code style="background: rgba(255,255,255,0.2); padding: 2px 6px; border-radius: 3px;">&lt;i&gt;</code>) visible while you translate.
+                    </p>
                 </div>
             </div>
         </div>
@@ -404,6 +441,21 @@
             <p class="section-subtitle">Everything you need for professional translation work</p>
 
             <div class="features-grid">
+                <div class="feature-card" style="border: 3px solid #059669; background: linear-gradient(135deg, rgba(5,150,105,0.04), rgba(16,185,129,0.08));">
+                    <div class="feature-icon">&#128218;</div>
+                    <h3>Okapi Framework File Filters <span class="badge-new" style="background: #059669;">v1.9.342</span></h3>
+                    <p>Industry-standard Okapi Framework localization filters run as an automatic background sidecar,
+                        giving Supervertaler the same file processing engine used by Trados Studio, memoQ, and OmegaT.</p>
+                    <ul class="feature-list">
+                        <li>Full round-trip DOCX import and export</li>
+                        <li>Exported files are exact replicas of the original</li>
+                        <li>Semantic formatting tags (&lt;b&gt;, &lt;i&gt;, &lt;u&gt;, etc.)</li>
+                        <li>SRX segmentation and proper paragraph detection</li>
+                        <li>Automatic Java sidecar &mdash; starts and stops silently</li>
+                        <li>More formats coming: XLSX, PPTX, HTML, IDML, XML</li>
+                    </ul>
+                </div>
+
                 <div class="feature-card" style="border: 2px solid #3b82f6;">
                     <div class="feature-icon">🌐</div>
                     <h3>Superbrowser - Multi-Chat AI Browser <span class="badge-new">v1.6.4</span></h3>
@@ -707,7 +759,7 @@
             <div style="text-align: center; margin: 40px 0;">
                 <div class="download-card featured"
                     style="border: 3px solid #6366F1; max-width: 700px; margin: 0 auto;">
-                    <div class="download-badge" style="background: #6366F1;">v1.9.341</div>
+                    <div class="download-badge" style="background: #6366F1;">v1.9.342</div>
                     <h3>🎨 Supervertaler</h3>
                     <p class="download-description" style="font-weight: 600; color: #6366F1; margin-bottom: 10px;">
                         Modern Professional Interface
@@ -717,6 +769,7 @@
                         dictation, Superlookup, TMX Editor, and more. Built with PyQt6 for modern UI and performance.
                     </p>
                     <div class="feature-highlights" style="text-align: left; font-size: 0.9em;">
+                        <div class="highlight-item" style="color: #059669; font-weight: 600;">&#128218; Okapi Framework file filters - Industry-standard round-trip document processing</div>
                         <div class="highlight-item">🔍 Filter highlighting - Search terms highlighted in yellow</div>
                         <div class="highlight-item">🎯 Termbase display customization - Sort & filter matches</div>
                         <div class="highlight-item">💾 Auto-backup system - Never lose your work</div>

@@ -2,8 +2,24 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.341 (March 1, 2026)
+**Current Version:** v1.9.342 (March 3, 2026)
 
+
+## v1.9.342 - March 3, 2026
+
+### New Features
+
+- **Okapi Framework sidecar integration** — Supervertaler now includes a built-in Okapi Framework sidecar, a lightweight Java microservice that runs in the background and provides industry-standard file filters for document import and export. The same localization toolkit used by Trados Studio, memoQ, and OmegaT is now available directly inside Supervertaler. Currently supports DOCX with full round-trip fidelity — the exported translation is an exact replica of the original document in terms of formatting, layout, colors, fonts, and styles.
+- **Semantic inline formatting tags** — The Okapi import now produces human-readable formatting tags (`<b>` for bold, `<i>` for italic, `<u>` for underline, `<s>` for strikethrough, `<sup>`/`<sub>`, and `<cf color="...">` for colored text) instead of opaque internal codes. Translators can see and preserve formatting at a glance.
+- **Faithful format preservation on export** — The Okapi merge engine reconstructs original inline codes from the semantic display tags in your translations, preserving bold, italic, colors, fonts, and all other formatting in the exported document. No manual formatting cleanup needed.
+
+### Improvements
+
+- **Import engine selection dialog** — When importing a DOCX file, a dialog lets you choose between the standard Python-based engine and the Okapi Framework engine. The dialog text now accurately describes the capabilities of each engine.
+- **Okapi formatting detection via Code.getType()** — The Java sidecar now reads formatting properties from Okapi's code type descriptors (e.g., `x-bold;fonts:Arial;`) in addition to raw OOXML data, enabling correct detection of style-based formatting in all DOCX documents.
+- **Improved subDocument filtering** — Okapi extraction now correctly filters header/footer content while preserving all body text, fixing an issue where segments from the main document body were incorrectly skipped.
+
+---
 
 ## v1.9.341 - March 1, 2026
 

@@ -90,7 +90,7 @@ import subprocess
 import atexit
 from pathlib import Path
 from typing import List, Optional, Dict, Any, Tuple, Callable
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
 from datetime import datetime
 from modules.shortcut_display import format_shortcut_for_display
 from modules.platform_helpers import IS_WINDOWS, IS_MACOS, IS_LINUX, open_file, open_folder, get_hidden_subprocess_flags
@@ -1247,7 +1247,8 @@ class Segment:
     target: str = ""
     status: str = DEFAULT_STATUS.key
     type: str = "para"  # para, heading, list_item, table_cell
-    notes: str = ""  # Stored as “Comments” in UI
+    notes: str = ""  # Segment note (user-authored)
+    proofreading_notes: Dict[str, str] = field(default_factory=dict)  # LLM model name → proofreading issue text
     match_percent: Optional[int] = None  # memoQ match score if provided
     memoQ_status: str = ""  # Raw memoQ status text
     locked: bool = False  # For compatibility with tkinter version
@@ -1266,7 +1267,9 @@ class Segment:
     dejavu_segment_id: str = ""  # Déjà Vu segment ID for round-trip export
     dejavu_row_index: Optional[int] = None  # Déjà Vu row index for export mapping
     sdl_segment_id: str = ""  # SDLXLIFF segment ID for round-trip export
-    
+    okapi_tu_id: str = ""  # Okapi text unit ID for merge round-trip
+    okapi_segment_index: int = -1  # Segment index within Okapi text unit (-1 = not from Okapi)
+
     def __post_init__(self):
         """Initialize timestamps if not provided"""
         if not self.created_at:
@@ -1290,6 +1293,23 @@ class Segment:
             filtered_data['target'] = strip_invisible_markers(filtered_data['target'])
         if 'source' in filtered_data and isinstance(filtered_data['source'], str):
             filtered_data['source'] = strip_invisible_markers(filtered_data['source'])
+        # Migration: move legacy "⚠️ PROOFREAD:" content from notes to proofreading_notes dict
+        notes_val = filtered_data.get('notes', '')
+        if notes_val and "⚠️ PROOFREAD:" in notes_val and not filtered_data.get('proofreading_notes'):
+            parts = notes_val.split("⚠️ PROOFREAD:", 1)
+            before = parts[0].strip()
+            proofread_and_rest = parts[1] if len(parts) > 1 else ""
+            separator_parts = proofread_and_rest.split("---", 1)
+            proofread_text = separator_parts[0].strip()
+            after = separator_parts[1].strip() if len(separator_parts) > 1 else ""
+            # Reconstruct clean notes (user notes only)
+            clean_notes = before
+            if after:
+                clean_notes = (clean_notes + "\n" + after).strip() if clean_notes else after
+            filtered_data['notes'] = clean_notes
+            # Store proofreading text under "legacy" key (original LLM unknown)
+            if proofread_text:
+                filtered_data['proofreading_notes'] = {"legacy": proofread_text}
         return cls(**filtered_data)
 
 
@@ -1326,6 +1346,7 @@ class Project:
     views: List[Dict[str, Any]] = None  # Saved views: [{"name": "...", "file_ids": [1, 3]}]
     # Scratchpad for private translator notes (stored only in .svproj, never exported to CAT tools)
     scratchpad_notes: str = ""
+    import_engine: str = ""  # "okapi" or "" (standard/built-in)
 
     def __post_init__(self):
         if self.segments is None:
@@ -1431,6 +1452,10 @@ class Project:
         if self.views:
             result['views'] = self.views
 
+        # Add import engine indicator (for Okapi round-trip export)
+        if self.import_engine:
+            result['import_engine'] = self.import_engine
+
         # Add segments LAST (so they appear at the end of the file)
         result['segments'] = [seg.to_dict() for seg in self.segments]
         
@@ -1512,6 +1537,9 @@ class Project:
         # Store saved views if they exist
         if 'views' in data:
             project.views = data['views']
+        # Store import engine indicator (for Okapi round-trip export)
+        if 'import_engine' in data:
+            project.import_engine = data['import_engine']
         return project
 
 
@@ -7141,7 +7169,7 @@ class ProofreadWorker(QThread):
     progress_update = pyqtSignal(int, str)  # checked_count, status_message
     stats_update = pyqtSignal(int, int, int)  # checked, issues, ok
     batch_error = pyqtSignal(int, int, str)  # batch_start, batch_end, error_message
-    segment_issue = pyqtSignal(int, str)  # row_idx, issue_text
+    segment_issue = pyqtSignal(int, str, str)  # row_idx, issue_text, model_name
     finished_proofreading = pyqtSignal(int, int, int)  # checked, issues, ok
 
     def __init__(self, segments_to_check, provider, model, custom_prompt, api_keys, source_lang, target_lang, base_url=None, custom_api_key=None):
@@ -7277,7 +7305,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
 
                         if issue_match:
                             issue_text = issue_match.group(1).strip()
-                            self.segment_issue.emit(row_idx, issue_text)
+                            self.segment_issue.emit(row_idx, issue_text, self.model)
                             issues_count += 1
 
                     checked_count += 1
@@ -9657,12 +9685,7 @@ class SupervertalerQt(QMainWindow):
         proofread_action.setToolTip("Use AI to proofread and verify translation quality")
         proofread_action.triggered.connect(self.show_proofread_dialog)
         bulk_menu.addAction(proofread_action)
-        
-        clear_proofread_notes_action = QAction("🗑️ Clear All &Proofreading Notes", self)
-        clear_proofread_notes_action.setToolTip("Remove all AI proofreading notes from entire project (preserves your personal notes)")
-        clear_proofread_notes_action.triggered.connect(self._bulk_clear_proofreading_notes)
-        bulk_menu.addAction(clear_proofread_notes_action)
-        
+
         edit_menu.addSeparator()
         
         # Superlookup
@@ -12732,7 +12755,18 @@ class SupervertalerQt(QMainWindow):
             
             # Check if we have the original document to use as template
             original_path = getattr(self, 'original_docx', None) or getattr(self, 'current_document_path', None)
-            
+
+            # ── Okapi merge path ──────────────────────────────────────
+            # If this project was imported via Okapi, try to use the sidecar
+            # merge endpoint for a faithful round-trip preserving all formatting.
+            if (getattr(self.current_project, 'import_engine', '') == 'okapi'
+                    and original_path and os.path.exists(original_path)):
+                okapi_merged = self._try_okapi_merge_export(
+                    segments, original_path, file_path)
+                if okapi_merged:
+                    return
+                # Fall through to standard export if merge failed
+
             if original_path and os.path.exists(original_path):
                 # Copy original document and replace text - preserves all formatting
                 self.log(f"Using original document as template: {os.path.basename(original_path)}")
@@ -13054,7 +13088,98 @@ class SupervertalerQt(QMainWindow):
             QMessageBox.critical(self, "Export Error", f"Failed to export DOCX:\n\n{str(e)}")
             import traceback
             traceback.print_exc()
-    
+
+    def _try_okapi_merge_export(self, segments, original_path, output_path):
+        """Attempt to export via Okapi sidecar merge. Returns True on success, False to fall back."""
+        try:
+            import re as _re
+
+            # Check sidecar availability
+            if not getattr(self, 'okapi_sidecar', None) or not self.okapi_sidecar.is_running():
+                self.log("Okapi sidecar not running -- falling back to standard export")
+                QMessageBox.warning(
+                    self, "Okapi Sidecar Unavailable",
+                    "This project was imported with the Okapi engine, but the sidecar "
+                    "is not currently running.\n\n"
+                    "Falling back to standard export. Some formatting may differ from "
+                    "the original document."
+                )
+                return False
+
+            # Build translations list: [{"id": tu_id, "segmentIndex": idx, "translation": "..."}]
+            translations = []
+            skipped = 0
+            for seg in segments:
+                tu_id = getattr(seg, 'okapi_tu_id', '')
+                seg_idx = getattr(seg, 'okapi_segment_index', -1)
+
+                if not tu_id or seg_idx < 0:
+                    skipped += 1
+                    continue
+
+                # Use target if translated, otherwise use source
+                translation = seg.target.strip() if seg.target and seg.target.strip() else seg.source
+
+                # Keep inline formatting tags (<b>, <i>, etc.) -- the Java
+                # merge reconstructs Okapi inline codes from them.  Only
+                # strip Supervertaler-specific tags that Okapi wouldn't know.
+                translation = _re.sub(r'</?(?:bi|li-[bo]|li)>', '', translation)
+
+                translations.append({
+                    'id': tu_id,
+                    'segmentIndex': seg_idx,
+                    'translation': translation,
+                })
+
+            if not translations:
+                self.log("No segments with Okapi metadata found -- falling back to standard export")
+                return False
+
+            if skipped > 0:
+                self.log(f"{skipped} segments without Okapi metadata will use source text in merge")
+
+            self.log(f"Merging via Okapi sidecar ({len(translations)} segments)...")
+
+            result_path = self.okapi_sidecar.merge(
+                original_path=original_path,
+                translations=translations,
+                source_lang=self.current_project.source_lang,
+                target_lang=self.current_project.target_lang,
+                output_path=output_path,
+            )
+
+            self.log(f"Okapi merge complete: {os.path.basename(result_path)}")
+
+            translated_count = sum(1 for seg in segments if seg.target and seg.target.strip())
+            QMessageBox.information(
+                self, "Export Complete (Okapi Merge)",
+                f"Successfully exported {translated_count} translated segments to:\n\n"
+                f"{os.path.basename(output_path)}\n\n"
+                f"Used Okapi Framework merge for faithful format preservation."
+            )
+            return True
+
+        except FileNotFoundError:
+            self.log(f"Original file not found for Okapi merge: {original_path}")
+            QMessageBox.warning(
+                self, "Original File Not Found",
+                f"The original DOCX file needed for Okapi merge was not found:\n\n"
+                f"{original_path}\n\n"
+                "Falling back to standard export."
+            )
+            return False
+
+        except Exception as e:
+            self.log(f"Okapi merge failed, falling back to standard: {e}")
+            import traceback
+            traceback.print_exc()
+            QMessageBox.warning(
+                self, "Okapi Merge Failed",
+                f"Okapi merge encountered an error:\n\n{str(e)}\n\n"
+                "Falling back to standard export."
+            )
+            return False
+
     def export_review_table_with_tags(self):
         """Export Supervertaler Bilingual Table with formatting tags visible.
         
@@ -23766,8 +23891,23 @@ class SupervertalerQt(QMainWindow):
         # Store reference to bottom_tabs for later access
         self.bottom_tabs = bottom_tabs
         
-        # Store notes_widget and session_log_widget for adding to right panel later
+        # Proofreading note tab (read-only, AI-generated, keyed by LLM model)
+        proofreading_notes_widget = QWidget()
+        proofreading_notes_layout = QVBoxLayout(proofreading_notes_widget)
+        proofreading_notes_layout.setContentsMargins(5, 5, 5, 5)
+
+        from PyQt6.QtWidgets import QTextBrowser
+        self.bottom_proofreading_notes_display = QTextBrowser()
+        self.bottom_proofreading_notes_display.setOpenExternalLinks(False)
+        self.bottom_proofreading_notes_display.setStyleSheet("font-size: 10pt;")
+        self.bottom_proofreading_notes_display.setHtml(
+            '<span style="color: #999; font-style: italic;">No proofreading notes for this segment.</span>'
+        )
+        proofreading_notes_layout.addWidget(self.bottom_proofreading_notes_display)
+
+        # Store notes_widget, proofreading_notes_widget, and session_log_widget for adding to right panel later
         self._notes_widget_for_right_panel = notes_widget
+        self._proofreading_notes_widget_for_right_panel = proofreading_notes_widget
         self._session_log_widget_for_right_panel = session_log_widget
         
         # Scratchpad widget (for private translator notes - project-level, not segment-level)
@@ -23882,11 +24022,15 @@ class SupervertalerQt(QMainWindow):
         right_tabs.addTab(self._notes_widget_for_right_panel, "📝 Segment note")
         tab_index += 1
 
-        # Tab 4: Session Log
+        # Tab 4: Proofreading Note (AI-generated, read-only, keyed by LLM model)
+        right_tabs.addTab(self._proofreading_notes_widget_for_right_panel, "✅ Proofreading note")
+        tab_index += 1
+
+        # Tab 5: Session Log
         right_tabs.addTab(self._session_log_widget_for_right_panel, "📋 Session Log")
         tab_index += 1
 
-        # Tab 5: Scratchpad (private translator notes for the whole project)
+        # Tab 6: Scratchpad (private translator notes for the whole project)
         right_tabs.addTab(self._scratchpad_widget_for_right_panel, "📝 Scratchpad")
         tab_index += 1
         
@@ -27130,18 +27274,19 @@ class SupervertalerQt(QMainWindow):
                     f"{os.path.basename(file_path)}"
                 )
                 engine_dialog.setInformativeText(
-                    "<b>Standard (recommended)</b><br>"
+                    "<b>Standard</b><br>"
                     "The built-in import engine. Preserves formatting tags "
                     "(bold, italic, lists).<br><br>"
-                    "<b>Okapi Framework (experimental)</b><br>"
+                    "<b>Okapi Framework</b><br>"
                     "Industrial-strength extraction via the Okapi sidecar. "
-                    "Better paragraph detection and SRX segmentation, but "
-                    "does not yet preserve formatting tags."
+                    "Better paragraph detection, SRX segmentation, and "
+                    "inline formatting tags. Supports faithful round-trip "
+                    "export back to the original document format."
                 )
                 standard_btn = engine_dialog.addButton(
                     "Standard", QMessageBox.ButtonRole.AcceptRole)
                 okapi_btn = engine_dialog.addButton(
-                    "Okapi (experimental)", QMessageBox.ButtonRole.ActionRole)
+                    "Okapi", QMessageBox.ButtonRole.ActionRole)
                 cancel_btn = engine_dialog.addButton(QMessageBox.StandardButton.Cancel)
 
                 engine_dialog.exec()
@@ -27174,12 +27319,15 @@ class SupervertalerQt(QMainWindow):
 
                     for seg in result.get('segments', []):
                         tu_id = seg.get('id', '')
-                        sub_doc = seg.get('subDocument', 'body') or 'body'
+                        sub_doc = (seg.get('subDocument') or '').lower()
                         text = seg.get('source', '').strip()
                         tagged_text = (seg.get('sourceWithTags') or '').strip()
 
-                        # ── Filter: skip non-body content ──────────────
-                        if sub_doc != 'body':
+                        # ── Filter: skip header/footer content ─────────
+                        # Okapi names subdocuments after the XML part
+                        # (e.g. "document.xml", "header1.xml", "footer2.xml").
+                        # Keep everything except headers and footers.
+                        if sub_doc.startswith(('header', 'footer')):
                             skipped_count += 1
                             continue
 
@@ -27197,7 +27345,7 @@ class SupervertalerQt(QMainWindow):
                         # Use tagged text (with <b>/<i> etc.) if available,
                         # otherwise use plain text.
                         display_text = tagged_text if tagged_text else text
-                        segmented.append((para_id, display_text))
+                        segmented.append((para_id, display_text, tu_id, seg.get('segmentIndex', 0)))
 
                     used_okapi = True
                     self.log(f"✅ Okapi extracted {len(segmented)} segments "
@@ -27244,6 +27392,8 @@ class SupervertalerQt(QMainWindow):
                     from modules.simple_segmenter import SimpleSegmenter
                     segmenter = SimpleSegmenter()
                     segmented = segmenter.segment_paragraphs(paragraphs)
+                # Normalize to 4-tuples (no Okapi metadata for standard engine)
+                segmented = [(pid, text, "", -1) for pid, text in segmented]
 
             self.original_docx = file_path
             
@@ -27265,10 +27415,12 @@ class SupervertalerQt(QMainWindow):
                 style: str = "Normal"
                 doc_position: int = 0
                 type: str = "#"  # Default segment type
-            
+                okapi_tu_id: str = ""
+                okapi_seg_idx: int = -1
+
             # Convert segments
             imported_segments = []
-            for seg_id, (para_id, text) in enumerate(segmented, 1):
+            for seg_id, (para_id, text, okapi_tu_id, okapi_seg_idx) in enumerate(segmented, 1):
                 # Get paragraph info if available (only from built-in handler)
                 para_info = None
                 if not used_okapi and hasattr(self, 'docx_handler') and hasattr(self.docx_handler, '_get_para_info'):
@@ -27306,7 +27458,9 @@ class SupervertalerQt(QMainWindow):
                     table_info=table_info,
                     style=style,
                     doc_position=doc_position,
-                    type=seg_type
+                    type=seg_type,
+                    okapi_tu_id=okapi_tu_id,
+                    okapi_seg_idx=okapi_seg_idx
                 )
                 imported_segments.append(segment)
             
@@ -27324,7 +27478,9 @@ class SupervertalerQt(QMainWindow):
                     style=imported_seg.style,  # CRITICAL: Preserve style for heading detection!
                     document_position=imported_seg.doc_position,
                     is_table_cell=imported_seg.is_table,
-                    table_info=imported_seg.table_info
+                    table_info=imported_seg.table_info,
+                    okapi_tu_id=imported_seg.okapi_tu_id,
+                    okapi_segment_index=imported_seg.okapi_seg_idx
                 )
                 segments.append(segment)
             
@@ -27339,6 +27495,10 @@ class SupervertalerQt(QMainWindow):
                 target_lang=target_lang,
                 segments=segments
             )
+
+            # Tag project with import engine for Okapi round-trip export
+            if used_okapi:
+                project.import_engine = "okapi"
 
             # If re-importing, restore the preserved project ID and settings
             if reimport_mode and preserved_project_id is not None:
@@ -27381,7 +27541,7 @@ class SupervertalerQt(QMainWindow):
             self.auto_resize_rows()
 
             # Update status
-            para_count = len(paragraphs) if not used_okapi else len(set(pid for pid, _ in segmented))
+            para_count = len(paragraphs) if not used_okapi else len(set(s[0] for s in segmented))
             self.log(f"✓ Loaded {len(segments)} segments from {para_count} paragraphs")
             self.log(f"📍 Project language pair: {project.source_lang.upper()} → {project.target_lang.upper()}")
             self.update_window_title()  # Update window title to show project is loaded
@@ -35891,13 +36051,21 @@ class SupervertalerQt(QMainWindow):
         widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         # Note: Do NOT set WA_TransparentForMouseEvents - we want tooltips to work
 
-        # Check if segment has notes
-        has_notes = segment.notes and segment.notes.strip()
-        
+        # Check if segment has notes or proofreading notes
+        has_notes = bool(segment.notes and segment.notes.strip())
+        has_proofreading = bool(getattr(segment, 'proofreading_notes', None))
+        has_any_notes = has_notes or has_proofreading
+
         # Widget background always transparent
         widget.setStyleSheet("background: transparent;")
-        if has_notes:
-            widget.setToolTip(f"Notes: {segment.notes.strip()}")
+        if has_any_notes:
+            tooltip_parts = []
+            if has_notes:
+                tooltip_parts.append(f"Segment note: {segment.notes.strip()}")
+            if has_proofreading:
+                model_count = len(segment.proofreading_notes)
+                tooltip_parts.append(f"Proofreading note: {model_count} LLM result{'s' if model_count != 1 else ''}")
+            widget.setToolTip("\n".join(tooltip_parts))
             
         status_def = get_status(segment.status)
 
@@ -35922,8 +36090,8 @@ class SupervertalerQt(QMainWindow):
         status_label.setProperty("status_tooltip", status_def.label)
         status_label.installEventFilter(self)
 
-        # Add orange background if segment has notes (using stylesheet for background only)
-        if has_notes:
+        # Add orange background if segment has any notes (using stylesheet for background only)
+        if has_any_notes:
             status_label.setStyleSheet("padding: 2px 4px; background-color: rgba(255, 152, 0, 0.35); border-radius: 3px;")
         # Note: No stylesheet for non-notes case to avoid interfering with HTML color
         layout.addWidget(status_label)
@@ -36040,12 +36208,17 @@ class SupervertalerQt(QMainWindow):
                     display += f"  {match_text}"
                 if segment.notes and segment.notes.strip():
                     display += "  💬"
+                if getattr(segment, 'proofreading_notes', None):
+                    display += "  ✅"
                 item.setText(2, display)
                 status_tooltip = status_def.label
                 if segment.match_percent is not None:
                     status_tooltip += f" | {segment.match_percent}% match"
                 if segment.notes and segment.notes.strip():
-                    status_tooltip += f"\nComment: {segment.notes.strip()}"
+                    status_tooltip += f"\nSegment note: {segment.notes.strip()}"
+                if getattr(segment, 'proofreading_notes', None):
+                    model_count = len(segment.proofreading_notes)
+                    status_tooltip += f"\nProofreading note: {model_count} LLM result{'s' if model_count != 1 else ''}"
                 item.setToolTip(2, status_tooltip)
                 item.setBackground(2, QColor(status_def.color))
 
@@ -37451,7 +37624,9 @@ class SupervertalerQt(QMainWindow):
                 
                 # Update bottom Notes tab with segment notes
                 self._update_bottom_notes_for_segment(segment)
-                
+                # Update Proofreading note tab
+                self._update_proofreading_notes_for_segment(segment)
+
                 # Update legacy tabbed panels (if they exist for other views)
                 if hasattr(self, 'update_tab_segment_editor'):
                     self.update_tab_segment_editor(
@@ -38258,14 +38433,6 @@ class SupervertalerQt(QMainWindow):
 
         menu.addSeparator()
 
-        # Clear proofreading notes (if any selected segment has proofreading notes)
-        has_proofreading = any(seg.notes and "⚠️ PROOFREAD:" in seg.notes for seg in selected_segments)
-        if has_proofreading:
-            clear_proofread_action = menu.addAction("✅ Clear Proofreading Notes")
-            clear_proofread_action.setToolTip("Remove proofreading issues from selected segment(s)")
-            clear_proofread_action.triggered.connect(lambda: self._clear_proofreading_from_selected(selected_segments))
-            menu.addSeparator()
-
         # Select all action
         select_all_action = menu.addAction(f"📋 Select All ({format_shortcut_for_display('Ctrl+A')})")
         select_all_action.triggered.connect(lambda: self.table.selectAll())
@@ -38286,95 +38453,6 @@ class SupervertalerQt(QMainWindow):
             action = "Locked" if locked else "Unlocked"
             self.log(f"{'🔒' if locked else '🔓'} {action} {changed} segment{'s' if changed != 1 else ''}")
 
-    def _clear_proofreading_from_selected(self, segments):
-        """Clear proofreading notes from selected segments"""
-        cleared_count = 0
-        for segment in segments:
-            if segment.notes and "⚠️ PROOFREAD:" in segment.notes:
-                # Remove proofreading section
-                parts = segment.notes.split("⚠️ PROOFREAD:")
-                if len(parts) > 1:
-                    remaining = parts[1].split("---", 1)
-                    if len(remaining) > 1:
-                        # Has other notes after separator
-                        segment.notes = remaining[1].strip()
-                    else:
-                        # No other notes
-                        segment.notes = ""
-                cleared_count += 1
-        
-        if cleared_count > 0:
-            self.project_modified = True
-            self.load_segments_to_grid()  # Refresh grid
-            self.update_window_title()
-            self.log(f"✓ Cleared proofreading notes from {cleared_count} segment{'s' if cleared_count != 1 else ''}")
-    
-    def _bulk_clear_proofreading_notes(self):
-        """Clear all proofreading notes from entire project (preserves user notes)"""
-        if not self.current_project or not self.current_project.segments:
-            QMessageBox.information(self, "No Project", "Please open or create a project first.")
-            return
-        
-        # Count segments with proofreading notes
-        segments_with_proofread = [seg for seg in self.current_project.segments 
-                                   if seg.notes and "⚠️ PROOFREAD:" in seg.notes]
-        
-        if not segments_with_proofread:
-            QMessageBox.information(self, "No Proofreading Notes", 
-                                   "No proofreading notes found in the current project.")
-            return
-        
-        # Confirm with user
-        reply = QMessageBox.question(
-            self,
-            "Clear All Proofreading Notes",
-            f"<b>Clear proofreading notes from {len(segments_with_proofread)} segment(s)?</b><br><br>"
-            "This will remove all AI-generated proofreading notes (marked with ⚠️ PROOFREAD:) "
-            "while preserving your personal notes.<br><br>"
-            "This action cannot be undone.",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No
-        )
-        
-        if reply != QMessageBox.StandardButton.Yes:
-            return
-        
-        # Clear proofreading notes
-        cleared_count = 0
-        for segment in segments_with_proofread:
-            # Remove proofreading section while preserving other notes
-            if "⚠️ PROOFREAD:" in segment.notes:
-                parts = segment.notes.split("⚠️ PROOFREAD:")
-                before_proofread = parts[0].strip()
-                
-                # Check if there are notes after the proofreading section
-                after_sep = ""
-                if len(parts) > 1:
-                    remaining = parts[1].split("---", 1)
-                    if len(remaining) > 1:
-                        after_sep = remaining[1].strip()
-                
-                # Reconstruct notes without proofreading
-                new_notes = ""
-                if before_proofread:
-                    new_notes = before_proofread
-                if after_sep:
-                    new_notes = (new_notes + "\n" + after_sep).strip() if new_notes else after_sep
-                
-                segment.notes = new_notes
-                cleared_count += 1
-        
-        if cleared_count > 0:
-            self.project_modified = True
-            self.load_segments_to_grid()  # Refresh grid to remove orange indicators
-            self.update_window_title()
-            QMessageBox.information(self, "Success", 
-                                   f"✓ Cleared proofreading notes from {cleared_count} segment{'s' if cleared_count != 1 else ''}.")
-            self.log(f"✓ Bulk cleared proofreading notes from {cleared_count} segments")
-
-    
-
-    
     def clear_selected_translations(self, segments, view_type='grid'):
         """Clear translations for selected segments"""
         if not segments:
@@ -38763,7 +38841,7 @@ class SupervertalerQt(QMainWindow):
         
         info_label = QLabel(
             "Use AI to verify translation accuracy, completeness, terminology, and style.\n"
-            "Results will be stored in the Notes field with a ⚠️ PROOFREAD prefix."
+            "Results are stored in the Proofreading note tab, keyed by LLM model."
         )
         info_label.setWordWrap(True)
         info_label.setStyleSheet("color: #666; padding: 10px 0;")
@@ -38920,10 +38998,11 @@ class SupervertalerQt(QMainWindow):
         progress_dialog = QDialog(self)
         progress_dialog.setWindowTitle("Proofreading in Progress")
         progress_dialog.setModal(True)
-        progress_dialog.setMinimumWidth(600)
-        progress_dialog.setMinimumHeight(300)
+        progress_dialog.setMinimumWidth(500)
 
         dialog_layout = QVBoxLayout(progress_dialog)
+        dialog_layout.setContentsMargins(12, 12, 12, 12)
+        dialog_layout.setSpacing(8)
 
         current_label = QLabel("Initializing...")
         dialog_layout.addWidget(current_label)
@@ -39002,13 +39081,12 @@ class SupervertalerQt(QMainWindow):
             progress_bar.setValue(checked)
             stats_label.setText(f"Checked: {checked} | Issues Found: {issues} | OK: {ok}")
 
-        def on_segment_issue(row_idx, issue_text):
+        def on_segment_issue(row_idx, issue_text, model_name):
             segment = self.current_project.segments[row_idx]
-            existing_notes = segment.notes or ""
-            if existing_notes:
-                segment.notes = f"⚠️ PROOFREAD:\n{issue_text}\n\n---\n{existing_notes}"
-            else:
-                segment.notes = f"⚠️ PROOFREAD:\n{issue_text}"
+            if not isinstance(getattr(segment, 'proofreading_notes', None), dict):
+                segment.proofreading_notes = {}
+            # Overwrite per-LLM: same model replaces its previous note, different models accumulate
+            segment.proofreading_notes[model_name] = issue_text
             self.project_modified = True
 
         def on_batch_error(batch_start, batch_end, error_msg):
@@ -39049,142 +39127,103 @@ class SupervertalerQt(QMainWindow):
         progress_dialog.exec()
     
     def show_proofreading_results_dialog(self):
-        """Show dialog with all proofreading results"""
+        """Show dialog with all proofreading results (from proofreading_notes dict)."""
         if not self.current_project:
             QMessageBox.information(self, "No Project", "Please open or create a project first.")
             return
-        
+
         # Find segments with proofreading notes
         proofread_segments = []
         for i, segment in enumerate(self.current_project.segments):
-            if segment.notes and "⚠️ PROOFREAD:" in segment.notes:
+            if getattr(segment, 'proofreading_notes', None):
                 proofread_segments.append((i, segment))
-        
+
         if not proofread_segments:
             QMessageBox.information(
                 self,
                 "No Proofreading Results",
-                "No segments have proofreading issues.\n\n"
+                "No segments have proofreading notes.\n\n"
                 "Run Edit → Bulk Operations → ✅ Proofread Translation to analyze your translation."
             )
             return
-        
+
         dialog = QDialog(self)
         dialog.setWindowTitle("✅ Proofreading Results")
         dialog.setModal(False)
         dialog.setMinimumWidth(900)
         dialog.setMinimumHeight(600)
-        
+
         layout = QVBoxLayout(dialog)
-        
+
         # Header
-        header = QLabel(f"<h3>⚠️ {len(proofread_segments)} Segment{'s' if len(proofread_segments) != 1 else ''} with Proofreading Issues</h3>")
+        header = QLabel(f"<h3>⚠️ {len(proofread_segments)} Segment{'s' if len(proofread_segments) != 1 else ''} with Proofreading Notes</h3>")
         layout.addWidget(header)
-        
-        info_label = QLabel("Click any row to navigate to that segment in the grid.")
+
+        info_label = QLabel("Double-click any row to navigate to that segment in the grid.")
         info_label.setStyleSheet("color: #666; padding: 5px 0;")
         layout.addWidget(info_label)
-        
+
         # Results table
         table = QTableWidget()
-        table.setColumnCount(4)
-        table.setHorizontalHeaderLabels(["Seg #", "Source", "Target", "Issue"])
+        table.setColumnCount(5)
+        table.setHorizontalHeaderLabels(["Seg #", "Source", "Target", "LLM", "Issue"])
         table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         table.horizontalHeader().setStretchLastSection(True)
         table.setColumnWidth(0, 60)
-        table.setColumnWidth(1, 200)
-        table.setColumnWidth(2, 200)
-        
+        table.setColumnWidth(1, 180)
+        table.setColumnWidth(2, 180)
+        table.setColumnWidth(3, 120)
+
         for row_idx, segment in proofread_segments:
-            table_row = table.rowCount()
-            table.insertRow(table_row)
-            
-            # Segment number
-            table.setItem(table_row, 0, QTableWidgetItem(str(row_idx + 1)))
-            
-            # Source (truncated)
-            source_text = segment.source[:80] + "..." if len(segment.source) > 80 else segment.source
-            table.setItem(table_row, 1, QTableWidgetItem(source_text))
-            
-            # Target (truncated)
-            target_text = segment.target[:80] + "..." if len(segment.target) > 80 else segment.target
-            table.setItem(table_row, 2, QTableWidgetItem(target_text))
-            
-            # Issue (extract from notes)
-            notes = segment.notes or ""
-            issue_text = notes.split("⚠️ PROOFREAD:")[1].split("---")[0].strip() if "⚠️ PROOFREAD:" in notes else notes
-            issue_text = issue_text[:100] + "..." if len(issue_text) > 100 else issue_text
-            table.setItem(table_row, 3, QTableWidgetItem(issue_text))
-            
-            # Store segment index in row data
-            table.item(table_row, 0).setData(Qt.ItemDataRole.UserRole, row_idx)
-        
+            proofread = getattr(segment, 'proofreading_notes', {})
+            for model_name, issue_text in proofread.items():
+                table_row = table.rowCount()
+                table.insertRow(table_row)
+
+                # Segment number
+                table.setItem(table_row, 0, QTableWidgetItem(str(row_idx + 1)))
+
+                # Source (truncated)
+                source_text = segment.source[:80] + "..." if len(segment.source) > 80 else segment.source
+                table.setItem(table_row, 1, QTableWidgetItem(source_text))
+
+                # Target (truncated)
+                target_text = segment.target[:80] + "..." if len(segment.target) > 80 else segment.target
+                table.setItem(table_row, 2, QTableWidgetItem(target_text))
+
+                # LLM model name
+                table.setItem(table_row, 3, QTableWidgetItem(model_name))
+
+                # Issue text (truncated)
+                display_issue = issue_text[:100] + "..." if len(issue_text) > 100 else issue_text
+                table.setItem(table_row, 4, QTableWidgetItem(display_issue))
+
+                # Store segment index in row data
+                table.item(table_row, 0).setData(Qt.ItemDataRole.UserRole, row_idx)
+
         # Double-click to navigate
         def on_row_double_clicked(row):
             segment_idx = table.item(row, 0).data(Qt.ItemDataRole.UserRole)
             self.jump_to_segment(segment_idx)
             dialog.lower()  # Send dialog to back so grid is visible
-        
+
         table.cellDoubleClicked.connect(lambda row, col: on_row_double_clicked(row))
-        
+
         layout.addWidget(table)
-        
+
         # Buttons
         button_layout = QHBoxLayout()
-        
-        clear_all_btn = QPushButton("🗑️ Clear All Proofreading Notes")
-        clear_all_btn.clicked.connect(lambda: self._clear_all_proofreading_notes(dialog))
-        button_layout.addWidget(clear_all_btn)
-        
         button_layout.addStretch()
-        
+
         close_btn = QPushButton("Close")
         close_btn.clicked.connect(dialog.accept)
         button_layout.addWidget(close_btn)
-        
+
         layout.addLayout(button_layout)
-        
+
         dialog.show()
-    
-    def _clear_all_proofreading_notes(self, parent_dialog):
-        """Clear all proofreading notes from all segments"""
-        reply = QMessageBox.question(
-            self,
-            "Clear All Proofreading Notes",
-            "Are you sure you want to clear all proofreading notes from all segments?\n\n"
-            "This will remove the ⚠️ PROOFREAD prefix and associated issues,\n"
-            "but will preserve any other notes.",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No
-        )
-        
-        if reply != QMessageBox.StandardButton.Yes:
-            return
-        
-        cleared_count = 0
-        for segment in self.current_project.segments:
-            if segment.notes and "⚠️ PROOFREAD:" in segment.notes:
-                # Remove proofreading section
-                parts = segment.notes.split("⚠️ PROOFREAD:")
-                if len(parts) > 1:
-                    remaining = parts[1].split("---", 1)
-                    if len(remaining) > 1:
-                        # Has other notes after separator
-                        segment.notes = remaining[1].strip()
-                    else:
-                        # No other notes
-                        segment.notes = ""
-                cleared_count += 1
-        
-        if cleared_count > 0:
-            self.project_modified = True
-            self.load_segments_to_grid()  # Refresh grid
-            self.update_window_title()
-            parent_dialog.accept()  # Close the results dialog
-            QMessageBox.information(self, "Cleared", f"Cleared proofreading notes from {cleared_count} segment{'s' if cleared_count != 1 else ''}.")
-            self.log(f"✓ Cleared proofreading notes from {cleared_count} segments")
-    
+
     def send_segments_to_tm_dialog(self):
         """
         Show dialog to send segments to TM (similar to memoQ's Confirm and Update).
@@ -44121,7 +44160,7 @@ class SupervertalerQt(QMainWindow):
                         show_row = False
                 
                 if filters.get('has_proofreading'):
-                    if not (segment.notes and "⚠️ PROOFREAD:" in segment.notes):
+                    if not getattr(segment, 'proofreading_notes', None):
                         show_row = False
                 
                 if filters.get('repetitions_only'):
@@ -44553,13 +44592,51 @@ class SupervertalerQt(QMainWindow):
         """Update the bottom Notes tab with the current segment's notes"""
         if not hasattr(self, 'bottom_notes_edit') or not self.bottom_notes_edit:
             return
-        
+
         self.bottom_notes_edit.blockSignals(True)
         if segment and hasattr(segment, 'notes'):
             self.bottom_notes_edit.setPlainText(segment.notes or '')
         else:
             self.bottom_notes_edit.setPlainText('')
         self.bottom_notes_edit.blockSignals(False)
+
+    def _update_proofreading_notes_for_segment(self, segment):
+        """Update the Proofreading note tab with the current segment's proofreading notes (read-only, keyed by LLM)."""
+        if not hasattr(self, 'bottom_proofreading_notes_display') or not self.bottom_proofreading_notes_display:
+            return
+
+        import html as html_module
+
+        proofread = getattr(segment, 'proofreading_notes', None) if segment else None
+        if not proofread:
+            self.bottom_proofreading_notes_display.setHtml(
+                '<span style="color: #999; font-style: italic;">No proofreading notes for this segment.</span>'
+            )
+            return
+
+        # Cycle through a few distinct colours for different LLM entries
+        colors = [
+            ("#ff9800", "#fff3e0", "#e65100"),  # orange
+            ("#2196f3", "#e3f2fd", "#0d47a1"),  # blue
+            ("#4caf50", "#e8f5e9", "#1b5e20"),  # green
+            ("#9c27b0", "#f3e5f5", "#4a148c"),  # purple
+            ("#f44336", "#ffebee", "#b71c1c"),  # red
+        ]
+
+        html_parts = []
+        for idx, (model_name, issue_text) in enumerate(proofread.items()):
+            border_color, bg_color, text_color = colors[idx % len(colors)]
+            escaped_model = html_module.escape(model_name)
+            escaped_text = html_module.escape(issue_text).replace('\n', '<br/>')
+            html_parts.append(
+                f'<div style="margin-bottom: 10px; padding: 8px; background: {bg_color}; '
+                f'border-left: 3px solid {border_color}; border-radius: 3px;">'
+                f'<b style="color: {text_color};">{escaped_model}</b><br/>'
+                f'<span style="color: #333;">{escaped_text}</span>'
+                f'</div>'
+            )
+
+        self.bottom_proofreading_notes_display.setHtml(''.join(html_parts))
     
     def copy_source_to_tab_target(self):
         """Copy source to target in tab editor - works with all panels"""

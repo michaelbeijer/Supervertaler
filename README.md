@@ -6,7 +6,7 @@
 
 **Professional AI-enhanced translation workbench** with multi-LLM support (GPT-4, Claude, Gemini, Ollama), translation memory, glossary management, and seamless CAT tool integration (memoQ, Trados, CafeTran, Phrase, Déjà Vu).
 
-**Latest release:** v1.9.340 - Supervertaler Assistant with escape-to-return, QuickLauncher menu heading, UI tab renames (AI, Prompt Manager, Variables).
+**Latest release:** v1.9.342 - Okapi Framework sidecar integration — industry-standard file filters with full round-trip DOCX import/export, semantic formatting tags, and faithful format preservation.
 
 ---
 
@@ -45,7 +45,7 @@ macOS will block the app on first launch because it is not signed with an Apple 
 - **Superlookup** - Unified concordance search across TM, glossaries, MT, and web resources
 - **CAT Tool Integration** - memoQ XLIFF, Trados SDLPPX/SDLRPX, CafeTran, Phrase, Déjà Vu X3
 - **Voice Commands** - Hands-free translation with OpenAI Whisper
-- **Document Support** - DOCX, bilingual DOCX/RTF, PDF, Markdown, plain text + experimental [Okapi Framework](https://okapiframework.org/) sidecar for industrial-strength file extraction
+- **Document Support** - DOCX, bilingual DOCX/RTF, PDF, Markdown, plain text + built-in [Okapi Framework](https://okapiframework.org/) sidecar for industry-standard file extraction and round-trip export with full formatting preservation
 
 ---
 

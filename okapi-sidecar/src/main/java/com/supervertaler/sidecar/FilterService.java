@@ -17,6 +17,7 @@ import java.io.*;
 import java.net.URI;
 import java.nio.file.*;
 import java.util.*;
+import java.util.regex.*;
 import java.util.stream.Collectors;
 
 /**
@@ -241,10 +242,12 @@ public class FilterService {
                                 combined.append(seg.translation);
                             }
                         }
-                        // Set translation as the target
+                        // Set translation as the target, preserving inline codes
                         TextContainer target = tu.createTarget(
                                 targetLocale, false, IResource.COPY_ALL);
-                        target.setContent(new TextFragment(combined.toString()));
+                        TextFragment sourceContent = tu.getSource().getFirstContent();
+                        target.setContent(
+                            buildTargetFragment(combined.toString(), sourceContent));
                     }
                 }
 
@@ -529,8 +532,13 @@ public class FilterService {
 
         for (Code code : codes) {
             if (code.getTagType() == TextFragment.TagType.OPENING) {
+                // Try raw XML data first (works for filters that embed OOXML)
                 String[] tags = analyzeFormatting(code.getData());
-                if (tags[0].length() > 0) {
+                // Fall back to Okapi's type descriptor (e.g. "x-bold;fonts:Arial;")
+                if (tags[0].isEmpty()) {
+                    tags = analyzeCodeType(code.getType());
+                }
+                if (!tags[0].isEmpty()) {
                     codeIdTags.put(code.getId(), tags);
                 }
             }
@@ -621,6 +629,216 @@ public class FilterService {
         }
 
         return new String[]{open.toString(), close.toString()};
+    }
+
+    /**
+     * Analyse an Okapi Code's type descriptor for formatting information.
+     * The OpenXML filter sets type strings like "x-bold;fonts:Arial;" or
+     * "x-bold;x-italic;color:FF0000;fonts:Calibri;".
+     *
+     * @param codeType the Code.getType() value
+     * @return String[2]: [0] = opening tags, [1] = closing tags
+     */
+    private String[] analyzeCodeType(String codeType) {
+        if (codeType == null || codeType.isEmpty()) return new String[]{"", ""};
+
+        String t = codeType.toLowerCase();
+        // Split on semicolons to get individual properties
+        String[] parts = t.split(";");
+
+        StringBuilder open = new StringBuilder();
+        StringBuilder close = new StringBuilder();
+
+        String fontName = null;
+        String colorHex = null;
+
+        for (String part : parts) {
+            String p = part.trim();
+            if (p.isEmpty()) continue;
+
+            switch (p) {
+                case "x-bold":
+                    open.append("<b>"); close.insert(0, "</b>");
+                    break;
+                case "x-italic":
+                    open.append("<i>"); close.insert(0, "</i>");
+                    break;
+                case "x-underlined":
+                    open.append("<u>"); close.insert(0, "</u>");
+                    break;
+                case "x-strikethrough":
+                    open.append("<s>"); close.insert(0, "</s>");
+                    break;
+                case "x-superscript":
+                    open.append("<sup>"); close.insert(0, "</sup>");
+                    break;
+                case "x-subscript":
+                    open.append("<sub>"); close.insert(0, "</sub>");
+                    break;
+                default:
+                    if (p.startsWith("color:")) {
+                        colorHex = p.substring(6).trim();
+                    } else if (p.startsWith("fonts:")) {
+                        fontName = p.substring(6).trim();
+                    }
+                    break;
+            }
+        }
+
+        // Only wrap with <cf> when there is meaningful visual info like
+        // color.  Font name alone is usually the paragraph default and just
+        // adds noise.  When there IS a color, include the font for context.
+        if (colorHex != null && !colorHex.isEmpty()) {
+            StringBuilder cfOpen = new StringBuilder("<cf color=\"#");
+            cfOpen.append(colorHex).append("\"");
+            if (fontName != null && !fontName.isEmpty()) {
+                cfOpen.append(" font=\"").append(fontName).append("\"");
+            }
+            cfOpen.append(">");
+            open.insert(0, cfOpen);
+            close.append("</cf>");
+        }
+
+        return new String[]{open.toString(), close.toString()};
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    //  MERGE — reconstruct inline codes from display tags
+    // ═══════════════════════════════════════════════════════════════
+
+    /** Regex that matches our display tags: {@code <b>}, {@code </b>},
+     *  {@code <cf color="#FF0000">}, {@code </cf>}, etc. */
+    private static final Pattern TAG_RE = Pattern.compile(
+            "<(/?)([a-z]+)(\\s[^>]*)?>", Pattern.CASE_INSENSITIVE);
+
+    /**
+     * Determine the primary HTML-like tag name for a source Code, based
+     * on Okapi's type descriptor (e.g. "x-bold;fonts:Arial;" → "b").
+     * Returns {@code null} if no recognisable formatting is found.
+     */
+    private String getTagNameForCode(Code code) {
+        String type = code.getType();
+        if (type == null) return null;
+        String t = type.toLowerCase();
+        if (t.contains("x-bold"))          return "b";
+        if (t.contains("x-italic"))        return "i";
+        if (t.contains("x-underlined"))    return "u";
+        if (t.contains("x-strikethrough")) return "s";
+        if (t.contains("x-superscript"))   return "sup";
+        if (t.contains("x-subscript"))     return "sub";
+        // Colour/font only (no primary formatting) → <cf>
+        if (t.contains("color:"))          return "cf";
+        return null;
+    }
+
+    /**
+     * Build a target {@link TextFragment} from a translation string that
+     * may contain HTML display tags ({@code <b>}, {@code <i>}, etc.),
+     * mapping them back to the original Okapi inline codes from the source.
+     *
+     * <p>Positional matching is used: the first {@code <b>} in the
+     * translation maps to the first bold code in the source, and so on.</p>
+     *
+     * @param taggedTranslation translation text with display tags
+     * @param sourceContent     the source TextFragment (with inline codes)
+     * @return a TextFragment with the translation text and proper codes
+     */
+    private TextFragment buildTargetFragment(String taggedTranslation,
+                                             TextFragment sourceContent) {
+        List<Code> srcCodes = (sourceContent != null) ? sourceContent.getCodes() : null;
+
+        if (srcCodes == null || srcCodes.isEmpty()) {
+            // No codes in source — strip any tags and return plain text
+            return new TextFragment(TAG_RE.matcher(taggedTranslation).replaceAll(""));
+        }
+
+        // ── Step 1: classify source codes by tag name ──────────────
+        // tag name → FIFO queue of code IDs
+        Map<String, Queue<Integer>> tagQueues = new LinkedHashMap<>();
+        Map<Integer, Code> openingById = new LinkedHashMap<>();
+        Map<Integer, Code> closingById = new LinkedHashMap<>();
+
+        for (Code c : srcCodes) {
+            if (c.getTagType() == TextFragment.TagType.OPENING) {
+                openingById.put(c.getId(), c);
+                String tag = getTagNameForCode(c);
+                if (tag != null) {
+                    tagQueues.computeIfAbsent(tag, k -> new LinkedList<>()).add(c.getId());
+                }
+            } else if (c.getTagType() == TextFragment.TagType.CLOSING) {
+                closingById.put(c.getId(), c);
+            }
+        }
+
+        // ── Step 2: walk through the translation, replacing tags ───
+        TextFragment result = new TextFragment();
+        Deque<Integer> openStack = new ArrayDeque<>();   // stack of open code IDs
+        Matcher m = TAG_RE.matcher(taggedTranslation);
+        int lastEnd = 0;
+
+        while (m.find()) {
+            // Append plain text before this tag
+            if (m.start() > lastEnd) {
+                result.append(taggedTranslation.substring(lastEnd, m.start()));
+            }
+
+            boolean isClosing = "/".equals(m.group(1));
+            String tagName = m.group(2).toLowerCase();
+
+            if (!isClosing) {
+                // ── OPENING tag ─────────────────────────────────
+                Queue<Integer> queue = tagQueues.get(tagName);
+                if (queue != null && !queue.isEmpty()) {
+                    int codeId = queue.poll();
+                    Code src = openingById.get(codeId);
+                    if (src != null) {
+                        Code c = new Code(TextFragment.TagType.OPENING,
+                                          src.getType(), src.getData());
+                        c.setId(codeId);
+                        result.append(c);
+                        openStack.push(codeId);
+                    }
+                }
+                // else: tag not in source → silently drop it
+            } else {
+                // ── CLOSING tag ─────────────────────────────────
+                // Find the most-recently-opened code that matches this
+                // tag name. For properly nested tags this is the top.
+                Integer matchedId = null;
+                Iterator<Integer> it = openStack.iterator();
+                while (it.hasNext()) {
+                    int id = it.next();
+                    Code src = openingById.get(id);
+                    if (src != null) {
+                        String srcTag = getTagNameForCode(src);
+                        if (tagName.equals(srcTag)) {
+                            matchedId = id;
+                            it.remove();
+                            break;
+                        }
+                    }
+                }
+                if (matchedId != null) {
+                    Code src = closingById.get(matchedId);
+                    if (src != null) {
+                        Code c = new Code(TextFragment.TagType.CLOSING,
+                                          src.getType(), src.getData());
+                        c.setId(matchedId);
+                        result.append(c);
+                    }
+                }
+                // else: unmatched closing tag → silently drop it
+            }
+
+            lastEnd = m.end();
+        }
+
+        // Append any remaining text after the last tag
+        if (lastEnd < taggedTranslation.length()) {
+            result.append(taggedTranslation.substring(lastEnd));
+        }
+
+        return result;
     }
 
     /**
