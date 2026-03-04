@@ -2,8 +2,16 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.343 (March 4, 2026)
+**Current Version:** v1.9.344 (March 4, 2026)
 
+
+## v1.9.344 - March 4, 2026
+
+### Bug Fixes
+
+- **Fixed Alt+Up/Down quick-add shortcuts** — The quick-add to Project/Background glossary shortcuts (Alt+Up, Alt+Down, Ctrl+Shift+1, Ctrl+Shift+2) were broken because background glossaries with `priority=NULL` were indistinguishable from non-activated glossaries. Now uses explicit activation check before reading priority.
+
+---
 
 ## v1.9.343 - March 4, 2026
 

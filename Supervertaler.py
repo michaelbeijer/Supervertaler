@@ -14708,9 +14708,9 @@ class SupervertalerQt(QMainWindow):
 
         for tb in all_termbases:
             tb_id = tb['id']
-            priority = self.termbase_mgr.get_termbase_priority(tb_id, project_id)
-            if priority is None:
+            if not self.termbase_mgr.is_termbase_active(tb_id, project_id):
                 continue  # Not activated
+            priority = self.termbase_mgr.get_termbase_priority(tb_id, project_id)
             is_writable = not tb.get('read_only', True)
             is_project_tb = (priority == 1)
 

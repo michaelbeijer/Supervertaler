@@ -6,7 +6,7 @@
 
 **Professional AI-enhanced translation workbench** with multi-LLM support (GPT-4, Claude, Gemini, Ollama), translation memory, glossary management, and seamless CAT tool integration (memoQ, Trados, CafeTran, Phrase, Déjà Vu).
 
-**Latest release:** v1.9.343 - Simplified glossary priority system — Project glossary on/off checkbox replaces numeric priorities, fixed deduplication for instant pink/blue display.
+**Latest release:** v1.9.344 - Fix Alt+Up/Down quick-add glossary shortcuts broken by priority simplification.
 
 ---
 
