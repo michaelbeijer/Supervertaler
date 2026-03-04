@@ -1995,7 +1995,7 @@ class DatabaseManager:
                 tb.source_lang as termbase_source_lang,
                 tb.target_lang as termbase_target_lang,
                 tb.is_project_termbase,
-                COALESCE(ta.priority, tb.ranking) as ranking,
+                CASE WHEN COALESCE(ta.priority, 0) = 1 OR tb.is_project_termbase = 1 THEN 1 ELSE 0 END as ranking,
                 'source' as match_direction
             FROM termbase_terms t
             LEFT JOIN termbases tb ON CAST(t.termbase_id AS INTEGER) = tb.id
@@ -2016,7 +2016,7 @@ class DatabaseManager:
                 tb.target_lang as termbase_source_lang,
                 tb.source_lang as termbase_target_lang,
                 tb.is_project_termbase,
-                COALESCE(ta.priority, tb.ranking) as ranking,
+                CASE WHEN COALESCE(ta.priority, 0) = 1 OR tb.is_project_termbase = 1 THEN 1 ELSE 0 END as ranking,
                 'target' as match_direction
             FROM termbase_terms t
             LEFT JOIN termbases tb ON CAST(t.termbase_id AS INTEGER) = tb.id
@@ -2100,12 +2100,12 @@ class DatabaseManager:
                     UNION ALL
                     {reverse_query}
                 ) combined
-                ORDER BY COALESCE(ranking, -1) ASC, source_term ASC
+                ORDER BY ranking DESC, source_term ASC
             """
             params = forward_params + reverse_params
         else:
             # Original forward-only behavior
-            query = forward_query + " ORDER BY COALESCE(ranking, -1) ASC, source_term ASC"
+            query = forward_query + " ORDER BY ranking DESC, source_term ASC"
             params = forward_params
 
         self.cursor.execute(query, params)

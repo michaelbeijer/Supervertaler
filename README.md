@@ -6,7 +6,7 @@
 
 **Professional AI-enhanced translation workbench** with multi-LLM support (GPT-4, Claude, Gemini, Ollama), translation memory, glossary management, and seamless CAT tool integration (memoQ, Trados, CafeTran, Phrase, Déjà Vu).
 
-**Latest release:** v1.9.342 - Okapi Framework sidecar integration — industry-standard file filters with full round-trip DOCX import/export, semantic formatting tags, and faithful format preservation.
+**Latest release:** v1.9.343 - Simplified glossary priority system — Project glossary on/off checkbox replaces numeric priorities, fixed deduplication for instant pink/blue display.
 
 ---
 

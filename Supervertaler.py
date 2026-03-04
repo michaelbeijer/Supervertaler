@@ -2292,13 +2292,13 @@ class ReadOnlyGridTextEditor(QTextEdit):
             event.accept()
             return
 
-        # Alt+Up: Quick add selected terms to Priority 1 glossary (no dialog)
+        # Alt+Up: Quick add selected terms to Project glossary (no dialog)
         if event.key() == Qt.Key.Key_Up and event.modifiers() == Qt.KeyboardModifier.AltModifier:
             self._handle_quick_add_to_glossary_priority(1)
             event.accept()
             return
 
-        # Alt+Down: Quick add selected terms to Priority 2 glossary (no dialog)
+        # Alt+Down: Quick add selected terms to Background glossary (no dialog)
         if event.key() == Qt.Key.Key_Down and event.modifiers() == Qt.KeyboardModifier.AltModifier:
             self._handle_quick_add_to_glossary_priority(2)
             event.accept()
@@ -2374,7 +2374,7 @@ class ReadOnlyGridTextEditor(QTextEdit):
             main_window.quick_add_term_pair_to_termbase(source_text, target_text)
 
     def _handle_quick_add_to_glossary_priority(self, priority: int):
-        """Handle Alt+Up/Down: Quick add selected terms to the Priority N glossary (no dialog)"""
+        """Handle Alt+Up/Down: Quick add selected terms to the Project/Background glossary (no dialog)"""
         main_window = self._get_main_window()
         if main_window and hasattr(main_window, '_quick_add_term_with_priority'):
             main_window._quick_add_term_with_priority(priority)
@@ -2560,66 +2560,42 @@ class ReadOnlyGridTextEditor(QTextEdit):
                     # Create format based on style
                     fmt = QTextCharFormat()
                     
+                    is_project_term = (ranking == 1)
+
                     if highlight_style == 'dotted':
-                        # DOTTED UNDERLINE STYLE (IDE/code editor approach)
-                        # Simple dotted line like the Gemini example - clean and unobtrusive
+                        # DOTTED UNDERLINE STYLE
                         fmt.setUnderlineStyle(QTextCharFormat.UnderlineStyle.DotLine)
                         if forbidden:
                             fmt.setUnderlineColor(QColor(0, 0, 0))  # Black for forbidden
+                        elif is_project_term:
+                            fmt.setUnderlineColor(QColor('#CC0000'))  # Red for project glossary
                         else:
-                            # Higher priority = red (more attention), lower = gray (subtle)
-                            if ranking == 1:
-                                fmt.setUnderlineColor(QColor('#CC0000'))  # Red for priority 1 (project termbase)
-                            elif ranking == 2:
-                                fmt.setUnderlineColor(QColor('#505050'))  # Dark gray for priority 2
-                            elif ranking == 3:
-                                fmt.setUnderlineColor(QColor('#707070'))  # Medium gray
-                            else:
-                                fmt.setUnderlineColor(QColor(dotted_color))  # User-configured color
-                        # Add tooltip with translation and notes
+                            fmt.setUnderlineColor(QColor(dotted_color))  # User-configured color
                         if tooltip_text:
                             fmt.setToolTip(tooltip_text)
-                    
+
                     elif highlight_style == 'semibold':
-                        # SEMIBOLD TEXT STYLE (typographic approach)
+                        # SEMIBOLD TEXT STYLE
                         fmt.setFontWeight(QFont.Weight.DemiBold)
                         if forbidden:
                             fmt.setForeground(QColor(180, 0, 0))  # Dark red for forbidden
+                        elif is_project_term:
+                            fmt.setForeground(QColor('#1B5E20'))  # Dark green for project glossary
                         else:
-                            # Tinted dark color based on ranking
-                            if ranking == 1:
-                                fmt.setForeground(QColor('#1B5E20'))  # Dark green for priority 1
-                            elif ranking == 2:
-                                fmt.setForeground(QColor('#2E7D32'))  # Medium dark green
-                            elif ranking == 3:
-                                fmt.setForeground(QColor('#388E3C'))  # Medium green
-                            else:
-                                fmt.setForeground(QColor('#43A047'))  # Lighter green
-                        # Add tooltip with translation and notes
+                            fmt.setForeground(QColor('#43A047'))  # Lighter green for background
                         if tooltip_text:
                             fmt.setToolTip(tooltip_text)
-                    
+
                     else:
-                        # BACKGROUND COLOR STYLE (default - current behavior)
+                        # BACKGROUND COLOR STYLE (default)
                         if forbidden:
                             color = QColor(0, 0, 0)  # Black for forbidden terms
                             fmt.setForeground(QColor("white"))
                         else:
-                            # Use ranking to determine soft green shade
-                            if ranking is not None:
-                                if ranking == 1:
-                                    color = QColor(165, 214, 167)  # Soft medium green (Green 200)
-                                elif ranking == 2:
-                                    color = QColor(200, 230, 201)  # Soft light green (Green 100)
-                                elif ranking == 3:
-                                    color = QColor(220, 237, 200)  # Very soft light green
-                                else:
-                                    color = QColor(232, 245, 233)  # Extremely soft pastel green
-                            else:
-                                color = QColor(200, 230, 201)  # Green 100 (fallback)
+                            # Project glossary = medium green, Background = light green
+                            color = QColor(165, 214, 167) if is_project_term else QColor(200, 230, 201)
                             fmt.setForeground(QColor("black"))
                         fmt.setBackground(color)
-                        # Add tooltip with translation and notes
                         if tooltip_text:
                             fmt.setToolTip(tooltip_text)
                     
@@ -2699,12 +2675,12 @@ class ReadOnlyGridTextEditor(QTextEdit):
                 self._handle_quick_add_to_termbase()
                 return True  # Event handled
 
-            # Alt+Up: Quick add selected terms to Priority 1 glossary (no dialog)
+            # Alt+Up: Quick add selected terms to Project glossary (no dialog)
             if key_event.key() == Qt.Key.Key_Up and key_event.modifiers() == Qt.KeyboardModifier.AltModifier:
                 self._handle_quick_add_to_glossary_priority(1)
                 return True  # Event handled
 
-            # Alt+Down: Quick add selected terms to Priority 2 glossary (no dialog)
+            # Alt+Down: Quick add selected terms to Background glossary (no dialog)
             if key_event.key() == Qt.Key.Key_Down and key_event.modifiers() == Qt.KeyboardModifier.AltModifier:
                 self._handle_quick_add_to_glossary_priority(2)
                 return True  # Event handled
@@ -2849,7 +2825,7 @@ class ReadOnlyGridTextEditor(QTextEdit):
             main_window.quick_add_term_pair_to_termbase(source_text, target_text)
 
     def _handle_quick_add_to_glossary_priority(self, priority: int):
-        """Handle Alt+Up/Down: Quick add selected terms to the Priority N glossary (no dialog)"""
+        """Handle Alt+Up/Down: Quick add selected terms to the Project/Background glossary (no dialog)"""
         if not self.table_ref or self.row < 0:
             return
 
@@ -2866,7 +2842,7 @@ class ReadOnlyGridTextEditor(QTextEdit):
             QMessageBox.warning(
                 self,
                 "Selection Required",
-                f"Please select text in both Source and Target cells before quick-adding to the Priority {priority} glossary.\n\n"
+                f"Please select text in both Source and Target cells before quick-adding to the glossary.\n\n"
                 f"Tip: Use {format_shortcut_for_display('Ctrl+E')} to add with a dialogue where you can choose a glossary and add metadata."
             )
             return
@@ -3227,13 +3203,13 @@ class ReadOnlyGridTextEditor(QTextEdit):
         quick_add_action.triggered.connect(self._handle_quick_add_to_termbase)
         menu.addAction(quick_add_action)
 
-        # Quick add to Priority 1 glossary (no dialog)
-        quick_add_p1_action = QAction(f"⚡ Quick Add to Priority 1 Glossary ({format_shortcut_for_display('Alt+Up')})", self)
+        # Quick add to Project glossary (no dialog)
+        quick_add_p1_action = QAction(f"⚡ Quick Add to Project Glossary ({format_shortcut_for_display('Alt+Up')})", self)
         quick_add_p1_action.triggered.connect(lambda: self._handle_quick_add_to_glossary_priority(1))
         menu.addAction(quick_add_p1_action)
 
-        # Quick add to Priority 2 glossary (no dialog)
-        quick_add_p2_action = QAction(f"⚡ Quick Add to Priority 2 Glossary ({format_shortcut_for_display('Alt+Down')})", self)
+        # Quick add to Background glossary (no dialog)
+        quick_add_p2_action = QAction(f"⚡ Quick Add to Background Glossary ({format_shortcut_for_display('Alt+Down')})", self)
         quick_add_p2_action.triggered.connect(lambda: self._handle_quick_add_to_glossary_priority(2))
         menu.addAction(quick_add_p2_action)
 
@@ -3824,7 +3800,7 @@ class EditableGridTextEditor(QTextEdit):
             main_window.quick_add_term_pair_to_termbase(source_text, target_text)
 
     def _handle_quick_add_to_glossary_priority(self, priority: int):
-        """Handle Alt+Up/Down: Quick add selected terms to the Priority N glossary (no dialog)"""
+        """Handle Alt+Up/Down: Quick add selected terms to the Project/Background glossary (no dialog)"""
         if not self.table or self.row < 0:
             return
 
@@ -3840,7 +3816,7 @@ class EditableGridTextEditor(QTextEdit):
             QMessageBox.warning(
                 self,
                 "Selection Required",
-                f"Please select text in both Source and Target cells before quick-adding to the Priority {priority} glossary.\n\n"
+                f"Please select text in both Source and Target cells before quick-adding to the glossary.\n\n"
                 f"Tip: Use {format_shortcut_for_display('Ctrl+E')} to add with a dialogue where you can choose a glossary and add metadata."
             )
             return
@@ -4028,13 +4004,13 @@ class EditableGridTextEditor(QTextEdit):
         quick_add_action.triggered.connect(self._handle_quick_add_to_termbase)
         menu.addAction(quick_add_action)
 
-        # Quick add to Priority 1 glossary (no dialog)
-        quick_add_p1_action = QAction(f"⚡ Quick Add to Priority 1 Glossary ({format_shortcut_for_display('Alt+Up')})", self)
+        # Quick add to Project glossary (no dialog)
+        quick_add_p1_action = QAction(f"⚡ Quick Add to Project Glossary ({format_shortcut_for_display('Alt+Up')})", self)
         quick_add_p1_action.triggered.connect(lambda: self._handle_quick_add_to_glossary_priority(1))
         menu.addAction(quick_add_p1_action)
 
-        # Quick add to Priority 2 glossary (no dialog)
-        quick_add_p2_action = QAction(f"⚡ Quick Add to Priority 2 Glossary ({format_shortcut_for_display('Alt+Down')})", self)
+        # Quick add to Background glossary (no dialog)
+        quick_add_p2_action = QAction(f"⚡ Quick Add to Background Glossary ({format_shortcut_for_display('Alt+Down')})", self)
         quick_add_p2_action.triggered.connect(lambda: self._handle_quick_add_to_glossary_priority(2))
         menu.addAction(quick_add_p2_action)
 
@@ -4338,13 +4314,13 @@ class EditableGridTextEditor(QTextEdit):
             event.accept()
             return
 
-        # Alt+Up: Quick add selected terms to Priority 1 glossary (no dialog)
+        # Alt+Up: Quick add selected terms to Project glossary (no dialog)
         if event.key() == Qt.Key.Key_Up and event.modifiers() == Qt.KeyboardModifier.AltModifier:
             self._handle_quick_add_to_glossary_priority(1)
             event.accept()
             return
 
-        # Alt+Down: Quick add selected terms to Priority 2 glossary (no dialog)
+        # Alt+Down: Quick add selected terms to Background glossary (no dialog)
         if event.key() == Qt.Key.Key_Down and event.modifiers() == Qt.KeyboardModifier.AltModifier:
             self._handle_quick_add_to_glossary_priority(2)
             event.accept()
@@ -4949,20 +4925,16 @@ class TermbaseHighlightWidget(QLabel):
             search_term = term.lower()
             search_html = html.lower()
             
-            # Get priority-based color (if termbase_matches contains priority info)
-            if isinstance(match_info, dict) and 'priority' in match_info:
-                priority = match_info.get('priority', 50)
+            # Determine color based on project/background glossary
+            if isinstance(match_info, dict):
                 translation = match_info.get('translation', '')
+                ranking = match_info.get('ranking', 0)
+                is_project = (ranking == 1) or match_info.get('is_project_termbase', False)
             else:
-                # Backward compatibility: if just string, use default priority
-                priority = 50
                 translation = match_info if isinstance(match_info, str) else ''
-            
-            # Calculate color based on priority (1-99, higher = darker blue)
-            # Priority 99 = darkest (#0066CC), Priority 1 = lightest (#99CCFF)
-            darkness = int(255 - (priority * 1.5))  # Higher priority = lower RGB value = darker
-            darkness = max(0, min(darkness, 200))  # Clamp between 0-200
-            color = f"rgb(0, {darkness}, 255)"
+                is_project = False
+            # Project glossary = medium green, Background = light green
+            color = "#A5D6A7" if is_project else "#C8E6C9"
             
             # Find all occurrences
             start = 0
@@ -4974,8 +4946,9 @@ class TermbaseHighlightWidget(QLabel):
                 # Extract original casing
                 original_term = html[idx:idx + len(term)]
                 
-                # Replace with highlighted version using priority color
-                highlighted = f'<span style="background-color: {color}; color: white; padding: 1px 3px; border-radius: 2px; font-weight: bold; cursor: pointer;" class="termbase-match" data-term="{term}" title="{translation} (Priority: {priority})">{original_term}</span>'
+                # Replace with highlighted version
+                tb_label = "Project" if is_project else "Background"
+                highlighted = f'<span style="background-color: {color}; color: black; padding: 1px 3px; border-radius: 2px; font-weight: bold; cursor: pointer;" class="termbase-match" data-term="{term}" title="{translation} ({tb_label})">{original_term}</span>'
                 
                 html = html[:idx] + highlighted + html[idx + len(term):]
                 search_html = html.lower()
@@ -8669,13 +8642,13 @@ class SupervertalerQt(QMainWindow):
         # F5 - Force refresh matches (clear all caches and re-search)
         create_shortcut("tools_force_refresh", "F5", self.force_refresh_matches)
         
-        # Ctrl+Shift+1 - Quick add term with Priority 1
-        create_shortcut("editor_quick_add_priority_1", "Ctrl+Shift+1", lambda: self._quick_add_term_with_priority(1))
+        # Ctrl+Shift+1 - Quick add term to Project Glossary
+        create_shortcut("editor_quick_add_priority_1", "Ctrl+Shift+1", lambda: self._quick_add_term_with_priority("project"))
 
-        # Ctrl+Shift+2 - Quick add term with Priority 2
-        create_shortcut("editor_quick_add_priority_2", "Ctrl+Shift+2", lambda: self._quick_add_term_with_priority(2))
+        # Ctrl+Shift+2 - Quick add term to Background Glossary
+        create_shortcut("editor_quick_add_priority_2", "Ctrl+Shift+2", lambda: self._quick_add_term_with_priority("background"))
 
-        # Alt+Up/Down - Quick add term pair to Priority 1/2 glossary
+        # Alt+Up/Down - Quick add term pair to Project/Background glossary
         # Handled by _GridArrowKeyEventFilter (QTableWidget eats vertical arrow keys
         # before QShortcuts can fire, so QShortcut-based registration doesn't work)
         
@@ -8871,10 +8844,10 @@ class SupervertalerQt(QMainWindow):
                 "source_term":   match.get("source", ""),
                 "target_term":   match.get("translation", ""),
                 "termbase_name": match.get("termbase_name", ""),
-                "ranking":       match.get("ranking", 99),
+                "ranking":       match.get("ranking", 0),
             })
-        # Sort by glossary priority rank, then alphabetically
-        glossary_matches.sort(key=lambda x: (x["ranking"], x["source_term"].lower()))
+        # Sort: project glossary (1) first, then alphabetically
+        glossary_matches.sort(key=lambda x: (-x["ranking"], x["source_term"].lower()))
 
         # ── Gather NT matches ────────────────────────────────────────────
         nt_matches = self.find_nt_matches_in_source(segment.source)
@@ -14186,7 +14159,7 @@ class SupervertalerQt(QMainWindow):
                     'source_term': match_data.get('source', ''),
                     'target_term': match_data.get('translation', ''),
                     'termbase_name': match_data.get('termbase_name', ''),
-                    'ranking': match_data.get('ranking', 99),
+                    'ranking': match_data.get('ranking', 0),
                     'is_project_termbase': match_data.get('is_project_termbase', False),
                     'term_id': match_data.get('term_id'),
                     'termbase_id': match_data.get('termbase_id'),
@@ -14310,7 +14283,7 @@ class SupervertalerQt(QMainWindow):
                         'source_term': match.get('source', ''),  # 'source' not 'source_term'
                         'target_term': match.get('translation', ''),  # 'translation' not 'target_term'
                         'termbase_name': match.get('termbase_name', ''),
-                        'ranking': match.get('ranking', 99),
+                        'ranking': match.get('ranking', 0),
                         'is_project_termbase': match.get('is_project_termbase', False),
                         'term_id': match.get('term_id'),
                         'termbase_id': match.get('termbase_id'),
@@ -14350,7 +14323,7 @@ class SupervertalerQt(QMainWindow):
                                     provider=match_data.get('termbase_name', 'Glossary'),
                                     metadata={
                                         'termbase_name': match_data.get('termbase_name', ''),
-                                        'ranking': match_data.get('ranking', 99),
+                                        'ranking': match_data.get('ranking', 0),
                                         'is_project_termbase': match_data.get('is_project_termbase', False),
                                         'term_id': match_data.get('term_id'),
                                         'termbase_id': match_data.get('termbase_id'),
@@ -14677,21 +14650,26 @@ class SupervertalerQt(QMainWindow):
                     self.statusBar().showMessage("❌ Error adding glossary entry (see log)", 3500)
                 QMessageBox.warning(self, "Error", "Failed to add term. Check the log for details.")
 
-    def _quick_add_term_with_priority(self, glossary_rank: int):
-        """Quick add selected term pair to the glossary with the specified ranking
-        
-        Gets selected text from source and target cells, then adds to the glossary
-        that has the specified priority ranking (1 = highest priority, 2 = second, etc.)
-        
+    def _quick_add_term_with_priority(self, target: str = "project"):
+        """Quick add selected term pair to the Project or first Background glossary.
+
         Args:
-            glossary_rank: Which glossary to add to (1 = first/highest priority, 2 = second, etc.)
+            target: "project" for the Project glossary (priority=1),
+                    "background" for the first writable background glossary.
+                    Legacy int values (1, 2) are auto-mapped for backward compat.
         """
+        # Legacy compat: map old int calls
+        if target == 1:
+            target = "project"
+        elif target == 2:
+            target = "background"
+
         # Get current row
         current_row = self.table.currentRow() if hasattr(self, 'table') and self.table else -1
         if current_row < 0:
             self.statusBar().showMessage("No segment selected", 3000)
             return
-        
+
         # Get source selection — strip invisible markers before saving
         source_widget = self.table.cellWidget(current_row, 2)
         source_text = ""
@@ -14708,47 +14686,44 @@ class SupervertalerQt(QMainWindow):
         if not source_text or not target_text:
             self.statusBar().showMessage("Select text in both Source and Target cells first", 3000)
             return
-        
+
         # Check prerequisites
         if not hasattr(self, 'current_project') or not self.current_project:
             self.statusBar().showMessage("No project open", 3000)
             return
-        
+
         if not hasattr(self, 'termbase_mgr') or not self.termbase_mgr:
             self.statusBar().showMessage("Glossary manager not initialized", 3000)
             return
-        
+
         project_id = self.current_project.id if hasattr(self.current_project, 'id') else None
         if not project_id:
             self.statusBar().showMessage("No project ID - save project first", 3000)
             return
-        
-        # Get glossaries with their priority from database
+
+        # Find target glossary based on project/background
         target_termbase = None
+        glossary_rank = 1 if target == "project" else 0  # For cache entry
         all_termbases = self.termbase_mgr.get_all_termbases()
-        
-        # Build list of (termbase, priority) for active glossaries
-        ranked_termbases = []
+
         for tb in all_termbases:
             tb_id = tb['id']
-            # Query priority from database (returns None if not activated)
             priority = self.termbase_mgr.get_termbase_priority(tb_id, project_id)
-            if priority is not None:
-                ranked_termbases.append((tb, priority))
-        
-        # Sort by priority (lower = higher priority, so #1 is first)
-        ranked_termbases.sort(key=lambda x: x[1])
-        
-        self.log(f"🔍 Looking for glossary at rank #{glossary_rank}. Found {len(ranked_termbases)} active glossaries: {[(t[0]['name'], t[1]) for t in ranked_termbases]}")
-        
-        # Find the glossary with the specified priority number
-        for tb, priority in ranked_termbases:
-            if priority == glossary_rank:
+            if priority is None:
+                continue  # Not activated
+            is_writable = not tb.get('read_only', True)
+            is_project_tb = (priority == 1)
+
+            if target == "project" and is_project_tb:
                 target_termbase = tb
                 break
-        
+            elif target == "background" and not is_project_tb and is_writable:
+                target_termbase = tb
+                break
+
+        label = "Project glossary" if target == "project" else "Background glossary"
         if not target_termbase:
-            self.statusBar().showMessage(f"No glossary with Priority #{glossary_rank} - check Project Resources → Glossaries", 3000)
+            self.statusBar().showMessage(f"No {label} found — check Resources → Glossaries", 3000)
             return
         
         # Get language codes
@@ -14757,7 +14732,7 @@ class SupervertalerQt(QMainWindow):
         source_lang_code = self._convert_language_to_code(source_lang)
         target_lang_code = self._convert_language_to_code(target_lang)
         
-        self.log(f"⚡ Quick-adding term to rank #{glossary_rank} glossary '{target_termbase['name']}': {source_text} → {target_text}")
+        self.log(f"⚡ Quick-adding term to {label} '{target_termbase['name']}': {source_text} → {target_text}")
         
         try:
             term_id = self.termbase_mgr.add_term(
@@ -14791,13 +14766,14 @@ class SupervertalerQt(QMainWindow):
                             
                             if segment:
                                 # Create match entry for the new term
+                                is_project = (glossary_rank == 1)
                                 new_match = {
                                     'source': source_text,
                                     'translation': target_text,
                                     'priority': 99,
-                                    'ranking': glossary_rank,  # Use the priority rank we just added to
+                                    'ranking': glossary_rank,
                                     'forbidden': False,
-                                    'is_project_termbase': False,
+                                    'is_project_termbase': is_project,
                                     'term_id': term_id,
                                     'termbase_id': target_termbase['id'],
                                     'termbase_name': target_termbase['name'],
@@ -14807,13 +14783,26 @@ class SupervertalerQt(QMainWindow):
                                     'client': '',
                                     'target_synonyms': []
                                 }
-                                
-                                # Add to cache directly
+
+                                # Add to cache directly, replacing any lower-ranked duplicate
                                 with self.termbase_cache_lock:
                                     if segment_id not in self.termbase_cache:
                                         self.termbase_cache[segment_id] = {}
-                                    # Use term_id as key to avoid duplicates
-                                    self.termbase_cache[segment_id][term_id] = new_match
+                                    cached = self.termbase_cache[segment_id]
+
+                                    # Remove existing entries for the same source→target pair
+                                    # so the new (possibly higher-ranked) entry takes precedence
+                                    src_lower = source_text.lower()
+                                    tgt_lower = target_text.lower()
+                                    dup_ids = [
+                                        tid for tid, m in cached.items()
+                                        if m.get('source', '').lower() == src_lower
+                                        and m.get('translation', '').lower() == tgt_lower
+                                    ]
+                                    for tid in dup_ids:
+                                        del cached[tid]
+
+                                    cached[term_id] = new_match
                                     self.log(f"⚡ Added term directly to cache (instant update)")
 
                                 # v1.9.182: Also add to in-memory termbase index for future lookups
@@ -14839,7 +14828,7 @@ class SupervertalerQt(QMainWindow):
                                     'project': '',
                                     'client': '',
                                     'forbidden': False,
-                                    'is_project_termbase': False,
+                                    'is_project_termbase': is_project,
                                     'termbase_name': target_termbase['name'],
                                     'ranking': glossary_rank,
                                     'pattern': pattern,
@@ -14861,7 +14850,7 @@ class SupervertalerQt(QMainWindow):
                                             'source_term': match.get('source', ''),
                                             'target_term': match.get('translation', ''),
                                             'termbase_name': match.get('termbase_name', ''),
-                                            'ranking': match.get('ranking', 99),
+                                            'ranking': match.get('ranking', 0),
                                             'is_project_termbase': match.get('is_project_termbase', False),
                                             'term_id': match.get('term_id'),
                                             'termbase_id': match.get('termbase_id'),
@@ -15154,9 +15143,10 @@ class SupervertalerQt(QMainWindow):
         # Help message
         help_msg = QLabel(
             "💡 <b>Glossaries</b><br>"
+            "Manage glossaries for terminology searching. Activate/deactivate for current project.<br>"
             "• <b>Read</b> (green ✓): Glossary is used for terminology matching<br>"
             "• <b>Write</b> (blue ✓): Glossary is updated with new terms<br>"
-            "• <b>Priority</b>: Manually set 1-N (lower = higher priority). Priority #1 = Project Glossary.<br>"
+            "• <b>Project</b> (pink ✓): Set as Project Glossary (highest priority, one at a time)<br>"
             "• <b>AI</b> (orange ✓): Send glossary terms to LLM with every translation (increases prompt size)"
         )
         help_msg.setWordWrap(True)
@@ -15180,7 +15170,7 @@ class SupervertalerQt(QMainWindow):
         termbase_table = QTableWidget()
         self.termbase_table = termbase_table  # Store for external access (Superlookup navigation)
         termbase_table.setColumnCount(8)
-        termbase_table.setHorizontalHeaderLabels(["Type", "Name", "Languages", "Terms", "Read", "Write", "Priority", "AI"])
+        termbase_table.setHorizontalHeaderLabels(["Type", "Name", "Languages", "Terms", "Read", "Write", "Project", "AI"])
         termbase_table.horizontalHeader().setStretchLastSection(False)
         termbase_table.setColumnWidth(0, 80)   # Type (Project/Background)
         termbase_table.setColumnWidth(1, 180)  # Name
@@ -15317,27 +15307,25 @@ class SupervertalerQt(QMainWindow):
         pagination_layout.addStretch()
         right_layout.addLayout(pagination_layout)
         
-        # Terms table - columns: Source, Target, Priority, Domain, Notes, Project, Client, Forbidden, Delete
+        # Terms table - columns: Source, Target, Domain, Notes, Project, Client, Forbidden, Delete
         terms_table = QTableWidget()
-        terms_table.setColumnCount(9)
-        terms_table.setHorizontalHeaderLabels(["Source Term", "Target Term", "Priority", "Domain", "Notes", "Project", "Client", "Forbidden", ""])
+        terms_table.setColumnCount(8)
+        terms_table.setHorizontalHeaderLabels(["Source Term", "Target Term", "Domain", "Notes", "Project", "Client", "Forbidden", ""])
         terms_table.horizontalHeader().setStretchLastSection(False)
         terms_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)      # Source — fills remaining space
         terms_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)      # Target — fills remaining space
-        terms_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Interactive)  # Priority
-        terms_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.Interactive)  # Domain
-        terms_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeMode.Interactive)  # Notes
-        terms_table.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeMode.Interactive)  # Project
-        terms_table.horizontalHeader().setSectionResizeMode(6, QHeaderView.ResizeMode.Interactive)  # Client
-        terms_table.horizontalHeader().setSectionResizeMode(7, QHeaderView.ResizeMode.Interactive)  # Forbidden
-        terms_table.horizontalHeader().setSectionResizeMode(8, QHeaderView.ResizeMode.Fixed)        # Delete button
-        terms_table.setColumnWidth(2, 60)   # Priority
-        terms_table.setColumnWidth(3, 100)  # Domain
-        terms_table.setColumnWidth(4, 120)  # Notes
-        terms_table.setColumnWidth(5, 100)  # Project
-        terms_table.setColumnWidth(6, 100)  # Client
-        terms_table.setColumnWidth(7, 70)   # Forbidden
-        terms_table.setColumnWidth(8, 30)   # Delete button
+        terms_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Interactive)  # Domain
+        terms_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.Interactive)  # Notes
+        terms_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeMode.Interactive)  # Project
+        terms_table.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeMode.Interactive)  # Client
+        terms_table.horizontalHeader().setSectionResizeMode(6, QHeaderView.ResizeMode.Interactive)  # Forbidden
+        terms_table.horizontalHeader().setSectionResizeMode(7, QHeaderView.ResizeMode.Fixed)        # Delete button
+        terms_table.setColumnWidth(2, 100)  # Domain
+        terms_table.setColumnWidth(3, 120)  # Notes
+        terms_table.setColumnWidth(4, 100)  # Project
+        terms_table.setColumnWidth(5, 100)  # Client
+        terms_table.setColumnWidth(6, 70)   # Forbidden
+        terms_table.setColumnWidth(7, 30)   # Delete button
         terms_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         right_layout.addWidget(terms_table, stretch=1)
         
@@ -15403,7 +15391,7 @@ class SupervertalerQt(QMainWindow):
                     # Get filtered page
                     if page_size > 0:
                         self.db_manager.cursor.execute(
-                            """SELECT id, source_term, target_term, priority, domain, notes, project, client, forbidden 
+                            """SELECT id, source_term, target_term, domain, notes, project, client, forbidden 
                                FROM termbase_terms 
                                WHERE termbase_id = CAST(? AS TEXT) 
                                AND (LOWER(source_term) LIKE ? OR LOWER(target_term) LIKE ?)
@@ -15412,7 +15400,7 @@ class SupervertalerQt(QMainWindow):
                         )
                     else:  # All
                         self.db_manager.cursor.execute(
-                            """SELECT id, source_term, target_term, priority, domain, notes, project, client, forbidden 
+                            """SELECT id, source_term, target_term, domain, notes, project, client, forbidden 
                                FROM termbase_terms 
                                WHERE termbase_id = CAST(? AS TEXT) 
                                AND (LOWER(source_term) LIKE ? OR LOWER(target_term) LIKE ?)
@@ -15430,14 +15418,14 @@ class SupervertalerQt(QMainWindow):
                     # Get page
                     if page_size > 0:
                         self.db_manager.cursor.execute(
-                            """SELECT id, source_term, target_term, priority, domain, notes, project, client, forbidden 
+                            """SELECT id, source_term, target_term, domain, notes, project, client, forbidden 
                                FROM termbase_terms WHERE termbase_id = CAST(? AS TEXT) 
                                ORDER BY source_term LIMIT ? OFFSET ?""",
                             (tb_id, page_size, offset)
                         )
                     else:  # All
                         self.db_manager.cursor.execute(
-                            """SELECT id, source_term, target_term, priority, domain, notes, project, client, forbidden 
+                            """SELECT id, source_term, target_term, domain, notes, project, client, forbidden 
                                FROM termbase_terms WHERE termbase_id = CAST(? AS TEXT) ORDER BY source_term""",
                             (tb_id,)
                         )
@@ -15446,51 +15434,47 @@ class SupervertalerQt(QMainWindow):
                 terms_table.setRowCount(len(terms))
                 
                 for row, term in enumerate(terms):
-                    term_id, source, target, priority, domain, notes, project, client, forbidden = term
-                    
+                    term_id, source, target, domain, notes, project, client, forbidden = term
+
                     # Source term (editable)
                     source_item = QTableWidgetItem(source or "")
                     source_item.setData(Qt.ItemDataRole.UserRole, term_id)
                     terms_table.setItem(row, 0, source_item)
-                    
+
                     # Target term (editable)
                     target_item = QTableWidgetItem(target or "")
                     terms_table.setItem(row, 1, target_item)
-                    
-                    # Priority (editable)
-                    priority_item = QTableWidgetItem(str(priority) if priority is not None else "50")
-                    terms_table.setItem(row, 2, priority_item)
-                    
+
                     # Domain (editable)
                     domain_item = QTableWidgetItem(domain or "")
-                    terms_table.setItem(row, 3, domain_item)
-                    
+                    terms_table.setItem(row, 2, domain_item)
+
                     # Notes (editable)
                     notes_item = QTableWidgetItem(notes or "")
-                    terms_table.setItem(row, 4, notes_item)
-                    
+                    terms_table.setItem(row, 3, notes_item)
+
                     # Project (editable)
                     project_item = QTableWidgetItem(project or "")
-                    terms_table.setItem(row, 5, project_item)
-                    
+                    terms_table.setItem(row, 4, project_item)
+
                     # Client (editable)
                     client_item = QTableWidgetItem(client or "")
-                    terms_table.setItem(row, 6, client_item)
-                    
+                    terms_table.setItem(row, 5, client_item)
+
                     # Forbidden (checkbox)
                     forbidden_checkbox = CheckmarkCheckBox()
                     forbidden_checkbox.setChecked(bool(forbidden))
                     forbidden_checkbox.setToolTip("Mark term as forbidden (do not use)")
                     forbidden_checkbox.toggled.connect(lambda checked, tid=term_id: save_forbidden_state(tid, checked))
-                    terms_table.setCellWidget(row, 7, forbidden_checkbox)
-                    
+                    terms_table.setCellWidget(row, 6, forbidden_checkbox)
+
                     # Delete button
                     delete_btn = QPushButton("🗑")
                     delete_btn.setFixedSize(24, 24)
                     delete_btn.setToolTip("Delete this term")
                     delete_btn.setStyleSheet("QPushButton { border: none; } QPushButton:hover { background-color: #ffcccc; }")
                     delete_btn.clicked.connect(lambda checked, tid=term_id: delete_term(tid))
-                    terms_table.setCellWidget(row, 8, delete_btn)
+                    terms_table.setCellWidget(row, 7, delete_btn)
                 
                 update_pagination_ui()
                 
@@ -15597,38 +15581,31 @@ class SupervertalerQt(QMainWindow):
             if current_terms_tb_id[0] is None:
                 return
             
-            # Skip columns that have widgets (Forbidden=7, Delete=8)
-            if column in (7, 8):
+            # Skip columns that have widgets (Forbidden=6, Delete=7)
+            if column in (6, 7):
                 return
-            
+
             source_item = terms_table.item(row, 0)
             if not source_item:
                 return
-            
+
             term_id = source_item.data(Qt.ItemDataRole.UserRole)
             if not term_id:
                 return
-            
+
             source = terms_table.item(row, 0).text() if terms_table.item(row, 0) else ""
             target = terms_table.item(row, 1).text() if terms_table.item(row, 1) else ""
-            priority_text = terms_table.item(row, 2).text() if terms_table.item(row, 2) else "50"
-            domain = terms_table.item(row, 3).text() if terms_table.item(row, 3) else ""
-            notes = terms_table.item(row, 4).text() if terms_table.item(row, 4) else ""
-            project = terms_table.item(row, 5).text() if terms_table.item(row, 5) else ""
-            client = terms_table.item(row, 6).text() if terms_table.item(row, 6) else ""
-            
-            # Parse priority as integer
-            try:
-                priority = int(priority_text) if priority_text else 50
-            except ValueError:
-                priority = 50
-            
+            domain = terms_table.item(row, 2).text() if terms_table.item(row, 2) else ""
+            notes = terms_table.item(row, 3).text() if terms_table.item(row, 3) else ""
+            project = terms_table.item(row, 4).text() if terms_table.item(row, 4) else ""
+            client = terms_table.item(row, 5).text() if terms_table.item(row, 5) else ""
+
             try:
                 self.db_manager.cursor.execute(
-                    """UPDATE termbase_terms 
-                       SET source_term = ?, target_term = ?, priority = ?, domain = ?, notes = ?, project = ?, client = ? 
+                    """UPDATE termbase_terms
+                       SET source_term = ?, target_term = ?, domain = ?, notes = ?, project = ?, client = ?
                        WHERE id = ?""",
-                    (source, target, priority, domain, notes, project, client, term_id)
+                    (source, target, domain, notes, project, client, term_id)
                 )
                 self.db_manager.connection.commit()
                 # Clear termbase cache
@@ -15706,14 +15683,6 @@ class SupervertalerQt(QMainWindow):
             self.log(f"  Found {len(termbases)} termbase(s) in database")
             termbase_table.setRowCount(len(termbases))
             
-            # Count active readable termbases (for priority range)
-            # When no project is loaded, nothing is active (user requirement)
-            if current_proj is None:
-                num_active = 0
-            else:
-                num_active = sum(1 for tb in termbases
-                               if termbase_mgr.is_termbase_active(tb['id'], refresh_project_id))
-
             for row, tb in enumerate(termbases):
                 # When no project is loaded, nothing should be selected (user requirement)
                 if current_proj is None:
@@ -15725,9 +15694,9 @@ class SupervertalerQt(QMainWindow):
                     # Check if writable (not read-only)
                     is_writable = not tb.get('read_only', True)  # Default to True (read-only) if not set
                 
-                # Get manual priority from termbase_activation table
+                # Get project glossary flag from termbase_activation table
                 priority = termbase_mgr.get_termbase_priority(tb['id'], refresh_project_id) if is_readable else None
-                is_project_tb = (priority == 1)  # Priority #1 = project termbase
+                is_project_tb = (priority == 1)
                 
                 # Type (Project/Background) - auto-determined by priority
                 if is_project_tb:
@@ -15807,97 +15776,66 @@ class SupervertalerQt(QMainWindow):
                 write_checkbox.toggled.connect(on_write_toggle)
                 termbase_table.setCellWidget(row, 5, write_checkbox)
                 
-                # Priority (dropdown for readable termbases)
-                if is_readable and refresh_project_id and num_active > 0:
-                    priority_combo = QComboBox()
-                    
-                    # Populate dropdown with available priorities (1 to num_active)
-                    for p in range(1, num_active + 1):
-                        priority_combo.addItem(f"#{p}", p)
-                    
-                    # Set current priority
-                    if priority:
-                        priority_combo.setCurrentIndex(priority - 1)
-                    else:
-                        priority_combo.setCurrentIndex(0)
-                    
-                    # Pink styling for priority #1
-                    if priority == 1:
-                        priority_combo.setStyleSheet("QComboBox { color: #FF69B4; font-weight: bold; }")
-                        priority_combo.setToolTip("Priority #1 - Project Glossary (highest priority)\nSelect different priority from dropdown")
-                    else:
-                        priority_combo.setToolTip(f"Priority #{priority} (1=highest, {num_active}=lowest)\nMultiple glossaries can share same priority.")
-                    
-                    def on_priority_change(index, tb_id=tb['id'], row_idx=row):
-                        # Get selected priority from combo box
-                        combo = termbase_table.cellWidget(row_idx, 6)
-                        if not combo:
-                            return
-                        new_priority = combo.currentData()
-                        
-                        self.log(f"🔄 Priority change triggered: TB {tb_id} → #{new_priority}")
+                # Project glossary checkbox (only for readable termbases)
+                if is_readable and refresh_project_id:
+                    is_project_glossary = (priority == 1)
+                    project_checkbox = PinkCheckmarkCheckBox()
+                    project_checkbox.setChecked(is_project_glossary)
+                    project_checkbox.setToolTip("Set as Project Glossary (highest priority, pink)")
+
+                    def on_project_toggle(checked, tb_id=tb['id'], row_idx=row):
                         curr_proj = self.current_project if hasattr(self, 'current_project') else None
                         curr_proj_id = curr_proj.id if (curr_proj and hasattr(curr_proj, 'id')) else None
                         if not curr_proj_id:
-                            self.log(f"⚠️ No project loaded, cannot change priority")
+                            self.log(f"⚠️ No project loaded, cannot change project glossary")
                             return
-                        
-                        self.log(f"🔄 Setting priority for TB {tb_id}, Project {curr_proj_id}")
+
+                        new_priority = 1 if checked else None
                         success = termbase_mgr.set_termbase_priority(tb_id, curr_proj_id, new_priority)
                         if success:
-                            self.log(f"✅ Successfully set termbase {tb_id} priority to #{new_priority}")
-                            # Update styling based on new priority
-                            sender = termbase_table.cellWidget(row_idx, 6)
-                            if sender:
-                                if new_priority == 1:
-                                    sender.setStyleSheet("QComboBox { color: #FF69B4; font-weight: bold; }")
-                                    sender.setToolTip("Priority #1 - Project Glossary (highest priority)\nSelect different priority from dropdown")
-                                else:
-                                    sender.setStyleSheet("")
-                                    sender.setToolTip(f"Priority #{new_priority} (1=highest, {num_active}=lowest)\nMultiple glossaries can share same priority.")
-                            
-                            # Update Type column and styling for all rows
+                            label = "Project glossary" if checked else "Background"
+                            self.log(f"✅ Set termbase {tb_id} as {label}")
+
+                            # Update all rows: uncheck others if this was checked (exclusive)
                             for r in range(termbase_table.rowCount()):
                                 type_widget = termbase_table.cellWidget(r, 0)
-                                priority_widget = termbase_table.cellWidget(r, 6)
-                                if type_widget and priority_widget and isinstance(priority_widget, QComboBox):
-                                    # Block signals during update to prevent recursion
-                                    priority_widget.blockSignals(True)
-                                    current_priority = priority_widget.currentData()
-                                    name_item = termbase_table.item(r, 1)
-                                    
-                                    # Update Type column
-                                    if current_priority == 1:
-                                        type_widget.setText("📌 Project")
-                                        type_widget.setStyleSheet("color: #FF69B4; font-weight: bold;")
-                                        if name_item:
-                                            name_item.setForeground(QColor("#FF69B4"))
-                                        # Update combobox styling for #1
-                                        priority_widget.setStyleSheet("QComboBox { color: #FF69B4; font-weight: bold; }")
-                                        priority_widget.setToolTip("Priority #1 - Project Glossary (highest priority)\nSelect different priority from dropdown")
-                                    else:
-                                        type_widget.setText("Background")
-                                        type_widget.setStyleSheet("color: #666;")
-                                        if name_item:
-                                            name_item.setForeground(QColor("#000"))
-                                        # Update combobox styling for non-#1
-                                        priority_widget.setStyleSheet("")
-                                        priority_widget.setToolTip(f"Priority #{current_priority} (1=highest, {num_active}=lowest)\nMultiple glossaries can share same priority.")
-                                    
-                                    # Unblock signals after update
-                                    priority_widget.blockSignals(False)
-                            
-                            # Clear cache for termbase matching (once, outside loop)
+                                proj_widget = termbase_table.cellWidget(r, 6)
+                                name_item = termbase_table.item(r, 1)
+                                if not type_widget or not isinstance(proj_widget, PinkCheckmarkCheckBox):
+                                    continue
+
+                                proj_widget.blockSignals(True)
+                                if r == row_idx:
+                                    proj_widget.setChecked(checked)
+                                elif checked:
+                                    # Exclusive: uncheck all other rows
+                                    proj_widget.setChecked(False)
+                                is_proj = proj_widget.isChecked()
+                                proj_widget.blockSignals(False)
+
+                                # Update Type column styling
+                                if is_proj:
+                                    type_widget.setText("📌 Project")
+                                    type_widget.setStyleSheet("color: #FF69B4; font-weight: bold;")
+                                    if name_item:
+                                        name_item.setForeground(QColor("#FF69B4"))
+                                else:
+                                    type_widget.setText("Background")
+                                    type_widget.setStyleSheet("color: #666;")
+                                    if name_item:
+                                        name_item.setForeground(QColor("#000"))
+
+                            # Clear cache for termbase matching
                             with self.termbase_cache_lock:
                                 self.termbase_cache.clear()
-                    
-                    priority_combo.currentIndexChanged.connect(on_priority_change)
-                    termbase_table.setCellWidget(row, 6, priority_combo)
+
+                    project_checkbox.toggled.connect(on_project_toggle)
+                    termbase_table.setCellWidget(row, 6, project_checkbox)
                 else:
                     # Non-readable termbase: show dash
                     priority_item = QTableWidgetItem("—")
                     priority_item.setForeground(QColor("#999"))
-                    priority_item.setToolTip("No priority - glossary not readable")
+                    priority_item.setToolTip("Not active — enable Read first")
                     priority_item.setFlags(priority_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
                     termbase_table.setItem(row, 6, priority_item)
 
@@ -25696,7 +25634,7 @@ class SupervertalerQt(QMainWindow):
                 t.id, t.source_term, t.target_term, t.termbase_id, t.priority,
                 t.domain, t.notes, t.project, t.client, t.forbidden,
                 tb.is_project_termbase, tb.name as termbase_name,
-                COALESCE(ta.priority, tb.ranking) as ranking
+                CASE WHEN COALESCE(ta.priority, 0) = 1 OR tb.is_project_termbase = 1 THEN 1 ELSE 0 END as ranking
             FROM termbase_terms t
             LEFT JOIN termbases tb ON CAST(t.termbase_id AS INTEGER) = tb.id
             LEFT JOIN termbase_activation ta ON ta.termbase_id = tb.id
@@ -25964,7 +25902,7 @@ class SupervertalerQt(QMainWindow):
                                 t.id, t.source_term, t.target_term, t.termbase_id, t.priority,
                                 t.domain, t.notes, t.project, t.client, t.forbidden,
                                 tb.is_project_termbase, tb.name as termbase_name,
-                                COALESCE(ta.priority, tb.ranking) as ranking,
+                                CASE WHEN COALESCE(ta.priority, 0) = 1 OR tb.is_project_termbase = 1 THEN 1 ELSE 0 END as ranking,
                                 'source' as match_direction
                             FROM termbase_terms t
                             LEFT JOIN termbases tb ON CAST(t.termbase_id AS INTEGER) = tb.id
@@ -25991,7 +25929,7 @@ class SupervertalerQt(QMainWindow):
                                 t.termbase_id, t.priority,
                                 t.domain, t.notes, t.project, t.client, t.forbidden,
                                 tb.is_project_termbase, tb.name as termbase_name,
-                                COALESCE(ta.priority, tb.ranking) as ranking,
+                                CASE WHEN COALESCE(ta.priority, 0) = 1 OR tb.is_project_termbase = 1 THEN 1 ELSE 0 END as ranking,
                                 'target' as match_direction
                             FROM termbase_terms t
                             LEFT JOIN termbases tb ON CAST(t.termbase_id AS INTEGER) = tb.id
@@ -37450,7 +37388,7 @@ class SupervertalerQt(QMainWindow):
                                 tb_dict[key] = {
                                     'source': match.source,
                                     'translation': match.target,
-                                    'ranking': match.metadata.get('ranking', 99) if match.metadata else 99,
+                                    'ranking': match.metadata.get('ranking', 0) if match.metadata else 0,
                                     'is_project_termbase': match.metadata.get('is_project_termbase', False) if match.metadata else False,
                                     'forbidden': match.metadata.get('forbidden', False) if match.metadata else False,
                                     'termbase_name': match.metadata.get('termbase_name', '') if match.metadata else '',
@@ -37484,7 +37422,7 @@ class SupervertalerQt(QMainWindow):
                             'source_term': match.source,
                             'target_term': match.target,
                             'termbase_name': match.metadata.get('termbase_name', '') if match.metadata else '',
-                            'ranking': match.metadata.get('ranking', 99) if match.metadata else 99,
+                            'ranking': match.metadata.get('ranking', 0) if match.metadata else 0,
                             'is_project_termbase': match.metadata.get('is_project_termbase', False) if match.metadata else False,
                             'term_id': match.metadata.get('term_id') if match.metadata else None,
                             'termbase_id': match.metadata.get('termbase_id') if match.metadata else None,
@@ -37687,7 +37625,7 @@ class SupervertalerQt(QMainWindow):
                                     'source_term': match.source,
                                     'target_term': match.target,
                                     'termbase_name': match.metadata.get('termbase_name', '') if match.metadata else '',
-                                    'ranking': match.metadata.get('ranking', 99) if match.metadata else 99,
+                                    'ranking': match.metadata.get('ranking', 0) if match.metadata else 0,
                                     'is_project_termbase': match.metadata.get('is_project_termbase', False) if match.metadata else False,
                                     'term_id': match.metadata.get('term_id') if match.metadata else None,
                                     'termbase_id': match.metadata.get('termbase_id') if match.metadata else None,
@@ -37752,7 +37690,7 @@ class SupervertalerQt(QMainWindow):
                                     tb_dict[key] = {
                                         'source': match.source,
                                         'translation': match.target,
-                                        'ranking': match.metadata.get('ranking', 99) if match.metadata else 99,
+                                        'ranking': match.metadata.get('ranking', 0) if match.metadata else 0,
                                         'is_project_termbase': match.metadata.get('is_project_termbase', False) if match.metadata else False,
                                         'forbidden': match.metadata.get('forbidden', False) if match.metadata else False,
                                         'termbase_name': match.metadata.get('termbase_name', '') if match.metadata else '',
@@ -37849,7 +37787,7 @@ class SupervertalerQt(QMainWindow):
                                             'source_term': match_data.get('source', ''),
                                             'target_term': match_data.get('translation', ''),
                                             'termbase_name': match_data.get('termbase_name', ''),
-                                            'ranking': match_data.get('ranking', 99),
+                                            'ranking': match_data.get('ranking', 0),
                                             'is_project_termbase': match_data.get('is_project_termbase', False),
                                             'term_id': match_data.get('term_id'),
                                             'termbase_id': match_data.get('termbase_id'),
@@ -40645,8 +40583,9 @@ class SupervertalerQt(QMainWindow):
                 has_index = bool(self.termbase_index)
 
             if has_index:
-                # Fast path: use pre-built in-memory index
-                return self._search_termbase_in_memory(source_text)
+                # Fast path: use pre-built in-memory index, then deduplicate
+                matches = self._search_termbase_in_memory(source_text)
+                return self._deduplicate_termbase_matches(matches)
 
             # Fallback: original per-word database query approach
             # (only used if index not yet built, e.g., during startup)
@@ -40783,34 +40722,7 @@ class SupervertalerQt(QMainWindow):
                             'target_synonyms': result.get('target_synonyms', [])  # Include synonyms
                         }
             
-            # Filter duplicates: if same source→target exists in multiple glossaries,
-            # only keep the one with highest priority (lowest ranking number)
-            filtered_matches = {}
-            seen_pairs = {}  # (source_lower, target_lower) -> (term_id, ranking)
-            
-            for term_id, match_info in matches.items():
-                source_lower = match_info['source'].lower()
-                target_lower = match_info['translation'].lower()
-                pair_key = (source_lower, target_lower)
-                ranking = match_info.get('ranking', 99)
-                
-                if pair_key in seen_pairs:
-                    # Duplicate found - keep only the higher priority (lower number)
-                    existing_term_id, existing_ranking = seen_pairs[pair_key]
-                    if ranking < existing_ranking:
-                        # This one has higher priority, replace the existing one
-                        del filtered_matches[existing_term_id]
-                        filtered_matches[term_id] = match_info
-                        seen_pairs[pair_key] = (term_id, ranking)
-                else:
-                    # First occurrence of this pair
-                    filtered_matches[term_id] = match_info
-                    seen_pairs[pair_key] = (term_id, ranking)
-            
-            # Only log if matches were found (reduce noise)
-            if filtered_matches:
-                self.log(f"🔍 Found {len(filtered_matches)} termbase matches (duplicates filtered)")
-            return filtered_matches
+            return self._deduplicate_termbase_matches(matches)
             
         except Exception as e:
             self.log(f"❌ Error finding termbase matches: {e}")
@@ -40818,6 +40730,31 @@ class SupervertalerQt(QMainWindow):
             self.log(f"Traceback: {traceback.format_exc()}")
             return {}
     
+    def _deduplicate_termbase_matches(self, matches: dict) -> dict:
+        """Deduplicate termbase matches: if the same source→target pair exists in
+        multiple glossaries, keep only the one from the highest-ranked glossary
+        (1=project > 0=background)."""
+        filtered = {}
+        seen_pairs = {}  # (source_lower, target_lower) -> (term_id, ranking)
+
+        for term_id, match_info in matches.items():
+            source_lower = match_info['source'].lower()
+            target_lower = match_info['translation'].lower()
+            pair_key = (source_lower, target_lower)
+            ranking = match_info.get('ranking', 0)
+
+            if pair_key in seen_pairs:
+                existing_term_id, existing_ranking = seen_pairs[pair_key]
+                if ranking > existing_ranking:
+                    del filtered[existing_term_id]
+                    filtered[term_id] = match_info
+                    seen_pairs[pair_key] = (term_id, ranking)
+            else:
+                filtered[term_id] = match_info
+                seen_pairs[pair_key] = (term_id, ranking)
+
+        return filtered
+
     def find_nt_matches_in_source(self, source_text: str) -> list:
         """
         Find non-translatable matches in source text from all active NT lists.
@@ -41992,7 +41929,7 @@ class SupervertalerQt(QMainWindow):
                         'source_term': match_info.get('source', ''),
                         'target_term': match_info.get('translation', ''),
                         'termbase_name': match_info.get('termbase_name', ''),
-                        'ranking': match_info.get('ranking', 99),
+                        'ranking': match_info.get('ranking', 0),
                         'is_project_termbase': match_info.get('is_project_termbase', False),
                         'target_synonyms': match_info.get('target_synonyms', []),
                         'term_id': term_id,
@@ -42041,7 +41978,7 @@ class SupervertalerQt(QMainWindow):
                     match_type="Termbase",
                     metadata={
                         'termbase_name': match_info.get('termbase_name', ''),
-                        'ranking': match_info.get('ranking', 99),
+                        'ranking': match_info.get('ranking', 0),
                         'is_project_termbase': match_info.get('is_project_termbase', False),
                         'notes': match_info.get('notes', ''),
                         'term_id': term_id,

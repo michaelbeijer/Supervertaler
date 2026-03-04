@@ -299,67 +299,35 @@ class TermbaseManager:
             return True
     
     def activate_termbase(self, termbase_id: int, project_id: int) -> bool:
-        """Activate termbase for project and assign ranking"""
+        """Activate termbase for project (as background glossary by default)"""
         try:
             cursor = self.db_manager.cursor
-            
+
             self.log(f"🔵 ACTIVATE: termbase_id={termbase_id}, project_id={project_id}")
-            
+
             # Check if activation record already exists
             cursor.execute("""
-                SELECT activated_date FROM termbase_activation 
+                SELECT activated_date FROM termbase_activation
                 WHERE termbase_id = ? AND project_id = ?
             """, (termbase_id, project_id))
             existing = cursor.fetchone()
-            
+
             if existing:
-                # Preserve original activated_date when re-activating
-                # Check if priority is NULL and set default if needed
+                # Re-activate existing record, preserve priority (project glossary flag)
                 cursor.execute("""
-                    SELECT priority FROM termbase_activation 
+                    UPDATE termbase_activation
+                    SET is_active = 1
                     WHERE termbase_id = ? AND project_id = ?
                 """, (termbase_id, project_id))
-                existing_priority = cursor.fetchone()[0]
-                
-                if existing_priority is None:
-                    # Priority is NULL - assign default priority
-                    cursor.execute("""
-                        SELECT COALESCE(MAX(priority), 0) FROM termbase_activation 
-                        WHERE project_id = ? AND is_active = 1
-                    """, (project_id,))
-                    max_priority = cursor.fetchone()[0]
-                    default_priority = max_priority + 1
-                    
-                    cursor.execute("""
-                        UPDATE termbase_activation 
-                        SET is_active = 1, priority = ?
-                        WHERE termbase_id = ? AND project_id = ?
-                    """, (default_priority, termbase_id, project_id))
-                    self.log(f"  ✓ Updated activation record (preserved timestamp, set priority #{default_priority})")
-                else:
-                    # Priority already exists - just update is_active
-                    cursor.execute("""
-                        UPDATE termbase_activation 
-                        SET is_active = 1
-                        WHERE termbase_id = ? AND project_id = ?
-                    """, (termbase_id, project_id))
-                    self.log(f"  ✓ Updated activation record (preserved timestamp and priority #{existing_priority})")
+                self.log(f"  ✓ Re-activated termbase (preserved timestamp)")
             else:
-                # Create new activation record with default priority
-                # Default priority: Find highest existing priority and add 1
-                cursor.execute("""
-                    SELECT COALESCE(MAX(priority), 0) FROM termbase_activation 
-                    WHERE project_id = ? AND is_active = 1
-                """, (project_id,))
-                max_priority = cursor.fetchone()[0]
-                default_priority = max_priority + 1
-                
+                # New activation — background glossary by default (priority=NULL)
                 cursor.execute("""
                     INSERT INTO termbase_activation (termbase_id, project_id, is_active, priority)
-                    VALUES (?, ?, 1, ?)
-                """, (termbase_id, project_id, default_priority))
-                self.log(f"  ✓ Created new activation record with default priority #{default_priority}")
-            
+                    VALUES (?, ?, 1, NULL)
+                """, (termbase_id, project_id))
+                self.log(f"  ✓ Created new activation record (background glossary)")
+
             self.db_manager.connection.commit()
             self.log(f"✓ Activated termbase {termbase_id} for project {project_id}")
             return True
@@ -468,7 +436,7 @@ class TermbaseManager:
                 LEFT JOIN termbase_activation ta ON t.id = ta.termbase_id AND ta.project_id = ?
                 WHERE t.ai_inject = 1
                 AND (ta.is_active = 1 OR (t.is_global = 1 AND ta.is_active IS NULL))
-                ORDER BY ta.priority ASC, t.name ASC
+                ORDER BY CASE WHEN ta.priority = 1 THEN 0 ELSE 1 END ASC, t.name ASC
             """, (proj_id,))
 
             termbases = []
@@ -508,7 +476,7 @@ class TermbaseManager:
                     SELECT source_term, target_term, forbidden, priority
                     FROM termbase_terms
                     WHERE termbase_id = ?
-                    ORDER BY priority ASC, source_term ASC
+                    ORDER BY source_term ASC
                 """, (tb['id'],))
 
                 for row in cursor.fetchall():
@@ -526,35 +494,46 @@ class TermbaseManager:
             self.log(f"✗ Error getting AI inject terms: {e}")
             return []
 
-    def set_termbase_priority(self, termbase_id: int, project_id: int, priority: int) -> bool:
+    def set_termbase_priority(self, termbase_id: int, project_id: int, priority) -> bool:
         """
-        Set manual priority for a termbase in a specific project.
-        Multiple termbases can have the same priority.
-        
+        Set a termbase as Project glossary (priority=1) or Background (priority=None).
+        Only one termbase can be the Project glossary per project (exclusive).
+
         Args:
             termbase_id: Termbase ID
             project_id: Project ID
-            priority: Priority level (1=highest, 2=second, etc.)
-        
+            priority: 1 to set as Project glossary, None/0/other to set as Background
+
         Returns:
             True if successful
         """
         try:
             cursor = self.db_manager.cursor
-            
-            # Update priority in termbase_activation table
+            is_project = (priority == 1)
+
+            if is_project:
+                # Exclusive: clear project glossary flag from all other termbases in this project
+                cursor.execute("""
+                    UPDATE termbase_activation
+                    SET priority = NULL
+                    WHERE project_id = ? AND priority = 1
+                """, (project_id,))
+
+            # Set the requested termbase
+            new_priority = 1 if is_project else None
             cursor.execute("""
-                UPDATE termbase_activation 
+                UPDATE termbase_activation
                 SET priority = ?
                 WHERE termbase_id = ? AND project_id = ?
-            """, (priority, termbase_id, project_id))
-            
+            """, (new_priority, termbase_id, project_id))
+
             if cursor.rowcount == 0:
                 self.log(f"⚠️ No activation record found for termbase {termbase_id}, project {project_id}")
                 return False
-            
+
             self.db_manager.connection.commit()
-            self.log(f"✓ Set termbase {termbase_id} priority to #{priority} for project {project_id}")
+            label = "Project glossary" if is_project else "Background"
+            self.log(f"✓ Set termbase {termbase_id} as {label} for project {project_id}")
             return True
         except Exception as e:
             self.log(f"✗ Error setting termbase priority: {e}")

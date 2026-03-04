@@ -2,8 +2,20 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.342 (March 3, 2026)
+**Current Version:** v1.9.343 (March 4, 2026)
 
+
+## v1.9.343 - March 4, 2026
+
+### Improvements
+
+- **Simplified glossary priority system** — Replaced the multi-level numeric priority system (Priority #1, #2, #3...) with a simple on/off "Project glossary" checkbox. One glossary can be designated as the Project glossary (pink, highest priority) per project; all other active glossaries are Background (blue). The Priority column in the glossary settings pane is now a checkbox labeled "Project", and only one glossary can be checked at a time (exclusive).
+- **Removed per-term priority** — The Priority column has been removed from the glossary terms panel (right side). Individual term entries no longer carry priority levels — priority is now determined solely at the glossary level.
+- **Fixed glossary deduplication in fast path** — When the same term existed in both a Project and Background glossary, the in-memory fast-path search was not deduplicating, causing the background (blue) match to sometimes display instead of the project (pink) match. Both the fast path and fallback path now correctly deduplicate, keeping the Project glossary match.
+- **Instant cache update on quick-add** — When adding a term to the Project glossary via Ctrl+Shift+1 or Alt+Up that already exists in a Background glossary, the old entry is replaced immediately in the cache so the pink match appears without needing F5.
+- **Updated quick-add labels** — Context menu items renamed from "Quick Add to Priority 1/2 Glossary" to "Quick Add to Project/Background Glossary" for clarity.
+
+---
 
 ## v1.9.342 - March 3, 2026
 
