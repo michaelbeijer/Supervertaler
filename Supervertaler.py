@@ -11945,16 +11945,14 @@ class SupervertalerQt(QMainWindow):
         self.log("Superlookup re-attached to Home tab")
     
     def create_resources_tab(self):
-        """Create the Project resources tab with vertical sidebar navigation"""
-        from modules.settings_sidebar import SettingsSidebar
-
+        """Create the Project resources tab with horizontal tab navigation"""
         tab = QWidget()
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        # Vertical sidebar (same pattern as Settings / Tools)
-        resources_tabs = SettingsSidebar()
+        # Horizontal tabs (only 4 items — vertical sidebar wastes space)
+        resources_tabs = QTabWidget()
         self.resources_tabs = resources_tabs  # Store for navigation
 
         # Add resource tabs
@@ -11971,9 +11969,6 @@ class SupervertalerQt(QMainWindow):
         resources_tabs.addTab(ref_tab, "🎯 Image Context")
 
         layout.addWidget(resources_tabs)
-
-        # Apply dark sidebar style if current theme is dark
-        self._update_resources_sidebar_theme()
 
         return tab
     
@@ -17694,18 +17689,8 @@ class SupervertalerQt(QMainWindow):
             self.modules_tabs._apply_style()
 
     def _update_resources_sidebar_theme(self):
-        """Update the resources sidebar styling based on the current theme."""
-        if not hasattr(self, 'resources_tabs'):
-            return
-        from modules.settings_sidebar import SettingsSidebar
-        if not isinstance(self.resources_tabs, SettingsSidebar):
-            return
-        is_dark = (hasattr(self, 'theme_manager') and self.theme_manager
-                   and 'dark' in self.theme_manager.current_theme.name.lower())
-        if is_dark:
-            self.resources_tabs.apply_dark_style()
-        else:
-            self.resources_tabs._apply_style()
+        """No-op: resources tab now uses standard QTabWidget (themed automatically)."""
+        pass
 
     def _create_language_pair_tab(self):
         """Create Language Pair Settings tab content"""
