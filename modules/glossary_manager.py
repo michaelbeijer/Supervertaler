@@ -38,7 +38,6 @@ class TermbaseEntry:
     termbase_id: int
     source_term: str
     target_term: str
-    priority: int  # 1-99, lower = higher priority
     domain: str
     definition: str
     forbidden: bool
@@ -138,13 +137,13 @@ class TermbaseManager:
         try:
             cursor = self.db.cursor
             cursor.execute("""
-                SELECT id, termbase_id, source_term, target_term, priority, 
+                SELECT id, termbase_id, source_term, target_term,
                        domain, definition, forbidden, non_translatable, created_date, modified_date
                 FROM termbase_terms
                 WHERE termbase_id = ?
-                ORDER BY priority ASC, source_term ASC
+                ORDER BY source_term ASC
             """, (termbase_id,))
-            
+
             results = cursor.fetchall()
             terms = []
             for row in results:
@@ -153,13 +152,12 @@ class TermbaseManager:
                     termbase_id=row[1],
                     source_term=row[2],
                     target_term=row[3],
-                    priority=row[4],
-                    domain=row[5],
-                    definition=row[6],
-                    forbidden=bool(row[7]),
-                    non_translatable=bool(row[8]),
-                    created_date=row[9],
-                    modified_date=row[10]
+                    domain=row[4],
+                    definition=row[5],
+                    forbidden=bool(row[6]),
+                    non_translatable=bool(row[7]),
+                    created_date=row[8],
+                    modified_date=row[9]
                 ))
             return terms
         except Exception as e:
@@ -171,40 +169,39 @@ class TermbaseManager:
         termbase_id: int,
         source_term: str,
         target_term: str,
-        priority: int = 50,
         domain: str = "",
         definition: str = "",
         forbidden: bool = False,
-        non_translatable: bool = False
+        non_translatable: bool = False,
+        **kwargs
     ) -> int:
         """
         Add a term to a termbase
-        
+
         Args:
             termbase_id: Target termbase ID
             source_term: Source language term
             target_term: Target language term
-            priority: Priority ranking (1-99, lower = higher)
             domain: Domain/subject area
             definition: Definition or note
             forbidden: Whether term is forbidden for translation
             non_translatable: Whether term should not be translated
-        
+
         Returns:
             Term ID
         """
         try:
             cursor = self.db.cursor
             now = datetime.now().isoformat()
-            
+
             cursor.execute("""
-                INSERT INTO termbase_terms 
-                (termbase_id, source_term, target_term, priority, domain, definition, 
+                INSERT INTO termbase_terms
+                (termbase_id, source_term, target_term, domain, definition,
                  forbidden, non_translatable, source_lang, target_lang, created_date, modified_date)
-                SELECT ?, ?, ?, ?, ?, ?, ?, ?, source_lang, target_lang, ?, ?
+                SELECT ?, ?, ?, ?, ?, ?, ?, source_lang, target_lang, ?, ?
                 FROM glossaries
                 WHERE id = ?
-            """, (termbase_id, source_term, target_term, priority, domain, definition,
+            """, (termbase_id, source_term, target_term, domain, definition,
                   forbidden, non_translatable, now, now, termbase_id))
             
             self.db.connection.commit()
@@ -220,30 +217,27 @@ class TermbaseManager:
         term_id: int,
         source_term: str = None,
         target_term: str = None,
-        priority: int = None,
         domain: str = None,
         definition: str = None,
         forbidden: bool = None,
-        non_translatable: bool = None
+        non_translatable: bool = None,
+        **kwargs
     ) -> bool:
         """Update a term in a termbase"""
         try:
             cursor = self.db.cursor
             now = datetime.now().isoformat()
-            
+
             # Build dynamic update query
             updates = ["modified_date = ?"]
             params = [now]
-            
+
             if source_term is not None:
                 updates.append("source_term = ?")
                 params.append(source_term)
             if target_term is not None:
                 updates.append("target_term = ?")
                 params.append(target_term)
-            if priority is not None:
-                updates.append("priority = ?")
-                params.append(priority)
             if domain is not None:
                 updates.append("domain = ?")
                 params.append(domain)
@@ -382,15 +376,14 @@ class TermbaseManager:
             
             with open(filepath, 'w', newline='', encoding='utf-8') as f:
                 writer = csv.writer(f)
-                writer.writerow(['Source Term', 'Target Term', 'Domain', 'Definition', 'Priority', 'Forbidden', 'Non-Translatable'])
-                
+                writer.writerow(['Source Term', 'Target Term', 'Domain', 'Definition', 'Forbidden', 'Non-Translatable'])
+
                 for term in terms:
                     writer.writerow([
                         term.source_term,
                         term.target_term,
                         term.domain,
                         term.definition,
-                        term.priority,
                         'Yes' if term.forbidden else 'No',
                         'Yes' if term.non_translatable else 'No'
                     ])
@@ -410,15 +403,13 @@ class TermbaseManager:
             with open(filepath, 'r', encoding='utf-8') as f:
                 reader = csv.DictReader(f)
                 for row in reader:
-                    priority = int(row.get('Priority', 50))
                     forbidden = row.get('Forbidden', 'No').lower() == 'yes'
                     non_translatable = row.get('Non-Translatable', 'No').lower() == 'yes'
-                    
+
                     self.add_term(
                         termbase_id,
                         row['Source Term'],
                         row['Target Term'],
-                        priority=priority,
                         domain=row.get('Domain', ''),
                         definition=row.get('Definition', ''),
                         forbidden=forbidden,

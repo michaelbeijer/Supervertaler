@@ -6,7 +6,7 @@
 
 **Professional AI-enhanced translation workbench** with multi-LLM support (GPT-4, Claude, Gemini, Ollama), translation memory, glossary management, and seamless CAT tool integration (memoQ, Trados, CafeTran, Phrase, Déjà Vu).
 
-**Latest release:** v1.9.345 - Horizontal tabs for Resources, simplified glossary priority system, quick-add fixes.
+**Latest release:** v1.9.346 - Removed per-term priority column, simplified glossary system (Project vs Background only).
 
 ---
 
@@ -41,7 +41,7 @@ macOS will block the app on first launch because it is not signed with an Apple 
 
 - **Multi-LLM AI Translation** - OpenAI GPT-4/5, Anthropic Claude, Google Gemini, Local Ollama
 - **Translation Memory** - Fuzzy matching TM with TMX import/export
-- **Glossary System** - Priority-based term highlighting with forbidden term marking
+- **Glossary System** - Project/Background glossary highlighting with forbidden term marking
 - **Superlookup** - Unified concordance search across TM, glossaries, MT, and web resources
 - **CAT Tool Integration** - memoQ XLIFF, Trados SDLPPX/SDLRPX, CafeTran, Phrase, Déjà Vu X3
 - **Voice Commands** - Hands-free translation with OpenAI Whisper

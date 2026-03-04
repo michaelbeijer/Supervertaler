@@ -156,7 +156,7 @@ class TermBlock(QWidget):
         """
         Args:
             source_text: Source word/phrase
-            translations: List of dicts with keys: 'target', 'termbase_name', 'priority', 'term_id', 'termbase_id', etc.
+            translations: List of dicts with keys: 'target', 'termbase_name', 'ranking', 'term_id', 'termbase_id', etc.
             theme_manager: Optional theme manager for dark mode support
             font_size: Base font size in points (default 10)
             font_family: Font family name (default "Segoe UI")

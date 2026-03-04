@@ -14,7 +14,6 @@ Format:
 Standard columns:
 - Source Term (required)
 - Target Term (required)
-- Priority (optional, 1-99, default: 50)
 - Domain (optional)
 - Notes (optional, can be multi-line)
 - Project (optional)
@@ -46,7 +45,6 @@ class TermbaseImporter:
     STANDARD_HEADERS = {
         'source': ['source term', 'source', 'src', 'term (source)', 'source language'],
         'target': ['target term', 'target', 'tgt', 'term (target)', 'target language'],
-        'priority': ['priority', 'prio', 'rank'],
         'domain': ['domain', 'subject', 'field', 'category'],
         'notes': ['notes', 'note', 'definition', 'comment', 'comments', 'description'],
         'project': ['project', 'proj'],
@@ -203,9 +201,6 @@ class TermbaseImporter:
                             continue
                         
                         # Parse optional fields
-                        priority = self._parse_priority(
-                            self._get_field(row, column_map.get('priority', ''))
-                        )
                         domain = self._get_field(row, column_map.get('domain', ''))
                         notes = self._get_field(row, column_map.get('notes', ''))
                         project = self._get_field(row, column_map.get('project', ''))
@@ -219,7 +214,6 @@ class TermbaseImporter:
                             termbase_id=termbase_id,
                             source_term=source_term,
                             target_term=target_term,
-                            priority=priority,
                             domain=domain,
                             notes=notes,
                             project=project,
@@ -355,16 +349,6 @@ class TermbaseImporter:
         """Get field value from row, handling missing columns"""
         return row.get(column_name, '').strip()
     
-    def _parse_priority(self, value: str) -> int:
-        """Parse priority value, default to 50 if invalid"""
-        if not value:
-            return 50
-        try:
-            priority = int(value)
-            return max(1, min(99, priority))  # Clamp to 1-99
-        except ValueError:
-            return 50
-    
     def _parse_boolean(self, value: str) -> bool:
         """Parse boolean value from various formats"""
         if not value:
@@ -378,8 +362,6 @@ class TermbaseImporter:
         
         if column_map.get('target'):
             updates['target_term'] = self._get_field(row, column_map['target'])
-        if column_map.get('priority'):
-            updates['priority'] = self._parse_priority(self._get_field(row, column_map['priority']))
         if column_map.get('domain'):
             updates['domain'] = self._get_field(row, column_map['domain'])
         if column_map.get('notes'):
@@ -430,10 +412,10 @@ class TermbaseExporter:
             
             # Define columns - always include UUID for tracking
             if include_metadata:
-                columns = ['Term UUID', 'Source Term', 'Target Term', 'Priority', 'Domain', 
+                columns = ['Term UUID', 'Source Term', 'Target Term', 'Domain',
                           'Notes', 'Project', 'Client', 'Forbidden']
             else:
-                columns = ['Term UUID', 'Source Term', 'Target Term', 'Priority', 'Domain', 'Notes']
+                columns = ['Term UUID', 'Source Term', 'Target Term', 'Domain', 'Notes']
             
             # Write to file with UTF-8 BOM for Excel compatibility
             with open(filepath, 'w', encoding='utf-8-sig', newline='') as f:
@@ -468,7 +450,6 @@ class TermbaseExporter:
                         term.get('term_uuid', ''),  # UUID first for tracking
                         source_text,  # Main source + synonyms pipe-delimited
                         target_text,  # Main target + synonyms pipe-delimited
-                        str(term.get('priority', 50)),
                         term.get('domain', ''),
                         term.get('notes', '')
                     ]

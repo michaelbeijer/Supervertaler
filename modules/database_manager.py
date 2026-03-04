@@ -1938,7 +1938,7 @@ class DatabaseManager:
             bidirectional: If True, also search target_term and swap results (default True)
 
         Returns:
-            List of termbase hits, sorted by priority (lower = higher priority)
+            List of termbase hits
             Each result includes 'match_direction' ('source' or 'target') indicating
             which column matched. For 'target' matches, source_term and target_term
             are swapped so results are always oriented correctly for the current project.
@@ -1988,7 +1988,7 @@ class DatabaseManager:
         # Base SELECT for forward matches (source_term matches)
         base_select_forward = """
             SELECT
-                t.id, t.source_term, t.target_term, t.termbase_id, t.priority,
+                t.id, t.source_term, t.target_term, t.termbase_id,
                 t.forbidden, t.source_lang, t.target_lang, t.definition, t.domain,
                 t.notes, t.project, t.client,
                 tb.name as termbase_name,
@@ -2008,7 +2008,7 @@ class DatabaseManager:
         base_select_reverse = """
             SELECT
                 t.id, t.target_term as source_term, t.source_term as target_term,
-                t.termbase_id, t.priority,
+                t.termbase_id,
                 t.forbidden, t.target_lang as source_lang, t.source_lang as target_lang,
                 t.definition, t.domain,
                 t.notes, t.project, t.client,

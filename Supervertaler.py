@@ -2433,12 +2433,12 @@ class ReadOnlyGridTextEditor(QTextEdit):
         Does NOT change the widget - just adds formatting to existing text.
         
         Supported styles (configured in Settings > View Settings):
-        - 'background': Pastel green background colors based on priority (default)
+        - 'background': Pastel background colors for project/background glossary (default)
         - 'dotted': Subtle dotted underline (IDE/code editor style)
         - 'semibold': Slightly bolder text with tinted color (typographic)
-        
+
         Args:
-            matches_dict: Dictionary of {term: {'translation': str, 'priority': int}} or {term: str}
+            matches_dict: Dictionary of {term: {'translation': str, ...}} or {term: str}
         """
         from PyQt6.QtGui import QTextCursor, QTextCharFormat, QColor, QFont
 
@@ -2916,14 +2916,12 @@ class ReadOnlyGridTextEditor(QTextEdit):
                     # Get translation and other info
                     if isinstance(match_info, dict):
                         translation = match_info.get('translation', '')
-                        priority = match_info.get('priority', 50)
                         forbidden = match_info.get('forbidden', False)
-                        
+
                         # Build tooltip (show only target translation)
                         tooltip = f"<b>{translation}</b>"
                         if forbidden:
                             tooltip += "<br><span style='color: red;'>⚠️ FORBIDDEN TERM</span>"
-                        tooltip += f"<br><span style='color: #666;'>Priority: {priority}</span>"
                         tooltip += "<br><span style='color: #666;'><i>Double-click to insert</i></span>"
                     else:
                         tooltip = f"<b>{match_info}</b><br><span style='color: #666;'><i>Double-click to insert</i></span>"
@@ -14765,7 +14763,6 @@ class SupervertalerQt(QMainWindow):
                                 new_match = {
                                     'source': source_text,
                                     'translation': target_text,
-                                    'priority': 99,
                                     'ranking': glossary_rank,
                                     'forbidden': False,
                                     'is_project_termbase': is_project,
@@ -14817,7 +14814,6 @@ class SupervertalerQt(QMainWindow):
                                     'source_term_lower': source_lower,
                                     'target_term': target_text,
                                     'termbase_id': target_termbase['id'],
-                                    'priority': 99,
                                     'domain': '',
                                     'notes': '',
                                     'project': '',
@@ -16778,17 +16774,16 @@ class SupervertalerQt(QMainWindow):
         
         # Terms table
         terms_table = QTableWidget()
-        terms_table.setColumnCount(8)
-        terms_table.setHorizontalHeaderLabels(["Source", "Target", "Domain", "Priority", "Notes", "Project", "Client", "Forbidden"])
+        terms_table.setColumnCount(7)
+        terms_table.setHorizontalHeaderLabels(["Source", "Target", "Domain", "Notes", "Project", "Client", "Forbidden"])
         terms_table.horizontalHeader().setStretchLastSection(False)
         terms_table.setColumnWidth(0, 120)
         terms_table.setColumnWidth(1, 120)
         terms_table.setColumnWidth(2, 100)
-        terms_table.setColumnWidth(3, 60)
-        terms_table.setColumnWidth(4, 150)
+        terms_table.setColumnWidth(3, 150)
+        terms_table.setColumnWidth(4, 100)
         terms_table.setColumnWidth(5, 100)
-        terms_table.setColumnWidth(6, 100)
-        terms_table.setColumnWidth(7, 80)
+        terms_table.setColumnWidth(6, 80)
         
         # Load terms
         def refresh_terms_table():
@@ -16803,48 +16798,23 @@ class SupervertalerQt(QMainWindow):
                 
                 terms_table.setItem(row, 1, QTableWidgetItem(term['target_term']))
                 terms_table.setItem(row, 2, QTableWidgetItem(term['domain'] or ""))
-                
-                priority_item = QTableWidgetItem(str(term['priority']))
-                priority_item.setFlags(priority_item.flags() | Qt.ItemFlag.ItemIsEditable)
-                terms_table.setItem(row, 3, priority_item)
-                
+
                 # Notes column (truncated for display)
                 notes_text = term.get('notes', '') or ""
                 if len(notes_text) > 50:
                     notes_text = notes_text[:47] + "..."
-                terms_table.setItem(row, 4, QTableWidgetItem(notes_text))
-                
+                terms_table.setItem(row, 3, QTableWidgetItem(notes_text))
+
                 # Project and Client columns
-                terms_table.setItem(row, 5, QTableWidgetItem(term.get('project', '') or ""))
-                terms_table.setItem(row, 6, QTableWidgetItem(term.get('client', '') or ""))
-                
+                terms_table.setItem(row, 4, QTableWidgetItem(term.get('project', '') or ""))
+                terms_table.setItem(row, 5, QTableWidgetItem(term.get('client', '') or ""))
+
                 # Forbidden checkbox
                 forbidden_check = CheckmarkCheckBox()
                 forbidden_check.setChecked(term['forbidden'])
                 forbidden_check.toggled.connect(lambda checked, t_id=term['id']: self._update_term_forbidden(t_id, checked))
-                terms_table.setCellWidget(row, 7, forbidden_check)
+                terms_table.setCellWidget(row, 6, forbidden_check)
         
-        # Handle term field changes
-        def on_term_changed(item: QTableWidgetItem):
-            if item.column() == 3:  # Priority column
-                term_id = terms_table.item(item.row(), 0).data(Qt.ItemDataRole.UserRole)
-                try:
-                    new_priority = int(item.text())
-                    new_priority = max(1, min(99, new_priority))
-                    item.setText(str(new_priority))
-                    
-                    # Update in database
-                    cursor = self.db_manager.cursor
-                    cursor.execute("UPDATE termbase_terms SET priority = ? WHERE id = ?", (new_priority, term_id))
-                    self.db_manager.connection.commit()
-                    self.log(f"✓ Updated term priority to {new_priority}")
-                except ValueError:
-                    terms = termbase_mgr.get_terms(termbase_id)
-                    original = next((t for t in terms if t['id'] == term_id), None)
-                    if original:
-                        item.setText(str(original['priority']))
-        
-        terms_table.itemChanged.connect(on_term_changed)
         refresh_terms_table()
         layout.addWidget(QLabel(f"Terms in '{tb_name}':"), 0)
         layout.addWidget(terms_table, 1)
@@ -16860,14 +16830,6 @@ class SupervertalerQt(QMainWindow):
         target_field.setPlaceholderText("Target term")
         add_layout.addWidget(target_field)
         
-        priority_spin = QSpinBox()
-        priority_spin.setMinimum(1)
-        priority_spin.setMaximum(99)
-        priority_spin.setValue(50)
-        priority_spin.setMaximumWidth(60)
-        add_layout.addWidget(QLabel("Priority:"))
-        add_layout.addWidget(priority_spin)
-        
         add_btn = QPushButton("+ Add")
         def add_term():
             source = source_field.text().strip()
@@ -16875,12 +16837,11 @@ class SupervertalerQt(QMainWindow):
             if not source or not target:
                 QMessageBox.warning(dialog, "Error", "Both source and target terms are required")
                 return
-            
+
             termbase_mgr.add_term(
                 termbase_id=termbase_id,
                 source_term=source,
-                target_term=target,
-                priority=priority_spin.value()
+                target_term=target
             )
             
             source_field.clear()
@@ -25616,7 +25577,7 @@ class SupervertalerQt(QMainWindow):
         # This replaces ~17,500 individual queries (349 segments × 50 words each)
         query = """
             SELECT
-                t.id, t.source_term, t.target_term, t.termbase_id, t.priority,
+                t.id, t.source_term, t.target_term, t.termbase_id,
                 t.domain, t.notes, t.project, t.client, t.forbidden,
                 tb.is_project_termbase, tb.name as termbase_name,
                 CASE WHEN COALESCE(ta.priority, 0) = 1 OR tb.is_project_termbase = 1 THEN 1 ELSE 0 END as ranking
@@ -25659,15 +25620,14 @@ class SupervertalerQt(QMainWindow):
                     'source_term_lower': source_term_lower,
                     'target_term': row[2],
                     'termbase_id': row[3],
-                    'priority': row[4],
-                    'domain': row[5],
-                    'notes': row[6],
-                    'project': row[7],
-                    'client': row[8],
-                    'forbidden': row[9],
-                    'is_project_termbase': row[10],
-                    'termbase_name': row[11],
-                    'ranking': row[12],
+                    'domain': row[4],
+                    'notes': row[5],
+                    'project': row[6],
+                    'client': row[7],
+                    'forbidden': row[8],
+                    'is_project_termbase': row[9],
+                    'termbase_name': row[10],
+                    'ranking': row[11],
                     'pattern': pattern,  # Pre-compiled regex
                 })
 
@@ -25729,7 +25689,6 @@ class SupervertalerQt(QMainWindow):
                 'term_id': term_id,
                 'termbase_id': term['termbase_id'],
                 'termbase_name': term['termbase_name'],
-                'priority': term['priority'],
                 'ranking': term['ranking'],
                 'is_project_termbase': term['is_project_termbase'],
                 'forbidden': term['forbidden'],
@@ -25884,7 +25843,7 @@ class SupervertalerQt(QMainWindow):
                         SELECT * FROM (
                             -- Forward match: search source_term
                             SELECT
-                                t.id, t.source_term, t.target_term, t.termbase_id, t.priority,
+                                t.id, t.source_term, t.target_term, t.termbase_id,
                                 t.domain, t.notes, t.project, t.client, t.forbidden,
                                 tb.is_project_termbase, tb.name as termbase_name,
                                 CASE WHEN COALESCE(ta.priority, 0) = 1 OR tb.is_project_termbase = 1 THEN 1 ELSE 0 END as ranking,
@@ -25911,7 +25870,7 @@ class SupervertalerQt(QMainWindow):
                             -- Reverse match: search target_term, swap columns
                             SELECT
                                 t.id, t.target_term as source_term, t.source_term as target_term,
-                                t.termbase_id, t.priority,
+                                t.termbase_id,
                                 t.domain, t.notes, t.project, t.client, t.forbidden,
                                 tb.is_project_termbase, tb.name as termbase_name,
                                 CASE WHEN COALESCE(ta.priority, 0) = 1 OR tb.is_project_termbase = 1 THEN 1 ELSE 0 END as ranking,
@@ -25943,7 +25902,7 @@ class SupervertalerQt(QMainWindow):
                         # Uniform access (columns are already swapped for reverse matches)
                         source_term = row[1] if isinstance(row, tuple) else row['source_term']
                         target_term = row[2] if isinstance(row, tuple) else row['target_term']
-                        match_direction = row[13] if isinstance(row, tuple) else row.get('match_direction', 'source')
+                        match_direction = row[12] if isinstance(row, tuple) else row.get('match_direction', 'source')
                         if not source_term or not target_term:
                             continue
 
@@ -25954,15 +25913,14 @@ class SupervertalerQt(QMainWindow):
 
                         term_id = row[0] if isinstance(row, tuple) else row['id']
                         termbase_id = row[3] if isinstance(row, tuple) else row['termbase_id']
-                        priority = row[4] if isinstance(row, tuple) else row['priority']
-                        domain = row[5] if isinstance(row, tuple) else row['domain']
-                        notes = row[6] if isinstance(row, tuple) else row['notes']
-                        project = row[7] if isinstance(row, tuple) else row['project']
-                        client = row[8] if isinstance(row, tuple) else row['client']
-                        forbidden = row[9] if isinstance(row, tuple) else row['forbidden']
-                        is_project_tb = row[10] if isinstance(row, tuple) else row['is_project_termbase']
-                        termbase_name = row[11] if isinstance(row, tuple) else row['termbase_name']
-                        ranking = row[12] if isinstance(row, tuple) else row.get('ranking', None)
+                        domain = row[4] if isinstance(row, tuple) else row['domain']
+                        notes = row[5] if isinstance(row, tuple) else row['notes']
+                        project = row[6] if isinstance(row, tuple) else row['project']
+                        client = row[7] if isinstance(row, tuple) else row['client']
+                        forbidden = row[8] if isinstance(row, tuple) else row['forbidden']
+                        is_project_tb = row[9] if isinstance(row, tuple) else row['is_project_termbase']
+                        termbase_name = row[10] if isinstance(row, tuple) else row['termbase_name']
+                        ranking = row[11] if isinstance(row, tuple) else row.get('ranking', None)
 
                         existing = matches.get(source_term.strip())
                         # Deduplicate: keep numerically lowest ranking (highest priority)
@@ -25990,8 +25948,7 @@ class SupervertalerQt(QMainWindow):
                             'translation': target_term.strip(),
                             'term_id': term_id,
                             'termbase_id': termbase_id,
-                            'priority': priority,  # Keep for backward compatibility
-                            'ranking': ranking,  # NEW: termbase-level ranking
+                            'ranking': ranking,
                             'domain': domain or '',
                             'notes': notes or '',
                             'project': project or '',
@@ -26279,8 +26236,7 @@ class SupervertalerQt(QMainWindow):
                 if isinstance(match_info, dict):
                     source_term = match_info.get('source', '')
                     target_term = match_info.get('translation', '')
-                    priority = match_info.get('priority', 50)  # Keep for backward compatibility
-                    ranking = match_info.get('ranking', None)  # NEW: termbase ranking
+                    ranking = match_info.get('ranking', None)
                     forbidden = match_info.get('forbidden', False)
                     is_project_termbase = match_info.get('is_project_termbase', False)
                     termbase_name = match_info.get('termbase_name', 'Default')
@@ -26288,20 +26244,18 @@ class SupervertalerQt(QMainWindow):
                     # Backward compatibility: if just string (shouldn't happen with new code)
                     source_term = str(term_id)
                     target_term = match_info
-                    priority = 50
                     ranking = None
                     forbidden = False
                     is_project_termbase = False
                     termbase_name = 'Default'
-                
+
                 match_obj = TranslationMatch(
                     source=source_term,
                     target=target_term,
                     relevance=95,
                     metadata={
                         'termbase_name': termbase_name,
-                        'priority': priority,  # Keep for backward compatibility
-                        'ranking': ranking,  # NEW: termbase-level ranking
+                        'ranking': ranking,
                         'forbidden': forbidden,
                         'is_project_termbase': is_project_termbase,
                         'term_id': match_info.get('term_id') if isinstance(match_info, dict) else None,
@@ -37836,7 +37790,6 @@ class SupervertalerQt(QMainWindow):
                                 if isinstance(match_info, dict):
                                     source_term = match_info.get('source', '')
                                     target_term = match_info.get('translation', '')
-                                    priority = match_info.get('priority', 50)
                                     ranking = match_info.get('ranking', None)
                                     forbidden = match_info.get('forbidden', False)
                                     is_project_termbase = match_info.get('is_project_termbase', False)
@@ -37851,7 +37804,6 @@ class SupervertalerQt(QMainWindow):
                                     # Backward compatibility: if just string (shouldn't happen with new code)
                                     source_term = str(term_id_key)
                                     target_term = match_info
-                                    priority = 50
                                     ranking = None
                                     forbidden = False
                                     is_project_termbase = False
@@ -37878,7 +37830,6 @@ class SupervertalerQt(QMainWindow):
                                         'notes': notes,
                                         'project': project,
                                         'client': client,
-                                        'priority': priority,
                                         'forbidden': forbidden,
                                         'term_id': term_id,
                                         'termbase_id': termbase_id,
@@ -39764,9 +39715,8 @@ class SupervertalerQt(QMainWindow):
                                                     'term_id': tb_match.get('id'),  # Term entry ID for editing
                                                     'termbase_id': termbase_id,
                                                     'termbase_name': tb_match.get('termbase_name', 'Unknown'),
-                                                    'ranking': termbase_ranking,  # NEW: Termbase-level ranking for color shading
-                                                    'priority': tb_match.get('priority', 99),  # Keep for backward compatibility
-                                                    'is_project_termbase': is_project_termbase,  # Project termbase flag
+                                                    'ranking': termbase_ranking,
+                                                    'is_project_termbase': is_project_termbase,
                                                     'domain': tb_match.get('domain', ''),
                                                     'notes': tb_match.get('notes', ''),
                                                     'project': tb_match.get('project', ''),
@@ -40313,13 +40263,12 @@ class SupervertalerQt(QMainWindow):
                                     termbase_match = TranslationMatch(
                                         source=source_term_full,
                                         target=target_term_full,
-                                        relevance=100 - tb_match.get('priority', 99),
+                                        relevance=95,
                                         metadata={
                                             'term_id': term_id,
                                             'termbase_id': tb_match.get('termbase_id'),
                                             'termbase_name': tb_match.get('termbase_name', ''),
                                             'ranking': tb_match.get('ranking', None),
-                                            'priority': tb_match.get('priority', 99),
                                             'domain': tb_match.get('domain', ''),
                                             'notes': tb_match.get('notes', ''),
                                             'project': tb_match.get('project', ''),
@@ -40645,8 +40594,7 @@ class SupervertalerQt(QMainWindow):
                     for result in termbase_results:
                         source_term = result.get('source_term', '').strip()
                         target_term = result.get('target_term', '').strip()
-                        priority = result.get('priority', 50)
-                        ranking = result.get('ranking', None)  # NEW: termbase ranking (1, 2, 3...)
+                        ranking = result.get('ranking', None)
                         forbidden = result.get('forbidden', False)
                         is_project_termbase = result.get('is_project_termbase', False)
                         term_id = result.get('id')
@@ -40691,10 +40639,9 @@ class SupervertalerQt(QMainWindow):
                         # Old code: matches[source_term] = {...} - only kept one translation
                         # New code: matches[term_id] = {...} - keeps all translations
                         matches[term_id] = {
-                            'source': source_term,  # Add source field for display
+                            'source': source_term,
                             'translation': target_term,
-                            'priority': priority,  # Legacy field from term itself
-                            'ranking': ranking,  # NEW: termbase ranking (None if not activated)
+                            'ranking': ranking,
                             'forbidden': forbidden,
                             'is_project_termbase': is_project_termbase,
                             'term_id': term_id,
@@ -54402,31 +54349,27 @@ class SuperlookupTab(QWidget):
         search_text = self.source_text.currentText().strip().lower()
         
         # Filter duplicates: if same source→target exists in multiple glossaries,
-        # only keep the one with highest priority (lowest number)
+        # only keep the one from the project glossary (ranking=1) or first seen
         filtered_results = []
-        seen_pairs = {}  # (source_lower, target_lower) -> (result, priority)
-        
+        seen_pairs = {}  # (source_lower, target_lower) -> (result, ranking)
+
         for result in results:
             source_lower = result.source.lower()
             target_lower = result.target.lower()
             pair_key = (source_lower, target_lower)
-            
-            # Get priority from metadata (default to 99 if not specified)
+
             metadata = result.metadata or {}
-            priority = metadata.get('priority', 99)
-            
+            ranking = metadata.get('ranking') or 99
+
             if pair_key in seen_pairs:
-                # Duplicate found - keep only the higher priority (lower number)
-                existing_result, existing_priority = seen_pairs[pair_key]
-                if priority < existing_priority:
-                    # This one has higher priority, replace the existing one
-                    seen_pairs[pair_key] = (result, priority)
+                existing_result, existing_ranking = seen_pairs[pair_key]
+                if ranking < existing_ranking:
+                    seen_pairs[pair_key] = (result, ranking)
             else:
-                # First occurrence of this pair
-                seen_pairs[pair_key] = (result, priority)
-        
+                seen_pairs[pair_key] = (result, ranking)
+
         # Convert filtered dict back to list
-        filtered_results = [result for result, priority in seen_pairs.values()]
+        filtered_results = [result for result, _ in seen_pairs.values()]
         
         for result in filtered_results:
             row = self.termbase_results_table.rowCount()
@@ -54931,7 +54874,6 @@ class SuperlookupTab(QWidget):
                                 'termbase_id': termbase_id,
                                 'domain': term.get('domain', ''),
                                 'notes': term.get('notes', ''),
-                                'priority': term.get('priority', 50),
                                 'project': term.get('project', ''),
                                 'client': term.get('client', ''),
                                 'forbidden': term.get('forbidden', False)

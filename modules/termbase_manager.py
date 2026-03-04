@@ -473,7 +473,7 @@ class TermbaseManager:
 
             for tb in ai_termbases:
                 cursor.execute("""
-                    SELECT source_term, target_term, forbidden, priority
+                    SELECT source_term, target_term, forbidden
                     FROM termbase_terms
                     WHERE termbase_id = ?
                     ORDER BY source_term ASC
@@ -484,7 +484,6 @@ class TermbaseManager:
                         'source_term': row[0],
                         'target_term': row[1],
                         'forbidden': bool(row[2]) if row[2] else False,
-                        'priority': row[3] or 99,
                         'termbase_name': tb['name']
                     })
 
@@ -712,18 +711,18 @@ class TermbaseManager:
     # ========================================================================
     
     def add_term(self, termbase_id: int, source_term: str, target_term: str,
-                 priority: int = 99, domain: str = "", notes: str = "",
+                 domain: str = "", notes: str = "",
                  project: str = "", client: str = "",
                  forbidden: bool = False, source_lang: Optional[str] = None,
-                 target_lang: Optional[str] = None, term_uuid: Optional[str] = None) -> Optional[int]:
+                 target_lang: Optional[str] = None, term_uuid: Optional[str] = None,
+                 **kwargs) -> Optional[int]:
         """
         Add a term to termbase
-        
+
         Args:
             termbase_id: Termbase ID
             source_term: Source language term
             target_term: Target language term
-            priority: Priority (1=highest, 99=default)
             domain: Domain/category
             notes: Optional notes/definition
             project: Optional project name
@@ -732,7 +731,7 @@ class TermbaseManager:
             source_lang: Source language code
             target_lang: Target language code
             term_uuid: Optional UUID for tracking term across imports/exports
-            
+
         Returns:
             Term ID or None if failed (returns None if duplicate found)
         """
@@ -758,11 +757,11 @@ class TermbaseManager:
                 term_uuid = str(uuid.uuid4())
             
             cursor.execute("""
-                INSERT INTO termbase_terms 
-                (termbase_id, source_term, target_term, priority, domain, notes,
+                INSERT INTO termbase_terms
+                (termbase_id, source_term, target_term, domain, notes,
                  project, client, forbidden, source_lang, target_lang, term_uuid)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (termbase_id, source_term, target_term, priority, domain, notes,
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (termbase_id, source_term, target_term, domain, notes,
                   project, client, forbidden, source_lang, target_lang, term_uuid))
             
             self.db_manager.connection.commit()
@@ -779,26 +778,25 @@ class TermbaseManager:
             cursor = self.db_manager.cursor
             
             cursor.execute("""
-                SELECT id, source_term, target_term, priority, domain, notes,
+                SELECT id, source_term, target_term, domain, notes,
                        project, client, forbidden, term_uuid
                 FROM termbase_terms
                 WHERE termbase_id = ?
-                ORDER BY priority ASC, source_term ASC
+                ORDER BY source_term ASC
             """, (termbase_id,))
-            
+
             terms = []
             for row in cursor.fetchall():
                 terms.append({
                     'id': row[0],
                     'source_term': row[1],
                     'target_term': row[2],
-                    'priority': row[3],
-                    'domain': row[4],
-                    'notes': row[5],
-                    'project': row[6],
-                    'client': row[7],
-                    'forbidden': row[8],
-                    'term_uuid': row[9]
+                    'domain': row[3],
+                    'notes': row[4],
+                    'project': row[5],
+                    'client': row[6],
+                    'forbidden': row[7],
+                    'term_uuid': row[8]
                 })
             
             return terms
@@ -807,10 +805,10 @@ class TermbaseManager:
             return []
     
     def update_term(self, term_id: int, source_term: Optional[str] = None,
-                   target_term: Optional[str] = None, priority: Optional[int] = None,
+                   target_term: Optional[str] = None,
                    domain: Optional[str] = None, notes: Optional[str] = None,
                    project: Optional[str] = None, client: Optional[str] = None,
-                   forbidden: Optional[bool] = None) -> bool:
+                   forbidden: Optional[bool] = None, **kwargs) -> bool:
         """Update a term"""
         try:
             cursor = self.db_manager.cursor
@@ -823,9 +821,6 @@ class TermbaseManager:
             if target_term is not None:
                 updates.append("target_term = ?")
                 params.append(target_term)
-            if priority is not None:
-                updates.append("priority = ?")
-                params.append(priority)
             if domain is not None:
                 updates.append("domain = ?")
                 params.append(domain)
@@ -930,29 +925,28 @@ class TermbaseManager:
             # Get full details for matching terms
             placeholders = ','.join('?' * len(matching_term_ids))
             sql = f"""
-                SELECT id, source_term, target_term, priority, domain, definition, forbidden
+                SELECT id, source_term, target_term, domain, definition, forbidden
                 FROM termbase_terms
                 WHERE id IN ({placeholders})
-                ORDER BY priority ASC, source_term ASC
+                ORDER BY source_term ASC
             """
-            
+
             cursor.execute(sql, list(matching_term_ids))
-            
+
             results = []
             for row in cursor.fetchall():
                 term_id = row[0]
-                
+
                 # Add main term
                 results.append({
                     'id': term_id,
                     'source_term': row[1],
                     'target_term': row[2],
-                    'priority': row[3],
-                    'domain': row[4],
-                    'definition': row[5],
-                    'forbidden': row[6]
+                    'domain': row[3],
+                    'definition': row[4],
+                    'forbidden': row[5]
                 })
-                
+
                 # Add target synonyms as separate entries (memoQ style)
                 # Synonyms are ordered by display_order (position 0 = main/preferred)
                 target_synonyms = self.get_synonyms(term_id, language='target')
@@ -961,9 +955,8 @@ class TermbaseManager:
                         'id': term_id,  # Same term ID
                         'source_term': row[1],  # Same source
                         'target_term': syn['synonym_text'],  # Synonym as target
-                        'priority': row[3],
-                        'domain': row[4],
-                        'definition': row[5],
+                        'domain': row[3],
+                        'definition': row[4],
                         'forbidden': syn['forbidden']  # Use synonym's forbidden flag
                     })
             

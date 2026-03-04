@@ -591,30 +591,28 @@ class TermbaseEntryEditor(QDialog):
         try:
             cursor = self.db_manager.cursor
             cursor.execute("""
-                SELECT source_term, target_term, priority, domain, definition, forbidden,
+                SELECT source_term, target_term, domain, definition, forbidden,
                        notes, project, client
                 FROM termbase_terms
                 WHERE id = ?
             """, (self.term_id,))
-            
+
             row = cursor.fetchone()
             if row:
                 self.term_data = {
                     'source_term': row[0],
                     'target_term': row[1],
-                    'priority': row[2] or 50,
-                    'domain': row[3] or '',
-                    'definition': row[4] or '',  # Legacy field
-                    'forbidden': row[5] or False,
-                    'note': row[6] or '',
-                    'project': row[7] or '',
-                    'client': row[8] or ''
+                    'domain': row[2] or '',
+                    'definition': row[3] or '',  # Legacy field
+                    'forbidden': row[4] or False,
+                    'note': row[5] or '',
+                    'project': row[6] or '',
+                    'client': row[7] or ''
                 }
-                
+
                 # Populate fields
                 self.source_edit.setText(self.term_data['source_term'])
                 self.target_edit.setText(self.term_data['target_term'])
-                # priority field removed from UI (per-term priority deprecated)
                 self.domain_edit.setText(self.term_data['domain'])
                 # Use note field if available, otherwise fall back to definition (legacy)
                 note_text = self.term_data['note'] or self.term_data['definition']
@@ -745,28 +743,27 @@ class TermbaseEntryEditor(QDialog):
             cursor = self.db_manager.cursor
             
             # Gather data
-            priority = 99  # Per-term priority deprecated; always use default
             domain = self.domain_edit.text().strip()
             note = self.note_edit.toPlainText().strip()
             project = self.project_edit.text().strip()
             client = self.client_edit.text().strip()
             forbidden = self.forbidden_check.isChecked()
-            
+
             if self.term_id:
                 # Update existing term
                 cursor.execute("""
                     UPDATE termbase_terms
-                    SET source_term = ?, target_term = ?, priority = ?,
+                    SET source_term = ?, target_term = ?,
                         domain = ?, notes = ?, project = ?, client = ?, forbidden = ?
                     WHERE id = ?
-                """, (source_term, target_term, priority, domain, note, project, client, forbidden, self.term_id))
+                """, (source_term, target_term, domain, note, project, client, forbidden, self.term_id))
             else:
                 # Insert new term
                 cursor.execute("""
                     INSERT INTO termbase_terms
-                    (termbase_id, source_term, target_term, priority, domain, notes, project, client, forbidden)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, (self.termbase_id, source_term, target_term, priority, domain, note, project, client, forbidden))
+                    (termbase_id, source_term, target_term, domain, notes, project, client, forbidden)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """, (self.termbase_id, source_term, target_term, domain, note, project, client, forbidden))
             
             self.db_manager.connection.commit()
             
@@ -825,7 +822,6 @@ class TermbaseEntryEditor(QDialog):
         return {
             'source_term': self.source_edit.text().strip(),
             'target_term': self.target_edit.text().strip(),
-            'priority': 99,
             'domain': self.domain_edit.text().strip(),
             'note': self.note_edit.toPlainText().strip(),
             'project': self.project_edit.text().strip(),

@@ -2,8 +2,16 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.345 (March 4, 2026)
+**Current Version:** v1.9.346 (March 4, 2026)
 
+
+## v1.9.346 - March 4, 2026
+
+### Improvements
+
+- **Removed per-term priority column** — Completed the glossary simplification started in v1.9.343 by fully removing the per-term priority system. The Priority column is no longer exported to TSV, displayed in the termbase editor, shown in tooltips, or stored in match metadata. Priority is now determined solely at the glossary level (Project vs Background). The database column is retained for backward compatibility but is no longer read or written.
+
+---
 
 ## v1.9.345 - March 4, 2026
 

@@ -1567,24 +1567,23 @@ class TranslationResultsPanel(QWidget):
             # Fetch fresh data from database
             cursor = db_manager.cursor
             cursor.execute("""
-                SELECT source_term, target_term, priority, domain, notes, 
+                SELECT source_term, target_term, domain, notes,
                        project, client, forbidden, termbase_id
                 FROM termbase_terms
                 WHERE id = ?
             """, (term_id,))
-            
+
             row = cursor.fetchone()
             if row:
                 # Update the current selection metadata with fresh data
                 self.current_selection.source = row[0]
                 self.current_selection.target = row[1]
-                self.current_selection.metadata['priority'] = row[2] or 99
-                self.current_selection.metadata['domain'] = row[3] or ''
-                self.current_selection.metadata['notes'] = row[4] or ''
-                self.current_selection.metadata['project'] = row[5] or ''
-                self.current_selection.metadata['client'] = row[6] or ''
-                self.current_selection.metadata['forbidden'] = row[7] or False
-                self.current_selection.metadata['termbase_id'] = row[8]
+                self.current_selection.metadata['domain'] = row[2] or ''
+                self.current_selection.metadata['notes'] = row[3] or ''
+                self.current_selection.metadata['project'] = row[4] or ''
+                self.current_selection.metadata['client'] = row[5] or ''
+                self.current_selection.metadata['forbidden'] = row[6] or False
+                self.current_selection.metadata['termbase_id'] = row[7]
                 
                 # Re-display with updated data
                 self._display_termbase_data(self.current_selection)
@@ -1623,10 +1622,6 @@ class TranslationResultsPanel(QWidget):
         # Termbase name
         termbase_name = match.metadata.get('termbase_name', 'Unknown')
         metadata_parts.append(f"<b>Termbase:</b> {termbase_name}")
-        
-        # Priority
-        priority = match.metadata.get('priority', 50)
-        metadata_parts.append(f"<b>Priority:</b> {priority}")
         
         # Domain
         domain = match.metadata.get('domain', '')
