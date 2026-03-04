@@ -37,7 +37,7 @@ Supervertaler has two approaches (toggle via `disable_all_caches` setting):
 | TM search | modules/database_manager.py | ~887-1147 |
 | Termbase search | Supervertaler.py | ~22322-22500 |
 | Prefetch worker | Supervertaler.py | ~22567-22694 |
-| TermView widget | modules/termview_widget.py | full file |
+| TermLens widget | modules/termlens_widget.py | full file |
 
 ### Identified Bottlenecks
 
@@ -47,7 +47,7 @@ Supervertaler has two approaches (toggle via `disable_all_caches` setting):
 | Termbase Search | Per-word LIKE queries with UNION for bidirectional matching | ~20-100ms depending on word count |
 | Empty Results Not Cached | Line ~22652: if total_matches > 0 means segments with no matches are re-searched every time | Wasted DB queries |
 | Debounce Delays | 150ms (arrow nav) + 300ms (TM/MT/LLM) = 450ms minimum before results appear | Perceived lag |
-| TermView Rendering | clear_terms() + recreate all widgets from scratch | UI thread blocking |
+| TermLens Rendering | clear_terms() + recreate all widgets from scratch | UI thread blocking |
 
 ---
 

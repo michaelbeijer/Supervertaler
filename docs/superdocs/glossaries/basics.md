@@ -102,4 +102,5 @@ Go to **Settings → View Settings → Glossary Highlight Style**.
 - [Creating Glossaries](creating.md)
 - [Importing Terms](importing.md)
 - [Term Highlighting](highlighting.md)
+- [TermLens (Inline Terminology)](termlens.md)
 - [Term Extraction](extraction.md)

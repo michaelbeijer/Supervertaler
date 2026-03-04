@@ -286,7 +286,7 @@ from modules.find_replace_qt import (
     HistoryComboBox,
 )  # F&R History and Sets
 from modules.shortcut_manager import ShortcutManager  # Keyboard shortcut management
-from modules.termview_widget import TermviewWidget  # Termview widget for glossary display
+from modules.termlens_widget import TermLensWidget  # TermLens widget for glossary display
 
 
 STATUS_ORDER = [
@@ -7495,7 +7495,7 @@ class SupervertalerQt(QMainWindow):
         self.tm_save_mode = 'latest'  # 'all' = keep all translations with timestamps, 'latest' = only keep most recent (DEFAULT)
         
         # Tab position setting
-        self.tabs_above_grid = False  # Whether to show Termview/Session Log tabs above grid
+        self.tabs_above_grid = False  # Whether to show TermLens/Session Log tabs above grid
         
         # Right panel visibility settings
         self.show_translation_results_pane = False  # Show Translation Results tab (hidden by default for new users)
@@ -7714,16 +7714,16 @@ class SupervertalerQt(QMainWindow):
         self.theme_manager.apply_theme(QApplication.instance())
         
         # Update widgets that were created before theme_manager existed
-        if hasattr(self, 'termview_widget') and self.termview_widget:
-            self.termview_widget.theme_manager = self.theme_manager
-            if hasattr(self.termview_widget, 'apply_theme'):
-                self.termview_widget.apply_theme()
+        if hasattr(self, 'termlens_widget') and self.termlens_widget:
+            self.termlens_widget.theme_manager = self.theme_manager
+            if hasattr(self.termlens_widget, 'apply_theme'):
+                self.termlens_widget.apply_theme()
 
-        # Also update the Match Panel TermView (right panel)
-        if hasattr(self, 'termview_widget_match') and self.termview_widget_match:
-            self.termview_widget_match.theme_manager = self.theme_manager
-            if hasattr(self.termview_widget_match, 'apply_theme'):
-                self.termview_widget_match.apply_theme()
+        # Also update the Match Panel TermLens (right panel)
+        if hasattr(self, 'termlens_widget_match') and self.termlens_widget_match:
+            self.termlens_widget_match.theme_manager = self.theme_manager
+            if hasattr(self.termlens_widget_match, 'apply_theme'):
+                self.termlens_widget_match.apply_theme()
 
         if hasattr(self, 'translation_results_panel') and self.translation_results_panel:
             self.translation_results_panel.theme_manager = self.theme_manager
@@ -7773,12 +7773,12 @@ class SupervertalerQt(QMainWindow):
         QApplication.instance().processEvents()  # Allow UI to finish initializing
         self.load_font_sizes_from_preferences()
         
-        # Restore Termview under grid visibility state
+        # Restore TermLens under grid visibility state
         if hasattr(self, 'bottom_tabs'):
-            termview_visible = general_settings.get('termview_under_grid_visible', False)
-            self.bottom_tabs.setVisible(termview_visible)
-            if hasattr(self, 'termview_visible_action'):
-                self.termview_visible_action.setChecked(termview_visible)
+            termlens_visible = general_settings.get('termlens_under_grid_visible', False)
+            self.bottom_tabs.setVisible(termlens_visible)
+            if hasattr(self, 'termlens_visible_action'):
+                self.termlens_visible_action.setChecked(termlens_visible)
         
         # Auto-check for new models if enabled in settings
         if general_settings.get('auto_check_models', True):
@@ -8544,18 +8544,18 @@ class SupervertalerQt(QMainWindow):
             lambda: self._compare_panel_nav_tm(1) if self._get_active_match_shortcut_mode() == 'compare' else None,
         )
         
-        # Alt+0 through Alt+9 - Insert term from TermView by number
+        # Alt+0 through Alt+9 - Insert term from TermLens by number
         # Supports double-tap for terms 11-20 (00, 11, 22, ..., 99)
-        self.termview_shortcuts = []
-        self._termview_last_key = None  # Track last key for double-tap detection
-        self._termview_last_time = 0    # Track timing for double-tap
+        self.termlens_shortcuts = []
+        self._termlens_last_key = None  # Track last key for double-tap detection
+        self._termlens_last_time = 0    # Track timing for double-tap
         
         # Double-tap Shift detection for context menu
         self._shift_last_press_time = 0
         self._shift_double_tap_threshold = 0.35  # 350ms window
         
         for i in range(0, 10):  # 0-9
-            shortcut_id = f"termview_insert_{i}"
+            shortcut_id = f"termlens_insert_{i}"
             default_key = f"Alt+{i}"
             key_sequence = self.shortcut_manager.get_shortcut(shortcut_id)
             # Respect intentionally blank defaults (unassigned shortcuts)
@@ -8565,12 +8565,12 @@ class SupervertalerQt(QMainWindow):
                 if shortcut_id not in default_ids and shortcut_id not in custom_ids:
                     key_sequence = default_key
             shortcut = QShortcut(QKeySequence(key_sequence), self)
-            shortcut.activated.connect(lambda num=i: self._handle_termview_shortcut(num))
+            shortcut.activated.connect(lambda num=i: self._handle_termlens_shortcut(num))
             self.global_shortcut_keys[shortcut_id] = key_sequence
             if not self.shortcut_manager.is_enabled(shortcut_id):
                 shortcut.setKey(QKeySequence())  # Clear key to release combination
             self.global_shortcuts[shortcut_id] = shortcut
-            self.termview_shortcuts.append(shortcut)
+            self.termlens_shortcuts.append(shortcut)
         
         # Ctrl+Space - Insert currently selected match
         create_shortcut("match_insert_selected_ctrl", "Ctrl+Space", self.insert_selected_match)
@@ -8856,13 +8856,13 @@ class SupervertalerQt(QMainWindow):
 
         # Smart single-NT shortcut: skip the popup
         if not glossary_matches and len(nt_matches) == 1:
-            self.insert_termview_text(nt_matches[0]["text"])
+            self.insert_termlens_text(nt_matches[0]["text"])
             return
 
         # ── Show popup ───────────────────────────────────────────────────
         from modules.term_insert_popup import TermInsertPopup
         popup = TermInsertPopup(glossary_matches, nt_matches, parent=self)
-        popup.term_inserted.connect(self.insert_termview_text)
+        popup.term_inserted.connect(self.insert_termlens_text)
         popup.show()
         popup.setFocus()
 
@@ -9753,13 +9753,13 @@ class SupervertalerQt(QMainWindow):
 
         view_menu.addSeparator()
         
-        # Termview visibility toggle
-        self.termview_visible_action = QAction("🔍 &Termview Under Grid", self)
-        self.termview_visible_action.setCheckable(True)
-        self.termview_visible_action.setChecked(False)  # Default: hidden (restored from settings if enabled)
-        self.termview_visible_action.triggered.connect(self.toggle_termview_under_grid)
-        self.termview_visible_action.setToolTip("Show/hide the Termview panel under the grid")
-        view_menu.addAction(self.termview_visible_action)
+        # TermLens visibility toggle
+        self.termlens_visible_action = QAction("🔍 &TermLens Under Grid", self)
+        self.termlens_visible_action.setCheckable(True)
+        self.termlens_visible_action.setChecked(False)  # Default: hidden (restored from settings if enabled)
+        self.termlens_visible_action.triggered.connect(self.toggle_termlens_under_grid)
+        self.termlens_visible_action.setToolTip("Show/hide the TermLens panel under the grid")
+        view_menu.addAction(self.termlens_visible_action)
 
         view_menu.addSeparator()
 
@@ -14099,10 +14099,10 @@ class SupervertalerQt(QMainWindow):
                     f"Error testing segmentation:\n\n{e}"
                 )
     
-    def _update_both_termviews(self, source_text, termbase_list, nt_matches, status_hint=None):
-        """Update all three Termview instances with the same data.
+    def _update_both_termlens(self, source_text, termbase_list, nt_matches, status_hint=None):
+        """Update all three TermLens instances with the same data.
 
-        Termview locations:
+        TermLens locations:
         1. Under grid (collapsible via View menu)
         2. Match Panel tab (top section)
 
@@ -14115,38 +14115,38 @@ class SupervertalerQt(QMainWindow):
                          'wrong_language' - activated glossaries don't match project language
         """
         # v1.9.306: Defensive guard — strip invisible character markers from source text
-        # so the Termview tokenizer sees clean text (e.g. "hinge load" not "hinge·\u200Bload")
+        # so the TermLens tokenizer sees clean text (e.g. "hinge load" not "hinge·\u200Bload")
         if hasattr(self, 'reverse_invisible_replacements'):
             source_text = self.reverse_invisible_replacements(source_text)
 
-        # Update left Termview (under grid)
-        if hasattr(self, 'termview_widget') and self.termview_widget:
+        # Update left TermLens (under grid)
+        if hasattr(self, 'termlens_widget') and self.termlens_widget:
             try:
-                self.termview_widget.update_with_matches(source_text, termbase_list, nt_matches, status_hint)
+                self.termlens_widget.update_with_matches(source_text, termbase_list, nt_matches, status_hint)
             except Exception as e:
-                self.log(f"Error updating left termview: {e}")
+                self.log(f"Error updating left termlens: {e}")
 
-        # Update Match Panel Termview
-        if hasattr(self, 'termview_widget_match') and self.termview_widget_match:
+        # Update Match Panel TermLens
+        if hasattr(self, 'termlens_widget_match') and self.termlens_widget_match:
             try:
-                self.termview_widget_match.update_with_matches(source_text, termbase_list, nt_matches, status_hint)
+                self.termlens_widget_match.update_with_matches(source_text, termbase_list, nt_matches, status_hint)
             except Exception as e:
-                self.log(f"Error updating Match Panel termview: {e}")
+                self.log(f"Error updating Match Panel termlens: {e}")
 
-    def _update_termview_for_segment(self, segment):
-        """Explicitly update termview for a segment (v1.9.182).
+    def _update_termlens_for_segment(self, segment):
+        """Explicitly update termlens for a segment (v1.9.182).
 
         This is called directly from Ctrl+Enter navigation to ensure
-        the termview updates immediately, bypassing the deferred timer approach.
+        the termlens updates immediately, bypassing the deferred timer approach.
         """
-        if not segment or ((not (hasattr(self, 'termview_widget') and self.termview_widget)) and (not (hasattr(self, 'termview_widget_match') and self.termview_widget_match))):
+        if not segment or ((not (hasattr(self, 'termlens_widget') and self.termlens_widget)) and (not (hasattr(self, 'termlens_widget_match') and self.termlens_widget_match))):
             return
 
         try:
             # Use in-memory index for fast lookup
             stored_matches = self.find_termbase_matches_in_source(segment.source)
 
-            # Convert dict format to list format for termview
+            # Convert dict format to list format for termlens
             termbase_matches = [
                 {
                     'source_term': match_data.get('source', ''),
@@ -14167,11 +14167,11 @@ class SupervertalerQt(QMainWindow):
             # Get status hint
             status_hint = self._get_termbase_status_hint()
 
-            # Update both Termview widgets
-            self._update_both_termviews(segment.source, termbase_matches, nt_matches, status_hint)
+            # Update both TermLens widgets
+            self._update_both_termlens(segment.source, termbase_matches, nt_matches, status_hint)
 
         except Exception as e:
-            self.log(f"Error in _update_termview_for_segment: {e}")
+            self.log(f"Error in _update_termlens_for_segment: {e}")
 
     def _get_termbase_status_hint(self) -> str:
         """Check termbase activation status and return appropriate hint.
@@ -14266,10 +14266,10 @@ class SupervertalerQt(QMainWindow):
         with self.termbase_cache_lock:
             self.termbase_cache[segment.id] = termbase_matches
         
-        # Update TermView widget
-        if (hasattr(self, 'termview_widget') and self.termview_widget) or (hasattr(self, 'termview_widget_match') and self.termview_widget_match):
+        # Update TermLens widget
+        if (hasattr(self, 'termlens_widget') and self.termlens_widget) or (hasattr(self, 'termlens_widget_match') and self.termlens_widget_match):
             try:
-                # Convert termbase matches to list format for termview
+                # Convert termbase matches to list format for termlens
                 # Note: find_termbase_matches_in_source returns dict with 'source' and 'translation' keys
                 termbase_list = [
                     {
@@ -14291,10 +14291,10 @@ class SupervertalerQt(QMainWindow):
                 # Get status hint for termbase activation
                 status_hint = self._get_termbase_status_hint()
 
-                # Update both Termview widgets (left and right)
-                self._update_both_termviews(segment.source, termbase_list, nt_matches, status_hint)
+                # Update both TermLens widgets (left and right)
+                self._update_both_termlens(segment.source, termbase_list, nt_matches, status_hint)
             except Exception as e:
-                self.log(f"Error updating termview: {e}")
+                self.log(f"Error updating termlens: {e}")
         
         # Update Translation Results panel termbase section (without touching TM)
         if hasattr(self, 'results_panels'):
@@ -14747,7 +14747,7 @@ class SupervertalerQt(QMainWindow):
                 self.log(f"✓ Added to '{target_termbase['name']}': {source_text} → {target_text}")
                 self.statusBar().showMessage(f"✓ Added to '{target_termbase['name']}': {source_text} → {target_text}", 3000)
                 
-                # OPTIMIZATION: Directly add the new term to cache and TermView instead of full search
+                # OPTIMIZATION: Directly add the new term to cache and TermLens instead of full search
                 # This avoids the 5-6 second delay from searching all words in long patent segments
                 current_row = self.table.currentRow()
                 if current_row >= 0 and self.current_project:
@@ -14829,13 +14829,13 @@ class SupervertalerQt(QMainWindow):
                                     # Re-sort by length (longest first) for proper phrase matching
                                     self.termbase_index.sort(key=lambda x: len(x['source_term_lower']), reverse=True)
                                 
-                                # Update TermView widget with the new term
-                                if (hasattr(self, 'termview_widget') and self.termview_widget) or (hasattr(self, 'termview_widget_match') and self.termview_widget_match):
+                                # Update TermLens widget with the new term
+                                if (hasattr(self, 'termlens_widget') and self.termlens_widget) or (hasattr(self, 'termlens_widget_match') and self.termlens_widget_match):
                                     # Get current matches from cache
                                     with self.termbase_cache_lock:
                                         cached_matches = self.termbase_cache.get(segment_id, {})
                                     
-                                    # Convert to list format for TermView
+                                    # Convert to list format for TermLens
                                     termbase_list = [
                                         {
                                             'source_term': match.get('source', ''),
@@ -14856,9 +14856,9 @@ class SupervertalerQt(QMainWindow):
                                     # Get status hint (although after adding a term, it should be fine)
                                     status_hint = self._get_termbase_status_hint()
 
-                                    # Update both Termview widgets (left and right)
-                                    self._update_both_termviews(segment.source, termbase_list, nt_matches, status_hint)
-                                    self.log(f"✅ Both TermView widgets updated instantly with new term")
+                                    # Update both TermLens widgets (left and right)
+                                    self._update_both_termlens(segment.source, termbase_list, nt_matches, status_hint)
+                                    self.log(f"✅ Both TermLens widgets updated instantly with new term")
                                 
                                 # Update source cell highlighting with updated cache
                                 # Call the highlighting function directly with the new matches
@@ -20356,16 +20356,16 @@ class SupervertalerQt(QMainWindow):
         tab_position_layout = QVBoxLayout()
         
         tab_position_info = QLabel(
-            "Control the position of Termview and Session Log tabs relative to the grid."
+            "Control the position of TermLens and Session Log tabs relative to the grid."
         )
         tab_position_info.setStyleSheet("font-size: 8pt; padding: 8px; border-radius: 2px;")
         tab_position_info.setWordWrap(True)
         tab_position_layout.addWidget(tab_position_info)
         
-        # Show Termview/Session Log tabs above grid checkbox
-        tabs_above_check = CheckmarkCheckBox("Show Termview/Session Log tabs above grid")
+        # Show TermLens/Session Log tabs above grid checkbox
+        tabs_above_check = CheckmarkCheckBox("Show TermLens/Session Log tabs above grid")
         tabs_above_check.setChecked(font_settings.get('tabs_above_grid', False))
-        tabs_above_check.setToolTip("When enabled, Termview and Session Log tabs appear above the grid instead of below.\nRequires closing and reopening the project tab to take effect.")
+        tabs_above_check.setToolTip("When enabled, TermLens and Session Log tabs appear above the grid instead of below.\nRequires closing and reopening the project tab to take effect.")
         tab_position_layout.addWidget(tabs_above_check)
         
         tab_position_group.setLayout(tab_position_layout)
@@ -20457,45 +20457,45 @@ class SupervertalerQt(QMainWindow):
         tb_highlight_group.setLayout(tb_highlight_layout)
         layout.addWidget(tb_highlight_group)
         
-        # Termview Font Settings section
-        termview_group = QGroupBox("🔍 Termview Font Settings")
-        termview_layout = QVBoxLayout()
+        # TermLens Font Settings section
+        termlens_group = QGroupBox("🔍 TermLens Font Settings")
+        termlens_layout = QVBoxLayout()
         
-        termview_info = QLabel(
-            "Configure the font appearance for the Termview inline terminology display."
+        termlens_info = QLabel(
+            "Configure the font appearance for the TermLens inline terminology display."
         )
-        termview_info.setStyleSheet("font-size: 8pt; padding: 8px; border-radius: 2px;")
-        termview_info.setWordWrap(True)
-        termview_layout.addWidget(termview_info)
+        termlens_info.setStyleSheet("font-size: 8pt; padding: 8px; border-radius: 2px;")
+        termlens_info.setWordWrap(True)
+        termlens_layout.addWidget(termlens_info)
         
         # Font family dropdown
-        termview_font_family_layout = QHBoxLayout()
-        termview_font_family_layout.addWidget(QLabel("Font Family:"))
-        termview_font_family_combo = QComboBox()
-        termview_font_family_combo.addItems(font_families)  # Same fonts as grid
-        current_termview_font_family = font_settings.get('termview_font_family', 'Segoe UI')
-        if current_termview_font_family in font_families:
-            termview_font_family_combo.setCurrentText(current_termview_font_family)
+        termlens_font_family_layout = QHBoxLayout()
+        termlens_font_family_layout.addWidget(QLabel("Font Family:"))
+        termlens_font_family_combo = QComboBox()
+        termlens_font_family_combo.addItems(font_families)  # Same fonts as grid
+        current_termlens_font_family = font_settings.get('termlens_font_family', 'Segoe UI')
+        if current_termlens_font_family in font_families:
+            termlens_font_family_combo.setCurrentText(current_termlens_font_family)
         else:
-            termview_font_family_combo.setCurrentText("Segoe UI")
-        termview_font_family_combo.setToolTip("Select the font family for Termview text")
-        termview_font_family_layout.addWidget(termview_font_family_combo)
-        termview_font_family_layout.addStretch()
-        termview_layout.addLayout(termview_font_family_layout)
+            termlens_font_family_combo.setCurrentText("Segoe UI")
+        termlens_font_family_combo.setToolTip("Select the font family for TermLens text")
+        termlens_font_family_layout.addWidget(termlens_font_family_combo)
+        termlens_font_family_layout.addStretch()
+        termlens_layout.addLayout(termlens_font_family_layout)
         
         # Font size spinbox
-        termview_size_layout = QHBoxLayout()
-        termview_size_layout.addWidget(QLabel("Font Size:"))
-        termview_font_spin = QSpinBox()
-        termview_font_spin.setMinimum(6)
-        termview_font_spin.setMaximum(16)
-        termview_font_spin.setValue(font_settings.get('termview_font_size', 10))
-        termview_font_spin.setSuffix(" pt")
-        termview_font_spin.setToolTip("Termview font size (6-16 pt)")
-        termview_font_spin.setMinimumHeight(28)
-        termview_font_spin.setMinimumWidth(80)
+        termlens_size_layout = QHBoxLayout()
+        termlens_size_layout.addWidget(QLabel("Font Size:"))
+        termlens_font_spin = QSpinBox()
+        termlens_font_spin.setMinimum(6)
+        termlens_font_spin.setMaximum(16)
+        termlens_font_spin.setValue(font_settings.get('termlens_font_size', 10))
+        termlens_font_spin.setSuffix(" pt")
+        termlens_font_spin.setToolTip("TermLens font size (6-16 pt)")
+        termlens_font_spin.setMinimumHeight(28)
+        termlens_font_spin.setMinimumWidth(80)
         # Fix spinbox arrow buttons - ensure both up and down work correctly
-        termview_font_spin.setStyleSheet("""
+        termlens_font_spin.setStyleSheet("""
             QSpinBox {
                 padding-right: 20px;
             }
@@ -20508,21 +20508,21 @@ class SupervertalerQt(QMainWindow):
                 height: 14px;
             }
         """)
-        termview_size_layout.addWidget(termview_font_spin)
-        termview_size_layout.addStretch()
-        termview_layout.addLayout(termview_size_layout)
+        termlens_size_layout.addWidget(termlens_font_spin)
+        termlens_size_layout.addStretch()
+        termlens_layout.addLayout(termlens_size_layout)
         
         # Font weight checkbox
-        termview_bold_layout = QHBoxLayout()
-        termview_bold_check = CheckmarkCheckBox("Bold font")
-        termview_bold_check.setChecked(font_settings.get('termview_font_bold', False))
-        termview_bold_check.setToolTip("Display Termview text in bold")
-        termview_bold_layout.addWidget(termview_bold_check)
-        termview_bold_layout.addStretch()
-        termview_layout.addLayout(termview_bold_layout)
+        termlens_bold_layout = QHBoxLayout()
+        termlens_bold_check = CheckmarkCheckBox("Bold font")
+        termlens_bold_check.setChecked(font_settings.get('termlens_font_bold', False))
+        termlens_bold_check.setToolTip("Display TermLens text in bold")
+        termlens_bold_layout.addWidget(termlens_bold_check)
+        termlens_bold_layout.addStretch()
+        termlens_layout.addLayout(termlens_bold_layout)
         
-        termview_group.setLayout(termview_layout)
-        layout.addWidget(termview_group)
+        termlens_group.setLayout(termlens_layout)
+        layout.addWidget(termlens_group)
 
         # ===== Match Panel Font Settings =====
         mp_font_group = QGroupBox("📊 Match Panel Font Settings")
@@ -20677,7 +20677,7 @@ class SupervertalerQt(QMainWindow):
             self._save_view_settings_from_ui(
                 grid_font_spin, match_font_spin, compare_font_spin, show_tags_check, tag_color_btn,
                 alt_colors_check, even_color_btn, odd_color_btn, invisible_char_color_btn, grid_font_family_combo,
-                termview_font_family_combo, termview_font_spin, termview_bold_check,
+                termlens_font_family_combo, termlens_font_spin, termlens_bold_check,
                 border_color_btn, border_thickness_spin, badge_text_color_btn, tabs_above_check,
                 hide_wrapping_tags_check,
                 mp_font_family_combo=mp_font_family_combo, mp_font_spin=mp_font_spin, mp_bold_check=mp_bold_check
@@ -22736,7 +22736,7 @@ class SupervertalerQt(QMainWindow):
     
     def _save_view_settings_from_ui(self, grid_spin, match_spin, compare_spin, show_tags_check=None, tag_color_btn=None,
                                      alt_colors_check=None, even_color_btn=None, odd_color_btn=None, invisible_char_color_btn=None,
-                                     grid_font_family_combo=None, termview_font_family_combo=None, termview_font_spin=None, termview_bold_check=None,
+                                     grid_font_family_combo=None, termlens_font_family_combo=None, termlens_font_spin=None, termlens_bold_check=None,
                                      border_color_btn=None, border_thickness_spin=None, badge_text_color_btn=None, tabs_above_check=None,
                                      hide_wrapping_tags_check=None,
                                      mp_font_family_combo=None, mp_font_spin=None, mp_bold_check=None):
@@ -22751,7 +22751,7 @@ class SupervertalerQt(QMainWindow):
             self._save_view_settings_from_ui_impl(
                 grid_spin, match_spin, compare_spin, show_tags_check, tag_color_btn,
                 alt_colors_check, even_color_btn, odd_color_btn, invisible_char_color_btn,
-                grid_font_family_combo, termview_font_family_combo, termview_font_spin, termview_bold_check,
+                grid_font_family_combo, termlens_font_family_combo, termlens_font_spin, termlens_bold_check,
                 border_color_btn, border_thickness_spin, badge_text_color_btn, tabs_above_check,
                 hide_wrapping_tags_check,
                 mp_font_family_combo=mp_font_family_combo, mp_font_spin=mp_font_spin, mp_bold_check=mp_bold_check
@@ -22761,7 +22761,7 @@ class SupervertalerQt(QMainWindow):
 
     def _save_view_settings_from_ui_impl(self, grid_spin, match_spin, compare_spin, show_tags_check=None, tag_color_btn=None,
                                      alt_colors_check=None, even_color_btn=None, odd_color_btn=None, invisible_char_color_btn=None,
-                                     grid_font_family_combo=None, termview_font_family_combo=None, termview_font_spin=None, termview_bold_check=None,
+                                     grid_font_family_combo=None, termlens_font_family_combo=None, termlens_font_spin=None, termlens_bold_check=None,
                                      border_color_btn=None, border_thickness_spin=None, badge_text_color_btn=None, tabs_above_check=None,
                                      hide_wrapping_tags_check=None,
                                      mp_font_family_combo=None, mp_font_spin=None, mp_bold_check=None):
@@ -22785,13 +22785,13 @@ class SupervertalerQt(QMainWindow):
         if grid_font_family_combo is not None:
             general_settings['grid_font_family'] = grid_font_family_combo.currentText()
         
-        # Add Termview font settings if provided
-        if termview_font_family_combo is not None:
-            general_settings['termview_font_family'] = termview_font_family_combo.currentText()
-        if termview_font_spin is not None:
-            general_settings['termview_font_size'] = termview_font_spin.value()
-        if termview_bold_check is not None:
-            general_settings['termview_font_bold'] = termview_bold_check.isChecked()
+        # Add TermLens font settings if provided
+        if termlens_font_family_combo is not None:
+            general_settings['termlens_font_family'] = termlens_font_family_combo.currentText()
+        if termlens_font_spin is not None:
+            general_settings['termlens_font_size'] = termlens_font_spin.value()
+        if termlens_bold_check is not None:
+            general_settings['termlens_font_bold'] = termlens_bold_check.isChecked()
 
         # Add Match Panel font settings if provided
         if mp_font_family_combo is not None:
@@ -22882,19 +22882,19 @@ class SupervertalerQt(QMainWindow):
         
         self.save_general_settings(general_settings)
         
-        # Apply termview font settings immediately to BOTH termview widgets
-        if hasattr(self, 'termview_widget') and self.termview_widget is not None:
-            termview_family = general_settings.get('termview_font_family', 'Segoe UI')
-            termview_size = general_settings.get('termview_font_size', 10)
-            termview_bold = general_settings.get('termview_font_bold', False)
-            self.termview_widget.set_font_settings(termview_family, termview_size, termview_bold)
+        # Apply termlens font settings immediately to BOTH termlens widgets
+        if hasattr(self, 'termlens_widget') and self.termlens_widget is not None:
+            termlens_family = general_settings.get('termlens_font_family', 'Segoe UI')
+            termlens_size = general_settings.get('termlens_font_size', 10)
+            termlens_bold = general_settings.get('termlens_font_bold', False)
+            self.termlens_widget.set_font_settings(termlens_family, termlens_size, termlens_bold)
         
-        # Also apply to the Match Panel's Termview widget
-        if hasattr(self, 'termview_widget_match') and self.termview_widget_match is not None:
-            termview_family = general_settings.get('termview_font_family', 'Segoe UI')
-            termview_size = general_settings.get('termview_font_size', 10)
-            termview_bold = general_settings.get('termview_font_bold', False)
-            self.termview_widget_match.set_font_settings(termview_family, termview_size, termview_bold)
+        # Also apply to the Match Panel's TermLens widget
+        if hasattr(self, 'termlens_widget_match') and self.termlens_widget_match is not None:
+            termlens_family = general_settings.get('termlens_font_family', 'Segoe UI')
+            termlens_size = general_settings.get('termlens_font_size', 10)
+            termlens_bold = general_settings.get('termlens_font_bold', False)
+            self.termlens_widget_match.set_font_settings(termlens_family, termlens_size, termlens_bold)
 
         # Apply Match Panel TM Source/Target font settings immediately
         if mp_font_spin is not None:
@@ -23724,25 +23724,25 @@ class SupervertalerQt(QMainWindow):
         self.tab_status_combo = tab_status_combo
         self.tab_dictate_btn = dictate_btn
         
-        # Create Termview and Session Log tabs widget
+        # Create TermLens and Session Log tabs widget
         from PyQt6.QtWidgets import QTabWidget
-        from modules.termview_widget import TermviewWidget
+        from modules.termlens_widget import TermLensWidget
         
         bottom_tabs = QTabWidget()
         bottom_tabs.setStyleSheet("QTabBar::tab { outline: 0; } QTabBar::tab:focus { outline: none; } QTabBar::tab:selected { border-bottom: 1px solid #2196F3; background-color: rgba(33, 150, 243, 0.08); }")
         
-        # Termview tab
-        self.termview_widget = TermviewWidget(self, db_manager=self.db_manager, log_callback=self.log, theme_manager=self.theme_manager)
-        self.termview_widget.term_insert_requested.connect(self.insert_termview_text)
-        self.termview_widget.edit_entry_requested.connect(self._on_termview_edit_entry)
-        self.termview_widget.delete_entry_requested.connect(self._on_termview_delete_entry)
+        # TermLens tab
+        self.termlens_widget = TermLensWidget(self, db_manager=self.db_manager, log_callback=self.log, theme_manager=self.theme_manager)
+        self.termlens_widget.term_insert_requested.connect(self.insert_termlens_text)
+        self.termlens_widget.edit_entry_requested.connect(self._on_termlens_edit_entry)
+        self.termlens_widget.delete_entry_requested.connect(self._on_termlens_delete_entry)
         
-        # Apply saved termview font settings
+        # Apply saved termlens font settings
         font_settings = self.load_general_settings()
-        termview_family = font_settings.get('termview_font_family', 'Segoe UI')
-        termview_size = font_settings.get('termview_font_size', 10)
-        termview_bold = font_settings.get('termview_font_bold', False)
-        self.termview_widget.set_font_settings(termview_family, termview_size, termview_bold)
+        termlens_family = font_settings.get('termlens_font_family', 'Segoe UI')
+        termlens_size = font_settings.get('termlens_font_size', 10)
+        termlens_bold = font_settings.get('termlens_font_bold', False)
+        self.termlens_widget.set_font_settings(termlens_family, termlens_size, termlens_bold)
         
         # Session Log tab
         session_log_widget = QWidget()
@@ -23766,10 +23766,10 @@ class SupervertalerQt(QMainWindow):
         self.bottom_notes_edit.textChanged.connect(self._on_bottom_notes_changed)
         notes_layout.addWidget(self.bottom_notes_edit)
         
-        # Add only Termview tab to bottom_tabs (Segment Note and Session Log will be in right panel)
-        bottom_tabs.addTab(self.termview_widget, "🔍 Termview")
+        # Add only TermLens tab to bottom_tabs (Segment Note and Session Log will be in right panel)
+        bottom_tabs.addTab(self.termlens_widget, "🔍 TermLens")
         
-        # Default to Termview tab (index 0)
+        # Default to TermLens tab (index 0)
         bottom_tabs.setCurrentIndex(0)
         
         # Store reference to bottom_tabs for later access
@@ -23831,7 +23831,7 @@ class SupervertalerQt(QMainWindow):
         
         # Add widgets based on tabs_above_grid setting
         if self.tabs_above_grid:
-            # Layout: Filter/Pagination → Termview tabs → Grid
+            # Layout: Filter/Pagination → TermLens tabs → Grid
             # This keeps terminology matches closest to the segment being edited
             left_container_layout.addWidget(filter_pagination_container)
             left_vertical_splitter.addWidget(bottom_tabs)
@@ -23839,7 +23839,7 @@ class SupervertalerQt(QMainWindow):
             # Set vertical splitter proportions: Tabs smaller, grid larger
             left_vertical_splitter.setSizes([200, 600])
         else:
-            # Layout: Filter/Pagination → Grid → Termview tabs (default)
+            # Layout: Filter/Pagination → Grid → TermLens tabs (default)
             left_container_layout.addWidget(filter_pagination_container)
             left_vertical_splitter.addWidget(grid_container)
             left_vertical_splitter.addWidget(bottom_tabs)
@@ -23888,7 +23888,7 @@ class SupervertalerQt(QMainWindow):
         tab_index = 0
         preview_tab_index = -1
 
-        # Tab 1: Match Panel (Termview + TM Source/Target) - primary TM display
+        # Tab 1: Match Panel (TermLens + TM Source/Target) - primary TM display
         match_panel_widget = self._create_match_panel()
         self.match_panel_widget = match_panel_widget  # Store reference for mode detection
         right_tabs.addTab(match_panel_widget, "🎯 Match Panel")
@@ -34357,7 +34357,7 @@ class SupervertalerQt(QMainWindow):
         return widget
     
     def _create_match_panel(self) -> QWidget:
-        """Create Match Panel with Termview + TM Source/Target boxes."""
+        """Create Match Panel with TermLens + TM Source/Target boxes."""
         widget = QWidget()
         main_layout = QVBoxLayout(widget)
         main_layout.setContentsMargins(0, 0, 0, 0)
@@ -34367,52 +34367,52 @@ class SupervertalerQt(QMainWindow):
         if not hasattr(self, 'compare_panel_text_edits'):
             self.compare_panel_text_edits = []
         
-        # Vertical splitter: Termview (top) | TM boxes (bottom)
+        # Vertical splitter: TermLens (top) | TM boxes (bottom)
         splitter = QSplitter(Qt.Orientation.Vertical)
         
-        # TOP: Container with header + Termview
-        termview_container = QWidget()
-        termview_layout = QVBoxLayout(termview_container)
-        termview_layout.setContentsMargins(4, 4, 4, 0)
-        termview_layout.setSpacing(2)
+        # TOP: Container with header + TermLens
+        termlens_container = QWidget()
+        termlens_layout = QVBoxLayout(termlens_container)
+        termlens_layout.setContentsMargins(4, 4, 4, 0)
+        termlens_layout.setSpacing(2)
         
-        # Termview header row: label (left) + tip (right)
+        # TermLens header row: label (left) + tip (right)
         if hasattr(self, 'theme_manager') and self.theme_manager:
             header_color = self.theme_manager.current_theme.text_disabled
         else:
             header_color = "#666"
 
-        termview_header_row = QHBoxLayout()
-        termview_header_row.setContentsMargins(0, 0, 0, 0)
-        termview_header_row.setSpacing(0)
+        termlens_header_row = QHBoxLayout()
+        termlens_header_row.setContentsMargins(0, 0, 0, 0)
+        termlens_header_row.setSpacing(0)
 
-        termview_header = QLabel("📖 Termview")
-        termview_header.setStyleSheet(f"font-weight: bold; font-size: 9pt; color: {header_color};")
-        termview_header_row.addWidget(termview_header)
+        termlens_header = QLabel("📖 TermLens")
+        termlens_header.setStyleSheet(f"font-weight: bold; font-size: 9pt; color: {header_color};")
+        termlens_header_row.addWidget(termlens_header)
 
-        termview_header_row.addStretch()
+        termlens_header_row.addStretch()
 
-        termview_tip = QLabel("💡 Tip: Press F5 to refresh if matches are missing")
-        termview_tip.setStyleSheet(f"font-size: 9pt; color: {header_color}; font-style: italic;")
-        termview_header_row.addWidget(termview_tip)
+        termlens_tip = QLabel("💡 Tip: Press F5 to refresh if matches are missing")
+        termlens_tip.setStyleSheet(f"font-size: 9pt; color: {header_color}; font-style: italic;")
+        termlens_header_row.addWidget(termlens_tip)
 
-        termview_layout.addLayout(termview_header_row)
+        termlens_layout.addLayout(termlens_header_row)
         
-        # Third Termview instance for Match Panel
-        self.termview_widget_match = TermviewWidget(self, db_manager=self.db_manager, log_callback=self.log, theme_manager=self.theme_manager)
-        # Connect Termview signals
-        self.termview_widget_match.term_insert_requested.connect(self.insert_termview_text)
-        self.termview_widget_match.edit_entry_requested.connect(self._on_termview_edit_entry)
-        self.termview_widget_match.delete_entry_requested.connect(self._on_termview_delete_entry)
+        # Third TermLens instance for Match Panel
+        self.termlens_widget_match = TermLensWidget(self, db_manager=self.db_manager, log_callback=self.log, theme_manager=self.theme_manager)
+        # Connect TermLens signals
+        self.termlens_widget_match.term_insert_requested.connect(self.insert_termlens_text)
+        self.termlens_widget_match.edit_entry_requested.connect(self._on_termlens_edit_entry)
+        self.termlens_widget_match.delete_entry_requested.connect(self._on_termlens_delete_entry)
         # Apply font settings
         font_settings = self.load_general_settings()
-        termview_family = font_settings.get('termview_font_family', 'Segoe UI')
-        termview_size = font_settings.get('termview_font_size', 10)
-        termview_bold = font_settings.get('termview_font_bold', False)
-        self.termview_widget_match.set_font_settings(termview_family, termview_size, termview_bold)
-        termview_layout.addWidget(self.termview_widget_match)
+        termlens_family = font_settings.get('termlens_font_family', 'Segoe UI')
+        termlens_size = font_settings.get('termlens_font_size', 10)
+        termlens_bold = font_settings.get('termlens_font_bold', False)
+        self.termlens_widget_match.set_font_settings(termlens_family, termlens_size, termlens_bold)
+        termlens_layout.addWidget(self.termlens_widget_match)
         
-        splitter.addWidget(termview_container)
+        splitter.addWidget(termlens_container)
         
         # BOTTOM: Container for TM Source + TM Target boxes
         # v1.9.307: Store references for layout switching (horizontal ↔ vertical)
@@ -34466,7 +34466,7 @@ class SupervertalerQt(QMainWindow):
 
         splitter.addWidget(self._tm_container)
 
-        # Set initial splitter sizes (60% Termview, 40% TM boxes)
+        # Set initial splitter sizes (60% TermLens, 40% TM boxes)
         splitter.setSizes([600, 400])
 
         main_layout.addWidget(splitter)
@@ -34841,7 +34841,7 @@ class SupervertalerQt(QMainWindow):
         title_label.setStyleSheet(f"font-weight: bold; font-size: 9pt; color: {text_color}; background: transparent; border: none;")
         header_layout.addWidget(title_label)
 
-        # Optional shortcut badge (TermView-style blue bubble)
+        # Optional shortcut badge (TermLens-style blue bubble)
         if shortcut_badge_text:
             badge_width = 14 if len(shortcut_badge_text) == 1 else 20
             badge_label = QLabel(shortcut_badge_text)
@@ -36122,8 +36122,8 @@ class SupervertalerQt(QMainWindow):
         """Clear all rows from grid"""
         self.table.setRowCount(0)
     
-    def toggle_termview_under_grid(self):
-        """Show/hide the Termview panel under the grid for maximum vertical space"""
+    def toggle_termlens_under_grid(self):
+        """Show/hide the TermLens panel under the grid for maximum vertical space"""
         if not hasattr(self, 'bottom_tabs'):
             return
         
@@ -36132,12 +36132,12 @@ class SupervertalerQt(QMainWindow):
         self.bottom_tabs.setVisible(not is_visible)
         
         # Update menu action checkmark
-        if hasattr(self, 'termview_visible_action'):
-            self.termview_visible_action.setChecked(not is_visible)
+        if hasattr(self, 'termlens_visible_action'):
+            self.termlens_visible_action.setChecked(not is_visible)
         
         # Save state to settings
         settings = self.load_general_settings()
-        settings['termview_under_grid_visible'] = not is_visible
+        settings['termlens_under_grid_visible'] = not is_visible
         self.save_general_settings(settings)
     
     def _update_file_boundary_labels(self):
@@ -36876,6 +36876,18 @@ class SupervertalerQt(QMainWindow):
         # Merge with defaults to ensure all keys exist
         result = defaults.copy()
         result.update(settings)
+
+        # Migrate termview_* → termlens_* settings keys (v1.9.347+)
+        _tv_migrations = {
+            'termview_under_grid_visible': 'termlens_under_grid_visible',
+            'termview_font_family': 'termlens_font_family',
+            'termview_font_size': 'termlens_font_size',
+            'termview_font_bold': 'termlens_font_bold',
+        }
+        for old_key, new_key in _tv_migrations.items():
+            if old_key in result and new_key not in result:
+                result[new_key] = result.pop(old_key)
+
         return result
 
     def save_general_settings(self, settings: Dict[str, Any]):
@@ -37290,7 +37302,7 @@ class SupervertalerQt(QMainWindow):
                 self.log(f"Error in minimal cell selection: {e}")
 
     def _on_cell_selected_glossary_only(self, current_row):
-        """Update glossary highlights and TermView from cache when in filtered mode.
+        """Update glossary highlights and TermLens from cache when in filtered mode.
         Skips TM/MT/LLM lookups - only handles cheap, cache-based termbase operations."""
         try:
             if not self.current_project or current_row < 0:
@@ -37347,10 +37359,10 @@ class SupervertalerQt(QMainWindow):
                     if fresh_tb:
                         self.highlight_source_with_termbase(current_row, segment.source, fresh_tb)
 
-            # --- TermView pane update ---
+            # --- TermLens pane update ---
             if self.current_project and (
-                (hasattr(self, 'termview_widget') and self.termview_widget) or
-                (hasattr(self, 'termview_widget_match') and self.termview_widget_match)
+                (hasattr(self, 'termlens_widget') and self.termlens_widget) or
+                (hasattr(self, 'termlens_widget_match') and self.termlens_widget_match)
             ):
                 termbase_matches = []
                 with self.translation_matches_cache_lock:
@@ -37372,7 +37384,7 @@ class SupervertalerQt(QMainWindow):
 
                 nt_matches = self.find_nt_matches_in_source(segment.source)
                 status_hint = self._get_termbase_status_hint()
-                self._update_both_termviews(segment.source, termbase_matches, nt_matches, status_hint)
+                self._update_both_termlens(segment.source, termbase_matches, nt_matches, status_hint)
         except Exception as e:
             if self.debug_mode_enabled:
                 self.log(f"Error in glossary-only cell selection: {e}")
@@ -37555,10 +37567,10 @@ class SupervertalerQt(QMainWindow):
                             except Exception as e:
                                 self.log(f"Error displaying cached matches: {e}")
                     
-                    # 🔄 Update TermView with cached termbase matches (always update, even if empty)
-                    if self.current_project and ((hasattr(self, 'termview_widget') and self.termview_widget) or (hasattr(self, 'termview_widget_match') and self.termview_widget_match)):
+                    # 🔄 Update TermLens with cached termbase matches (always update, even if empty)
+                    if self.current_project and ((hasattr(self, 'termlens_widget') and self.termlens_widget) or (hasattr(self, 'termlens_widget_match') and self.termlens_widget_match)):
                         try:
-                            # Convert TranslationMatch objects to dict format for termview
+                            # Convert TranslationMatch objects to dict format for termlens
                             termbase_matches = [
                                 {
                                     'source_term': match.source,
@@ -37578,10 +37590,10 @@ class SupervertalerQt(QMainWindow):
                             # Get status hint for termbase activation
                             status_hint = self._get_termbase_status_hint()
 
-                            # Update both Termview widgets (left and right)
-                            self._update_both_termviews(segment.source, termbase_matches, nt_matches, status_hint)
+                            # Update both TermLens widgets (left and right)
+                            self._update_both_termlens(segment.source, termbase_matches, nt_matches, status_hint)
                         except Exception as e:
-                            self.log(f"Error updating termview from cache: {e}")
+                            self.log(f"Error updating termlens from cache: {e}")
                     
                     # 🎯 AUTO-INSERT 100% TM MATCH from cache (if enabled in settings)
                     tm_count = len(cached_matches.get("TM", []))
@@ -37717,8 +37729,8 @@ class SupervertalerQt(QMainWindow):
                                     with self.termbase_cache_lock:
                                         self.termbase_cache[segment_id] = stored_matches
                             
-                            # CRITICAL FIX: Always update Termview (even with empty results) - show "No matches" state
-                            if self.current_project and ((hasattr(self, 'termview_widget') and self.termview_widget) or (hasattr(self, 'termview_widget_match') and self.termview_widget_match)):
+                            # CRITICAL FIX: Always update TermLens (even with empty results) - show "No matches" state
+                            if self.current_project and ((hasattr(self, 'termlens_widget') and self.termlens_widget) or (hasattr(self, 'termlens_widget_match') and self.termlens_widget_match)):
                                 try:
                                     # Convert dict format to list format
                                     termbase_matches = [
@@ -37740,10 +37752,10 @@ class SupervertalerQt(QMainWindow):
                                     # Get status hint for termbase activation
                                     status_hint = self._get_termbase_status_hint()
 
-                                    # Update both Termview widgets (left and right)
-                                    self._update_both_termviews(segment.source, termbase_matches, nt_matches, status_hint)
+                                    # Update both TermLens widgets (left and right)
+                                    self._update_both_termlens(segment.source, termbase_matches, nt_matches, status_hint)
                                 except Exception as e:
-                                    self.log(f"Error refreshing termview: {e}")
+                                    self.log(f"Error refreshing termlens: {e}")
 
                             # Store in widget for backwards compatibility
                             if source_widget and hasattr(source_widget, 'termbase_matches'):
@@ -41851,10 +41863,10 @@ class SupervertalerQt(QMainWindow):
         nt_matches = self.find_nt_matches_in_source(segment.source)
         nt_count = len(nt_matches) if nt_matches else 0
         
-        # 6. Update TermView with fresh results
-        if (hasattr(self, 'termview_widget') and self.termview_widget) or (hasattr(self, 'termview_widget_match') and self.termview_widget_match):
+        # 6. Update TermLens with fresh results
+        if (hasattr(self, 'termlens_widget') and self.termlens_widget) or (hasattr(self, 'termlens_widget_match') and self.termlens_widget_match):
             try:
-                # Convert termbase matches dict to list format for termview
+                # Convert termbase matches dict to list format for termlens
                 tb_list = []
                 for term_id, match_info in termbase_matches.items():
                     tb_list.append({
@@ -41871,11 +41883,11 @@ class SupervertalerQt(QMainWindow):
                 # Get status hint for termbase activation
                 status_hint = self._get_termbase_status_hint()
 
-                # Update both Termview widgets
-                self._update_both_termviews(segment.source, tb_list, nt_matches, status_hint)
-                self.log("   ✓ TermView updated")
+                # Update both TermLens widgets
+                self._update_both_termlens(segment.source, tb_list, nt_matches, status_hint)
+                self.log("   ✓ TermLens updated")
             except Exception as e:
-                self.log(f"   ⚠️ TermView update error: {e}")
+                self.log(f"   ⚠️ TermLens update error: {e}")
         
         # 7. Update Translation Results panel with fresh results
         if hasattr(self, 'results_panels'):
@@ -45046,10 +45058,10 @@ class SupervertalerQt(QMainWindow):
                     self.log(f"Error inserting match #{match_number}: {e}")
             return
     
-    def _handle_termview_shortcut(self, key_num: int):
-        """Handle TermView shortcut with double-tap detection for terms 11-20
+    def _handle_termlens_shortcut(self, key_num: int):
+        """Handle TermLens shortcut with double-tap detection for terms 11-20
         
-        TermView numbering starts at 1 (Alt+1..Alt+9). Alt+0 is reserved for the Compare Panel.
+        TermLens numbering starts at 1 (Alt+1..Alt+9). Alt+0 is reserved for the Compare Panel.
         
         Single tap (Alt+N): Insert term N (1-9)
         Double tap (Alt+N,N within 300ms): Undo first insert, then insert term N+10 (11, 22, ..., 99)
@@ -45064,10 +45076,10 @@ class SupervertalerQt(QMainWindow):
         double_tap_threshold = 0.3  # 300ms window for double-tap
         
         # Check if this is a double-tap (same key within threshold)
-        if (hasattr(self, '_termview_last_key') and 
-            self._termview_last_key == key_num and 
-            hasattr(self, '_termview_last_time') and
-            (current_time - self._termview_last_time) < double_tap_threshold):
+        if (hasattr(self, '_termlens_last_key') and 
+            self._termlens_last_key == key_num and 
+            hasattr(self, '_termlens_last_time') and
+            (current_time - self._termlens_last_time) < double_tap_threshold):
             # Double-tap detected! 
             # First, undo the single-tap insertion
             current_widget = self._get_current_target_widget()
@@ -45076,14 +45088,14 @@ class SupervertalerQt(QMainWindow):
             
             # Now insert term 10-19 (displayed as 00, 11, ..., 99)
             term_index = key_num + 10
-            self._termview_last_key = None  # Reset to prevent triple-tap
-            self._termview_last_time = 0
-            self.insert_termview_term_by_number(term_index)
+            self._termlens_last_key = None  # Reset to prevent triple-tap
+            self._termlens_last_time = 0
+            self.insert_termlens_term_by_number(term_index)
         else:
             # Single tap - insert term 1-9
-            self._termview_last_key = key_num
-            self._termview_last_time = current_time
-            self.insert_termview_term_by_number(key_num)
+            self._termlens_last_key = key_num
+            self._termlens_last_time = current_time
+            self.insert_termlens_term_by_number(key_num)
     
     def _get_current_target_widget(self):
         """Get the current target cell text widget"""
@@ -45093,14 +45105,14 @@ class SupervertalerQt(QMainWindow):
                 return self.table.cellWidget(current_row, 3)  # Column 3 = Target
         return None
     
-    def insert_termview_term_by_number(self, term_number: int):
-        """Insert term from TermView by number (0-19)"""
-        if hasattr(self, 'termview_widget') and self.termview_widget:
+    def insert_termlens_term_by_number(self, term_number: int):
+        """Insert term from TermLens by number (0-19)"""
+        if hasattr(self, 'termlens_widget') and self.termlens_widget:
             try:
-                if hasattr(self.termview_widget, 'insert_term_by_number'):
-                    self.termview_widget.insert_term_by_number(term_number)
+                if hasattr(self.termlens_widget, 'insert_term_by_number'):
+                    self.termlens_widget.insert_term_by_number(term_number)
             except Exception as e:
-                self.log(f"Error inserting TermView term #{term_number}: {e}")
+                self.log(f"Error inserting TermLens term #{term_number}: {e}")
     
     def insert_selected_match(self):
         """Insert currently selected match (Ctrl+Space)
@@ -45723,8 +45735,8 @@ class SupervertalerQt(QMainWindow):
                     self.table.scrollToItem(self.table.item(row, 0), QTableWidget.ScrollHint.PositionAtCenter)
                     self.log(f"⏭️ Moved to next unconfirmed segment {seg.id}")
 
-                    # v1.9.182: Explicitly update termview (don't rely on deferred signal)
-                    self._update_termview_for_segment(seg)
+                    # v1.9.182: Explicitly update termlens (don't rely on deferred signal)
+                    self._update_termlens_for_segment(seg)
 
                     # v1.9.182: Explicitly schedule TM lookup (don't rely on deferred signal)
                     if self.enable_tm_matching:
@@ -45770,10 +45782,10 @@ class SupervertalerQt(QMainWindow):
             self.table.scrollToItem(self.table.item(next_row, 0), QTableWidget.ScrollHint.PositionAtCenter)
             self.log(f"⏭️ Moved to next segment (all remaining confirmed)")
 
-            # v1.9.182: Explicitly update termview (don't rely on deferred signal)
+            # v1.9.182: Explicitly update termlens (don't rely on deferred signal)
             if next_row < len(self.current_project.segments):
                 next_seg = self.current_project.segments[next_row]
-                self._update_termview_for_segment(next_seg)
+                self._update_termlens_for_segment(next_seg)
 
                 # v1.9.182: Explicitly schedule TM lookup (don't rely on deferred signal)
                 if self.enable_tm_matching:
@@ -46157,8 +46169,8 @@ class SupervertalerQt(QMainWindow):
                     continue
         return -1
 
-    def insert_termview_text(self, text: str):
-        """Insert text from Termview into the currently active target field"""
+    def insert_termlens_text(self, text: str):
+        """Insert text from TermLens into the currently active target field"""
         try:
             # Find the active target editor
             current_row = self.table.currentRow()
@@ -46186,10 +46198,10 @@ class SupervertalerQt(QMainWindow):
             
             self.log("⚠️ No active target field found for insertion")
         except Exception as e:
-            self.log(f"✗ Error inserting termview text: {e}")
+            self.log(f"✗ Error inserting termlens text: {e}")
     
-    def _on_termview_edit_entry(self, term_id: int, termbase_id: int):
-        """Handle edit glossary entry request from Termview"""
+    def _on_termlens_edit_entry(self, term_id: int, termbase_id: int):
+        """Handle edit glossary entry request from TermLens"""
         try:
             from modules.termbase_entry_editor import TermbaseEntryEditor
             
@@ -46201,14 +46213,14 @@ class SupervertalerQt(QMainWindow):
             )
             
             if dialog.exec():
-                # Entry was edited, refresh termview and translation results
+                # Entry was edited, refresh termlens and translation results
                 self.log(f"✓ Glossary entry {term_id} updated")
                 self._refresh_current_segment_matches()
         except Exception as e:
             self.log(f"✗ Error editing glossary entry: {e}")
     
-    def _on_termview_delete_entry(self, term_id: int, termbase_id: int, source_term: str, target_term: str):
-        """Handle delete glossary entry request from Termview"""
+    def _on_termlens_delete_entry(self, term_id: int, termbase_id: int, source_term: str, target_term: str):
+        """Handle delete glossary entry request from TermLens"""
         from PyQt6.QtWidgets import QMessageBox
         
         try:
@@ -46227,7 +46239,7 @@ class SupervertalerQt(QMainWindow):
                         if self.termbase_mgr.delete_term(term_id):
                             self.log(f"✓ Deleted glossary entry: {source_term} → {target_term}")
                             
-                            # Refresh termview and translation results
+                            # Refresh termlens and translation results
                             self._refresh_current_segment_matches()
                         else:
                             self.log(f"✗ Failed to delete glossary entry")
@@ -46369,8 +46381,8 @@ class SupervertalerQt(QMainWindow):
                 except Exception as e:
                     self.log(f"Error updating tabbed panel: {e}")
         
-        # NOTE: Termview is updated AFTER termbase search completes in _on_cell_selected_full
-        # Do NOT update Termview here - the cache may not be populated yet
+        # NOTE: TermLens is updated AFTER termbase search completes in _on_cell_selected_full
+        # Do NOT update TermLens here - the cache may not be populated yet
     
     # ========================================================================
     # UTILITY
@@ -50835,15 +50847,15 @@ class SupervertalerQt(QMainWindow):
                 import traceback
                 traceback.print_exc()
         
-        # Refresh TermviewWidget
-        if hasattr(self, 'termview_widget') and self.termview_widget:
-            if hasattr(self.termview_widget, 'apply_theme'):
-                self.termview_widget.apply_theme()
+        # Refresh TermLensWidget
+        if hasattr(self, 'termlens_widget') and self.termlens_widget:
+            if hasattr(self.termlens_widget, 'apply_theme'):
+                self.termlens_widget.apply_theme()
 
-        # Also refresh Match Panel TermView (right panel)
-        if hasattr(self, 'termview_widget_match') and self.termview_widget_match:
-            if hasattr(self.termview_widget_match, 'apply_theme'):
-                self.termview_widget_match.apply_theme()
+        # Also refresh Match Panel TermLens (right panel)
+        if hasattr(self, 'termlens_widget_match') and self.termlens_widget_match:
+            if hasattr(self.termlens_widget_match, 'apply_theme'):
+                self.termlens_widget_match.apply_theme()
 
         # Refresh sidebar themes (Settings + Tools + Resources)
         self._update_settings_sidebar_theme()

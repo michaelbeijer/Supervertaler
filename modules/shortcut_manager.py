@@ -298,75 +298,75 @@ class ShortcutManager:
             "context": "editor"
         },
         
-        # TermView Insertion (Alt+0-9, double-tap for 00-99)
-        "termview_insert_0": {
-            "category": "TermView Insertion",
-            "description": "Insert TermView Term [0] (or [00] if double-tap)",
+        # TermLens Insertion (Alt+0-9, double-tap for 00-99)
+        "termlens_insert_0": {
+            "category": "TermLens Insertion",
+            "description": "Insert TermLens Term [0] (or [00] if double-tap)",
             "default": "",
-            "action": "insert_termview_0",
+            "action": "insert_termlens_0",
             "context": "editor"
         },
-        "termview_insert_1": {
-            "category": "TermView Insertion",
-            "description": "Insert TermView Term [1] (or [11] if double-tap)",
+        "termlens_insert_1": {
+            "category": "TermLens Insertion",
+            "description": "Insert TermLens Term [1] (or [11] if double-tap)",
             "default": "Alt+1",
-            "action": "insert_termview_1",
+            "action": "insert_termlens_1",
             "context": "editor"
         },
-        "termview_insert_2": {
-            "category": "TermView Insertion",
-            "description": "Insert TermView Term [2] (or [22] if double-tap)",
+        "termlens_insert_2": {
+            "category": "TermLens Insertion",
+            "description": "Insert TermLens Term [2] (or [22] if double-tap)",
             "default": "Alt+2",
-            "action": "insert_termview_2",
+            "action": "insert_termlens_2",
             "context": "editor"
         },
-        "termview_insert_3": {
-            "category": "TermView Insertion",
-            "description": "Insert TermView Term [3] (or [33] if double-tap)",
+        "termlens_insert_3": {
+            "category": "TermLens Insertion",
+            "description": "Insert TermLens Term [3] (or [33] if double-tap)",
             "default": "Alt+3",
-            "action": "insert_termview_3",
+            "action": "insert_termlens_3",
             "context": "editor"
         },
-        "termview_insert_4": {
-            "category": "TermView Insertion",
-            "description": "Insert TermView Term [4] (or [44] if double-tap)",
+        "termlens_insert_4": {
+            "category": "TermLens Insertion",
+            "description": "Insert TermLens Term [4] (or [44] if double-tap)",
             "default": "Alt+4",
-            "action": "insert_termview_4",
+            "action": "insert_termlens_4",
             "context": "editor"
         },
-        "termview_insert_5": {
-            "category": "TermView Insertion",
-            "description": "Insert TermView Term [5] (or [55] if double-tap)",
+        "termlens_insert_5": {
+            "category": "TermLens Insertion",
+            "description": "Insert TermLens Term [5] (or [55] if double-tap)",
             "default": "Alt+5",
-            "action": "insert_termview_5",
+            "action": "insert_termlens_5",
             "context": "editor"
         },
-        "termview_insert_6": {
-            "category": "TermView Insertion",
-            "description": "Insert TermView Term [6] (or [66] if double-tap)",
+        "termlens_insert_6": {
+            "category": "TermLens Insertion",
+            "description": "Insert TermLens Term [6] (or [66] if double-tap)",
             "default": "Alt+6",
-            "action": "insert_termview_6",
+            "action": "insert_termlens_6",
             "context": "editor"
         },
-        "termview_insert_7": {
-            "category": "TermView Insertion",
-            "description": "Insert TermView Term [7] (or [77] if double-tap)",
+        "termlens_insert_7": {
+            "category": "TermLens Insertion",
+            "description": "Insert TermLens Term [7] (or [77] if double-tap)",
             "default": "Alt+7",
-            "action": "insert_termview_7",
+            "action": "insert_termlens_7",
             "context": "editor"
         },
-        "termview_insert_8": {
-            "category": "TermView Insertion",
-            "description": "Insert TermView Term [8] (or [88] if double-tap)",
+        "termlens_insert_8": {
+            "category": "TermLens Insertion",
+            "description": "Insert TermLens Term [8] (or [88] if double-tap)",
             "default": "Alt+8",
-            "action": "insert_termview_8",
+            "action": "insert_termlens_8",
             "context": "editor"
         },
-        "termview_insert_9": {
-            "category": "TermView Insertion",
-            "description": "Insert TermView Term [9] (or [99] if double-tap)",
+        "termlens_insert_9": {
+            "category": "TermLens Insertion",
+            "description": "Insert TermLens Term [9] (or [99] if double-tap)",
             "default": "Alt+9",
-            "action": "insert_termview_9",
+            "action": "insert_termlens_9",
             "context": "editor"
         },
         
@@ -668,7 +668,27 @@ class ShortcutManager:
                 print(f"Error loading shortcuts: {e}")
                 self.custom_shortcuts = {}
                 self.disabled_shortcuts = set()
-    
+
+        # Migrate termview_insert_* → termlens_insert_* (v1.9.347+)
+        migrated = {}
+        needs_save = False
+        for key, val in self.custom_shortcuts.items():
+            if key.startswith('termview_insert_'):
+                migrated[key.replace('termview_insert_', 'termlens_insert_')] = val
+                needs_save = True
+            else:
+                migrated[key] = val
+        if needs_save:
+            self.custom_shortcuts = migrated
+            old_disabled = set()
+            for d in self.disabled_shortcuts:
+                if d.startswith('termview_insert_'):
+                    old_disabled.add(d.replace('termview_insert_', 'termlens_insert_'))
+                else:
+                    old_disabled.add(d)
+            self.disabled_shortcuts = old_disabled
+            self.save_shortcuts()
+
     def save_shortcuts(self):
         """Save custom shortcuts to file"""
         try:

@@ -1,5 +1,5 @@
 """
-Termview Widget - RYS-style Inline Terminology Display
+TermLens Widget - RYS-style Inline Terminology Display
 
 Displays source text with termbase translations shown directly underneath each word/phrase.
 Inspired by the RYS Trados plugin's inline term visualization.
@@ -293,7 +293,7 @@ class TermBlock(QWidget):
             # Build tooltip with shortcut hint if applicable
             if self.shortcut_number is not None and self.shortcut_number <= 19:
                 # Alt+0 (and Alt+0,0) are reserved for the Compare Panel.
-                # Do not advertise or display these shortcuts in TermView.
+                # Do not advertise or display these shortcuts in TermLens.
                 if self.shortcut_number in (0, 10):
                     shortcut_hint = ""
                 elif self.shortcut_number <= 9:
@@ -336,7 +336,7 @@ class TermBlock(QWidget):
             # Add shortcut number badge if assigned (0-9 for first 10, 00/11/22/.../99 for 11-20)
             if self.shortcut_number is not None and self.shortcut_number < 20:
                 # Alt+0 (and Alt+0,0) are reserved for the Compare Panel.
-                # Hide the corresponding TermView badges (0 and 00).
+                # Hide the corresponding TermLens badges (0 and 00).
                 if self.shortcut_number in (0, 10):
                     layout.addWidget(target_container)
                     
@@ -535,8 +535,8 @@ class NTBlock(QWidget):
         self.nt_clicked.emit(self.source_text)
 
 
-class TermviewWidget(QWidget):
-    """Main Termview widget showing inline terminology for current segment"""
+class TermLensWidget(QWidget):
+    """Main TermLens widget showing inline terminology for current segment"""
     
     term_insert_requested = pyqtSignal(str)  # Emits target text to insert
     edit_entry_requested = pyqtSignal(int, int)  # term_id, termbase_id
@@ -687,7 +687,7 @@ class TermviewWidget(QWidget):
                 )
     
     def set_font_settings(self, font_family: str = "Segoe UI", font_size: int = 10, bold: bool = False):
-        """Update font settings for Termview
+        """Update font settings for TermLens
         
         Args:
             font_family: Font family name
@@ -744,7 +744,7 @@ class TermviewWidget(QWidget):
     
     def update_with_matches(self, source_text: str, termbase_matches: List[Dict], nt_matches: List[Dict] = None, status_hint: str = None):
         """
-        Update the termview display with pre-computed termbase and NT matches
+        Update the TermLens display with pre-computed termbase and NT matches
 
         RYS-STYLE DISPLAY: Show source text as tokens with translations underneath
 
@@ -767,7 +767,7 @@ class TermviewWidget(QWidget):
             self.info_label.setText("No segment selected")
             return
 
-        # Strip HTML/XML tags from source text for display in TermView
+        # Strip HTML/XML tags from source text for display in TermLens
         # This handles CAT tool tags like <b>, </b>, <i>, </i>, <u>, </u>, <bi>, <sub>, <sup>, <li-o>, <li-b>
         # as well as memoQ tags {1}, [2}, {3], Trados tags <1>, </1>, and Déjà Vu tags {00001}
         display_text = re.sub(r'</?(?:b|i|u|bi|sub|sup|li-[ob]|\d+)/?>', '', source_text)  # HTML/XML tags
@@ -894,7 +894,7 @@ class TermviewWidget(QWidget):
                 translations = matches_dict.get(lookup_key, [])
                 
                 # Assign shortcut number only to first occurrence of each term with translations.
-                # TermView numbering starts at 1 (Alt+1..Alt+9), because Alt+0 is reserved for the Compare Panel.
+                # TermLens numbering starts at 1 (Alt+1..Alt+9), because Alt+0 is reserved for the Compare Panel.
                 # After 1-9, we support 11-99 via double-tap Alt+N,N (internally 11-19).
                 shortcut_num = None
                 if translations and lookup_key not in assigned_shortcuts:
@@ -1253,23 +1253,23 @@ class TermviewWidget(QWidget):
     
     def on_term_insert_requested(self, source_term: str, target_term: str):
         """Handle request to insert a translation"""
-        self.log(f"💡 Termview: Inserting '{target_term}' for '{source_term}'")
+        self.log(f"💡 TermLens: Inserting '{target_term}' for '{source_term}'")
         self.term_insert_requested.emit(target_term)
     
     def _on_edit_entry_requested(self, term_id: int, termbase_id: int):
         """Forward edit request to parent (main application)"""
-        self.log(f"✏️ Termview: Edit requested for term_id={term_id}, termbase_id={termbase_id}")
+        self.log(f"✏️ TermLens: Edit requested for term_id={term_id}, termbase_id={termbase_id}")
         self.edit_entry_requested.emit(term_id, termbase_id)
     
     def _on_delete_entry_requested(self, term_id: int, termbase_id: int, source_term: str, target_term: str):
         """Forward delete request to parent (main application)"""
-        self.log(f"🗑️ Termview: Delete requested for term_id={term_id}, termbase_id={termbase_id}")
+        self.log(f"🗑️ TermLens: Delete requested for term_id={term_id}, termbase_id={termbase_id}")
         self.delete_entry_requested.emit(term_id, termbase_id, source_term, target_term)
     
     def insert_term_by_number(self, number: int) -> bool:
         """Insert term by shortcut number.
 
-        TermView numbering starts at 1:
+        TermLens numbering starts at 1:
         - Alt+1..Alt+9 insert 1..9
         - Double-tap Alt+N,N inserts 11..99 (internally 11..19)
         
@@ -1286,7 +1286,7 @@ class TermviewWidget(QWidget):
                 badge = str(number)
             else:
                 badge = str(number - 10) * 2  # "00", "11", etc.
-            self.log(f"💡 Termview: Inserting term [{badge}]: '{target_text}'")
+            self.log(f"💡 TermLens: Inserting term [{badge}]: '{target_text}'")
             self.term_insert_requested.emit(target_text)
             return True
         return False

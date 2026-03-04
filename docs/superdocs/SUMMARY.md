@@ -52,6 +52,7 @@
 * [Creating Glossaries](glossaries/creating.md)
 * [Importing Terms](glossaries/importing.md)
 * [Term Highlighting](glossaries/highlighting.md)
+* [TermLens (Inline Terminology)](glossaries/termlens.md)
 * [Term Extraction](glossaries/extraction.md)
 
 ## 📥 Import & Export

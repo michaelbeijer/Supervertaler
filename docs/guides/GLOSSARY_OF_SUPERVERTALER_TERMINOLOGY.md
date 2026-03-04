@@ -39,7 +39,7 @@
 - Compare box: with fields "current source", "TM source" and "TM target"
 - Preview: the document preview
 - Project editor, Project grid, Grid
-- Termview: shows glosary matches in same layout as source text
+- TermLens: shows glossary matches in same layout as source text (formerly "TermView")
 - Translation results panel, Results panel (change to: Match panel?)
 - focus border: the blue line around the selected target box
 - TM Info
