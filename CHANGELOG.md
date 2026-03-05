@@ -2,8 +2,17 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.347 (March 5, 2026)
+**Current Version:** v1.9.348 (March 5, 2026)
 
+
+## v1.9.348 - March 5, 2026
+
+### Bug Fixes
+
+- **Fixed AI prompt generation failure** — The "Analyze project and generate prompts" feature was failing because the LLM had to produce thousands of words of prompt content inside a JSON string, requiring perfect escaping of all quotes and newlines. Switched from fragile ACTION JSON format to delimiter-based output (`===PROMPT_START===` / `===PROMPT_END===`), with the prompt created programmatically from the extracted content. Includes ACTION block fallback for robustness.
+- **Fixed chat line break rendering** — Phase status lines in the AI assistant chat now display on separate lines instead of running together.
+
+---
 
 ## v1.9.347 - March 5, 2026
 

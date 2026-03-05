@@ -259,7 +259,7 @@ class ChatMessageDelegate(QStyledItemDelegate):
                     html_lines.append('</ul>')
                     in_list = False
                 if stripped:
-                    html_lines.append(line)
+                    html_lines.append(line + '<br/>')
                 else:
                     html_lines.append('<br/>')
 
@@ -4283,16 +4283,17 @@ Analyze the document content above and write a 3-8 sentence PROJECT CONTEXT sect
 This section is marked "FOR MODEL UNDERSTANDING ONLY — DO NOT OUTPUT" in the final prompt.
 
 === OUTPUT INSTRUCTIONS ===
-1. Output EXACTLY ONE ACTION block in the format below
-2. The prompt content must be ready to use — NO placeholders like [Translation] or [Source Language]
-3. Use actual values: {source_lang} and {target_lang}
-4. Include ALL termbase terms in the glossary (do not summarize or sample)
-5. The prompt should be comprehensive (2000-5000 words)
+1. The prompt content must be ready to use — NO placeholders like [Translation] or [Source Language]
+2. Use actual values: {source_lang} and {target_lang}
+3. Include ALL termbase terms in the glossary (do not summarize or sample)
+4. The prompt should be comprehensive (2000-5000 words)
+5. Output the prompt content between the delimiters shown below — NOTHING else
 
-EXACT FORMAT:
-ACTION:create_prompt PARAMS:{{"name": "{detected_domain.title()} Translation {source_lang}-{target_lang}", "content": "Your full prompt content here", "folder": "Project Prompts", "description": "Comprehensive {detected_domain} domain prompt with {term_count} glossary terms, anti-truncation controls, and self-verification", "activate": true}}
+===PROMPT_START===
+(Your full prompt content here — plain text, no JSON escaping needed)
+===PROMPT_END===
 
-Output ONLY the ACTION block — no text before or after it."""
+Output ONLY the delimiters and prompt content. No text before ===PROMPT_START=== or after ===PROMPT_END===."""
 
         return prompt
 
@@ -4838,8 +4839,16 @@ Output ONLY the ACTION block — no text before or after it."""
                 from PyQt6.QtWidgets import QApplication
                 QApplication.processEvents()
 
-            # System prompt that explains the ACTION format to the AI
-            ai_system_prompt = """You are an AI assistant for Supervertaler, a professional translation workbench.
+            # Choose system prompt based on request type
+            if is_analysis:
+                ai_system_prompt = (
+                    "You are a prompt engineering specialist for professional translation. "
+                    "Generate the requested translation prompt and wrap it in "
+                    "===PROMPT_START=== and ===PROMPT_END=== delimiters. "
+                    "Output ONLY the delimiters and prompt content, nothing else."
+                )
+            else:
+                ai_system_prompt = """You are an AI assistant for Supervertaler, a professional translation workbench.
 
 You can execute actions using a special format. When you need to create, modify, or manage prompts, output ACTION blocks in this EXACT format:
 
@@ -4859,7 +4868,6 @@ IMPORTANT:
 4. Do not wrap in code fences or add any markdown formatting"""
 
             # Call LLM using translate method with custom prompt
-            # The translate method accepts a custom_prompt parameter that we can use for any text generation
             self.log_message("[AI Assistant] Calling LLM translate method...")
             response = self.llm_client.translate(
                 text="",  # Empty text since we're using custom_prompt
@@ -4879,38 +4887,42 @@ IMPORTANT:
 
             # Check if we got a valid response
             if response and response.strip():
-                self.log_message("[AI Assistant] Processing response with action system...")
-                # Parse and execute actions (Phase 2)
-                cleaned_response, action_results = self.ai_action_system.parse_and_execute(response)
-
-                self.log_message(f"[AI Assistant] Cleaned response: {len(cleaned_response)} characters")
-                self.log_message(f"[AI Assistant] Actions executed: {len(action_results)}")
-
-                # Add the cleaned response (without ACTION blocks) - only if non-empty
-                if cleaned_response and cleaned_response.strip():
-                    self._add_chat_message("assistant", cleaned_response)
-
-                # If actions were executed, show results
-                if action_results:
-                    formatted_results = self.ai_action_system.format_action_results(action_results)
-                    self._add_chat_message("system", formatted_results)
+                # For analysis requests, parse delimiter-based output instead of ACTION blocks
+                if is_analysis:
+                    self._handle_analysis_response(response)
                 else:
-                    # No actions found - show warning with first 500 chars of response for debugging
-                    if not (cleaned_response and cleaned_response.strip()):
-                        self.log_message(f"[AI Assistant] ⚠ No actions found in response. First 500 chars: {response[:500]}")
-                        self._add_chat_message("system", "⚠ AI responded but no actions were found. Check logs for details.")
+                    self.log_message("[AI Assistant] Processing response with action system...")
+                    # Parse and execute actions (Phase 2)
+                    cleaned_response, action_results = self.ai_action_system.parse_and_execute(response)
 
-                # Reload prompt library if any prompts were modified
-                if action_results and any(r['action'] in ['create_prompt', 'update_prompt', 'delete_prompt', 'activate_prompt']
-                           for r in action_results if r['success']):
-                        self.log_message("[AI Assistant] Reloading prompt library due to prompt modifications...")
-                        self.library.load_all_prompts()
-                        # Refresh tree widget if it exists
-                        if hasattr(self, 'tree_widget') and self.tree_widget:
-                            self._refresh_tree()
-                        # Refresh active prompt display
-                        if hasattr(self, '_update_active_prompt_display'):
-                            self._update_active_prompt_display()
+                    self.log_message(f"[AI Assistant] Cleaned response: {len(cleaned_response)} characters")
+                    self.log_message(f"[AI Assistant] Actions executed: {len(action_results)}")
+
+                    # Add the cleaned response (without ACTION blocks) - only if non-empty
+                    if cleaned_response and cleaned_response.strip():
+                        self._add_chat_message("assistant", cleaned_response)
+
+                    # If actions were executed, show results
+                    if action_results:
+                        formatted_results = self.ai_action_system.format_action_results(action_results)
+                        self._add_chat_message("system", formatted_results)
+                    else:
+                        # No actions found - show warning with first 500 chars of response for debugging
+                        if not (cleaned_response and cleaned_response.strip()):
+                            self.log_message(f"[AI Assistant] ⚠ No actions found in response. First 500 chars: {response[:500]}")
+                            self._add_chat_message("system", "⚠ AI responded but no actions were found. Check logs for details.")
+
+                    # Reload prompt library if any prompts were modified
+                    if action_results and any(r['action'] in ['create_prompt', 'update_prompt', 'delete_prompt', 'activate_prompt']
+                               for r in action_results if r['success']):
+                            self.log_message("[AI Assistant] Reloading prompt library due to prompt modifications...")
+                            self.library.load_all_prompts()
+                            # Refresh tree widget if it exists
+                            if hasattr(self, 'tree_widget') and self.tree_widget:
+                                self._refresh_tree()
+                            # Refresh active prompt display
+                            if hasattr(self, '_update_active_prompt_display'):
+                                self._update_active_prompt_display()
 
                 self.log_message("[AI Assistant] ✓ Request completed successfully")
             else:
@@ -4935,6 +4947,104 @@ IMPORTANT:
                 f"⚠ Error communicating with AI: {str(e)}\n\nCheck the log for details."
             )
     
+    def _handle_analysis_response(self, response: str):
+        """Handle delimiter-based response from analysis prompt generation.
+
+        Parses ===PROMPT_START=== / ===PROMPT_END=== delimiters and creates the prompt
+        programmatically, avoiding fragile JSON-in-ACTION parsing.
+        """
+        START_DELIM = "===PROMPT_START==="
+        END_DELIM = "===PROMPT_END==="
+
+        start_idx = response.find(START_DELIM)
+        end_idx = response.find(END_DELIM)
+
+        if start_idx == -1 or end_idx == -1 or end_idx <= start_idx:
+            # Fallback: try ACTION block parsing in case LLM ignored delimiter instructions
+            self.log_message("[AI Assistant] No delimiters found, trying ACTION block fallback...")
+            cleaned_response, action_results = self.ai_action_system.parse_and_execute(response)
+            if action_results:
+                formatted_results = self.ai_action_system.format_action_results(action_results)
+                self._add_chat_message("system", formatted_results)
+                self._post_prompt_creation_refresh(action_results)
+            else:
+                # Last resort: treat the entire response as prompt content
+                self.log_message("[AI Assistant] No delimiters or ACTION blocks found — using full response as prompt")
+                self._create_prompt_from_content(response.strip())
+            return
+
+        # Extract content between delimiters
+        prompt_content = response[start_idx + len(START_DELIM):end_idx].strip()
+
+        if not prompt_content:
+            self._add_chat_message("system", "⚠ AI returned empty prompt content. Please try again.")
+            return
+
+        self.log_message(f"[AI Assistant] Extracted prompt content: {len(prompt_content)} characters")
+        self._create_prompt_from_content(prompt_content)
+
+    def _create_prompt_from_content(self, content: str):
+        """Create a prompt in the library from raw content string."""
+        # Determine prompt name from project context
+        source_lang = "Source"
+        target_lang = "Target"
+        detected_domain = "general"
+
+        if hasattr(self.parent_app, 'current_project') and self.parent_app.current_project:
+            project = self.parent_app.current_project
+            if hasattr(project, 'source_lang') and project.source_lang:
+                source_lang = _resolve_lang_name(project.source_lang)
+            elif hasattr(project, 'source_language') and project.source_language:
+                source_lang = _resolve_lang_name(project.source_language)
+            if hasattr(project, 'target_lang') and project.target_lang:
+                target_lang = _resolve_lang_name(project.target_lang)
+            elif hasattr(project, 'target_language') and project.target_language:
+                target_lang = _resolve_lang_name(project.target_language)
+
+        # Try to detect domain from first few lines of content
+        content_lower = content[:500].lower()
+        for domain in ['patent', 'legal', 'medical', 'technical', 'financial', 'marketing']:
+            if domain in content_lower:
+                detected_domain = domain
+                break
+
+        prompt_name = f"{detected_domain.title()} Translation {source_lang}-{target_lang}"
+
+        # Use the ai_action_system to create the prompt (reuses existing save/activate logic)
+        params = {
+            'name': prompt_name,
+            'content': content,
+            'folder': 'Project Prompts',
+            'description': f"AI-generated {detected_domain} domain prompt with anti-truncation controls and self-verification",
+            'activate': True,
+        }
+
+        try:
+            result = self.ai_action_system._action_create_prompt(params)
+            if result.get('success'):
+                self._add_chat_message("system", f"✅ {result['message']}")
+                # Refresh library
+                self.library.load_all_prompts()
+                if hasattr(self, 'tree_widget') and self.tree_widget:
+                    self._refresh_tree()
+                if hasattr(self, '_update_active_prompt_display'):
+                    self._update_active_prompt_display()
+            else:
+                self._add_chat_message("system", f"⚠ Failed to create prompt: {result.get('message', 'Unknown error')}")
+        except Exception as e:
+            self.log_message(f"[AI Assistant] ❌ Failed to create prompt: {e}")
+            self._add_chat_message("system", f"⚠ Failed to create prompt: {e}")
+
+    def _post_prompt_creation_refresh(self, action_results):
+        """Refresh UI after prompt creation via ACTION blocks."""
+        if any(r['action'] in ['create_prompt', 'update_prompt', 'delete_prompt', 'activate_prompt']
+               for r in action_results if r.get('success')):
+            self.library.load_all_prompts()
+            if hasattr(self, 'tree_widget') and self.tree_widget:
+                self._refresh_tree()
+            if hasattr(self, '_update_active_prompt_display'):
+                self._update_active_prompt_display()
+
     def _reload_chat_display(self):
         """Reload chat display from history"""
         if not hasattr(self, 'chat_display'):
