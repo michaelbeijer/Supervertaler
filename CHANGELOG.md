@@ -2,8 +2,16 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.346 (March 4, 2026)
+**Current Version:** v1.9.347 (March 5, 2026)
 
+
+## v1.9.347 - March 5, 2026
+
+### Improvements
+
+- **Expert-level AI prompt generation** — The "Analyze project and generate prompts" feature now produces dramatically better translation prompts. The system pre-analyzes documents with `DocumentAnalyzer` to detect domain (patent, legal, medical, technical, financial, marketing), then selects a domain-specific template with tailored rules, mandatory sections, and constraint language. Generated prompts now include: translation mandate (NON-NEGOTIABLE), anti-hallucination/anti-truncation controls, terminology consistency hierarchy, preflight self-check, post-translation integrity assertion, project context summaries, and strong constraint language (LOCKED, ABSOLUTE). Termbase extraction upgraded from 20-50 terms to all terms (up to 500). TM reference pairs upgraded from 10 truncated entries to 30 full-text style anchors.
+
+---
 
 ## v1.9.346 - March 4, 2026
 

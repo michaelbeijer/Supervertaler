@@ -30,6 +30,7 @@ from modules.ai_attachment_manager import AttachmentManager
 from modules.ai_file_viewer_dialog import FileViewerDialog, FileRemoveConfirmDialog
 from modules.ai_actions import AIActionSystem
 from modules.shortcut_display import format_shortcut_for_display
+from modules.document_analyzer import DocumentAnalyzer
 
 
 # Language code → full name mapping (matches Supervertaler.py available_langs)
@@ -539,6 +540,280 @@ class ChatMessageDelegate(QStyledItemDelegate):
         ctx = QAbstractTextDocumentLayout.PaintContext()
         doc.documentLayout().draw(painter, ctx)
         painter.restore()
+
+
+# Domain-specific templates for AI prompt generation
+# Each domain defines the role, rules, mandatory sections, and special instructions
+# that the LLM must include when generating a translation prompt for that domain.
+DOMAIN_TEMPLATES = {
+    'patent': {
+        'role': (
+            'Senior patent translator specializing in intellectual property, '
+            'patent prosecution, and technical patent documentation. '
+            'Deep expertise in EPO/PCT filings, claim drafting conventions, '
+            'and mechanical/electromechanical/chemical patent terminology.'
+        ),
+        'rules': [
+            'Translate claims exactly, preserving dependency chains (independent/dependent claim relationships)',
+            'Maintain patent-specific open-ended language: "comprising" (open-ended, from "omvattende"), never "consisting of" unless source explicitly uses limiting language',
+            'Preserve all reference numerals, figure references (Fig. 1, Figure 2A), and part numbers exactly as written',
+            'Never paraphrase, simplify, or improve source text — patents require exact semantic equivalence',
+            'Preserve formal patent register: "wherein", "thereof", "hereinafter", "person skilled in the art"',
+            'Maintain claim numbering, cross-references, and dependency structure without alteration',
+            'Use gerund constructions naturally: "An example is replacing..." NOT "An example is the replacing of..."',
+            'Preserve all prior art document references verbatim (e.g., US 20130183090, EP 2923344)',
+            'Maintain the hierarchical structure: TECHNICAL FIELD > PRIOR ART > SUMMARY > DRAWINGS > DETAILED DESCRIPTION > CLAIMS > ABSTRACT',
+            'When source is long, repetitive, or awkward, reproduce it faithfully — every word in a patent is legally operative',
+        ],
+        'sections': [
+            'ROLE (senior patent translator with specific expertise areas)',
+            'SCOPE OF APPLICATION (project context: invention type, technology field, patent number if known)',
+            'TRANSLATION MANDATE (NON-NEGOTIABLE) — pure translation only, explicitly forbid improvement, simplification, harmonization, correction, streamlining',
+            'HARD CONSTRAINT: NO HALLUCINATED TRUNCATION — never omit repetitive phrases, collapse clauses, shorten lists, simplify enumerations, or "fix" grammar',
+            'CORE EXECUTION PRINCIPLES — with ABSOLUTE REQUIREMENTS (checkmarks) and ABSOLUTE PROHIBITIONS (crosses)',
+            'SUPERVERTALER INPUT HANDLING — translate only provided segment, preserve exact order, do not rely on unseen context',
+            'TRANSLATION STYLE (LOCKED) — mandatory term mappings (omvattende>comprising, waarbij>wherein, met het kenmerk dat>characterized in that, conclusie>claim, stand der techniek>prior art, uitvoeringsvorm>embodiment, bij voorkeur>preferably, inrichting>device, werkwijze>method)',
+            'CLAIM TRANSLATION STYLE — preserve dependency structure, maintain "according to any one of the preceding claims" phrasing, avoid stylistic smoothing',
+            'GERUND STYLE RULE — prefer natural English gerund over "the [verb]ing of" construction',
+            'TERMINOLOGY CONSISTENCY HIERARCHY — (1) Previous correct translations, (2) Project-specific glossary, (3) General mandatory mappings',
+            'TECHNICAL AND MECHANICAL FORMATTING RULES — dimensions, figure refs, prior art numbers, sensor designations, standard abbreviations',
+            'PREFLIGHT SELF-CHECK (MANDATORY) — verify every word translated, no compression, all values intact, all references intact, no claim restructuring',
+            'POST-TRANSLATION INTEGRITY ASSERTION (MANDATORY) — assert completeness, literalness, structural faithfulness',
+            'PROJECT CONTEXT (for model understanding only — do not output) — comprehensive invention description',
+            'PROJECT-SPECIFIC GLOSSARY (MANDATORY, LOCKED) — all terms organized by category',
+            'PREVIOUS CORRECT TRANSLATIONS — validated TM pairs as style anchors',
+            'OUTPUT FORMAT — translation only, preserve line breaks, no markdown, no commentary, UTF-8',
+        ],
+        'special': (
+            'Patent translation demands ABSOLUTE fidelity. Every word, repetition, structure, '
+            'dimension, and cross-reference is legally operative. Deviation from literal structure '
+            'constitutes a critical error. If the Dutch text is long, repetitive, or awkward, '
+            'reproduce it faithfully in English.'
+        ),
+    },
+    'legal': {
+        'role': (
+            'Senior legal translator specializing in comparative law, contract law, '
+            'corporate law, and cross-jurisdictional legal translation. '
+            'Deep expertise in civil law and common law systems, notarial acts, and regulatory texts.'
+        ),
+        'rules': [
+            'Maintain exact legal terminology — never substitute informal equivalents',
+            'Preserve legal entity types and abbreviations (BV, NV, GmbH, Ltd, Inc., SA, SARL) without translation',
+            'Maintain "Meester" + surname format for Belgian/Dutch notaries',
+            'Preserve statutory references, article numbers, and legal citations exactly as written',
+            'Maintain formal legal register: "hereby", "pursuant to", "notwithstanding", "whereas"',
+            'Preserve all dates, deadlines, and procedural time limits without alteration',
+            'Distinguish between common law and civil law terminology as appropriate for the target jurisdiction',
+            'Preserve Latin legal terms (bona fide, inter alia, prima facie) unless target convention replaces them',
+            'Never translate proper names of laws, statutes, or regulations — retain original with optional translation in parentheses',
+            'Maintain contractual numbering, clause references, and article structure exactly',
+        ],
+        'sections': [
+            'ROLE (senior legal translator with jurisdiction expertise)',
+            'LEGAL FRAMEWORK (jurisdiction, legal system type, document type)',
+            'TRANSLATION MANDATE (NON-NEGOTIABLE) — faithful legal translation, no interpretation or simplification',
+            'HARD CONSTRAINT: NO HALLUCINATED TRUNCATION — every clause, proviso, and exception is legally operative',
+            'CORE EXECUTION PRINCIPLES — absolute requirements and prohibitions',
+            'LEGAL REGISTER REQUIREMENTS — formality, precision, no colloquial language',
+            'LEGAL ENTITY AND TITLE HANDLING — preservation rules for entities, titles, proper names',
+            'STATUTORY REFERENCE PRESERVATION — article numbers, law names, citations',
+            'TERMINOLOGY CONSISTENCY HIERARCHY — (1) Previous correct translations, (2) Project glossary, (3) Domain conventions',
+            'NUMBER, DATE & LOCALISATION RULES — date formats, currency, number formatting',
+            'PREFLIGHT SELF-CHECK (MANDATORY)',
+            'PROJECT CONTEXT — document type, parties, jurisdiction, subject matter',
+            'PROJECT-SPECIFIC GLOSSARY (MANDATORY, LOCKED)',
+            'PREVIOUS CORRECT TRANSLATIONS',
+            'OUTPUT FORMAT',
+        ],
+        'special': (
+            'Legal translation demands EXACT fidelity. Every clause, proviso, condition, '
+            'and exception carries legal weight. Never simplify, merge, or "improve" legal drafting. '
+            'Ambiguity in the source must be preserved as ambiguity in the target.'
+        ),
+    },
+    'medical': {
+        'role': (
+            'Senior medical translator specializing in clinical documentation, '
+            'pharmaceutical texts, regulatory submissions, and medical device documentation. '
+            'Deep expertise in pharmacology, clinical trials, and medical terminology standards.'
+        ),
+        'rules': [
+            'Use INN (International Nonproprietary Names) for drug names unless source uses brand names',
+            'Preserve all dosages, measurements, and units exactly (mg, ml, IU, mmol/L)',
+            'Maintain ICD codes, ATC codes, and clinical classification numbers verbatim',
+            'Never alter, omit, or simplify safety warnings, contraindications, or adverse effects',
+            'Use target-language anatomical nomenclature (Terminologia Anatomica standard)',
+            'Preserve all clinical trial identifiers, study numbers, and regulatory references',
+            'Maintain distinction between generic and brand drug names as used in source',
+            'Preserve all statistical values, confidence intervals, and p-values exactly',
+        ],
+        'sections': [
+            'ROLE (senior medical translator with clinical and regulatory expertise)',
+            'CLINICAL CONTEXT (document type, therapeutic area, regulatory framework)',
+            'TRANSLATION MANDATE (NON-NEGOTIABLE) — patient safety paramount, faithful translation',
+            'HARD CONSTRAINT: NO HALLUCINATED TRUNCATION — every dosage, warning, and specification is safety-critical',
+            'CORE EXECUTION PRINCIPLES — absolute requirements and prohibitions',
+            'PHARMACOLOGICAL TERM HANDLING — drug names, dosages, routes of administration',
+            'ANATOMICAL NOMENCLATURE RULES — standardized anatomical terminology',
+            'DOSAGE AND MEASUREMENT PRESERVATION — exact reproduction of all numerical medical data',
+            'SAFETY-CRITICAL CONTENT RULES — warnings, contraindications, adverse effects must be complete',
+            'TERMINOLOGY CONSISTENCY HIERARCHY',
+            'PREFLIGHT SELF-CHECK (SAFETY-FOCUSED) — verify all dosages, warnings, and measurements intact',
+            'PROJECT CONTEXT — document type, therapeutic area, patient population',
+            'PROJECT-SPECIFIC GLOSSARY (MANDATORY, LOCKED)',
+            'PREVIOUS CORRECT TRANSLATIONS',
+            'OUTPUT FORMAT',
+        ],
+        'special': (
+            'Medical translation is SAFETY-CRITICAL. Any error in dosages, warnings, '
+            'contraindications, or drug names could directly harm patients. Double-check all '
+            'numerical values and safety-related content.'
+        ),
+    },
+    'technical': {
+        'role': (
+            'Senior technical translator specializing in engineering documentation, '
+            'IT/software localization, and industrial/manufacturing texts. '
+            'Deep expertise in technical specifications, user documentation, and standards.'
+        ),
+        'rules': [
+            'Preserve all technical specifications, model numbers, and part references exactly',
+            'Maintain consistent terminology for UI elements, menu items, and software terms',
+            'Preserve code snippets, file paths, command syntax, and API names without translation',
+            'Maintain measurement units as specified — do not convert unless explicitly required',
+            'Preserve camelCase, snake_case, and PascalCase identifiers verbatim',
+            'Maintain the distinction between similar technical terms (do not conflate related but distinct concepts)',
+        ],
+        'sections': [
+            'ROLE (senior technical translator with domain expertise)',
+            'TECHNICAL DOMAIN (field, technology, product/system)',
+            'TRANSLATION MANDATE (NON-NEGOTIABLE) — precise technical translation, no interpretation',
+            'HARD CONSTRAINT: NO HALLUCINATED TRUNCATION',
+            'CORE EXECUTION PRINCIPLES — absolute requirements and prohibitions',
+            'TECHNICAL IDENTIFIER HANDLING — product names, API names, code, file paths',
+            'MEASUREMENT AND SPECIFICATION RULES — units, tolerances, dimensions',
+            'UI/SOFTWARE STRING RULES — menu items, button labels, error messages',
+            'TERMINOLOGY CONSISTENCY HIERARCHY',
+            'NUMBER, DATE & LOCALISATION RULES',
+            'PREFLIGHT SELF-CHECK (MANDATORY)',
+            'PROJECT CONTEXT — product/system, technical domain, target audience',
+            'PROJECT-SPECIFIC GLOSSARY (MANDATORY, LOCKED)',
+            'PREVIOUS CORRECT TRANSLATIONS',
+            'OUTPUT FORMAT',
+        ],
+        'special': (
+            'Technical translation requires absolute precision. Never translate product names, '
+            'API names, or technical identifiers. Preserve all formatting in code blocks and '
+            'technical specifications.'
+        ),
+    },
+    'financial': {
+        'role': (
+            'Senior financial translator specializing in banking, investment, audit, '
+            'and regulatory financial documentation. Deep expertise in IFRS/GAAP conventions, '
+            'financial instruments, and regulatory compliance language.'
+        ),
+        'rules': [
+            'Preserve all financial figures, percentages, exchange rates, and calculations exactly',
+            'Use target-market financial terminology (IFRS vs GAAP conventions as appropriate)',
+            'Maintain all regulatory references, compliance language, and risk disclosures verbatim',
+            'Preserve currency codes (EUR, USD, GBP) and financial instrument names',
+            'Never alter or omit risk warnings, disclaimers, or regulatory obligations',
+            'Maintain all table structures, balance sheet formatting, and numerical alignment',
+        ],
+        'sections': [
+            'ROLE (senior financial translator with regulatory expertise)',
+            'FINANCIAL CONTEXT (document type, regulatory framework, jurisdiction)',
+            'TRANSLATION MANDATE (NON-NEGOTIABLE) — faithful financial translation, no interpretation',
+            'HARD CONSTRAINT: NO HALLUCINATED TRUNCATION — every figure and disclaimer is regulatory',
+            'CORE EXECUTION PRINCIPLES — absolute requirements and prohibitions',
+            'FINANCIAL DATA PRESERVATION RULES — figures, percentages, calculations',
+            'REGULATORY AND COMPLIANCE LANGUAGE — risk warnings, disclaimers, obligations',
+            'CURRENCY AND NUMBER FORMAT RULES — currency codes, decimal/thousands separators',
+            'TERMINOLOGY CONSISTENCY HIERARCHY',
+            'PREFLIGHT SELF-CHECK (MANDATORY) — verify all figures, calculations, and disclosures',
+            'PROJECT CONTEXT — document type, financial instrument, jurisdiction',
+            'PROJECT-SPECIFIC GLOSSARY (MANDATORY, LOCKED)',
+            'PREVIOUS CORRECT TRANSLATIONS',
+            'OUTPUT FORMAT',
+        ],
+        'special': (
+            'Financial data integrity is paramount. Any altered figure could constitute a '
+            'regulatory violation. Preserve all numerical data, risk warnings, and compliance '
+            'language with absolute fidelity.'
+        ),
+    },
+    'marketing': {
+        'role': (
+            'Senior marketing and creative translator specializing in brand communication, '
+            'transcreation, and cultural adaptation. Deep expertise in advertising copy, '
+            'digital content, and brand voice preservation.'
+        ),
+        'rules': [
+            'Prioritize cultural resonance and emotional impact over literal accuracy where appropriate',
+            'Adapt slogans, taglines, and CTAs for target market effectiveness',
+            'Maintain brand voice consistency (tone, personality, register) throughout',
+            'Adapt cultural references, humor, and idioms for target audience',
+            'Preserve brand names, product names, and trademarked terms unchanged',
+            'Maintain SEO keyword effectiveness in target language where applicable',
+        ],
+        'sections': [
+            'ROLE (senior marketing translator/transcreator)',
+            'BRAND CONTEXT (brand, audience, campaign, tone of voice)',
+            'CREATIVE MANDATE — cultural adaptation and persuasive effectiveness prioritized',
+            'HARD CONSTRAINT: NO HALLUCINATED TRUNCATION',
+            'BRAND VOICE RULES (LOCKED) — tone, personality, register specifications',
+            'CULTURAL ADAPTATION GUIDELINES — when to adapt vs. preserve',
+            'CALL-TO-ACTION AND TAGLINE RULES — effectiveness over literalness',
+            'TERMINOLOGY CONSISTENCY HIERARCHY',
+            'PREFLIGHT SELF-CHECK (MANDATORY)',
+            'PROJECT CONTEXT — brand, campaign, target audience, key messages',
+            'PROJECT-SPECIFIC GLOSSARY (MANDATORY, LOCKED)',
+            'PREVIOUS CORRECT TRANSLATIONS',
+            'OUTPUT FORMAT',
+        ],
+        'special': (
+            'Marketing translation permits creative freedom — prioritize persuasive effectiveness '
+            'and cultural fit over word-for-word fidelity. However, brand names, product names, '
+            'and trademarked terms must never be altered.'
+        ),
+    },
+    'general': {
+        'role': (
+            'Professional translator with broad expertise across multiple domains, '
+            'strong command of both source and target languages, and deep understanding '
+            'of cultural and register differences.'
+        ),
+        'rules': [
+            'Maintain the tone and register of the source text faithfully',
+            'Preserve all formatting, tags, placeholders, and structural elements exactly',
+            'Ensure terminology consistency throughout the entire document',
+            'Adapt cultural references appropriately for the target audience',
+            'Preserve all numbers, dates, measurements, and special formatting',
+        ],
+        'sections': [
+            'ROLE (professional translator)',
+            'DOCUMENT CONTEXT (type, domain, subject matter)',
+            'TRANSLATION MANDATE (NON-NEGOTIABLE) — faithful translation, no improvement or simplification',
+            'HARD CONSTRAINT: NO HALLUCINATED TRUNCATION',
+            'CORE EXECUTION PRINCIPLES — absolute requirements and prohibitions',
+            'TRANSLATION STYLE RULES — register, tone, formality',
+            'TERMINOLOGY CONSISTENCY HIERARCHY',
+            'NUMBER, DATE & LOCALISATION RULES — appropriate for language pair',
+            'PREFLIGHT SELF-CHECK (MANDATORY)',
+            'PROJECT CONTEXT — document description and subject matter',
+            'PROJECT-SPECIFIC GLOSSARY (MANDATORY, LOCKED)',
+            'PREVIOUS CORRECT TRANSLATIONS',
+            'OUTPUT FORMAT',
+        ],
+        'special': (
+            'Analyze the document to identify the most appropriate domain and apply '
+            'domain-appropriate conventions. When in doubt, prioritize faithfulness to '
+            'the source text over stylistic preferences.'
+        ),
+    },
+}
 
 
 class UnifiedPromptManagerQt:
@@ -3569,28 +3844,57 @@ If the text refers to figures (e.g., 'Figure 1A'), relevant images may be provid
             self.log_message(f"⚠ Failed to load persisted attachments: {e}")
 
     def _analyze_and_generate(self):
-        """Analyze current project and generate prompts"""
+        """Analyze current project and generate a comprehensive domain-specific translation prompt."""
         if not self.llm_client:
             self._add_chat_message(
                 "system",
                 "⚠ AI Assistant not available. Please configure API keys in Settings."
             )
             return
-        
+
         self._add_chat_message(
             "system",
-            "🔍 Analyzing project and generating prompts...\n\n"
-            "Gathering context from:\n"
-            "• Current document\n"
-            "• Translation memories\n"
-            "• Termbases\n"
-            "• Existing prompts"
+            "🔍 Analyzing project and generating prompt...\n\n"
+            "Phase 1: Document analysis (domain, tone, structure)\n"
+            "Phase 2: Gathering terminology and TM data\n"
+            "Phase 3: Building domain-specific prompt template\n"
+            "Phase 4: Sending to AI for prompt generation"
         )
-        
-        # Build context
-        context = self._build_project_context()
 
-        # Get actual project values for pre-filling the template
+        # Phase 1: Document Analysis
+        analysis = self._run_document_analysis()
+        detected_domain = 'general'
+        analysis_summary = ""
+
+        if analysis.get('success'):
+            detected_domain = analysis.get('domain', {}).get('primary', 'general')
+            tone_info = analysis.get('tone', {})
+            stats = analysis.get('statistics', {})
+            structure = analysis.get('structure', {})
+            special = analysis.get('special_elements', {})
+
+            analysis_summary = (
+                f"Domain: {detected_domain} (confidence: {analysis.get('domain', {}).get('primary_confidence', 0):.1f})\n"
+                f"Tone: {tone_info.get('tone', 'neutral')}, Formality: {tone_info.get('formality', 'neutral')}\n"
+                f"Words: {stats.get('total_words', 0):,}, Unique words: {stats.get('unique_words', 0):,}\n"
+                f"Avg segment length: {stats.get('average_words_per_segment', 0):.1f} words\n"
+                f"Structure: {structure.get('list_items', 0)} list items, {structure.get('potential_headings', 0)} headings, "
+                f"{structure.get('figure_references', 0)} figure refs\n"
+                f"Special: {special.get('measurements', 0)} measurements, {special.get('currencies', 0)} currencies, "
+                f"{special.get('dates', 0)} dates"
+            )
+            self.log_message(f"[AI Assistant] Detected domain: {detected_domain}")
+
+        # Phase 2: Gather data
+        context = self._build_project_context()
+        terminology_table, term_count, has_forbidden = self._gather_full_terminology()
+        tm_pairs = self._gather_tm_reference_pairs()
+        self.log_message(f"[AI Assistant] Gathered {term_count} terms, TM pairs ready")
+
+        # Phase 3: Get domain template
+        template = self._get_domain_template(detected_domain)
+
+        # Phase 4: Get language info
         source_lang = "Source Language"
         target_lang = "Target Language"
         segment_count = 0
@@ -3608,77 +3912,21 @@ If the text refers to figures (e.g., 'Figure 1A'), relevant images may be provid
             if hasattr(project, 'segments') and project.segments:
                 segment_count = len(project.segments)
 
-        # Create analysis prompt with pre-filled values
-        analysis_prompt = f"""Create a comprehensive translation prompt for this project and save it using the ACTION system.
+        # Phase 5: Build enhanced meta-prompt and send
+        analysis_prompt = self._build_enhanced_analysis_prompt(
+            context=context,
+            analysis_summary=analysis_summary,
+            detected_domain=detected_domain,
+            template=template,
+            terminology_table=terminology_table,
+            term_count=term_count,
+            has_forbidden=has_forbidden,
+            tm_pairs=tm_pairs,
+            source_lang=source_lang,
+            target_lang=target_lang,
+            segment_count=segment_count,
+        )
 
-PROJECT CONTEXT:
-{context}
-
-**CRITICAL INSTRUCTIONS:**
-1. You MUST output exactly ONE ACTION block in the following format
-2. The JSON MUST be valid and complete
-3. Both "name" and "content" are REQUIRED fields
-4. Use the ACTUAL language pair: {source_lang} → {target_lang} (DO NOT use placeholders like [Source Language])
-5. Fill in ALL terminology with actual translations for {target_lang} (DO NOT leave [Translation] placeholders)
-
-**EXACT FORMAT TO USE:**
-
-ACTION:create_prompt PARAMS:{{"name": "Your Prompt Name Here", "content": "Your full prompt content here", "folder": "Project Prompts", "description": "Auto-generated prompt", "activate": true}}
-
-**EXAMPLE:**
-ACTION:create_prompt PARAMS:{{"name": "Legal Translation EN-NL", "content": "You are an expert legal translator...\\n\\n# TERMINOLOGY\\n| Source | Target |\\n...", "folder": "Project Prompts", "description": "Auto-generated", "activate": true}}
-
-Prompt must include:
-
-# ROLE & EXPERTISE
-You are an expert [domain] translator ({source_lang} → {target_lang}) with 10+ years experience.
-
-# DOCUMENT CONTEXT
-**Type:** [analyze and determine type]
-**Domain:** [analyze and determine domain]
-**Language pair:** {source_lang} → {target_lang}
-**Content:** [brief description based on analysis]
-**Number of segments:** {segment_count}
-
-# KEY TERMINOLOGY
-| {source_lang} | {target_lang} | Notes |
-|----------|----------|-------|
-[Extract 20+ key terms from termbases/document - FILL IN ACTUAL TRANSLATIONS, not placeholders]
-
-# TRANSLATION CONSTRAINTS
-**MUST:**
-- Preserve all tags, markers, and placeholders exactly as in the source
-- Translate strictly one segment per line, preserving segmentation and order
-- Follow the KEY TERMINOLOGY glossary exactly for all mapped terms
-- If a segment is already in the target language, leave it unchanged
-
-**MUST NOT:**
-- Add explanations, comments, footnotes, or translator's notes
-- Modify formatting, tags, numbering, brackets, or spacing
-- Merge or split segments
-
-**CRITICAL:** Based on the language pair ({source_lang} → {target_lang}), include appropriate format localization rules:
-
-### NUMBERS, DATES & LOCALISATION
-- If translating FROM Dutch/French/German/Spanish/Italian TO English: Include number format conversion (comma decimal → period decimal, e.g., 718.592,01 → 718,592.01)
-- If translating FROM English TO Dutch/French/German/Spanish/Italian: Include number format conversion (period decimal → comma decimal)
-- Include date localization rules if relevant (e.g., Dutch month names → English: juni → June)
-- Currency symbols MUST be written directly against the number with NO space (e.g., €4,255 NOT € 4,255; $100 NOT $ 100)
-
-### DOMAIN-SPECIFIC RULES
-- For LEGAL domain (Belgian): Include "Preserve 'Meester' + surname format for Belgian notaries"
-- For LEGAL domain: Include preservation of legal entity abbreviations (e.g., BV, NV, RPR)
-- For MEDICAL domain: Include anatomical term consistency
-- For TECHNICAL domain: Include measurement unit handling
-
-# OUTPUT FORMAT
-Provide ONLY the translation, one segment per line, aligned 1:1 with the source lines.
-
-IMPORTANT: Do NOT use placeholders like [Source Language], [Target Language], or [Translation] in your output. Use the actual values: {source_lang} and {target_lang}.
-
-Output complete ACTION."""
-        
-        # Send to AI (in thread to avoid blocking UI)
         self._send_ai_request(analysis_prompt, is_analysis=True)
     
     def _build_project_context(self) -> str:
@@ -3742,7 +3990,312 @@ Output complete ACTION."""
                 context_parts.append(f"\n**Termbase Entries:**\n{tb_data}")
 
         return "\n".join(context_parts) if context_parts else "No context available"
-    
+
+    # --- Enhanced prompt generation helpers ---
+
+    def _run_document_analysis(self) -> dict:
+        """Run DocumentAnalyzer on current project segments to detect domain, tone, terminology."""
+        try:
+            if not hasattr(self.parent_app, 'current_project') or not self.parent_app.current_project:
+                return {'success': False, 'error': 'No project loaded'}
+            project = self.parent_app.current_project
+            if not hasattr(project, 'segments') or not project.segments:
+                return {'success': False, 'error': 'No segments'}
+            analyzer = DocumentAnalyzer()
+            return analyzer.analyze_segments(project.segments)
+        except Exception as e:
+            self.log_message(f"[AI Assistant] Document analysis failed: {e}")
+            return {'success': False, 'error': str(e)}
+
+    def _gather_full_terminology(self, max_terms: int = 500) -> tuple:
+        """Gather all termbase terms for the current project.
+
+        Returns:
+            (terms_table_str, term_count, has_forbidden_terms)
+        """
+        all_terms = []
+
+        try:
+            # Method 1: AI-inject terms (preferred — respects activation + ai_inject flag)
+            if hasattr(self.parent_app, 'termbase_manager') and self.parent_app.termbase_manager:
+                project_id = None
+                if hasattr(self.parent_app, 'current_project') and self.parent_app.current_project:
+                    project_id = getattr(self.parent_app.current_project, 'id', None)
+                ai_terms = self.parent_app.termbase_manager.get_ai_inject_terms(project_id or 0)
+                if ai_terms:
+                    all_terms.extend(ai_terms)
+
+            # Method 2: Fallback — iterate active termbases directly
+            if not all_terms and hasattr(self.parent_app, 'termbase_manager') and self.parent_app.termbase_manager:
+                project_id = None
+                if hasattr(self.parent_app, 'current_project') and self.parent_app.current_project:
+                    project_id = getattr(self.parent_app.current_project, 'id', None)
+                if project_id:
+                    try:
+                        active_tbs = self.parent_app.termbase_manager.get_active_termbases_for_project(project_id)
+                        for tb in active_tbs:
+                            terms = self.parent_app.termbase_manager.get_terms(tb['id'])
+                            for t in terms:
+                                t['termbase_name'] = tb['name']
+                            all_terms.extend(terms)
+                    except Exception:
+                        pass
+
+            # Method 3: Legacy in-memory termbases
+            if not all_terms and hasattr(self.parent_app, 'termbases') and self.parent_app.termbases:
+                for tb_name, tb in self.parent_app.termbases.items():
+                    if hasattr(tb, 'terms'):
+                        for source, target in tb.terms.items():
+                            all_terms.append({
+                                'source_term': source,
+                                'target_term': target,
+                                'forbidden': False,
+                                'termbase_name': tb_name,
+                            })
+
+            if not all_terms:
+                return ("No termbase terms available.", 0, False)
+
+            # Cap to max_terms
+            if len(all_terms) > max_terms:
+                self.log_message(f"[AI Assistant] Termbase has {len(all_terms)} terms, capping to {max_terms}")
+            all_terms = all_terms[:max_terms]
+
+            # Separate regular and forbidden terms
+            regular = [t for t in all_terms if not t.get('forbidden')]
+            forbidden = [t for t in all_terms if t.get('forbidden')]
+
+            # Build markdown table
+            lines = ["| Source Term | Target Term | Notes |",
+                     "|------------|-------------|-------|"]
+            for t in regular:
+                source = t.get('source_term', '')
+                target = t.get('target_term', '')
+                notes = t.get('notes', '') or t.get('termbase_name', '')
+                if source and target:
+                    lines.append(f"| {source.replace('|', '/')} | {target.replace('|', '/')} | {notes.replace('|', '/')} |")
+
+            result = "\n".join(lines)
+
+            if forbidden:
+                result += "\n\n**FORBIDDEN TERMS (DO NOT USE — these translations are explicitly rejected):**\n"
+                for t in forbidden:
+                    result += f"- {t.get('source_term', '')} -> {t.get('target_term', '')} [FORBIDDEN]\n"
+
+            return (result, len(all_terms), len(forbidden) > 0)
+
+        except Exception as e:
+            self.log_message(f"[AI Assistant] Terminology gathering failed: {e}")
+            return ("Error gathering terminology.", 0, False)
+
+    def _gather_tm_reference_pairs(self, max_pairs: int = 30) -> str:
+        """Gather full TM entry pairs as reference translations for style anchoring.
+
+        Returns markdown-formatted reference pairs (not truncated).
+        """
+        try:
+            if not hasattr(self.parent_app, 'tm_databases') or not self.parent_app.tm_databases:
+                return "No translation memories loaded."
+
+            pairs = []
+            for tm_name, tm_db in self.parent_app.tm_databases.items():
+                if not hasattr(tm_db, 'entries') or not tm_db.entries:
+                    continue
+                entries = list(tm_db.entries.items())
+                if not entries:
+                    continue
+                # Evenly-spaced sampling for variety
+                step = max(1, len(entries) // max_pairs)
+                sampled = entries[::step][:max_pairs]
+                for source, target in sampled:
+                    if source.strip() and target.strip():
+                        pairs.append((source.strip(), target.strip(), tm_name))
+
+            if not pairs:
+                return "Translation memories are empty."
+
+            pairs = pairs[:max_pairs]
+            lines = []
+            for source, target, tm_name in pairs:
+                source_esc = source.replace('|', '/')
+                target_esc = target.replace('|', '/')
+                lines.append(f"{source_esc}\n-> {target_esc}\n")
+
+            return "\n".join(lines)
+
+        except Exception as e:
+            self.log_message(f"[AI Assistant] TM reference gathering failed: {e}")
+            return "Error loading TM reference pairs."
+
+    def _get_domain_template(self, domain: str) -> dict:
+        """Get domain-specific template for prompt generation."""
+        return DOMAIN_TEMPLATES.get(domain, DOMAIN_TEMPLATES['general'])
+
+    def _build_enhanced_analysis_prompt(self, *, context, analysis_summary, detected_domain,
+                                        template, terminology_table, term_count,
+                                        has_forbidden, tm_pairs, source_lang, target_lang,
+                                        segment_count) -> str:
+        """Build the enhanced meta-prompt that instructs the LLM to generate a rich translation prompt."""
+
+        # Build the mandatory sections list
+        sections_instruction = "\n".join(f"  {i+1}. {s}" for i, s in enumerate(template['sections']))
+
+        # Build domain rules
+        domain_rules = "\n".join(f"  - {r}" for r in template['rules'])
+
+        # Terminology section
+        if term_count > 0:
+            terminology_instruction = (
+                f"The project has {term_count} termbase entries. Include ALL of them in a "
+                f"PROJECT-SPECIFIC GLOSSARY (MANDATORY, LOCKED) section, organized by semantic category "
+                f"(e.g., structural terms, electronic terms, process terms, boilerplate terms).\n"
+                f"Mark the glossary as LOCKED and state: 'No substitutions or variants are permitted.'\n"
+            )
+            if has_forbidden:
+                terminology_instruction += (
+                    "Include a FORBIDDEN TERMS section — the model must NEVER use these translations.\n"
+                )
+            terminology_instruction += f"\nTERMBASE DATA:\n{terminology_table}"
+        else:
+            terminology_instruction = (
+                "No termbase entries available. Instruct the model to extract key terms from the "
+                "document content and maintain strict internal consistency. Include a section asking "
+                "the model to build its own glossary from context and apply it uniformly."
+            )
+
+        # TM reference section
+        tm_has_data = ("empty" not in tm_pairs.lower() and "no translation" not in tm_pairs.lower()
+                       and "error" not in tm_pairs.lower())
+        if tm_has_data:
+            tm_instruction = (
+                "Include a PREVIOUS CORRECT TRANSLATIONS section with these validated translation pairs from TM.\n"
+                "These serve as style anchors — the model must match the style, register, and terminology "
+                "patterns visible in these validated translations. State that previous correct translations "
+                "have HIGHEST priority in the terminology consistency hierarchy.\n\n"
+                f"TM REFERENCE PAIRS:\n{tm_pairs}"
+            )
+        else:
+            tm_instruction = (
+                "No TM reference pairs available. Omit the PREVIOUS CORRECT TRANSLATIONS section, but still "
+                "include the TERMINOLOGY CONSISTENCY HIERARCHY with the remaining priority levels."
+            )
+
+        prompt = f"""You are a prompt engineering specialist for professional translation. Your task is to generate
+a comprehensive, expert-level translation prompt and save it using the ACTION system.
+
+This prompt will be used in Supervertaler, a CAT (Computer-Assisted Translation) tool that sends text
+segment by segment. The prompt must account for this segment-by-segment delivery.
+
+=== ANALYSIS RESULTS ===
+DETECTED DOMAIN: {detected_domain.upper()}
+LANGUAGE PAIR: {source_lang} -> {target_lang}
+SEGMENT COUNT: {segment_count}
+
+{analysis_summary}
+
+=== DOMAIN-SPECIFIC ROLE ===
+{template['role']}
+
+=== PROJECT CONTEXT (document content) ===
+{context}
+
+=== PROMPT GENERATION INSTRUCTIONS ===
+
+Generate a COMPREHENSIVE translation prompt (2000-5000 words) that a senior {detected_domain} translator
+would consider authoritative and complete. The prompt must be SPECIFIC to THIS document and domain,
+not generic. Use NON-NEGOTIABLE, LOCKED, and ABSOLUTE language for critical rules.
+
+THE PROMPT MUST CONTAIN THESE SECTIONS (in this order):
+{sections_instruction}
+
+DOMAIN-SPECIFIC RULES TO EMBED IN THE PROMPT:
+{domain_rules}
+
+SPECIAL DOMAIN INSTRUCTIONS:
+{template['special']}
+
+=== UNIVERSAL RULES (embed in EVERY prompt) ===
+
+1. TRANSLATION MANDATE (NON-NEGOTIABLE):
+   "This is a professional translation task. Every word, repetition, structure, and cross-reference
+   in the source is intentional. You must perform PURE TRANSLATION ONLY. You are explicitly forbidden
+   from: improving clarity, simplifying descriptions, harmonizing terminology, correcting perceived
+   drafting issues, streamlining enumerations, removing redundancies. If the source is long, repetitive,
+   or awkward, reproduce it faithfully."
+
+2. HARD CONSTRAINT - NO HALLUCINATED TRUNCATION:
+   "You must assume that every element of the source text is deliberate. You are strictly forbidden from:
+   omitting repetitive phrases, collapsing coordinated or parallel clauses, shortening component lists,
+   simplifying enumerations or method steps, 'fixing' grammar or perceived defects. If uncertain,
+   default to literal surface structure — never interpretation."
+
+3. SUPERVERTALER INPUT HANDLING:
+   "Text is supplied in controlled segments by Supervertaler. You must: translate only the provided
+   segment, preserve exact order, not rely on unseen context, not reconstruct missing structure.
+   If a segment appears incomplete, translate exactly what is provided without comment."
+
+4. TERMINOLOGY CONSISTENCY HIERARCHY:
+   "(1) Previous correct translations from TM (highest priority), (2) Project-specific glossary terms
+   (LOCKED), (3) Domain-specific conventions, (4) General language knowledge. Never mix competing
+   variants once established."
+
+5. PREFLIGHT SELF-CHECK (MANDATORY INTERNAL STEP):
+   "Before producing output, internally verify: every word and clause translated, no compression or
+   optimization occurred, all values/references intact, no restructuring occurred, segment boundaries
+   preserved. If any check fails, revise internally before output."
+
+6. POST-TRANSLATION INTEGRITY ASSERTION (MANDATORY INTERNAL STEP):
+   "Before finalizing output, internally assert: 'This translation is complete, literal, and
+   structurally faithful. No content has been omitted, merged, compressed, inferred, harmonized,
+   corrected, or stylistically optimized.' If this cannot be truthfully asserted, revise internally."
+
+7. Number/date/currency localization rules appropriate for {source_lang} -> {target_lang}:
+   - If translating FROM a European language (Dutch/French/German/etc.) TO English: convert decimal
+     comma to decimal point, convert period thousands separator to comma
+   - If translating FROM English TO a European language: reverse the above
+   - Currency symbols directly against the number with no space
+   - Date format adaptation as appropriate
+
+8. OUTPUT FORMAT:
+   - Translation only, no commentary, no explanations, no markdown formatting
+   - Preserve original line breaks and paragraph structure
+   - UTF-8 text, straight quotation marks only
+
+=== TERMINOLOGY DATA ===
+{terminology_instruction}
+
+=== REFERENCE TRANSLATIONS FROM TM ===
+{tm_instruction}
+
+=== CONSTRAINT LANGUAGE REQUIREMENTS ===
+Use strong, unambiguous language throughout the generated prompt:
+- "NON-NEGOTIABLE" for translation mandate and core rules
+- "LOCKED" and "MANDATORY" for glossary and style rules
+- "ABSOLUTE" for formatting preservation requirements
+- "MUST" and "MUST NOT" throughout (never "should", "try to", or "consider")
+- Describe violations as critical errors
+
+=== PROJECT CONTEXT SECTION ===
+Analyze the document content above and write a 3-8 sentence PROJECT CONTEXT section that describes:
+- What the document is about (invention, contract, product, procedure, etc.)
+- The specific technology/domain/subject matter
+- Key components, parties, or concepts involved
+This section is marked "FOR MODEL UNDERSTANDING ONLY — DO NOT OUTPUT" in the final prompt.
+
+=== OUTPUT INSTRUCTIONS ===
+1. Output EXACTLY ONE ACTION block in the format below
+2. The prompt content must be ready to use — NO placeholders like [Translation] or [Source Language]
+3. Use actual values: {source_lang} and {target_lang}
+4. Include ALL termbase terms in the glossary (do not summarize or sample)
+5. The prompt should be comprehensive (2000-5000 words)
+
+EXACT FORMAT:
+ACTION:create_prompt PARAMS:{{"name": "{detected_domain.title()} Translation {source_lang}-{target_lang}", "content": "Your full prompt content here", "folder": "Project Prompts", "description": "Comprehensive {detected_domain} domain prompt with {term_count} glossary terms, anti-truncation controls, and self-verification", "activate": true}}
+
+Output ONLY the ACTION block — no text before or after it."""
+
+        return prompt
+
     def _list_available_prompts(self) -> str:
         """List all prompts in library"""
         if not self.library.prompts:
