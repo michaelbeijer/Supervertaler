@@ -149,7 +149,7 @@ body {
 
 @media (min-width: 769px) {
     .nav-menu li.nav-action + li.nav-action {
-        margin-left: -0.5rem;
+        margin-left: 0.25rem;
     }
 }
 
@@ -211,8 +211,8 @@ body {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 36px;
-    height: 36px;
+    gap: 6px;
+    padding: 6px 14px;
     border-radius: 10px;
     border: 1px solid transparent;
     color: var(--text-secondary);
