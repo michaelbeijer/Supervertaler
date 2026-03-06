@@ -2,8 +2,23 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.348 (March 5, 2026)
+**Current Version:** v1.9.349 (March 6, 2026)
 
+
+## v1.9.349 - March 6, 2026
+
+### Bug Fixes
+
+- **Fixed AI prompt generation stripping its own content** — The `_clean_translation_response()` post-processor aggressively removed lines containing translation-related keywords like "professional translation", "Your task is to", etc. When generating a *prompt about translation*, this stripped ~95% of the content, leaving only 2-3 lines. Fixed by centralizing the cleaning in `translate()` with a new `skip_cleaning` parameter, bypassed for prompt generation requests.
+
+### Improvements
+
+- **Multi-file support for standalone SDLXLIFF import** — Importing 2+ standalone `.sdlxliff` files now activates the full multi-file system: file boundary banners in the grid, file filter dropdown, and Manage Views dialog. Previously only SDLPPX packages and folder imports supported this. Each segment now tracks its `file_id` and `file_name`.
+- **File-aware AI prompt generation** — "Analyze Project & Generate Prompts" now detects multi-file projects and runs per-file domain/tone analysis using `DocumentAnalyzer`. The generated prompt includes a multi-file guidance section listing each file with its detected domain, tone, formality, and word count, instructing the AI to adapt register and terminology when translating different files.
+- **File-structured project context** — For multi-file projects, the document content sent to the AI for prompt generation is now organized by file with headers, instead of a flat segment list.
+- **Improved "Current Document" display** — The Supervertaler Assistant context panel now shows file count for multi-file projects and segment count as fallback, instead of the misleading "No document" label.
+
+---
 
 ## v1.9.348 - March 5, 2026
 

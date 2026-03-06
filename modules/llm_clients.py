@@ -632,7 +632,8 @@ class LLMClient:
         custom_prompt: Optional[str] = None,
         max_tokens: Optional[int] = None,
         images: Optional[List] = None,
-        system_prompt: Optional[str] = None
+        system_prompt: Optional[str] = None,
+        skip_cleaning: bool = False
     ) -> str:
         """
         Translate text using configured LLM
@@ -644,6 +645,8 @@ class LLMClient:
             context: Optional context for translation
             custom_prompt: Optional custom prompt (overrides default simple prompt)
             system_prompt: Optional system prompt for AI behavior context
+            skip_cleaning: If True, skip _clean_translation_response post-processing
+                (used for prompt generation where translation-related keywords are expected)
 
         Returns:
             Translated text
@@ -665,15 +668,23 @@ class LLMClient:
 
         # Call appropriate provider
         if self.provider in ("openai", "custom_openai"):
-            return self._call_openai(prompt, max_tokens=max_tokens, images=images, system_prompt=system_prompt)
+            result = self._call_openai(prompt, max_tokens=max_tokens, images=images, system_prompt=system_prompt)
         elif self.provider == "claude":
-            return self._call_claude(prompt, max_tokens=max_tokens, images=images, system_prompt=system_prompt)
+            result = self._call_claude(prompt, max_tokens=max_tokens, images=images, system_prompt=system_prompt)
         elif self.provider == "gemini":
-            return self._call_gemini(prompt, max_tokens=max_tokens, images=images, system_prompt=system_prompt)
+            result = self._call_gemini(prompt, max_tokens=max_tokens, images=images, system_prompt=system_prompt)
         elif self.provider == "ollama":
-            return self._call_ollama(prompt, max_tokens=max_tokens, system_prompt=system_prompt)
+            result = self._call_ollama(prompt, max_tokens=max_tokens, system_prompt=system_prompt)
         else:
             raise ValueError(f"Unsupported provider: {self.provider}")
+
+        # Post-process: clean translation response to remove prompt remnants,
+        # unless skip_cleaning is set (e.g. for prompt generation where
+        # translation-related keywords are expected content, not remnants)
+        if not skip_cleaning:
+            result = self._clean_translation_response(result, prompt)
+
+        return result
     
     def _call_openai(self, prompt: str, max_tokens: Optional[int] = None, images: Optional[List] = None, system_prompt: Optional[str] = None) -> str:
         """Call OpenAI API with GPT-5/o1/o3 reasoning model support and vision capability"""
@@ -778,9 +789,6 @@ class LLMClient:
                 print(f"Raw response: {response.choices[0].message.content}")
                 raise ValueError(error_msg)
 
-            # Clean up translation: remove any prompt remnants
-            translation = self._clean_translation_response(translation, prompt)
-
             return translation
 
         except Exception as e:
@@ -858,12 +866,9 @@ class LLMClient:
         if not response.content:
             raise ValueError("Claude returned an empty response (no content blocks)")
         translation = response.content[0].text.strip()
-        
-        # Clean up translation: remove any prompt remnants
-        translation = self._clean_translation_response(translation, prompt)
-        
+
         return translation
-    
+
     def _call_gemini(self, prompt: str, max_tokens: Optional[int] = None, images: Optional[List] = None, system_prompt: Optional[str] = None) -> str:
         """Call Google Gemini API with vision support"""
         try:
@@ -895,12 +900,9 @@ class LLMClient:
 
         response = model.generate_content(content)
         translation = response.text.strip()
-        
-        # Clean up translation: remove any prompt remnants
-        translation = self._clean_translation_response(translation, prompt)
-        
+
         return translation
-    
+
     def _call_ollama(self, prompt: str, max_tokens: Optional[int] = None, system_prompt: Optional[str] = None) -> str:
         """
         Call local Ollama server for translation.
@@ -1000,11 +1002,8 @@ class LLMClient:
             if 'eval_count' in result:
                 print(f"🟠 Ollama stats: {result.get('eval_count', 0)} tokens generated")
             
-            # Clean up translation: remove any prompt remnants
-            translation = self._clean_translation_response(translation, prompt)
-            
             return translation
-            
+
         except requests.exceptions.ConnectionError:
             raise ConnectionError(
                 f"Cannot connect to Ollama at {endpoint}. "

@@ -3885,6 +3885,14 @@ If the text refers to figures (e.g., 'Figure 1A'), relevant images may be provid
             )
             self.log_message(f"[AI Assistant] Detected domain: {detected_domain}")
 
+        # Phase 1b: Multi-file analysis (per-file domain/tone detection)
+        file_manifest = ""
+        project = getattr(self.parent_app, 'current_project', None)
+        if project:
+            file_manifest = self._build_file_manifest(project)
+            if file_manifest:
+                self.log_message(f"[AI Assistant] Multi-file project: {len(project.files)} files analyzed")
+
         # Phase 2: Gather data
         context = self._build_project_context()
         terminology_table, term_count, has_forbidden = self._gather_full_terminology()
@@ -3899,8 +3907,7 @@ If the text refers to figures (e.g., 'Figure 1A'), relevant images may be provid
         target_lang = "Target Language"
         segment_count = 0
 
-        if hasattr(self.parent_app, 'current_project') and self.parent_app.current_project:
-            project = self.parent_app.current_project
+        if project:
             if hasattr(project, 'source_lang') and project.source_lang:
                 source_lang = _resolve_lang_name(project.source_lang)
             elif hasattr(project, 'source_language') and project.source_language:
@@ -3925,6 +3932,7 @@ If the text refers to figures (e.g., 'Figure 1A'), relevant images may be provid
             source_lang=source_lang,
             target_lang=target_lang,
             segment_count=segment_count,
+            file_manifest=file_manifest,
         )
 
         self._send_ai_request(analysis_prompt, is_analysis=True)
@@ -3954,9 +3962,25 @@ If the text refers to figures (e.g., 'Figure 1A'), relevant images may be provid
                 total = len(project.segments)
                 context_parts.append(f"\n**Project Size:** {total} segments")
 
-                # Try to get full document markdown (up to 50,000 chars for analysis)
-                if self._cached_document_markdown:
-                    # Use cached markdown
+                # Multi-file: structure content by file with headers
+                is_multifile = getattr(project, 'is_multifile', False)
+                files = getattr(project, 'files', None)
+
+                if is_multifile and files and len(files) > 1:
+                    # Show segments grouped by file (sample from each)
+                    max_segs_per_file = max(10, 100 // len(files))
+                    context_parts.append(f"\n**Document Content (by file, ~{max_segs_per_file} segments each):**")
+                    for file_info in files:
+                        file_id = file_info['id']
+                        file_name = file_info.get('name', f'File {file_id}')
+                        file_segs = [s for s in project.segments if s.file_id == file_id]
+                        context_parts.append(f"\n--- {file_name} ({len(file_segs)} segments) ---")
+                        for i, seg in enumerate(file_segs[:max_segs_per_file], 1):
+                            context_parts.append(f"\n{i}. {seg.source}")
+                            if seg.target:
+                                context_parts.append(f"   → {seg.target}")
+                elif self._cached_document_markdown:
+                    # Single file: use cached markdown
                     doc_content = self._cached_document_markdown[:50000]
                     context_parts.append(f"\n**Full Document Content:**\n{doc_content}")
                 else:
@@ -4006,6 +4030,63 @@ If the text refers to figures (e.g., 'Figure 1A'), relevant images may be provid
         except Exception as e:
             self.log_message(f"[AI Assistant] Document analysis failed: {e}")
             return {'success': False, 'error': str(e)}
+
+    def _run_document_analysis_for_segments(self, segments: list) -> dict:
+        """Run DocumentAnalyzer on a specific segment list (e.g. one file's segments)."""
+        try:
+            if not segments:
+                return {'success': False, 'error': 'No segments'}
+            analyzer = DocumentAnalyzer()
+            return analyzer.analyze_segments(segments)
+        except Exception as e:
+            self.log_message(f"[AI Assistant] Per-file document analysis failed: {e}")
+            return {'success': False, 'error': str(e)}
+
+    def _build_file_manifest(self, project) -> str:
+        """Build a file manifest with per-file domain/tone analysis for multi-file projects.
+
+        Returns a manifest string describing each file's characteristics, or empty string
+        if the project is not multi-file.
+        """
+        if not getattr(project, 'is_multifile', False) or not getattr(project, 'files', None):
+            return ""
+        if len(project.files) <= 1:
+            return ""
+
+        lines = [
+            "=== MULTI-FILE PROJECT ===",
+            f"This project contains {len(project.files)} files. Each file may have a different domain and register.",
+            "Adapt your translation style to match each file's content type.",
+            ""
+        ]
+
+        for file_info in project.files:
+            file_id = file_info['id']
+            file_name = file_info.get('name', f'File {file_id}')
+            seg_count = file_info.get('segment_count', 0)
+
+            # Run per-file analysis
+            file_segments = [s for s in project.segments if s.file_id == file_id]
+            analysis = self._run_document_analysis_for_segments(file_segments)
+
+            domain = "general"
+            tone = "neutral"
+            formality = "neutral"
+            word_count = 0
+
+            if analysis.get('success'):
+                domain = analysis.get('domain', {}).get('primary', 'general')
+                tone = analysis.get('tone', {}).get('tone', 'neutral')
+                formality = analysis.get('tone', {}).get('formality', 'neutral')
+                word_count = analysis.get('statistics', {}).get('total_words', 0)
+
+            lines.append(
+                f"File {file_id}: {file_name} ({seg_count} segments)\n"
+                f"  Domain: {domain.title()} | Tone: {tone.title()} | "
+                f"Formality: {formality.title()} | {word_count:,} words"
+            )
+
+        return "\n".join(lines)
 
     def _gather_full_terminology(self, max_terms: int = 500) -> tuple:
         """Gather all termbase terms for the current project.
@@ -4134,7 +4215,7 @@ If the text refers to figures (e.g., 'Figure 1A'), relevant images may be provid
     def _build_enhanced_analysis_prompt(self, *, context, analysis_summary, detected_domain,
                                         template, terminology_table, term_count,
                                         has_forbidden, tm_pairs, source_lang, target_lang,
-                                        segment_count) -> str:
+                                        segment_count, file_manifest="") -> str:
         """Build the enhanced meta-prompt that instructs the LLM to generate a rich translation prompt."""
 
         # Build the mandatory sections list
@@ -4193,7 +4274,15 @@ SEGMENT COUNT: {segment_count}
 
 {analysis_summary}
 
-=== DOMAIN-SPECIFIC ROLE ===
+{f"""=== MULTI-FILE PROJECT INFORMATION ===
+{file_manifest}
+
+IMPORTANT: This is a multi-file project. Your generated prompt MUST include a MULTI-FILE GUIDANCE
+section that lists each file with its detected domain and register, and instructs the translator AI
+to adapt its translation style, terminology choices, and register when moving between files.
+Each file may have a different domain (legal, technical, marketing, etc.) — the prompt must
+acknowledge this and provide file-specific guidance.
+""" if file_manifest else ""}=== DOMAIN-SPECIFIC ROLE ===
 {template['role']}
 
 === PROJECT CONTEXT (document content) ===
@@ -4490,8 +4579,19 @@ Output ONLY the delimiters and prompt content. No text before ===PROMPT_START===
             elif hasattr(project, 'source_file') and project.source_file:
                 doc_path = Path(project.source_file)
                 doc_info = f"{project_name}\n{doc_path.name}"
+            elif getattr(project, 'is_multifile', False) and getattr(project, 'files', None):
+                file_count = len(project.files)
+                doc_info = f"{project_name}\n{file_count} file{'s' if file_count != 1 else ''}"
+            elif getattr(project, 'sdlxliff_source_paths', None):
+                file_count = len(project.sdlxliff_source_paths)
+                doc_info = f"{project_name}\n{file_count} SDLXLIFF file{'s' if file_count != 1 else ''}"
             else:
-                doc_info = f"{project_name}\nNo document"
+                # Project loaded but no specific file info — show segment count if available
+                seg_count = len(project.segments) if getattr(project, 'segments', None) else 0
+                if seg_count > 0:
+                    doc_info = f"{project_name}\n{seg_count} segments"
+                else:
+                    doc_info = f"{project_name}"
 
         # Update the label (find the description label in the section)
         # The section has a QVBoxLayout with [title_label, desc_label]
@@ -4874,7 +4974,8 @@ IMPORTANT:
                 source_lang="en",
                 target_lang="en",
                 custom_prompt=prompt,
-                system_prompt=ai_system_prompt
+                system_prompt=ai_system_prompt,
+                skip_cleaning=is_analysis  # Don't strip translation keywords from generated prompts
             )
 
             # Log the response
@@ -5008,14 +5109,27 @@ IMPORTANT:
                 detected_domain = domain
                 break
 
-        prompt_name = f"{detected_domain.title()} Translation {source_lang}-{target_lang}"
+        # Check if multi-file project
+        is_multifile = False
+        file_count = 0
+        if hasattr(self.parent_app, 'current_project') and self.parent_app.current_project:
+            project = self.parent_app.current_project
+            is_multifile = getattr(project, 'is_multifile', False)
+            file_count = len(getattr(project, 'files', []) or [])
+
+        if is_multifile and file_count > 1:
+            prompt_name = f"{detected_domain.title()} Translation {source_lang}-{target_lang} ({file_count} files)"
+            description = f"AI-generated {detected_domain} domain prompt for {file_count}-file project with per-file guidance"
+        else:
+            prompt_name = f"{detected_domain.title()} Translation {source_lang}-{target_lang}"
+            description = f"AI-generated {detected_domain} domain prompt with anti-truncation controls and self-verification"
 
         # Use the ai_action_system to create the prompt (reuses existing save/activate logic)
         params = {
             'name': prompt_name,
             'content': content,
             'folder': 'Project Prompts',
-            'description': f"AI-generated {detected_domain} domain prompt with anti-truncation controls and self-verification",
+            'description': description,
             'activate': True,
         }
 

@@ -32398,17 +32398,44 @@ class SupervertalerQt(QMainWindow):
                 )
                 include_locked = (reply == QMessageBox.StandardButton.Yes)
 
-            # Filter: always exclude lockTU_ structural segments;
-            # exclude locked segments unless user opted to include them
+            # Build segments per-file so the multi-file UI activates
+            is_multifile = len(handler.xliff_files) > 1
             segments = []
-            for i, sdl_seg in enumerate(all_sdl_segments):
-                if sdl_seg.trans_unit_id.startswith('lockTU_'):
-                    continue
-                is_locked = sdl_seg.locked
-                if is_locked and not include_locked:
-                    continue
-                segments.append(self._map_sdlxliff_segment(
-                    sdl_seg, len(segments), locked=is_locked))
+            file_metadata = []
+            global_index = 0
+
+            for file_idx, xliff_file in enumerate(handler.xliff_files):
+                file_id = file_idx + 1
+                file_name = Path(xliff_file.file_path).name
+                file_start = global_index
+
+                for sdl_seg in xliff_file.segments:
+                    if sdl_seg.trans_unit_id.startswith('lockTU_'):
+                        continue
+                    is_locked = sdl_seg.locked
+                    if is_locked and not include_locked:
+                        continue
+                    seg = self._map_sdlxliff_segment(
+                        sdl_seg, global_index,
+                        file_id=file_id if is_multifile else None,
+                        file_name=file_name if is_multifile else "",
+                        locked=is_locked
+                    )
+                    segments.append(seg)
+                    global_index += 1
+
+                if is_multifile:
+                    file_segs = segments[file_start:global_index]
+                    if file_segs:
+                        file_metadata.append({
+                            'id': file_id,
+                            'name': file_name,
+                            'path': xliff_file.file_path,
+                            'type': 'sdlxliff',
+                            'segment_count': len(file_segs),
+                            'start_segment_id': file_segs[0].id,
+                            'end_segment_id': file_segs[-1].id,
+                        })
 
             if not segments:
                 QMessageBox.warning(
@@ -32432,7 +32459,9 @@ class SupervertalerQt(QMainWindow):
                 name=project_name,
                 segments=segments,
                 source_lang=source_lang,
-                target_lang=target_lang
+                target_lang=target_lang,
+                is_multifile=is_multifile,
+                files=file_metadata if is_multifile else None
             )
 
             # Store handler and source paths for round-trip export
@@ -32457,6 +32486,7 @@ class SupervertalerQt(QMainWindow):
             self._deactivate_all_resources_for_new_project()
             self.auto_resize_rows()
             self._initialize_spellcheck_for_target_language(target_lang)
+            self._update_file_filter_combo()
 
             # Count pretranslated segments
             pretrans_count = sum(1 for s in segments if s.target)
