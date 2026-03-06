@@ -6695,7 +6695,7 @@ class PreTranslationWorker(QThread):
     translation_error = pyqtSignal(str)  # error_message
     retry_needed = pyqtSignal(list)  # empty_segments list of (row_index, segment)
     
-    def __init__(self, parent_app, segments, provider_type, provider_name, model, tm_exact_only=False, prompt_manager=None, retry_enabled=False, retry_pass=0, tm_ids=None, glossary_terms=None, base_url=None, custom_api_key=None):
+    def __init__(self, parent_app, segments, provider_type, provider_name, model, tm_exact_only=False, prompt_manager=None, retry_enabled=False, retry_pass=0, tm_ids=None, glossary_terms=None, base_url=None, custom_api_key=None, http_proxy=None):
         super().__init__()
         self.parent_app = parent_app
         self.segments = segments
@@ -6704,6 +6704,7 @@ class PreTranslationWorker(QThread):
         self.model = model
         self.base_url = base_url
         self.custom_api_key = custom_api_key  # Profile API key (takes priority over api_keys.txt)
+        self.http_proxy = http_proxy
         self.tm_exact_only = tm_exact_only
         self.prompt_manager = prompt_manager
         self.retry_enabled = retry_enabled
@@ -6987,9 +6988,10 @@ class PreTranslationWorker(QThread):
                 api_key=api_key,
                 provider=self.provider_name,
                 model=self.model,
-                base_url=self.base_url
+                base_url=self.base_url,
+                http_proxy=self.http_proxy
             )
-            
+
             # Translate with custom prompt
             result = client.translate(
                 text=segment.source,
@@ -7085,7 +7087,8 @@ class PreTranslationWorker(QThread):
                 api_key=api_key,
                 provider=self.provider_name,
                 model=self.model,
-                base_url=self.base_url
+                base_url=self.base_url,
+                http_proxy=self.http_proxy
             )
 
             # Call LLM with batch prompt (no custom_prompt parameter - it's all in the text)
@@ -7143,7 +7146,7 @@ class ProofreadWorker(QThread):
     segment_issue = pyqtSignal(int, str, str)  # row_idx, issue_text, model_name
     finished_proofreading = pyqtSignal(int, int, int)  # checked, issues, ok
 
-    def __init__(self, segments_to_check, provider, model, custom_prompt, api_keys, source_lang, target_lang, base_url=None, custom_api_key=None):
+    def __init__(self, segments_to_check, provider, model, custom_prompt, api_keys, source_lang, target_lang, base_url=None, custom_api_key=None, http_proxy=None):
         super().__init__()
         self.segments_to_check = segments_to_check
         self.provider = provider
@@ -7154,6 +7157,7 @@ class ProofreadWorker(QThread):
         self.target_lang = target_lang
         self.base_url = base_url
         self.custom_api_key = custom_api_key
+        self.http_proxy = http_proxy
         self._cancelled = False
 
     def cancel(self):
@@ -7217,7 +7221,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER."""
             else:
                 api_key = ''
 
-            llm_client = LLMClient(api_key=api_key, provider=self.provider, model=self.model, base_url=self.base_url)
+            llm_client = LLMClient(api_key=api_key, provider=self.provider, model=self.model, base_url=self.base_url, http_proxy=self.http_proxy)
         except Exception as e:
             self.batch_error.emit(0, 0, f"Failed to initialize LLM client:\n{str(e)}")
             self.finished_proofreading.emit(0, 0, 0)
@@ -11580,7 +11584,8 @@ class SupervertalerQt(QMainWindow):
                     api_key = profile_key or api_key or 'not-needed'
                 else:
                     api_key = api_key or 'not-needed'
-            return LLMClient(api_key=api_key, provider=provider, model=model_id, base_url=base_url)
+            http_proxy = self._get_proxy_url() if provider != 'gemini' else None
+            return LLMClient(api_key=api_key, provider=provider, model=model_id, base_url=base_url, http_proxy=http_proxy)
 
         # Create and return the leaderboard UI widget
         leaderboard_widget = LLMLeaderboardUI(
@@ -38971,6 +38976,7 @@ class SupervertalerQt(QMainWindow):
             target_lang=self.current_project.target_lang,
             base_url=base_url,
             custom_api_key=custom_api_key,
+            http_proxy=self._get_proxy_url() if provider != 'gemini' else None,
         )
 
         # Keep reference to prevent GC
@@ -48451,8 +48457,9 @@ class SupervertalerQt(QMainWindow):
             if provider == 'custom_openai':
                 profile = self._get_active_custom_profile(settings)
                 base_url = profile.get('endpoint') or None if profile else None
-            client = LLMClient(api_key=api_key, provider=provider, model=model, base_url=base_url)
-            
+            http_proxy = self._get_proxy_url() if provider != 'gemini' else None
+            client = LLMClient(api_key=api_key, provider=provider, model=model, base_url=base_url, http_proxy=http_proxy)
+
             # Use translate() with empty text and custom_prompt for generic AI completion
             # This allows QuickLauncher prompts to do anything (explain, define, search, etc.)
             # not just translation. Same pattern as AI Assistant.
@@ -49255,7 +49262,8 @@ class SupervertalerQt(QMainWindow):
             tm_ids=None,  # TM pre-translation now on main thread
             glossary_terms=glossary_terms,
             base_url=custom_base_url,
-            custom_api_key=custom_api_key
+            custom_api_key=custom_api_key,
+            http_proxy=self._get_proxy_url() if translation_provider_name != 'gemini' else None
         )
         dialog = LiveProgressDialog(self, len(segments_needing_translation), provider_info)
         
@@ -50181,11 +50189,13 @@ class SupervertalerQt(QMainWindow):
                 from modules.translation_results_panel import TranslationMatch
 
                 base_url = _custom_profile.get('endpoint') or None if _custom_profile else None
+                http_proxy = self._get_proxy_url() if provider != 'gemini' else None
                 client = LLMClient(
                     api_key=api_key_value,
                     provider=provider,
                     model=model,
-                    base_url=base_url
+                    base_url=base_url,
+                    http_proxy=http_proxy
                 )
 
                 # Build full prompt using prompt manager
@@ -51532,15 +51542,16 @@ class SupervertalerQt(QMainWindow):
                         client = LLMClient(
                             api_key=api_keys['openai'],
                             provider='openai',
-                            model=openai_model
+                            model=openai_model,
+                            http_proxy=self._get_proxy_url()
                         )
-                        
+
                         translation = client.translate(
                             text=segment.source,
                             source_lang=source_lang_code or 'nl',
                             target_lang=target_lang_code or 'en'
                         )
-                        
+
                         if translation and translation.strip():
                             match = TranslationMatch(
                                 source=segment.source,
@@ -51573,7 +51584,8 @@ class SupervertalerQt(QMainWindow):
                         client = LLMClient(
                             api_key=api_keys['anthropic'],
                             provider='anthropic',
-                            model=claude_model
+                            model=claude_model,
+                            http_proxy=self._get_proxy_url()
                         )
                         
                         translation = client.translate(
@@ -51686,7 +51698,8 @@ class SupervertalerQt(QMainWindow):
                         client = LLMClient(
                             api_key=api_keys['openai'],
                             provider='openai',
-                            model=openai_model
+                            model=openai_model,
+                            http_proxy=self._get_proxy_url()
                         )
                         self.log("🧠 DIRECT LLM SEARCH: LLMClient initialized for OpenAI")
                         
@@ -51726,7 +51739,8 @@ class SupervertalerQt(QMainWindow):
                         client = LLMClient(
                             api_key=api_keys['claude'],
                             provider='claude',
-                            model=claude_model
+                            model=claude_model,
+                            http_proxy=self._get_proxy_url()
                         )
                         
                         translation = client.translate(
@@ -55984,7 +55998,8 @@ class SuperlookupTab(QWidget):
             if provider == 'custom_openai':
                 profile = main_window._get_active_custom_profile(settings)
                 base_url = profile.get('endpoint') or None if profile else None
-            client = LLMClient(api_key=api_key, provider=provider, model=model, base_url=base_url)
+            http_proxy = main_window._get_proxy_url() if provider != 'gemini' else None
+            client = LLMClient(api_key=api_key, provider=provider, model=model, base_url=base_url, http_proxy=http_proxy)
 
             output_text = client.translate(
                 text="",

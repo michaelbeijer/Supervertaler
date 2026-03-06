@@ -931,6 +931,7 @@ class UnifiedPromptManagerQt:
             "Bulk Operations/Proofreading",
             "Domain Expertise",
             "Project Prompts",
+            "Supervertaler Assistant Prompts",
             "Proofreading",
             "Style Guides",
             "Translation Help",
@@ -3766,11 +3767,15 @@ If the text refers to figures (e.g., 'Figure 1A'), relevant images may be provid
                 key_name = "google" if provider == "gemini" else provider
                 api_key = api_keys.get(key_name) or api_keys.get("gemini") or api_keys.get("openai") or api_keys.get("claude") or api_keys.get("google")
                 if api_key:
+                    http_proxy = None
+                    if provider != 'gemini' and hasattr(self, 'parent_app') and self.parent_app and hasattr(self.parent_app, '_get_proxy_url'):
+                        http_proxy = self.parent_app._get_proxy_url()
                     self.llm_client = LLMClient(
                         api_key=api_key,
                         provider=provider,
                         model=model,
-                        max_tokens=16384
+                        max_tokens=16384,
+                        http_proxy=http_proxy
                     )
                     self.log_message(f"✓ AI Assistant initialized with {provider}")
                 else:
@@ -5128,7 +5133,7 @@ IMPORTANT:
         params = {
             'name': prompt_name,
             'content': content,
-            'folder': 'Project Prompts',
+            'folder': 'Supervertaler Assistant Prompts',
             'description': description,
             'activate': True,
         }

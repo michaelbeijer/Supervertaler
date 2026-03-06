@@ -2,8 +2,20 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.350 (March 6, 2026)
+**Current Version:** v1.9.351 (March 6, 2026)
 
+
+## v1.9.351 - March 6, 2026
+
+### Bug Fixes
+
+- **Fixed HTTP proxy not applied to most LLM calls** — The HTTP proxy setting (Settings > HTTP Proxy) was only wired through the centralized `create_llm_client()` helper, leaving 13 other direct `LLMClient` instantiations (batch pre-translation, proofreading, real-time LLM matches, concordance search, QuickLauncher, Quick prompt dialog, Superbench, and AI Assistant) bypassing the proxy entirely. All LLM call sites now correctly pass `http_proxy`.
+
+### Improvements
+
+- **Auto-generated prompts saved to dedicated folder** — "Analyze Project & Generate Prompts" now saves generated prompts to a new "Supervertaler Assistant Prompts" folder instead of the generic "Project Prompts" folder.
+
+---
 
 ## v1.9.350 - March 6, 2026
 
