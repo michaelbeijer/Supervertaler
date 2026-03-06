@@ -156,6 +156,17 @@ RECOMMENDED_MODELS = {
 # UTILITY FUNCTIONS
 # =============================================================================
 
+def _sanitize_ollama_endpoint(endpoint: str) -> str:
+    """Strip trailing slashes and common path suffixes that cause double-path issues."""
+    endpoint = endpoint.rstrip('/')
+    # Users sometimes configure the endpoint with /api or /v1 suffix,
+    # causing double-path URLs like /api/api/tags → 404
+    for suffix in ('/api', '/v1'):
+        if endpoint.endswith(suffix):
+            endpoint = endpoint[:-len(suffix)]
+    return endpoint
+
+
 def get_ollama_endpoint() -> str:
     """Get Ollama endpoint from environment or return default."""
     return os.environ.get('OLLAMA_ENDPOINT', DEFAULT_OLLAMA_ENDPOINT)
@@ -186,15 +197,15 @@ def check_ollama_status(endpoint: str = None) -> Dict:
             'error': "Requests library not installed"
         }
     
-    endpoint = endpoint or get_ollama_endpoint()
-    
+    endpoint = _sanitize_ollama_endpoint(endpoint or get_ollama_endpoint())
+
     try:
         # Check if Ollama is running by getting model list
         response = requests.get(f"{endpoint}/api/tags", timeout=5)
         if response.status_code == 200:
             data = response.json()
             models = [m['name'] for m in data.get('models', [])]
-            
+
             # Try to get version
             version = None
             try:
@@ -203,7 +214,7 @@ def check_ollama_status(endpoint: str = None) -> Dict:
                     version = ver_response.json().get('version')
             except:
                 pass
-            
+
             return {
                 'running': True,
                 'models': models,
@@ -212,12 +223,22 @@ def check_ollama_status(endpoint: str = None) -> Dict:
                 'error': None
             }
         else:
+            # Check if Ollama is reachable at root (may be a path issue)
+            error_msg = f"Ollama returned status {response.status_code}"
+            try:
+                root_resp = requests.get(endpoint, timeout=3)
+                if root_resp.status_code == 200 and 'ollama' in root_resp.text.lower():
+                    error_msg = (f"Ollama is reachable but /api/tags returned {response.status_code}. "
+                                 f"Check your Ollama endpoint — it should be just the base URL "
+                                 f"(e.g. http://localhost:11434), not including /api or /v1.")
+            except:
+                pass
             return {
                 'running': False,
                 'models': [],
                 'version': None,
                 'endpoint': endpoint,
-                'error': f"Ollama returned status {response.status_code}"
+                'error': error_msg
             }
     except requests.exceptions.ConnectionError:
         return {
@@ -376,9 +397,9 @@ class ModelDownloadWorker(QThread):
     def __init__(self, model_name: str, endpoint: str = None):
         super().__init__()
         self.model_name = model_name
-        self.endpoint = endpoint or get_ollama_endpoint()
+        self.endpoint = _sanitize_ollama_endpoint(endpoint or get_ollama_endpoint())
         self._cancelled = False
-    
+
     def cancel(self):
         self._cancelled = True
     
@@ -442,8 +463,8 @@ class ConnectionTestWorker(QThread):
     def __init__(self, model_name: str, endpoint: str = None):
         super().__init__()
         self.model_name = model_name
-        self.endpoint = endpoint or get_ollama_endpoint()
-    
+        self.endpoint = _sanitize_ollama_endpoint(endpoint or get_ollama_endpoint())
+
     def run(self):
         """Test model with a simple translation prompt."""
         try:

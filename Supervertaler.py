@@ -9147,8 +9147,11 @@ class SupervertalerQt(QMainWindow):
                     return
                 
                 model = settings.get('ollama_model', 'translategemma:12b')
-                endpoint = "http://localhost:11434"
-                
+                endpoint = os.environ.get('OLLAMA_ENDPOINT', 'http://localhost:11434').rstrip('/')
+                for _sfx in ('/api', '/v1'):
+                    if endpoint.endswith(_sfx):
+                        endpoint = endpoint[:-len(_sfx)]
+
                 # Send minimal request to keep model warm
                 response = requests.post(
                     f"{endpoint}/api/generate",

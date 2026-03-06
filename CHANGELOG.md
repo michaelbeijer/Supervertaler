@@ -2,8 +2,18 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.349 (March 6, 2026)
+**Current Version:** v1.9.350 (March 6, 2026)
 
+
+## v1.9.350 - March 6, 2026
+
+### Bug Fixes
+
+- **Fixed "Ollama is not running" false alarm (issue #177)** — When users configured their Ollama endpoint with a trailing `/api` or `/v1` suffix (e.g. `http://localhost:11434/api`), the status check constructed double-path URLs like `/api/api/tags`, causing a 404. All Ollama endpoint usages now sanitize the URL by stripping trailing `/`, `/api`, and `/v1` suffixes. Affects status checks, translation calls, model downloads, connection tests, and the keep-warm ping.
+- **Fixed keep-warm ping ignoring custom Ollama endpoint** — The Ollama keep-warm ping was hardcoded to `http://localhost:11434` instead of using the user's configured endpoint.
+- **Improved Ollama error messages** — When Ollama is reachable but the API path returns an error, the message now explains the likely cause (misconfigured endpoint URL) instead of the misleading "Ollama is not running".
+
+---
 
 ## v1.9.349 - March 6, 2026
 

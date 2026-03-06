@@ -121,6 +121,15 @@ def load_api_keys() -> Dict[str, str]:
     return api_keys
 
 
+def _sanitize_ollama_endpoint(endpoint: str) -> str:
+    """Strip trailing slashes and common path suffixes that cause double-path issues."""
+    endpoint = endpoint.rstrip('/')
+    for suffix in ('/api', '/v1'):
+        if endpoint.endswith(suffix):
+            endpoint = endpoint[:-len(suffix)]
+    return endpoint
+
+
 @dataclass
 class LLMConfig:
     """Configuration for LLM client"""
@@ -348,9 +357,10 @@ class LLMClient:
                 - error: str - error message if not running
         """
         import requests
-        
+
         endpoint = endpoint or os.environ.get('OLLAMA_ENDPOINT', 'http://localhost:11434')
-        
+        endpoint = _sanitize_ollama_endpoint(endpoint)
+
         try:
             # Check if Ollama is running
             response = requests.get(f"{endpoint}/api/tags", timeout=5)
@@ -364,11 +374,20 @@ class LLMClient:
                     'error': None
                 }
             else:
+                error_msg = f"Ollama returned status {response.status_code}"
+                try:
+                    root_resp = requests.get(endpoint, timeout=3)
+                    if root_resp.status_code == 200 and 'ollama' in root_resp.text.lower():
+                        error_msg = (f"Ollama is reachable but /api/tags returned {response.status_code}. "
+                                     f"Check your Ollama endpoint — it should be just the base URL "
+                                     f"(e.g. http://localhost:11434), not including /api or /v1.")
+                except:
+                    pass
                 return {
                     'running': False,
                     'models': [],
                     'endpoint': endpoint,
-                    'error': f"Ollama returned status {response.status_code}"
+                    'error': error_msg
                 }
         except requests.exceptions.ConnectionError:
             return {
@@ -930,8 +949,10 @@ class LLMClient:
             )
         
         # Get Ollama endpoint from environment or use default
-        endpoint = os.environ.get('OLLAMA_ENDPOINT', 'http://localhost:11434')
-        
+        endpoint = _sanitize_ollama_endpoint(
+            os.environ.get('OLLAMA_ENDPOINT', 'http://localhost:11434')
+        )
+
         # Use provided max_tokens or default
         tokens_to_use = max_tokens if max_tokens is not None else min(self.max_tokens, 8192)
         
