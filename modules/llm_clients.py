@@ -965,12 +965,40 @@ class LLMClient:
             messages.append({"role": "system", "content": system_prompt})
         messages.append({"role": "user", "content": prompt})
 
+        # Determine timeout based on model size (extract parameter count with regex)
+        import re
+        model_lower = self.model.lower()
+        size_match = re.search(r'(\d+\.?\d*)b', model_lower)
+        param_billions = float(size_match.group(1)) if size_match else 0
+
+        if param_billions >= 13:
+            base_timeout = 600  # 10 minutes for large models (13B+)
+        elif param_billions >= 7:
+            base_timeout = 300  # 5 minutes for medium models (7B-12B)
+        elif param_billions > 0:
+            base_timeout = 180  # 3 minutes for small models (<7B)
+        else:
+            base_timeout = 300  # 5 minutes default if size unknown
+
+        # Boost timeout for large prompts (e.g. AI Assistant prompt generation)
+        # Large prompts need more processing time for both input and output
+        prompt_len = len(prompt) + (len(system_prompt) if system_prompt else 0)
+        if prompt_len > 5000:
+            timeout_seconds = max(base_timeout, 600)  # At least 10 minutes for large prompts
+        else:
+            timeout_seconds = base_timeout
+
+        # Use streaming for large requests to avoid timeout issues
+        # Streaming reads tokens as they arrive — only the connection + first token
+        # must arrive within the timeout, not the entire response
+        use_streaming = prompt_len > 3000 or tokens_to_use > 4096
+
         # Build request payload
         # Using /api/chat for chat-style interaction (better for translation prompts)
         payload = {
             "model": self.model,
             "messages": messages,
-            "stream": False,  # Get complete response at once
+            "stream": use_streaming,
             "options": {
                 "temperature": 0.3,  # Low temperature for consistent translations
                 "num_predict": tokens_to_use,
@@ -978,52 +1006,91 @@ class LLMClient:
                 "repeat_penalty": 1.1
             }
         }
-        
+
         try:
             # Make API call with generous timeout (local models can be slow, especially first load)
             # First call loads model into memory which can take 30-60 seconds
-            # Large models (14B+) on CPU can take 2-5 minutes per translation
-            print(f"🟠 Calling Ollama API...")
-            
-            # Determine timeout based on model size
-            model_lower = self.model.lower()
-            if '14b' in model_lower or '13b' in model_lower or '20b' in model_lower:
-                timeout_seconds = 600  # 10 minutes for large models on CPU
-            elif '7b' in model_lower or '8b' in model_lower or '9b' in model_lower:
-                timeout_seconds = 300  # 5 minutes for medium models
-            else:
-                timeout_seconds = 180  # 3 minutes for small models
-            
+            # Large models on CPU can take 2-10 minutes per request
+            model_size_str = f"{param_billions}B" if param_billions > 0 else "unknown size"
+            print(f"🟠 Calling Ollama API... (model: {model_size_str}, timeout: {timeout_seconds}s, streaming: {use_streaming})")
+
             proxies = {"http": self.http_proxy, "https": self.http_proxy} if self.http_proxy else None
-            response = requests.post(
-                f"{endpoint}/api/chat",
-                json=payload,
-                timeout=timeout_seconds,
-                proxies=proxies
-            )
-            
-            if response.status_code == 404:
-                raise ValueError(
-                    f"Model '{self.model}' not found in Ollama. "
-                    f"Please download it first with: ollama pull {self.model}"
+
+            if use_streaming:
+                # Streaming mode: read tokens incrementally to avoid timeout on large responses
+                # Connection timeout = 120s (model loading), no read timeout (tokens arrive gradually)
+                response = requests.post(
+                    f"{endpoint}/api/chat",
+                    json=payload,
+                    timeout=(120, timeout_seconds),  # (connect_timeout, read_timeout for first chunk)
+                    proxies=proxies,
+                    stream=True
                 )
-            
-            response.raise_for_status()
-            
-            result = response.json()
-            print(f"🟠 Ollama API call completed")
-            
-            # Extract translation from response
-            if 'message' in result and 'content' in result['message']:
-                translation = result['message']['content'].strip()
+
+                if response.status_code == 404:
+                    raise ValueError(
+                        f"Model '{self.model}' not found in Ollama. "
+                        f"Please download it first with: ollama pull {self.model}"
+                    )
+
+                response.raise_for_status()
+
+                # Read streamed JSON chunks and assemble the full response
+                import json as json_module
+                chunks = []
+                eval_count = 0
+                for line in response.iter_lines():
+                    if line:
+                        try:
+                            chunk = json_module.loads(line)
+                            if 'message' in chunk and 'content' in chunk['message']:
+                                chunks.append(chunk['message']['content'])
+                            # Last chunk contains stats
+                            if chunk.get('done', False):
+                                eval_count = chunk.get('eval_count', 0)
+                        except json_module.JSONDecodeError:
+                            continue
+
+                translation = ''.join(chunks).strip()
+                if not translation:
+                    raise ValueError(f"Empty response from Ollama streaming")
+
+                print(f"🟠 Ollama streaming completed")
+                if eval_count:
+                    print(f"🟠 Ollama stats: {eval_count} tokens generated")
+
+                return translation
             else:
-                raise ValueError(f"Unexpected Ollama response format: {result}")
-            
-            # Log some stats if available
-            if 'eval_count' in result:
-                print(f"🟠 Ollama stats: {result.get('eval_count', 0)} tokens generated")
-            
-            return translation
+                # Non-streaming mode for small/simple requests
+                response = requests.post(
+                    f"{endpoint}/api/chat",
+                    json=payload,
+                    timeout=timeout_seconds,
+                    proxies=proxies
+                )
+
+                if response.status_code == 404:
+                    raise ValueError(
+                        f"Model '{self.model}' not found in Ollama. "
+                        f"Please download it first with: ollama pull {self.model}"
+                    )
+
+                response.raise_for_status()
+
+                result = response.json()
+                print(f"🟠 Ollama API call completed")
+
+                # Extract translation from response
+                if 'message' in result and 'content' in result['message']:
+                    translation = result['message']['content'].strip()
+                else:
+                    raise ValueError(f"Unexpected Ollama response format: {result}")
+
+                # Log some stats if available
+                if 'eval_count' in result:
+                    print(f"🟠 Ollama stats: {result.get('eval_count', 0)} tokens generated")
+
+                return translation
 
         except requests.exceptions.ConnectionError:
             raise ConnectionError(
@@ -1035,8 +1102,9 @@ class LLMClient:
                 "  3. Try again"
             )
         except requests.exceptions.Timeout:
+            model_info = f" ({model_size_str})" if param_billions > 0 else ""
             raise TimeoutError(
-                f"Ollama request timed out after {timeout_seconds} seconds.\n\n"
+                f"Ollama request timed out after {timeout_seconds} seconds{model_info}.\n\n"
                 "This usually means:\n"
                 "  1. System is low on RAM (check Task Manager)\n"
                 "  2. Model is too large for your hardware\n"

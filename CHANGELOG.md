@@ -2,8 +2,16 @@
 
 All notable changes to Supervertaler are documented in this file.
 
-**Current Version:** v1.9.351 (March 6, 2026)
+**Current Version:** v1.9.352 (March 7, 2026)
 
+
+## v1.9.352 - March 7, 2026
+
+### Bug Fixes
+
+- **Fixed Ollama timeout for AI Assistant and large prompts ([#177](https://github.com/michaelbeijer/Supervertaler/issues/177))** — The AI Assistant's "Analyze Project & Generate Prompts" feature timed out when using Ollama because: (1) model size detection used hardcoded strings that missed models like `translategemma:12b`, giving them the minimum 180-second timeout instead of 300s; (2) the AI Assistant sends a ~14K character prompt expecting an ~18K character response, which needs far more time than a simple segment translation. Fixed with regex-based model size detection, automatic timeout boost for large prompts (≥600s), and streaming support for Ollama — tokens now arrive incrementally instead of waiting for the complete response, eliminating timeout issues for large requests entirely.
+
+---
 
 ## v1.9.351 - March 6, 2026
 
