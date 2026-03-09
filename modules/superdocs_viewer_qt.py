@@ -7,7 +7,7 @@ This file is kept as a small shim to prevent import-time crashes in older packag
 
 def __getattr__(name):
     raise ImportError(
-        "The 'modules.superdocs_viewer_qt' module has been removed. Visit https://supervertaler.gitbook.io/superdocs/ for documentation."
+        "The 'modules.superdocs_viewer_qt' module has been removed. Visit https://supervertaler.gitbook.io/help/ for documentation."
     )
 
 

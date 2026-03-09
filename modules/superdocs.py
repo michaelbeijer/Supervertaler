@@ -3,7 +3,7 @@
 The in-app Superdocs generator and viewer were removed in favor of the online GitBook
 documentation:
 
-    https://supervertaler.gitbook.io/superdocs/
+    https://supervertaler.gitbook.io/help/
 
 This module remains as a tiny shim to prevent accidental imports in older code paths.
 """
@@ -12,7 +12,7 @@ This module remains as a tiny shim to prevent accidental imports in older code p
 def __getattr__(name: str):
     raise ImportError(
         "The 'modules.superdocs' module has been removed. Use the online Superdocs at "
-        "https://supervertaler.gitbook.io/superdocs/"
+        "https://supervertaler.gitbook.io/help/"
     )
 
 

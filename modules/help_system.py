@@ -22,7 +22,7 @@ from PyQt6.QtGui import QDesktopServices
 from PyQt6.QtWidgets import QApplication
 
 
-DOCS_BASE_URL = "https://supervertaler.gitbook.io/superdocs"
+DOCS_BASE_URL = "https://supervertaler.gitbook.io/help"
 
 # Property key stored on widgets to identify their help topic
 _HELP_TOPIC_PROPERTY = "_help_topic"

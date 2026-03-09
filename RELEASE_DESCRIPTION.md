@@ -30,6 +30,6 @@
 ## Links
 
 - [Changelog](https://github.com/michaelbeijer/Supervertaler/blob/main/CHANGELOG.md)
-- [Online Manual](https://supervertaler.gitbook.io/superdocs/)
+- [Online Manual](https://supervertaler.gitbook.io/help/)
 - [Website](https://supervertaler.com)
 - [PyPI](https://pypi.org/project/supervertaler/)
