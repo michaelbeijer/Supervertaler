@@ -4,7 +4,7 @@
 
 ## 🔷 SUPERVERTALER FOR TRADOS
 
-* [Overview](supervertaler-for-trados/README.md)
+* [Overview](supervertaler-for-trados/overview.md)
 * [Installation](supervertaler-for-trados/installation.md)
 * [Getting Started](supervertaler-for-trados/getting-started.md)
 * [TermLens](supervertaler-for-trados/termlens.md)
