@@ -8,6 +8,24 @@
 * [Setting Up API Keys](get-started/api-keys.md)
 * [Your First Translation Project](get-started/first-project.md)
 
+## 🔷 Supervertaler for Trados
+
+* [Overview](supervertaler-for-trados/README.md)
+* [Installation](supervertaler-for-trados/installation.md)
+* [Getting Started](supervertaler-for-trados/getting-started.md)
+* [TermLens](supervertaler-for-trados/termlens.md)
+  * [Adding & Editing Terms](supervertaler-for-trados/termlens/adding-terms.md)
+  * [Term Picker](supervertaler-for-trados/termlens/term-picker.md)
+* [AI Assistant](supervertaler-for-trados/ai-assistant.md)
+* [Batch Translate](supervertaler-for-trados/batch-translate.md)
+* [Termbase Management](supervertaler-for-trados/termbase-management.md)
+* [Settings](supervertaler-for-trados/settings/termlens.md)
+  * [TermLens Settings](supervertaler-for-trados/settings/termlens.md)
+  * [AI Settings](supervertaler-for-trados/settings/ai-settings.md)
+  * [Prompts](supervertaler-for-trados/settings/prompts.md)
+* [Keyboard Shortcuts](supervertaler-for-trados/keyboard-shortcuts.md)
+* [Troubleshooting](supervertaler-for-trados/troubleshooting.md)
+
 ## 📝 Editor & Translation
 
 * [The Translation Grid](editor/translation-grid.md)

@@ -287,6 +287,7 @@ from modules.find_replace_qt import (
 )  # F&R History and Sets
 from modules.shortcut_manager import ShortcutManager  # Keyboard shortcut management
 from modules.termlens_widget import TermLensWidget  # TermLens widget for glossary display
+from modules.help_system import Topics as HelpTopics, install as install_help_system, set_topic as set_help_topic, open_help
 
 
 STATUS_ORDER = [
@@ -8461,6 +8462,9 @@ class SupervertalerQt(QMainWindow):
         # Setup global shortcuts
         self.setup_global_shortcuts()
 
+        # Install context-sensitive help (F1 opens relevant GitBook page)
+        install_help_system(self)
+
     def setup_global_shortcuts(self):
         """Setup application-wide keyboard shortcuts"""
         from PyQt6.QtGui import QShortcut
@@ -9865,6 +9869,13 @@ class SupervertalerQt(QMainWindow):
         # Documentation links (GitHub URLs for universal access)
         # Removed internal manual link — documentation migrated to GitBook
 
+        # Context-sensitive help (F1)
+        context_help_action = QAction("Context Help", self)
+        context_help_action.setShortcut("F1")
+        context_help_action.setToolTip("Open help for the focused panel (F1)")
+        context_help_action.triggered.connect(lambda: open_help())
+        help_menu.addAction(context_help_action)
+
         # Place Supervertaler Help at the top of the Help menu
         superdocs_action = QAction("Supervertaler Help", self)
         superdocs_action.setToolTip("Online documentation (GitBook)")
@@ -9879,7 +9890,7 @@ class SupervertalerQt(QMainWindow):
         help_menu.addSeparator()
 
         shortcuts_action = QAction("⌨️ Keyboard Shortcuts", self)
-        shortcuts_action.triggered.connect(lambda: self._open_url("https://github.com/michaelbeijer/Supervertaler/blob/main/docs/guides/KEYBOARD_SHORTCUTS.md"))
+        shortcuts_action.triggered.connect(lambda: open_help(HelpTopics.KEYBOARD_SHORTCUTS))
         help_menu.addAction(shortcuts_action)
 
         changelog_action = QAction("📝 Changelog", self)
@@ -10171,6 +10182,7 @@ class SupervertalerQt(QMainWindow):
         # ===== 2. PROJECT RESOURCES TAB =====
         # Contains TM, Termbases, Non-Translatables
         resources_tab = self.create_resources_tab()
+        set_help_topic(resources_tab, HelpTopics.TM_BASICS)
         self.main_tabs.addTab(resources_tab, "🗂️ Resources")
         
         # ===== 3. PROMPT MANAGER TAB =====
@@ -10179,6 +10191,7 @@ class SupervertalerQt(QMainWindow):
         prompt_widget = QWidget()
         self.prompt_manager_qt = UnifiedPromptManagerQt(self, standalone=False)
         self.prompt_manager_qt.create_tab(prompt_widget)
+        set_help_topic(prompt_widget, HelpTopics.AI_PROMPT_MANAGER)
         self.main_tabs.addTab(prompt_widget, "✨ AI")
         
         # Keep backward compatibility reference
@@ -10716,7 +10729,8 @@ class SupervertalerQt(QMainWindow):
         prompt_widget = QWidget()
         self.prompt_manager_qt = UnifiedPromptManagerQt(self, standalone=False)
         self.prompt_manager_qt.create_tab(prompt_widget)
-        
+        set_help_topic(prompt_widget, HelpTopics.AI_PROMPT_MANAGER)
+
         return prompt_widget
     
     
@@ -11993,6 +12007,7 @@ class SupervertalerQt(QMainWindow):
 
         # Add tool tabs (alphabetical order)
         autofingers_tab = AutoFingersWidget(self)
+        set_help_topic(autofingers_tab, HelpTopics.TOOL_AUTOFINGERS)
         modules_tabs.addTab(autofingers_tab, "✋ AutoFingers")
 
         # Superconverter - Format conversion tools
@@ -12000,6 +12015,7 @@ class SupervertalerQt(QMainWindow):
         modules_tabs.addTab(superconverter_tab, "🔄 Superconverter")
 
         pdf_tab = self.create_pdf_rescue_tab()
+        set_help_topic(pdf_tab, HelpTopics.TOOL_PDF_RESCUE)
         modules_tabs.addTab(pdf_tab, "📄 PDF Rescue")
 
         # Superbench
@@ -12017,16 +12033,19 @@ class SupervertalerQt(QMainWindow):
 
         lookup_tab = SuperlookupTab(self, user_data_path=self.user_data_path)
         self.lookup_tab = lookup_tab  # Store reference for later use
+        set_help_topic(lookup_tab, HelpTopics.SUPERLOOKUP)
         modules_tabs.addTab(lookup_tab, "🔍 Superlookup")
 
         # Supervoice - Voice Commands & Dictation
         supervoice_tab = self._create_voice_dictation_settings_tab()
+        set_help_topic(supervoice_tab, HelpTopics.TOOL_VOICE)
         modules_tabs.addTab(supervoice_tab, "🎤 Supervoice")
 
         encoding_tab = self.create_encoding_repair_tab()
         modules_tabs.addTab(encoding_tab, "🔧 Text Encoding Repair")
 
         tmx_tab = self.create_tmx_editor_tab()
+        set_help_topic(tmx_tab, HelpTopics.TOOL_TMX_EDITOR)
         modules_tabs.addTab(tmx_tab, "✏️ TMX Editor")
 
         tracked_tab = self.create_tracked_changes_tab()
@@ -15121,7 +15140,9 @@ class SupervertalerQt(QMainWindow):
         from modules.termbase_manager import TermbaseManager
         termbase_mgr = TermbaseManager(self.db_manager, self.log)
         self.termbase_mgr = termbase_mgr  # Store for later use in get_termbase_code
-        
+
+        set_help_topic(tab, HelpTopics.GLOSSARY_BASICS)
+
         # ========== MAIN SPLITTER ==========
         main_splitter = QSplitter(Qt.Orientation.Horizontal)
         
@@ -17539,6 +17560,7 @@ class SupervertalerQt(QMainWindow):
         # Create sidebar navigation (replaces horizontal QTabWidget)
         settings_tabs = SettingsSidebar()
         self.settings_tabs = settings_tabs  # Store for reference
+        set_help_topic(tab, HelpTopics.SETTINGS_GENERAL)
 
         # Scroll area wrapper for each tab (for long content)
         scroll_area_wrapper = lambda widget: self._wrap_in_scroll(widget)
@@ -23741,6 +23763,7 @@ class SupervertalerQt(QMainWindow):
         
         # TermLens tab
         self.termlens_widget = TermLensWidget(self, db_manager=self.db_manager, log_callback=self.log, theme_manager=self.theme_manager)
+        set_help_topic(self.termlens_widget, HelpTopics.GLOSSARY_TERMLENS)
         self.termlens_widget.term_insert_requested.connect(self.insert_termlens_text)
         self.termlens_widget.edit_entry_requested.connect(self._on_termlens_edit_entry)
         self.termlens_widget.delete_entry_requested.connect(self._on_termlens_delete_entry)
@@ -24356,7 +24379,8 @@ class SupervertalerQt(QMainWindow):
     def create_translation_grid(self):
         """Create the translation grid (QTableWidget)"""
         self.table = QTableWidget()
-        
+        set_help_topic(self.table, HelpTopics.TRANSLATION_GRID)
+
         # Configure columns
         self.table.setColumnCount(5)
         self.table.setHorizontalHeaderLabels(["#", "Type", "Source", "Target", "Status"])
@@ -34438,6 +34462,7 @@ class SupervertalerQt(QMainWindow):
         
         # Third TermLens instance for Match Panel
         self.termlens_widget_match = TermLensWidget(self, db_manager=self.db_manager, log_callback=self.log, theme_manager=self.theme_manager)
+        set_help_topic(self.termlens_widget_match, HelpTopics.GLOSSARY_TERMLENS)
         # Connect TermLens signals
         self.termlens_widget_match.term_insert_requested.connect(self.insert_termlens_text)
         self.termlens_widget_match.edit_entry_requested.connect(self._on_termlens_edit_entry)
@@ -40963,7 +40988,8 @@ class SupervertalerQt(QMainWindow):
         dialog = QDialog(self)
         dialog.setWindowTitle("Find and Replace")
         dialog.setMinimumWidth(700)
-        
+        set_help_topic(dialog, HelpTopics.FIND_REPLACE)
+
         # Re-enable lookups when dialog closes
         def on_dialog_closed():
             self.find_replace_active = False
