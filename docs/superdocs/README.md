@@ -1,67 +1,85 @@
 # Supervertaler Help
 
-> Important: The original **Supervertaler Manual** has been archived here for reference: [Supervertaler Manual (archived)](https://github.com/michaelbeijer/Supervertaler/blob/archive/manual-before-deletion/docs/guides/MANUAL.md)
->
-> If you're new, start with the Quick Start guide below — the manual is retained for historical reference and advanced workflows.
+Welcome to the official help center for **Supervertaler** — professional translation tools built by translators, for translators.
 
-This is the official online manual and help center for **Supervertaler**.
+## Two Tools, One Ecosystem
 
-## What is Supervertaler Help?
+Supervertaler comes in two versions. Choose the one that matches your workflow:
 
-If you're new: start here → [Quick Start Guide](get-started/quick-start.md)
+<table data-view="cards">
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Supervertaler (Desktop)</strong></td>
+<td>A standalone translation workbench for Windows, macOS, and Linux. Open source and free forever. Works with files from memoQ, Trados, Phrase, and CafeTran.<br><br><a href="get-started/quick-start.md">Get started →</a></td>
+</tr>
+<tr>
+<td><strong>Supervertaler for Trados</strong></td>
+<td>A plugin that runs inside Trados Studio 2024+. Adds TermLens inline terminology, an AI assistant, and batch translation — without leaving the Trados editor.<br><br><a href="supervertaler-for-trados/">Get started →</a></td>
+</tr>
+</tbody>
+</table>
 
-If you're returning: use the left navigation for Guides, Reference, and Troubleshooting.
-
-## What is Supervertaler?
-
-**Supervertaler** is a professional desktop translation application that integrates AI-powered translation with traditional CAT (Computer-Assisted Translation) tool workflows.
-
-Supervertaler serves as a **companion tool for translators**, helping you:
-
-- 🤖 **Translate with AI** using GPT-4, Claude, Gemini, or local Ollama models
-- 🔗 **Work with CAT tools** like memoQ, Trados Studio, Phrase, and CafeTran
-- 📚 **Leverage Translation Memory** with fuzzy matching and semantic search
-- 📖 **Manage Terminology** with glossaries and automatic term highlighting
-- ✅ **Ensure Quality** with spellcheck, tag validation, and consistency checking
-
-## Key Features
-
-### Multi-LLM AI Translation
-Translate using OpenAI GPT-4, Anthropic Claude, Google Gemini, or run models locally with Ollama. Create custom prompts tailored to your domain and style.
-
-### CAT Tool Integration
-Import and export files from major CAT tools:
-- **memoQ**: XLIFF and bilingual DOCX
-- **Trados Studio**: SDLPPX/SDLRPX packages
-- **Phrase (Memsource)**: Bilingual DOCX
-- **CafeTran**: Bilingual DOCX
-
-### Translation Memory
-Build your own translation memories with fuzzy matching. Import TMX files from other tools. Use **Supermemory** for semantic search across all your TMs.
-
-### Terminology Management
-Create and manage glossaries with automatic term highlighting. Import terms from TSV files. Extract terms automatically from your documents.
-
-### Quality Assurance
-Built-in spellcheck with Hunspell support, tag validation for CAT tool formatting, and non-translatable term management.
-
-## System Requirements
-
-| Requirement | Details |
-|-------------|---------|
-| **OS** | Windows 10/11 (primary), Linux compatible |
-| **Python** | 3.10 or higher |
-| **RAM** | 4GB minimum, 8GB recommended |
-| **Storage** | 500MB for application + space for TMs |
-
-## Getting Help
-
-- 📖 Browse this help center
-- 🐛 Report issues on [GitHub](https://github.com/michaelbeijer/Supervertaler/issues)
-- 💬 Join discussions on GitHub
+{% hint style="info" %}
+**Not sure which one you need?** If you use Trados Studio as your primary CAT tool, the plugin gives you terminology and AI features directly inside the editor. If you work with multiple CAT tools or want a standalone translation environment, the desktop app is for you. You can use both — they share the same termbase format.
+{% endhint %}
 
 ---
 
-**Current Version:** v1.9.74 (December 2025)
+## Supervertaler (Desktop)
 
-**Website:** [supervertaler.com](https://supervertaler.com)
+**Supervertaler** is a free, open-source desktop translation application that integrates AI-powered translation with traditional CAT tool workflows. It runs on Windows, macOS, and Linux.
+
+- 🤖 **Translate with AI** — GPT-4, Claude, Gemini, or local models via Ollama
+- 🔗 **Work with CAT tools** — import/export files from memoQ, Trados, Phrase, CafeTran
+- 📚 **Translation Memory** — fuzzy matching, TMX import, Supermemory semantic search
+- 📖 **Terminology** — glossaries, automatic term highlighting, TermLens
+- 🔍 **Superlookup** — system-wide translation lookup (TM, glossary, MT, web)
+- ✅ **Quality Assurance** — spellcheck, tag validation, non-translatables
+
+| Requirement | Details |
+|-------------|---------|
+| **OS** | Windows 10/11, macOS, Linux |
+| **Python** | 3.10 or higher |
+| **License** | Free and open source (MIT) |
+| **Source** | [github.com/michaelbeijer/Supervertaler](https://github.com/michaelbeijer/Supervertaler) |
+
+📖 Start here: [Quick Start Guide](get-started/quick-start.md)
+
+---
+
+## Supervertaler for Trados
+
+**Supervertaler for Trados** is a plugin for **Trados Studio 2024+** that brings Supervertaler's terminology and AI features directly into the Trados editor as dockable panels.
+
+- 🔤 **TermLens** — live inline terminology with color-coded matches and keyboard insertion
+- 💬 **Supervertaler Assistant** — context-aware AI chat with access to your segment, TM, and terminology
+- ⚡ **Batch Translate** — translate multiple segments at once with domain-specific prompts
+- 📋 **Prompt Library** — 14 built-in domain prompts plus custom prompt support
+
+| Requirement | Details |
+|-------------|---------|
+| **Trados Studio** | 2024 (v18) or later |
+| **OS** | Windows 10 or 11 |
+| **License** | Paid plugin |
+| **Source** | [github.com/michaelbeijer/Supervertaler-for-Trados](https://github.com/michaelbeijer/Supervertaler-for-Trados) |
+
+📖 Start here: [Supervertaler for Trados Overview](supervertaler-for-trados/)
+
+---
+
+## Shared Termbase Format
+
+Both tools use the same SQLite-based termbase format (`.db`). Termbases created in one tool work in the other — you can share terminology between the desktop app and the Trados plugin.
+
+## Getting Help
+
+- 📖 Browse this help center using the sidebar
+- 🐛 Report issues on [GitHub](https://github.com/michaelbeijer/Supervertaler/issues)
+- 💬 Join [GitHub Discussions](https://github.com/michaelbeijer/Supervertaler/discussions)
+- 🌐 Visit [supervertaler.com](https://supervertaler.com)

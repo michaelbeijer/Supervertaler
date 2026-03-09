@@ -1,14 +1,8 @@
 # Table of contents
 
-## 🚀 Get Started
-
 * [Supervertaler Help](README.md)
-* [Installation](get-started/installation.md)
-* [Quick Start Guide](get-started/quick-start.md)
-* [Setting Up API Keys](get-started/api-keys.md)
-* [Your First Translation Project](get-started/first-project.md)
 
-## 🔷 Supervertaler for Trados
+## 🔷 SUPERVERTALER FOR TRADOS
 
 * [Overview](supervertaler-for-trados/README.md)
 * [Installation](supervertaler-for-trados/installation.md)
@@ -25,6 +19,13 @@
   * [Prompts](supervertaler-for-trados/settings/prompts.md)
 * [Keyboard Shortcuts](supervertaler-for-trados/keyboard-shortcuts.md)
 * [Troubleshooting](supervertaler-for-trados/troubleshooting.md)
+
+## 🟢 SUPERVERTALER DESKTOP
+
+* [Installation](get-started/installation.md)
+* [Quick Start Guide](get-started/quick-start.md)
+* [Setting Up API Keys](get-started/api-keys.md)
+* [Your First Translation Project](get-started/first-project.md)
 
 ## 📝 Editor & Translation
 
