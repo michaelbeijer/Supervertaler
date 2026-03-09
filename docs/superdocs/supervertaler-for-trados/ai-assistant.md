@@ -1,13 +1,10 @@
-# AI Assistant
+# Supervertaler Assistant
 
-The AI Assistant is a conversational chat panel that runs inside Trados Studio as a separate dockable panel. It is context-aware: it automatically includes your current source and target text, matched terminology, and TM matches in every request, so the AI can give you informed answers about the segment you are working on.
+The Supervertaler Assistant is a conversational chat panel that runs inside Trados Studio as a separate dockable panel. It is context-aware: it automatically includes your current source and target text, matched terminology, and TM matches in every request, so the AI can give you informed answers about the segment you are working on.
 
 ## Opening the Panel
 
-The AI Assistant lives in its own dockable panel. To open it:
-
-- Go to **View > Supervertaler Assistant**, or
-- Switch to the **AI Assistant** tab inside the main Supervertaler panel and click **Open AI Assistant**
+The Supervertaler Assistant lives in its own dockable panel. To open it, go to **View > Supervertaler Assistant**.
 
 You can dock the panel on the right side, bottom, or as a floating window. Trados remembers the panel position between sessions.
 
@@ -50,7 +47,7 @@ You can control which termbases contribute terms to the AI context and whether T
 
 ## Image Attachments
 
-The AI Assistant supports multimodal input. You can attach images to your messages for visual context — for example, a screenshot of the source document layout, a reference image, or a table that is hard to describe in text.
+The Supervertaler Assistant supports multimodal input. You can attach images to your messages for visual context — for example, a screenshot of the source document layout, a reference image, or a table that is hard to describe in text.
 
 | Method | How |
 |--------|-----|

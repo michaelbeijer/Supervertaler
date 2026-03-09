@@ -14,7 +14,7 @@ Live terminology display that shows the source text word by word, with glossary 
 
 Numbered badges let you insert terms with **Alt+1** through **Alt+9**.
 
-### AI Assistant
+### Supervertaler Assistant
 
 A conversational AI chat panel that is aware of your current segment, matched terminology, and TM matches. Ask questions about translation choices, get alternative phrasings, or request explanations — all without leaving Trados.
 
@@ -73,7 +73,7 @@ Press **F1** at any time to open context-sensitive help for the panel or dialog 
 <td><a href="termlens.md">Inline terminology display →</a></td>
 </tr>
 <tr>
-<td><strong>AI Assistant</strong></td>
+<td><strong>Supervertaler Assistant</strong></td>
 <td><a href="ai-assistant.md">Chat with AI in Trados →</a></td>
 </tr>
 <tr>

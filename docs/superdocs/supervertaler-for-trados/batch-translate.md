@@ -74,6 +74,6 @@ AI translation is a first draft. After a batch run:
 
 ## See Also
 
-- [AI Assistant](ai-assistant.md)
+- [Supervertaler Assistant](ai-assistant.md)
 - [TermLens](termlens.md)
 - [Keyboard Shortcuts](keyboard-shortcuts.md)

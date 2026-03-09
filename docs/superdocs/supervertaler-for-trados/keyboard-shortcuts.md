@@ -52,5 +52,5 @@ These shortcuts are active when focus is in the Trados editor or in a Superverta
 ## See Also
 
 - [TermLens](termlens.md)
-- [AI Assistant](ai-assistant.md)
+- [Supervertaler Assistant](ai-assistant.md)
 - [Batch Translate](batch-translate.md)

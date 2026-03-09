@@ -30,7 +30,7 @@ On the **AI Settings** tab:
 3. Choose a **model**
 
 {% hint style="warning" %}
-You need at least one API key to use AI features (AI Assistant, Batch Translate, and single-segment AI translation). TermLens terminology works without an API key.
+You need at least one API key to use AI features (Supervertaler Assistant, Batch Translate, and single-segment AI translation). TermLens terminology works without an API key.
 {% endhint %}
 
 ### 4. Click OK
@@ -51,7 +51,7 @@ Settings are saved and applied immediately.
 2. Press **Ctrl+Alt+A** to translate the active segment with AI
 3. The AI translation appears in the target cell
 
-### AI Assistant
+### Supervertaler Assistant
 
 1. Open the **Supervertaler Assistant** panel (View > Supervertaler Assistant)
 2. Switch to the **Chat** tab
@@ -63,7 +63,7 @@ Settings are saved and applied immediately.
 | Feature | Page |
 |---------|------|
 | TermLens terminology display | [TermLens](termlens.md) |
-| AI chat interface | [AI Assistant](ai-assistant.md) |
+| AI chat interface | [Supervertaler Assistant](ai-assistant.md) |
 | Bulk AI translation | [Batch Translate](batch-translate.md) |
 | All shortcuts | [Keyboard Shortcuts](keyboard-shortcuts.md) |
 
@@ -73,4 +73,4 @@ Settings are saved and applied immediately.
 
 - [Installation](installation.md)
 - [TermLens](termlens.md)
-- [AI Assistant](ai-assistant.md)
+- [Supervertaler Assistant](ai-assistant.md)

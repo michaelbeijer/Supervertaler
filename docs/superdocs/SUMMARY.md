@@ -16,7 +16,7 @@
 * [TermLens](supervertaler-for-trados/termlens.md)
   * [Adding & Editing Terms](supervertaler-for-trados/termlens/adding-terms.md)
   * [Term Picker](supervertaler-for-trados/termlens/term-picker.md)
-* [AI Assistant](supervertaler-for-trados/ai-assistant.md)
+* [Supervertaler Assistant](supervertaler-for-trados/ai-assistant.md)
 * [Batch Translate](supervertaler-for-trados/batch-translate.md)
 * [Termbase Management](supervertaler-for-trados/termbase-management.md)
 * [Settings](supervertaler-for-trados/settings/termlens.md)

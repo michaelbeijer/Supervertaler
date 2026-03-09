@@ -26,7 +26,7 @@ After restarting Trados Studio, open a project in the Editor view. You should se
 
 Go to **View > TermLens** to show the panel.
 
-### If the AI Assistant panel is not visible
+### If the Supervertaler Assistant panel is not visible
 
 Go to **View > Supervertaler Assistant** to show the panel.
 
