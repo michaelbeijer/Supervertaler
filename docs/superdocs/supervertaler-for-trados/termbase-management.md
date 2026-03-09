@@ -1,5 +1,9 @@
 # Termbase Management
 
+{% hint style="info" %}
+This page is about **Supervertaler for Trados** — the Trados Studio plugin. For glossary management in the standalone desktop app, see [Glossary Basics (Desktop)](../glossaries/basics.md).
+{% endhint %}
+
 Supervertaler for Trados uses the same SQLite termbase format as the standalone Supervertaler application. You manage your termbases through the Settings dialog.
 
 ## Accessing termbase settings
@@ -18,9 +22,13 @@ The plugin stores all termbases in a single `.db` file (SQLite database).
 The `.db` file uses the same Supervertaler SQLite format as the standalone application. You can share the same termbase file between both tools.
 {% endhint %}
 
+## MultiTerm termbases
+
+If your Trados project has MultiTerm termbases (`.sdltb` files) attached, they appear automatically at the bottom of the termbase list with a **[MultiTerm]** label and green background. These termbases are read-only in TermLens — to manage their terms, use Trados's built-in MultiTerm interface. See [MultiTerm Support](multiterm-support.md) for full details.
+
 ## Termbase list
 
-Once a database is loaded, the termbase list shows all termbases it contains. Each termbase has three toggles:
+Once a database is loaded, the termbase list shows all Supervertaler termbases it contains, plus any detected MultiTerm termbases. Each Supervertaler termbase has three toggles:
 
 | Toggle | Purpose |
 |--------|---------|
@@ -93,6 +101,7 @@ For full editing capabilities, double-click a termbase in the list to open the *
 
 ## See Also
 
+- [MultiTerm Support](multiterm-support.md)
 - [TermLens Settings](settings/termlens.md)
 - [Adding & Editing Terms](termlens/adding-terms.md)
 - [Glossary Basics (standalone)](../glossaries/basics.md)

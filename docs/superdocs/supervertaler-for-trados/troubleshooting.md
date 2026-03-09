@@ -1,5 +1,9 @@
 # Troubleshooting
 
+{% hint style="info" %}
+This page is about **Supervertaler for Trados** — the Trados Studio plugin. For the standalone desktop app, see [Common Issues (Desktop)](../troubleshooting/common-issues.md).
+{% endhint %}
+
 Solutions to common issues with the Supervertaler for Trados plugin.
 
 ---
@@ -61,6 +65,25 @@ If you share the database via a cloud-sync folder, ensure the file is fully sync
 
 ---
 
+## MultiTerm terms not appearing
+
+**Symptoms:** Green chips from your MultiTerm termbases (`.sdltb` files) are not showing in TermLens, even though the termbases are attached to your Trados project.
+
+**Solutions:**
+
+1. **Check your Trados project** -- verify that MultiTerm termbases are attached via **Project Settings > Language Pairs > Termbases**
+2. **Check the Read toggle** -- open Supervertaler Settings (gear icon) and make sure the MultiTerm termbase's Read checkbox is enabled
+3. **Check languages** -- the termbase's source and target languages must match the current project's language pair
+4. **Press F5** to force a full reload of the TermLens panel
+
+{% hint style="info" %}
+When you add terms in MultiTerm, navigate to a different segment in Trados to trigger the auto-refresh. TermLens checks for file changes on each segment change.
+{% endhint %}
+
+See [MultiTerm Support](multiterm-support.md) for full details.
+
+---
+
 ## AI features not working
 
 **Symptoms:** Batch Translate produces no output, or single-segment translation returns an error.
@@ -105,6 +128,7 @@ If you share the database via a cloud-sync folder, ensure the file is fully sync
 
 ## See Also
 
+- [MultiTerm Support](multiterm-support.md)
 - [TermLens Settings](settings/termlens.md)
 - [AI Settings](settings/ai-settings.md)
 - [Termbase Management](termbase-management.md)

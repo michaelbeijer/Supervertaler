@@ -1,5 +1,9 @@
 # TermLens Settings
 
+{% hint style="info" %}
+This page is about **Supervertaler for Trados** — the Trados Studio plugin.
+{% endhint %}
+
 Configure how TermLens loads and displays terminology in Trados Studio.
 
 ## Accessing TermLens settings
@@ -16,13 +20,19 @@ The path to your Supervertaler termbase `.db` file. Click **Browse** to select a
 
 ## Termbase toggles
 
-Each termbase in the database has three toggles. See [Termbase Management](../termbase-management.md) for full details.
+Each Supervertaler termbase in the database has three toggles. See [Termbase Management](../termbase-management.md) for full details.
 
 | Toggle | Purpose |
 |--------|---------|
 | **Read** | Load terms for matching — only termbases with Read enabled appear in TermLens |
 | **Write** | Receive new terms added via the [quick-add shortcuts](../termlens/adding-terms.md) |
 | **Project** | Mark as the project termbase (shown in pink, prioritised) |
+
+## MultiTerm termbases
+
+If your Trados project has MultiTerm termbases (`.sdltb` files) attached, they appear at the bottom of the termbase list with a **[MultiTerm]** label and a light green row background. The **Read** toggle controls visibility in TermLens; **Write** and **Project** are always disabled because MultiTerm termbases are read-only.
+
+To add or remove MultiTerm termbases, use Trados Studio's **Project Settings > Language Pairs > Termbases**. See [MultiTerm Support](../multiterm-support.md) for full details.
 
 ## Auto-load on startup
 
@@ -41,5 +51,6 @@ Increase the font size if TermLens text is hard to read; decrease it to fit more
 ## See Also
 
 - [Termbase Management](../termbase-management.md)
+- [MultiTerm Support](../multiterm-support.md)
 - [AI Settings](ai-settings.md)
 - [TermLens (standalone)](../../glossaries/termlens.md)

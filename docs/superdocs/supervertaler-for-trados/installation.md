@@ -1,5 +1,9 @@
 # Installation
 
+{% hint style="info" %}
+This page is about **Supervertaler for Trados** — the Trados Studio plugin. Looking for the standalone desktop app? See [Desktop Installation](../get-started/installation.md).
+{% endhint %}
+
 ## Download
 
 1. Go to the [GitHub Releases](https://github.com/michaelbeijer/Supervertaler-for-Trados/releases) page

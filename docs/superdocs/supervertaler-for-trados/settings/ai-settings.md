@@ -1,5 +1,9 @@
 # AI Settings
 
+{% hint style="info" %}
+This page is about **Supervertaler for Trados** — the Trados Studio plugin.
+{% endhint %}
+
 Configure the AI provider, model, and context options used by the Supervertaler for Trados plugin.
 
 ## Accessing AI settings

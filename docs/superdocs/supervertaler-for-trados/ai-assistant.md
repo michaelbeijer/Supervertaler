@@ -1,5 +1,9 @@
 # Supervertaler Assistant
 
+{% hint style="info" %}
+This page is about **Supervertaler for Trados** — the Trados Studio plugin. The standalone desktop app has its own AI translation features — see [AI Translation Overview](../ai-translation/overview.md).
+{% endhint %}
+
 The Supervertaler Assistant is a conversational chat panel that runs inside Trados Studio as a separate dockable panel. It is context-aware: it automatically includes your current source and target text, matched terminology, and TM matches in every request, so the AI can give you informed answers about the segment you are working on.
 
 ## Opening the Panel

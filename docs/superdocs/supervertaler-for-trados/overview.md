@@ -1,5 +1,9 @@
 # Supervertaler for Trados
 
+{% hint style="info" %}
+This page is about **Supervertaler for Trados** — the Trados Studio plugin. Looking for the standalone desktop app? See [Supervertaler Desktop](../get-started/quick-start.md).
+{% endhint %}
+
 Supervertaler for Trados is a plugin for **Trados Studio 2024+** that brings Supervertaler's terminology and AI features directly into the Trados editor. It runs natively inside Trados Studio as a set of dockable panels, so you never have to leave the editor.
 
 ## Key Features
@@ -11,8 +15,9 @@ Live terminology display that shows the source text word by word, with glossary 
 - **Blue** for regular termbase matches
 - **Pink** for project termbase matches (higher priority)
 - **Yellow** for non-translatable terms
+- **Green** for MultiTerm termbase matches (`.sdltb` files attached to your Trados project)
 
-Numbered badges let you insert terms with **Alt+1** through **Alt+9**.
+Numbered badges let you insert terms with **Alt+1** through **Alt+9**. MultiTerm termbases are detected automatically from your Trados project and are read-only.
 
 ### Supervertaler Assistant
 
@@ -75,6 +80,10 @@ Press **F1** at any time to open context-sensitive help for the panel or dialog 
 <tr>
 <td><strong>Supervertaler Assistant</strong></td>
 <td><a href="ai-assistant.md">Chat with AI in Trados →</a></td>
+</tr>
+<tr>
+<td><strong>MultiTerm Support</strong></td>
+<td><a href="multiterm-support.md">Use MultiTerm termbases in TermLens →</a></td>
 </tr>
 <tr>
 <td><strong>Batch Translate</strong></td>

@@ -1,5 +1,9 @@
 # TermLens
 
+{% hint style="info" %}
+This page is about **Supervertaler for Trados** — the Trados Studio plugin. For TermLens in the standalone desktop app, see [TermLens (Desktop)](../glossaries/termlens.md).
+{% endhint %}
+
 TermLens is an inline terminology display that shows the source text of the current segment word by word, with glossary translations directly underneath each matched term. It updates automatically when you navigate to a new segment.
 
 ## How It Works
@@ -13,16 +17,21 @@ This gives you an at-a-glance overview of every term in the segment that has a t
 
 ## Color Coding
 
-TermLens uses three background colors to distinguish term types:
+TermLens uses four background colors to distinguish term types:
 
 | Color | Hex | Meaning |
 |-------|-----|---------|
-| **Blue** | `#C8E6F5` | Regular termbase match |
+| **Blue** | `#C8E6F5` | Regular Supervertaler termbase match |
 | **Pink** | `#E6D7D8` | Project termbase match (higher priority) |
 | **Yellow** | `#FFF3D0` | Non-translatable term (source = target) |
+| **Green** | `#D4EDDA` | MultiTerm termbase match (`.sdltb`) |
 
 {% hint style="info" %}
 Designate one termbase as the **Project termbase** in settings to make its terms appear in pink. Project terms take visual priority over regular terms, making it easy to spot client-specific terminology.
+{% endhint %}
+
+{% hint style="success" %}
+**MultiTerm termbases** attached to your Trados project appear automatically as green chips. They are read-only — to edit MultiTerm terms, use Trados's built-in MultiTerm interface. See [MultiTerm Support](multiterm-support.md) for details.
 {% endhint %}
 
 ## Inserting Terms
@@ -100,5 +109,6 @@ Press **F5** to force a refresh of the TermLens display. This is useful if you h
 
 - [Adding & Editing Terms](termlens/adding-terms.md)
 - [Term Picker](termlens/term-picker.md)
+- [MultiTerm Support](multiterm-support.md)
 - [Keyboard Shortcuts](keyboard-shortcuts.md)
 - [Getting Started](getting-started.md)

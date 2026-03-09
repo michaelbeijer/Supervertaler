@@ -1,5 +1,9 @@
 # Term Picker
 
+{% hint style="info" %}
+This page is about **Supervertaler for Trados** — the Trados Studio plugin.
+{% endhint %}
+
 The Term Picker is a compact overlay that shows all matched terms for the current segment in a sortable, keyboard-navigable list. It is useful when TermLens shows many matches and you want a quick overview without scrolling.
 
 ## Opening the Term Picker
@@ -13,8 +17,9 @@ Each row in the Term Picker is color-coded by termbase type:
 | Color | Meaning |
 |-------|---------|
 | **Pink** | Project termbase term |
-| **Blue** | Regular termbase term |
+| **Blue** | Regular Supervertaler termbase term |
 | **Yellow** | Non-translatable term |
+| **Green** | MultiTerm termbase term (`.sdltb`) |
 
 This lets you instantly see where each term comes from and how it should be handled.
 

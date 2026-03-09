@@ -1,5 +1,9 @@
 # Adding & Editing Terms
 
+{% hint style="info" %}
+This page is about **Supervertaler for Trados** — the Trados Studio plugin.
+{% endhint %}
+
 Supervertaler for Trados provides several ways to add, edit, and manage terminology without leaving the Trados editor.
 
 ## Quick-add (Alt+Down)
