@@ -1419,6 +1419,14 @@ body {
     .pricing-grid {
         grid-template-columns: 1fr;
     }
+
+    .pricing-groups {
+        grid-template-columns: 1fr;
+    }
+
+    .pricing-group-wide .pricing-group-cards {
+        grid-template-columns: 1fr;
+    }
 }
 
 /* ===== Landing Page: Product Cards ===== */
@@ -1496,6 +1504,44 @@ body {
     gap: var(--spacing-md);
     max-width: 1000px;
     margin: 0 auto;
+}
+
+/* Grouped pricing layout (Workbench | Trados two-card group) */
+.pricing-groups {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: var(--spacing-md);
+    max-width: 1060px;
+    margin: 0 auto;
+    align-items: start;
+}
+
+.pricing-group-heading {
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: #c0392b;
+    text-align: center;
+    padding: 10px 20px;
+    margin-bottom: var(--spacing-sm);
+    border: 2px solid #c0392b;
+    border-radius: 999px;
+    background: var(--bg-primary);
+}
+
+.pricing-group-wide .pricing-group-heading {
+    color: #0d9488;
+    border-color: #0d9488;
+}
+
+.pricing-group-cards {
+    display: grid;
+    gap: var(--spacing-md);
+}
+
+.pricing-group-wide .pricing-group-cards {
+    grid-template-columns: 1fr 1fr;
 }
 
 .pricing-card .pricing-annual {
@@ -1634,6 +1680,12 @@ body {
         grid-template-columns: 1fr;
     }
     .pricing-grid {
+        grid-template-columns: 1fr;
+    }
+    .pricing-groups {
+        grid-template-columns: 1fr;
+    }
+    .pricing-group-wide .pricing-group-cards {
         grid-template-columns: 1fr;
     }
     .install-steps {

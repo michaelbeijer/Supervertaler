@@ -82,6 +82,20 @@ When you make a selection, Supervertaler scans the full segment text for every o
 Press **F2** to manually expand your current selection to word boundaries without adding a term. This lets you preview exactly what Supervertaler would capture before pressing a quick-add shortcut.
 {% endhint %}
 
+## Merge prompt
+
+When you add a term and the **source** or **target** already exists in the termbase (but with a different translation), Supervertaler shows a prompt asking what you want to do:
+
+- **Add as Synonym** — merges the new translation into the existing entry as a synonym, keeping your termbase tidy
+- **Keep Both** — creates a separate entry alongside the existing one
+- **Cancel** — aborts the operation
+
+**Example:** Your termbase already has **adhesion → hechting**. You select **adhesion → aanhechting** and press Alt+Down. The merge prompt appears because the source term “adhesion” already exists. Clicking “Add as Synonym” adds _aanhechting_ as a target synonym of the existing entry, so both translations are grouped together.
+
+{% hint style="info" %}
+The merge prompt only appears when the source or target matches exactly (case-insensitive). It does **not** apply to non-translatable quick-add (**Ctrl+Alt+N**).
+{% endhint %}
+
 ## Editing existing terms
 
 To edit a term that already exists in your termbase:
