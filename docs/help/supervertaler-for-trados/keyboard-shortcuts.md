@@ -26,6 +26,7 @@ All keyboard shortcuts available in Supervertaler for Trados.
 |----------|--------|
 | `F1` | Context-sensitive help |
 | `F2` | Expand selection to word boundaries |
+| `F5` | Force refresh TermLens display |
 
 ## Two-Digit Chord for Terms 10+
 
