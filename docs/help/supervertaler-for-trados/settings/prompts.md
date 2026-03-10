@@ -81,5 +81,5 @@ The currently selected prompt is used when running **Batch Translate**. Before s
 ## See Also
 
 - [AI Settings](ai-settings.md)
-- [Batch Translation (Desktop)](https://supervertaler.gitbook.io/supervertaler/ai-translation/batch-translation)
-- [Creating Prompts (Desktop)](https://supervertaler.gitbook.io/supervertaler/ai-translation/prompts)
+- [Batch Translation (Workbench)](https://supervertaler.gitbook.io/supervertaler/ai-translation/batch-translation)
+- [Creating Prompts (Workbench)](https://supervertaler.gitbook.io/supervertaler/ai-translation/prompts)

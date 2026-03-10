@@ -31,7 +31,7 @@ For terms that should remain identical in source and target (brand names, produc
 1. Select the text in the **source** field
 2. Press **Ctrl+Alt+N**
 
-This creates a term entry where source and target are the same. Non-translatable terms appear with a distinct yellow highlight in [TermLens (Desktop)](https://supervertaler.gitbook.io/supervertaler/glossaries/termlens).
+This creates a term entry where source and target are the same. Non-translatable terms appear with a distinct yellow highlight in [TermLens (Workbench)](https://supervertaler.gitbook.io/supervertaler/glossaries/termlens).
 
 ## Add Term dialog (Ctrl+Alt+T)
 

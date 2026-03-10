@@ -1,7 +1,7 @@
 # Troubleshooting
 
 {% hint style="info" %}
-This page is about **Supervertaler for Trados** — the Trados Studio plugin. For the standalone desktop app, see [Common Issues (Desktop)](../troubleshooting/common-issues.md).
+This page is about **Supervertaler for Trados** — the Trados Studio plugin. For Supervertaler Workbench, see [Common Issues (Workbench)](../troubleshooting/common-issues.md).
 {% endhint %}
 
 Solutions to common issues with the Supervertaler for Trados plugin.

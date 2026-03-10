@@ -18,7 +18,7 @@ On the **TermLens** tab:
 You can add multiple termbases. Designate one as the **Project termbase** to give its terms higher priority (shown in pink).
 
 {% hint style="info" %}
-Supervertaler for Trados uses the same `.db` termbase format as the standalone Supervertaler desktop app. Any termbase created in either tool works in both.
+Supervertaler for Trados uses the same `.db` termbase format as Supervertaler Workbench. Any termbase created in either tool works in both.
 {% endhint %}
 
 ### 3. Configure AI (AI Settings tab)

@@ -80,4 +80,4 @@ Configure the **batch size** for the [Batch Translate](batch-translate.md) featu
 
 - [Prompts](prompts.md)
 - [TermLens Settings](termlens.md)
-- [Supported LLM Providers (Desktop)](https://supervertaler.gitbook.io/supervertaler/ai-translation/providers)
+- [Supported LLM Providers (Workbench)](https://supervertaler.gitbook.io/supervertaler/ai-translation/providers)

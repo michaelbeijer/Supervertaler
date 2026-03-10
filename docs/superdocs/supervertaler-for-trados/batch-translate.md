@@ -1,7 +1,7 @@
 # Batch Translate
 
 {% hint style="info" %}
-This page is about **Supervertaler for Trados** — the Trados Studio plugin. For batch translation in the standalone desktop app, see [Batch Translation (Desktop)](../ai-translation/batch-translation.md).
+This page is about **Supervertaler for Trados** — the Trados Studio plugin. For batch translation in Supervertaler Workbench, see [Batch Translation (Workbench)](../ai-translation/batch-translation.md).
 {% endhint %}
 
 Batch Translate lets you translate multiple segments at once using AI. It is located in the **Supervertaler Assistant** panel, on the second tab.

@@ -1,7 +1,7 @@
 # Prompts
 
 {% hint style="info" %}
-This page is about **Supervertaler for Trados** — the Trados Studio plugin. For prompts in the standalone desktop app, see [Creating Prompts (Desktop)](../../ai-translation/prompts.md).
+This page is about **Supervertaler for Trados** — the Trados Studio plugin. For prompts in Supervertaler Workbench, see [Creating Prompts (Workbench)](../../ai-translation/prompts.md).
 {% endhint %}
 
 Prompts control how the AI translates your content. The Prompt Manager lets you browse built-in domain prompts and create your own custom prompts.

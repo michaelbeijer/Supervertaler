@@ -1,7 +1,7 @@
 # MultiTerm Support
 
 {% hint style="info" %}
-This page is about **Supervertaler for Trados** — the Trados Studio plugin. MultiTerm support is a Trados-specific feature and is not available in the standalone desktop app.
+This page is about **Supervertaler for Trados** — the Trados Studio plugin. MultiTerm support is a Trados-specific feature and is not available in Supervertaler Workbench.
 {% endhint %}
 
 TermLens automatically detects MultiTerm termbases (`.sdltb` files) attached to your active Trados project and displays their terms alongside your Supervertaler terms.

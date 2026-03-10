@@ -1,7 +1,7 @@
 # Installation
 
 {% hint style="info" %}
-This page is about **Supervertaler for Trados** — the Trados Studio plugin. Looking for the standalone desktop app? See [Desktop Installation](../get-started/installation.md).
+This page is about **Supervertaler for Trados** — the Trados Studio plugin. Looking for Supervertaler Workbench? See [Workbench Installation](../get-started/installation.md).
 {% endhint %}
 
 ## Download

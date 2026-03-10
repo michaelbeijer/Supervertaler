@@ -1,7 +1,7 @@
 # Termbase Management
 
 {% hint style="info" %}
-This page is about **Supervertaler for Trados** — the Trados Studio plugin. For glossary management in the standalone desktop app, see [Glossary Basics (Desktop)](../glossaries/basics.md).
+This page is about **Supervertaler for Trados** — the Trados Studio plugin. For glossary management in Supervertaler Workbench, see [Glossary Basics (Workbench)](../glossaries/basics.md).
 {% endhint %}
 
 Supervertaler for Trados uses the same SQLite termbase format as the standalone Supervertaler application. You manage your termbases through the Settings dialog.

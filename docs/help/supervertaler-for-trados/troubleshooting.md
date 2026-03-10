@@ -38,7 +38,7 @@ After installing or updating the plugin, always restart Trados Studio completely
 
 **Solutions:**
 
-- **Close the standalone Supervertaler application** if it has the same `.db` file open. Two applications writing to the same SQLite file simultaneously can cause lock conflicts
+- **Close Supervertaler Workbench** if it has the same `.db` file open. Two applications writing to the same SQLite file simultaneously can cause lock conflicts
 - The plugin uses **read-only mode** where possible to minimise conflicts, but write operations (adding terms) require exclusive access
 - Verify the `.db` file is not on a drive that has gone offline (e.g., a disconnected network share)
 
@@ -129,4 +129,4 @@ See [MultiTerm Support](multiterm-support.md) for full details.
 - [TermLens Settings](settings/termlens.md)
 - [AI Settings](settings/ai-settings.md)
 - [Termbase Management](termbase-management.md)
-- [Common Issues (Desktop)](https://supervertaler.gitbook.io/supervertaler/troubleshooting/common-issues)
+- [Common Issues (Workbench)](https://supervertaler.gitbook.io/supervertaler/troubleshooting/common-issues)

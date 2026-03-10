@@ -1,6 +1,6 @@
 # Termbase Management
 
-Supervertaler for Trados uses the same SQLite termbase format as the standalone Supervertaler application. You manage your termbases through the Settings dialog.
+Supervertaler for Trados uses the same SQLite termbase format as Supervertaler Workbench. You manage your termbases through the Settings dialog.
 
 ## Accessing termbase settings
 
@@ -90,7 +90,7 @@ For full editing capabilities, double-click a termbase in the list to open the *
 ## Sharing termbases
 
 {% hint style="success" %}
-**Tip:** Keep the `.db` file on a network drive or cloud-synced folder (OneDrive, Dropbox, Google Drive) to share termbases across machines and with colleagues. Since both the Trados plugin and the standalone Supervertaler app use the same format, everyone can work from the same terminology.
+**Tip:** Keep the `.db` file on a network drive or cloud-synced folder (OneDrive, Dropbox, Google Drive) to share termbases across machines and with colleagues. Since both the Trados plugin and Supervertaler Workbench use the same format, everyone can work from the same terminology.
 {% endhint %}
 
 ---
@@ -100,4 +100,4 @@ For full editing capabilities, double-click a termbase in the list to open the *
 - [MultiTerm Support](multiterm-support.md)
 - [TermLens Settings](settings/termlens.md)
 - [Adding & Editing Terms](termlens/adding-terms.md)
-- [Glossary Basics (Desktop)](https://supervertaler.gitbook.io/supervertaler/glossaries/basics)
+- [Glossary Basics (Workbench)](https://supervertaler.gitbook.io/supervertaler/glossaries/basics)

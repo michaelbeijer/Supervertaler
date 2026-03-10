@@ -1,7 +1,7 @@
 # TermLens
 
 {% hint style="info" %}
-This page is about **Supervertaler for Trados** — the Trados Studio plugin. For TermLens in the standalone desktop app, see [TermLens (Desktop)](../glossaries/termlens.md).
+This page is about **Supervertaler for Trados** — the Trados Studio plugin. For TermLens in Supervertaler Workbench, see [TermLens (Workbench)](../glossaries/termlens.md).
 {% endhint %}
 
 TermLens is an inline terminology display that shows the source text of the current segment word by word, with glossary translations directly underneath each matched term. It updates automatically when you navigate to a new segment.

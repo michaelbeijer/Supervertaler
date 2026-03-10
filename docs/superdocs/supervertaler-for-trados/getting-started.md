@@ -1,7 +1,7 @@
 # Getting Started
 
 {% hint style="info" %}
-This page is about **Supervertaler for Trados** — the Trados Studio plugin. Looking for the standalone desktop app? See [Desktop Quick Start](../get-started/quick-start.md).
+This page is about **Supervertaler for Trados** — the Trados Studio plugin. Looking for Supervertaler Workbench? See [Workbench Quick Start](../get-started/quick-start.md).
 {% endhint %}
 
 This page walks you through the first-time setup so you can start using TermLens terminology and AI translation inside Trados Studio.
@@ -22,7 +22,7 @@ On the **TermLens** tab:
 You can add multiple termbases. Designate one as the **Project termbase** to give its terms higher priority (shown in pink).
 
 {% hint style="info" %}
-Supervertaler for Trados uses the same `.db` termbase format as the standalone Supervertaler desktop app. Any termbase created in either tool works in both.
+Supervertaler for Trados uses the same `.db` termbase format as Supervertaler Workbench. Any termbase created in either tool works in both.
 {% endhint %}
 
 ### 3. Configure AI (AI Settings tab)

@@ -11,7 +11,7 @@ Click the **gear icon** in the TermLens panel, or open the plugin **Settings** d
 The path to your Supervertaler termbase `.db` file. Click **Browse** to select a database, or **Create New** to start with an empty one.
 
 {% hint style="info" %}
-**Auto-detect:** If the standalone Supervertaler application is installed on the same machine, the plugin can automatically detect its default database location. Click **Auto-detect** to find and use it.
+**Auto-detect:** If Supervertaler Workbench is installed on the same machine, the plugin can automatically detect its default database location. Click **Auto-detect** to find and use it.
 {% endhint %}
 
 ## Termbase toggles
@@ -49,4 +49,4 @@ Increase the font size if TermLens text is hard to read; decrease it to fit more
 - [Termbase Management](../termbase-management.md)
 - [MultiTerm Support](../multiterm-support.md)
 - [AI Settings](ai-settings.md)
-- [TermLens (Desktop)](https://supervertaler.gitbook.io/supervertaler/glossaries/termlens)
+- [TermLens (Workbench)](https://supervertaler.gitbook.io/supervertaler/glossaries/termlens)

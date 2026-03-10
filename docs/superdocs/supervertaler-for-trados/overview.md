@@ -1,7 +1,7 @@
 # Supervertaler for Trados
 
 {% hint style="info" %}
-This page is about **Supervertaler for Trados** — the Trados Studio plugin. Looking for the standalone desktop app? See [Supervertaler Desktop](../get-started/quick-start.md).
+This page is about **Supervertaler for Trados** — the Trados Studio plugin. Looking for the standalone app? See [Supervertaler Workbench](../get-started/quick-start.md).
 {% endhint %}
 
 Supervertaler for Trados is a plugin for **Trados Studio 2024+** that brings Supervertaler's terminology and AI features directly into the Trados editor. It runs natively inside Trados Studio as a set of dockable panels, so you never have to leave the editor.
@@ -45,7 +45,7 @@ Create, edit, and import termbases in Supervertaler's `.db` format. Quick-add te
 
 ## Shared Termbase Format
 
-Supervertaler for Trados uses the same SQLite-based termbase format (`.db`) as the standalone [Supervertaler](../README.md) desktop application. Termbases created in either tool are fully compatible — you can open the same `.db` file in both applications.
+Supervertaler for Trados uses the same SQLite-based termbase format (`.db`) as [Supervertaler Workbench](../README.md). Termbases created in either tool are fully compatible — you can open the same `.db` file in both applications.
 
 {% hint style="info" %}
 For the SDLPPX round-trip workflow (translating Trados packages in the standalone Supervertaler app), see [Trados Studio Workflow](../cat-tools/trados.md).
