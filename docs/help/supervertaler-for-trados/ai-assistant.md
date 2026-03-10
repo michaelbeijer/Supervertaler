@@ -34,15 +34,42 @@ The AI will consider your current source text, target text, matched terminology 
 
 ## Context Awareness
 
-The assistant automatically includes the following context with every message:
+The Supervertaler Assistant is deeply integrated with your Trados project. Every time you send a message, the assistant automatically receives a rich snapshot of your current work so it can give you informed, project-specific answers. This context is assembled fresh on each message, so the AI always sees the latest state.
 
-- **Current source segment** text
-- **Current target segment** text (if any)
-- **Matched terminology** from your active termbases
-- **TM fuzzy matches** (if enabled in AI settings)
+### Project and file information
+
+The assistant knows which project and file you are working in, the language pair (e.g. Dutch → English), and your current position in the document (e.g. "Segment 42 of 318").
+
+### Full document content
+
+When enabled, all source segments in the current document are included in the AI prompt. This allows the assistant to analyze the document and determine its type — legal, medical, technical, marketing, financial, scientific, etc. — and use that assessment to inform its advice on terminology, style, and translation choices.
+
+For very large documents, the content is automatically truncated to the configured maximum (default: 500 segments). The truncation preserves the first 80% and the last 20% so the AI still sees both the beginning and the end of the document.
+
+### Current segment
+
+The source text you are translating and any target translation you have already entered.
+
+### Surrounding segments
+
+Two segments before and two segments after your current position are included, with their translations where available. This gives the AI local context for cohesion and consistency.
+
+### Translation Memory matches
+
+TM fuzzy matches for the current segment are included, showing the match percentage, source text, and target text. This gives the AI reference material from your previous translations.
+
+### Terminology
+
+Matched terms from your active termbases are included with their approved translations and synonyms. Optionally, term definitions, domains, and usage notes are also included, giving the AI deeper understanding of your terminology requirements.
+
+Terms marked as non-translatable or forbidden are flagged so the AI can respect those constraints.
 
 {% hint style="info" %}
-You can control which termbases contribute terms to the AI context and whether TM matches are included. Configure this in the settings dialog on the **AI Settings** tab.
+You can control exactly what context the assistant receives. In the settings dialog on the **AI Settings** tab, you can toggle document content, TM matches, term metadata, and select which termbases contribute to the AI prompt.
+{% endhint %}
+
+{% hint style="success" %}
+**Tip:** For the best results, keep document content and term metadata enabled. The more context the AI has, the more accurate and consistent its suggestions will be. The document type analysis is especially valuable — it helps the AI understand that "consideration" means something different in a legal contract than in a marketing brochure.
 {% endhint %}
 
 ## Image Attachments

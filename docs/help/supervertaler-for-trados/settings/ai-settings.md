@@ -63,8 +63,28 @@ When enabled, all terminology matches from active termbases for the current segm
 
 When enabled, translation memory matches for the current segment are included in the prompt. This gives the AI context from previous translations, improving consistency.
 
+### Include full document content
+
+When enabled, all source segments in the current document are sent to the AI so it can determine the document type (legal, medical, technical, marketing, etc.) and provide context-appropriate assistance. This uses more tokens but greatly improves response quality — the AI can tailor its terminology and style recommendations to the specific type of document you are translating.
+
+For very large documents, the content is automatically truncated to the configured maximum. The truncation preserves the beginning and end of the document (first 80% + last 20%).
+
+### Max segments
+
+The maximum number of source segments to include in the AI prompt when document content is enabled. Default: **500**. Range: 100–2000.
+
+Increase this for very large documents where you want the AI to see more content. Decrease it if you want to reduce token usage.
+
+{% hint style="info" %}
+This setting is only available when **Include full document content** is enabled.
+{% endhint %}
+
+### Include term definitions and domains
+
+When enabled, term definitions, domains, and usage notes from your termbases are included alongside matched terminology in the AI prompt. This gives the AI deeper understanding of your terminology — for example, knowing that a term belongs to the legal domain or has a specific definition helps the AI use it correctly.
+
 {% hint style="success" %}
-**Tip:** Enabling both options gives the AI the most context for accurate, consistent translations. Disable them if you want the AI to translate without any reference material.
+**Tip:** For the best results, enable all context options. The more information the AI has about your project, document, terminology, and previous translations, the more accurate and consistent its suggestions will be.
 {% endhint %}
 
 ## Batch settings
