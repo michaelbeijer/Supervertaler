@@ -6,7 +6,7 @@ TermLens is an inline terminology display that shows the source text of the curr
 
 When you select a segment in the Trados editor, TermLens analyses the source text against all active termbases and displays the result in a visual layout:
 
-* **Matched words** appear with their glossary translation underneath, on a colored background
+* **Matched words** appear with their glossary translation underneath, on a coloured background
 * **Unmatched words** are shown in light grey text so you can read the full source sentence in context
 
 This gives you an at-a-glance overview of every term in the segment that has a termbase entry – without hovering or clicking anything.
@@ -15,7 +15,7 @@ This gives you an at-a-glance overview of every term in the segment that has a t
 
 TermLens uses four background colours to distinguish term types:
 
-| Color      | Hex       | Meaning                                  |
+| Colour     | Hex       | Meaning                                  |
 | ---------- | --------- | ---------------------------------------- |
 | **Blue**   | `#C8E6F5` | Regular Supervertaler termbase match     |
 | **Pink**   | `#E6D7D8` | Project termbase match (higher priority) |
@@ -90,7 +90,7 @@ Use the **A+** and **A-** buttons in the TermLens panel header to increase or de
 
 ## Tips
 
-* TermLens respects termbase activation — only terms from activated termbases are shown.
+* TermLens respects termbase activation –only terms from activated termbases are shown.
 * If you have many termbases, designate one as the **Project termbase** (shown in pink) to make its terms stand out.
 * Hover over a term to see a tooltip with all translations, synonyms, definitions, and the termbase name.
 

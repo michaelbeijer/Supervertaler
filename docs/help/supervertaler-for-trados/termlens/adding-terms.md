@@ -60,7 +60,7 @@ You don't need to precisely select entire words when adding terms. All quick-add
 
 For example, to add **standalone version** = **zelfstandige versie** to your termbase, it's enough to select **alone ver** in the source and **andige ver** in the target. Supervertaler expands both selections to the full words automatically.
 
-This means you can work fast and loose with your mouse or keyboard selections — no need for the precise click-and-drag that normally slows you down. Just grab roughly the right area and Supervertaler takes care of the rest.
+This means you can work fast and loose with your mouse or keyboard selections –no need for the precise click-and-drag that normally slows you down. Just grab roughly the right area and Supervertaler takes care of the rest.
 
 {% hint style="info" %}
 You can also press **F2** to manually expand your current selection to word boundaries before using any shortcut.

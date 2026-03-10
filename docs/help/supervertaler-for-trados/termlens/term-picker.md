@@ -6,11 +6,11 @@ The Term Picker is a compact overlay that shows all matched terms for the curren
 
 Press **Ctrl+Shift+G** (or **Ctrl+Alt+G**) to open the Term Picker. It appears as a floating window above the editor.
 
-## Color-coded rows
+## Colour-coded rows
 
-Each row in the Term Picker is color-coded by termbase type:
+Each row in the Term Picker is colour-coded by termbase type:
 
-| Color | Meaning |
+| Colour | Meaning |
 |-------|---------|
 | <mark style="background-color:#E6D7D8;">**Pink**</mark> | Project termbase term |
 | <mark style="background-color:#C8E6F5;">**Blue**</mark> | Regular Supervertaler termbase term |

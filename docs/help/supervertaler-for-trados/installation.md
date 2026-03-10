@@ -8,7 +8,7 @@
 ## Install
 
 1. **Close Trados Studio** if it is running
-2. **Double-click** the downloaded `.sdlplugin` file — Trados handles the installation automatically
+2. **Double-click** the downloaded `.sdlplugin` file –Trados handles the installation automatically
 3. **Restart Trados Studio**
 
 {% hint style="info" %}
@@ -19,8 +19,8 @@ The `.sdlplugin` format is an Open Packaging Convention archive. Trados extracts
 
 After restarting Trados Studio, open a project in the Editor view. You should see:
 
-- **TermLens panel** — docked above the editor area (or in the bottom panel area)
-- **Supervertaler Assistant panel** — docked on the right side
+- **TermLens panel** –docked above the editor area (or in the bottom panel area)
+- **Supervertaler Assistant panel** –docked on the right side
 
 ### If the TermLens panel is not visible
 
@@ -58,4 +58,4 @@ To remove the plugin:
 
 ## Next Steps
 
-- [Getting Started](getting-started.md) — set up your first termbase and API key
+- [Getting Started](getting-started.md) –set up your first termbase and API key

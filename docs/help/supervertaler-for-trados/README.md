@@ -6,7 +6,7 @@ Supervertaler for Trados is a plugin for **Trados Studio 2024+** that brings Sup
 
 ### TermLens (Inline Terminology)
 
-Live terminology display that shows the source text word by word, with glossary translations underneath each matched term. Color-coded by termbase type:
+Live terminology display that shows the source text word by word, with glossary translations underneath each matched term. Colour-coded by termbase type:
 
 - **Blue** for regular termbase matches
 - **Pink** for project termbase matches (higher priority)
@@ -17,7 +17,7 @@ Numbered badges let you insert terms with **Alt+1** through **Alt+9**. MultiTerm
 
 ### Supervertaler Assistant
 
-A conversational AI chat panel that is aware of your current segment, matched terminology, and TM matches. Ask questions about translation choices, get alternative phrasings, or request explanations — all without leaving Trados.
+A conversational AI chat panel that is aware of your current segment, matched terminology, and TM matches. Ask questions about translation choices, get alternative phrasings, or request explanations –all without leaving Trados.
 
 ### Batch Translate
 
@@ -41,7 +41,7 @@ Create, edit, and import termbases in Supervertaler's `.db` format. Quick-add te
 
 ## Shared Termbase Format
 
-Supervertaler for Trados uses the same SQLite-based termbase format (`.db`) as the standalone [Supervertaler](https://supervertaler.gitbook.io/supervertaler/) desktop application. Termbases created in either tool are fully compatible — you can open the same `.db` file in both applications.
+Supervertaler for Trados uses the same SQLite-based termbase format (`.db`) as the standalone [Supervertaler](https://supervertaler.gitbook.io/supervertaler/) desktop application. Termbases created in either tool are fully compatible –you can open the same `.db` file in both applications.
 
 {% hint style="info" %}
 For the SDLPPX round-trip workflow (translating Trados packages in the standalone Supervertaler app), see [Trados Studio Workflow](https://supervertaler.gitbook.io/supervertaler/cat-tools/trados).

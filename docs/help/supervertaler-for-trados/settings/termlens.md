@@ -20,7 +20,7 @@ Each Supervertaler termbase in the database has three toggles. See [Termbase Man
 
 | Toggle | Purpose |
 |--------|---------|
-| **Read** | Load terms for matching — only termbases with Read enabled appear in TermLens |
+| **Read** | Load terms for matching –only termbases with Read enabled appear in TermLens |
 | **Write** | Receive new terms added via the [quick-add shortcuts](../termlens/adding-terms.md) |
 | **Project** | Mark as the project termbase (shown in pink, prioritised) |
 

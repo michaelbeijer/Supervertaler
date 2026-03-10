@@ -47,7 +47,7 @@ You can control which termbases contribute terms to the AI context and whether T
 
 ## Image Attachments
 
-The Supervertaler Assistant supports multimodal input. You can attach images to your messages for visual context — for example, a screenshot of the source document layout, a reference image, or a table that is hard to describe in text.
+The Supervertaler Assistant supports multimodal input. You can attach images to your messages for visual context – for example, a screenshot of the source document layout, a reference image, or a table that is hard to describe in text.
 
 | Method | How |
 |--------|-----|

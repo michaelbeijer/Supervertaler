@@ -20,7 +20,7 @@ The `.db` file uses the same Supervertaler SQLite format as the standalone appli
 
 ## MultiTerm termbases
 
-If your Trados project has MultiTerm termbases (`.sdltb` files) attached, they appear automatically at the bottom of the termbase list with a **[MultiTerm]** label and green background. These termbases are read-only in TermLens — to manage their terms, use Trados's built-in MultiTerm interface. See [MultiTerm Support](multiterm-support.md) for full details.
+If your Trados project has MultiTerm termbases (`.sdltb` files) attached, they appear automatically at the bottom of the termbase list with a **[MultiTerm]** label and green background. These termbases are read-only in TermLens –to manage their terms, use Trados's built-in MultiTerm interface. See [MultiTerm Support](multiterm-support.md) for full details.
 
 ## Termbase list
 

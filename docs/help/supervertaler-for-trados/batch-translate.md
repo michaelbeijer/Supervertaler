@@ -25,8 +25,8 @@ The scope dropdown controls which segments are translated:
 
 Choose a prompt to guide the AI translation style and domain. The prompt selector shows:
 
-- **Built-in prompts** — 14 prompts covering medical, legal, patent, financial, technical, marketing, IT, style guides, and project prompts
-- **Custom prompts** — your own prompts created in the Prompt Manager
+- **Built-in prompts** – 14 prompts covering medical, legal, patent, financial, technical, marketing, IT, style guides, and project prompts
+- **Custom prompts** – your own prompts created in the Prompt Manager
 
 {% hint style="info" %}
 Domain-specific prompts (e.g., Medical Translation Specialist, Legal Translation Specialist) produce significantly better results for specialized content. Choose the prompt that matches your source material.
@@ -42,7 +42,7 @@ During translation:
 
 - A **progress bar** shows overall completion
 - A **real-time log** displays the status of each segment as it is translated
-- The **Stop** button aborts the batch at any time — segments already translated are kept
+- The **Stop** button aborts the batch at any time – segments already translated are kept
 
 ## Single-Segment AI Translation
 

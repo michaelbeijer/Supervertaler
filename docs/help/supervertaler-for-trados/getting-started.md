@@ -42,7 +42,7 @@ Settings are saved and applied immediately.
 ### TermLens
 
 1. Open a project in the Trados **Editor** view
-2. Navigate to any segment — TermLens automatically displays term matches for the source text
+2. Navigate to any segment – TermLens automatically displays term matches for the source text
 3. Click a term translation to insert it into the target, or press **Alt+1** through **Alt+9**
 
 ### AI Translate
