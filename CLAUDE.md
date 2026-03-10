@@ -15,7 +15,9 @@ Supervertaler is a desktop CAT (Computer-Assisted Translation) tool built with P
 | Version (source of truth) | `pyproject.toml` |
 | Changelog | `CHANGELOG.md` |
 | Website | `docs/index.html` |
-| Help (Gitbook source) | `docs/superdocs/` |
+| Help — Desktop (GitBook) | `docs/help/supervertaler/` |
+| Help — Trados (GitBook) | `docs/help/supervertaler-for-trados/` |
+| Help — Desktop (old, git-synced) | `docs/superdocs/` |
 | Tests | `tests/` |
 | Settings | `settings/settings.json` |
 | Dependencies | `requirements.txt` |
