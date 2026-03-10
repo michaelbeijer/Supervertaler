@@ -1492,10 +1492,17 @@ body {
 
 .pricing-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: var(--spacing-md);
-    max-width: 800px;
+    max-width: 1000px;
     margin: 0 auto;
+}
+
+.pricing-card .pricing-annual {
+    font-size: 0.85rem;
+    color: var(--text-light);
+    margin-top: -4px;
+    margin-bottom: var(--spacing-sm);
 }
 
 .pricing-card {
@@ -1538,6 +1545,12 @@ body {
     font-size: 0.9rem;
     color: var(--text-secondary);
     margin-bottom: var(--spacing-md);
+}
+
+.pricing-card .pricing-price .pricing-period {
+    font-size: 1rem;
+    font-weight: 400;
+    margin-bottom: 0;
 }
 
 .pricing-card .pricing-features {
