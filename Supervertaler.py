@@ -5417,7 +5417,7 @@ class DetachedLogWindow(QWidget):
     def __init__(self, parent):
         super().__init__()
         self.parent = parent
-        self.setWindowTitle("Supervertaler - Session Log")
+        self.setWindowTitle("Supervertaler Workbench - Session Log")
         self.setWindowIcon(self.parent.windowIcon())
         self.resize(800, 600)
 
@@ -7743,7 +7743,7 @@ class SupervertalerQt(QMainWindow):
         from PyQt6.QtCore import QTimer
         QTimer.singleShot(100, self.refresh_theme_colors)
         
-        self.log(f"Welcome to Supervertaler v{__version__}")
+        self.log(f"Welcome to Supervertaler Workbench v{__version__}")
         self.log("Supervertaler: The Ultimate Translation Workbench.")
         
         # Load general settings (including auto-propagation)
@@ -7978,7 +7978,7 @@ class SupervertalerQt(QMainWindow):
             from PyQt6.QtWidgets import QDialog, QVBoxLayout, QLabel, QCheckBox, QDialogButtonBox
             
             dialog = QDialog(self)
-            dialog.setWindowTitle("Welcome to Supervertaler!")
+            dialog.setWindowTitle("Welcome to Supervertaler Workbench!")
             dialog.setMinimumWidth(450)
             
             layout = QVBoxLayout(dialog)
@@ -8046,7 +8046,7 @@ class SupervertalerQt(QMainWindow):
             from PyQt6.QtCore import Qt
 
             dialog = QDialog(self)
-            dialog.setWindowTitle("Supervertaler Setup Wizard")
+            dialog.setWindowTitle("Supervertaler Workbench Setup Wizard")
             dialog.setMinimumWidth(600)
             dialog.setMinimumHeight(450)
             dialog.setModal(True)
@@ -8427,7 +8427,7 @@ class SupervertalerQt(QMainWindow):
     def init_ui(self):
         """Initialize the user interface"""
         # Build window title with dev mode indicator
-        title = f"Supervertaler v{__version__}"
+        title = f"Supervertaler Workbench v{__version__}"
         if ENABLE_PRIVATE_FEATURES:
             title += " [🛠️ DEV MODE]"
         self.setWindowTitle(title)
@@ -9877,7 +9877,7 @@ class SupervertalerQt(QMainWindow):
         help_menu.addAction(context_help_action)
 
         # Place Supervertaler Help at the top of the Help menu
-        superdocs_action = QAction("Supervertaler Help", self)
+        superdocs_action = QAction("Supervertaler Workbench Help", self)
         superdocs_action.setToolTip("Online documentation (GitBook)")
         superdocs_action.triggered.connect(lambda: self._open_url("https://supervertaler.gitbook.io/help/"))
         help_menu.addAction(superdocs_action)
@@ -11831,7 +11831,7 @@ class SupervertalerQt(QMainWindow):
             
             # Create detached window
             self.lookup_detached_window = QDialog(self)
-            self.lookup_detached_window.setWindowTitle("🔍 Superlookup - Supervertaler")
+            self.lookup_detached_window.setWindowTitle("🔍 Superlookup - Supervertaler Workbench")
             self.lookup_detached_window.setMinimumSize(600, 700)
             self.lookup_detached_window.resize(700, 800)
             
@@ -22095,7 +22095,7 @@ class SupervertalerQt(QMainWindow):
         
         try:
             with open(filename, 'w', encoding='utf-8') as f:
-                f.write(f"Supervertaler Debug Log\n")
+                f.write(f"Supervertaler Workbench Debug Log\n")
                 f.write(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
                 f.write("="*80 + "\n\n")
                 
@@ -46455,7 +46455,7 @@ class SupervertalerQt(QMainWindow):
     
     def update_window_title(self):
         """Update window title with project name and modified state"""
-        title = f"Supervertaler v{__version__}"
+        title = f"Supervertaler Workbench v{__version__}"
         if ENABLE_PRIVATE_FEATURES:
             title += " [🛠️ DEV MODE]"
         if self.current_project:
@@ -47645,7 +47645,7 @@ class SupervertalerQt(QMainWindow):
     def show_about(self):
         """Show about dialog with clickable website link"""
         dialog = QDialog(self)
-        dialog.setWindowTitle("About Supervertaler")
+        dialog.setWindowTitle("About Supervertaler Workbench")
         dialog.setMinimumWidth(400)
         
         layout = QVBoxLayout(dialog)
@@ -47653,7 +47653,7 @@ class SupervertalerQt(QMainWindow):
         layout.setContentsMargins(20, 20, 20, 20)
         
         # Title
-        title = QLabel(f"<h2>Supervertaler v{__version__}</h2>")
+        title = QLabel(f"<h2>Supervertaler Workbench v{__version__}</h2>")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title)
 

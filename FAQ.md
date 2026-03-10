@@ -1,10 +1,10 @@
-# Supervertaler - Frequently Asked Questions
+# Supervertaler Workbench - Frequently Asked Questions
 
 **Current Version:** v1.9.180 (January 30, 2026)
 **Framework:** PyQt6
 **Last Updated:** January 30, 2026
 
-Welcome to the Supervertaler FAQ! Find answers to common questions about installation, features, workflow, and troubleshooting.
+Welcome to the Supervertaler Workbench FAQ! Find answers to common questions about installation, features, workflow, and troubleshooting.
 
 ---
 

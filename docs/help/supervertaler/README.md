@@ -1,8 +1,8 @@
-# Supervertaler
+# Supervertaler Workbench
 
-Welcome to the help center for **Supervertaler** — a free, open-source desktop translation application built by translators, for translators.
+Welcome to the help center for **Supervertaler Workbench** — a free, open-source translation application built by translators, for translators.
 
-**Supervertaler** integrates AI-powered translation with traditional CAT tool workflows. It runs on Windows, macOS, and Linux.
+**Supervertaler Workbench** integrates AI-powered translation with traditional CAT tool workflows. It runs on Windows, macOS, and Linux.
 
 - **Translate with AI** — GPT-4, Claude, Gemini, or local models via Ollama
 - **Work with CAT tools** — import/export files from memoQ, Trados, Phrase, CafeTran

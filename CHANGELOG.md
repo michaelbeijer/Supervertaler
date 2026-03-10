@@ -1,6 +1,6 @@
-# Supervertaler - Changelog
+# Supervertaler Workbench - Changelog
 
-All notable changes to Supervertaler are documented in this file.
+All notable changes to Supervertaler Workbench are documented in this file.
 
 **Current Version:** v1.9.352 (March 7, 2026)
 
