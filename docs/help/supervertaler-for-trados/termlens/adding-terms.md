@@ -60,10 +60,26 @@ You don't need to precisely select entire words when adding terms. All quick-add
 
 For example, to add **standalone version** = **zelfstandige versie** to your termbase, it's enough to select **alone ver** in the source and **andige ver** in the target. Supervertaler expands both selections to the full words automatically.
 
-This means you can work fast and loose with your mouse or keyboard selections –no need for the precise click-and-drag that normally slows you down. Just grab roughly the right area and Supervertaler takes care of the rest.
+This means you can work fast and loose with your mouse or keyboard selections — no need for the precise click-and-drag that normally slows you down. Just grab roughly the right area and Supervertaler takes care of the rest.
+
+### How it works
+
+When you make a selection, Supervertaler scans the full segment text for every occurrence of your selected text and applies these rules, in order:
+
+1. **Exact word match wins** — if the selection matches a complete word somewhere in the segment (i.e. it sits between spaces or punctuation), that word is used as-is. For example, if the segment contains both _hechtingsbevorderaars_ and _hechting_, selecting **hechting** returns **hechting** — the exact word — not the longer compound.
+
+2. **Shortest word wins** — if the selection is embedded inside multiple words, the shortest enclosing word is preferred. For example, if the segment contains _hechtingsbevorderaars_ and _hechting_, selecting **echt** returns **hechting** (8 characters) rather than _hechtingsbevorderaars_ (21 characters), because the user most likely intended the simpler word.
+
+3. **Single match expands** — if the selection appears inside only one word, it expands to that word's boundaries.
+
+### Tips for reliable results
+
+- **Select at least 3–4 characters** — very short selections (1–2 characters) may match common short words elsewhere in the segment (e.g., selecting **he** could match the word _the_)
+- **Select the whole word when in doubt** — if a segment contains similar-looking words and you want a specific one, a complete-word selection is always matched correctly
+- **Use Ctrl+Alt+T for tricky cases** — the Add Term dialog lets you review and edit the expanded term before saving, so you can catch any unexpected expansion
 
 {% hint style="info" %}
-You can also press **F2** to manually expand your current selection to word boundaries before using any shortcut.
+Press **F2** to manually expand your current selection to word boundaries without adding a term. This lets you preview exactly what Supervertaler would capture before pressing a quick-add shortcut.
 {% endhint %}
 
 ## Editing existing terms
