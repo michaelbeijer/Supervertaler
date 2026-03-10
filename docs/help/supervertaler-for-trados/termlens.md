@@ -88,13 +88,8 @@ Quick-add shortcuts use the currently selected source text and the corresponding
 
 Use the **A+** and **A-** buttons in the TermLens panel header to increase or decrease the font size. Changes apply immediately.
 
-## Refreshing
-
-Press **F5** to force a refresh of the TermLens display. This is useful if you have edited a termbase externally or if matches appear to be missing.
-
 ## Tips
 
-* Press **F5** to force a refresh if matches appear to be missing.
 * TermLens respects termbase activation — only terms from activated termbases are shown.
 * If you have many termbases, designate one as the **Project termbase** (shown in pink) to make its terms stand out.
 * Hover over a term to see a tooltip with all translations, synonyms, definitions, and the termbase name.

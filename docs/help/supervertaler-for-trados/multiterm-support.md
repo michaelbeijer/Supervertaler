@@ -58,7 +58,7 @@ Because the access is read-only, there is no risk of data corruption. TermLens o
 ### Terms added in MultiTerm not updating
 
 - Navigate to a different segment — this triggers the auto-refresh check
-- If terms still do not appear, press **F5** in the TermLens panel to force a full reload
+- If terms still do not appear, close and reopen the settings dialog to force a full termbase reload
 
 ---
 
