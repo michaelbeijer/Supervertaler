@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+        content="Supervertaler for Trados - Inline terminology display (TermLens), AI-powered translation, and batch translate for Trados Studio 2024. Plugin for professional translators.">
+    <meta name="keywords"
+        content="Trados, Trados Studio, SDL Trados, translation plugin, TermLens, terminology, AI translation, batch translate, sdlplugin">
+    <meta name="author" content="Michael Beijer">
+
+    <title>Supervertaler for Trados - TermLens &amp; AI Translation Plugin</title>
+
+    <!-- Favicons -->
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <link rel="manifest" href="site.webmanifest">
+
+    <link rel="stylesheet" href="styles.css?v=2.0.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+    <!-- Navigation -->
+    <nav class="navbar" id="top">
+        <div class="container">
+            <a href="index.html" class="nav-brand">
+                <img src="sv-icon.svg" alt="Supervertaler" class="logo-img" width="40" height="40">
+                <span class="brand-name">Supervertaler</span>
+            </a>
+            <button class="mobile-menu-toggle" aria-label="Toggle menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+            <ul class="nav-menu">
+                <li><a href="#features">Features</a></li>
+                <li><a href="#screenshots">Screenshots</a></li>
+                <li><a href="#pricing">Pricing</a></li>
+                <li><a href="#install">Install</a></li>
+                <li><a href="desktop.html">Desktop App</a></li>
+                <li><a href="https://supervertaler.gitbook.io/trados" target="_blank">Documentation</a></li>
+                <li class="nav-action">
+                    <a href="https://github.com/michaelbeijer/Supervertaler-for-Trados" target="_blank" class="nav-icon-link"
+                        aria-label="GitHub Repository">
+                        <svg class="nav-icon" width="18" height="18" viewBox="0 0 16 16" fill="currentColor"
+                            aria-hidden="true" focusable="false">
+                            <path
+                                d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
+                        </svg> GitHub
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="container">
+            <div class="hero-content">
+                <h1 class="hero-title">
+                    Supervertaler
+                    <span class="gradient-text">for Trados</span>
+                </h1>
+                <p class="hero-subtitle">
+                    Inline terminology display, AI-powered translation, and batch processing &mdash;
+                    built directly into Trados Studio 2024.
+                </p>
+                <div class="hero-buttons">
+                    <a href="https://github.com/michaelbeijer/Supervertaler-for-Trados/releases" class="btn btn-primary" target="_blank">Download Plugin</a>
+                    <a href="https://supervertaler.gitbook.io/trados" class="btn btn-secondary" target="_blank">
+                        Documentation
+                    </a>
+                </div>
+                <div class="hero-badges">
+                    <span class="badge badge-cat">Trados Studio 2024</span>
+                    <span class="badge badge-cat">TermLens Terminology</span>
+                    <span class="badge badge-cat">AI Assistant</span>
+                    <span class="badge badge-cat">Batch Translate</span>
+                    <span class="badge badge-cat" style="background: linear-gradient(135deg, #059669, #10b981); border-color: #059669;">MultiTerm Support</span>
+                </div>
+            </div>
+            <div class="hero-visual">
+                <div class="feature-card-preview" style="max-width: 420px;">
+                    <div class="preview-header">
+                        <span class="preview-dot"></span>
+                        <span class="preview-dot"></span>
+                        <span class="preview-dot"></span>
+                    </div>
+                    <div class="preview-content">
+                        <div class="preview-segment">
+                            <span class="preview-label">TermLens</span>
+                            <span class="preview-text">Inline terminology with color-coded chips</span>
+                        </div>
+                        <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px;">
+                            <span style="background: #C8E6F5; padding: 4px 10px; border-radius: 6px; font-size: 0.8rem;">valve &rarr; klep</span>
+                            <span style="background: #E6D7D8; padding: 4px 10px; border-radius: 6px; font-size: 0.8rem;">pump &rarr; pomp</span>
+                            <span style="background: #FFF3D0; padding: 4px 10px; border-radius: 6px; font-size: 0.8rem;">ISO 9001</span>
+                            <span style="background: #D4EDDA; padding: 4px 10px; border-radius: 6px; font-size: 0.8rem;">flange &rarr; flens</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="features">
+        <div class="container">
+            <h2 class="section-title">Features</h2>
+            <p class="section-subtitle">Professional terminology and AI tools inside Trados Studio</p>
+
+            <div class="features-grid" style="grid-template-columns: repeat(2, 1fr);">
+                <div class="feature-card" style="border: 2px solid #3b82f6;">
+                    <div class="feature-icon">&#128270;</div>
+                    <h3>TermLens</h3>
+                    <p>Inline terminology display that shows source text word by word with glossary translations directly underneath each matched term.</p>
+                    <ul class="feature-list">
+                        <li>Color-coded chips: blue, pink (project), yellow (non-translatable), green (MultiTerm)</li>
+                        <li>Click or Alt+1&ndash;9 to insert terms into target</li>
+                        <li>Right-click to edit, delete, or mark terms</li>
+                        <li>Term Picker (Ctrl+Shift+G) for segments with many matches</li>
+                        <li>Quick-add shortcuts: Alt+Down, Alt+Up, Ctrl+Alt+T</li>
+                    </ul>
+                </div>
+
+                <div class="feature-card" style="border: 2px solid #8b5cf6;">
+                    <div class="feature-icon">&#129302;</div>
+                    <h3>AI Assistant</h3>
+                    <p>Project-aware conversational AI assistant in a separate dockable panel.</p>
+                    <ul class="feature-list">
+                        <li>Access to current segment, termbase terms, and TM matches</li>
+                        <li>Multimodal: paste or drag-drop images</li>
+                        <li>OpenAI, Anthropic, Google, and Ollama providers</li>
+                        <li>Apply responses directly to the active segment</li>
+                        <li>14 built-in domain prompts</li>
+                    </ul>
+                </div>
+
+                <div class="feature-card" style="border: 2px solid #ec4899;">
+                    <div class="feature-icon">&#9889;</div>
+                    <h3>Batch Translate</h3>
+                    <p>AI-powered translation of multiple segments at once with full prompt control.</p>
+                    <ul class="feature-list">
+                        <li>Translate selected segments, untranslated, or entire document</li>
+                        <li>Choose provider, model, and prompt per batch</li>
+                        <li>Progress tracking with real-time log</li>
+                        <li>Respects existing translations (skip confirmed)</li>
+                    </ul>
+                </div>
+
+                <div class="feature-card" style="border: 2px solid #059669;">
+                    <div class="feature-icon">&#128215;</div>
+                    <h3>MultiTerm Support</h3>
+                    <p>Reads MultiTerm .sdltb termbases attached to your Trados project and displays their terms as green chips.</p>
+                    <ul class="feature-list">
+                        <li>Automatic detection from project settings</li>
+                        <li>Green chips alongside Supervertaler terms</li>
+                        <li>Auto-refresh when terms change in MultiTerm</li>
+                        <li>Tooltip with all translations and metadata</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Screenshots Section -->
+    <section id="screenshots" class="screenshots">
+        <div class="container">
+            <h2 class="section-title">Screenshots</h2>
+            <p class="section-subtitle">See Supervertaler for Trados in action</p>
+
+            <div class="screenshots-grid" style="grid-template-columns: repeat(2, 1fr);">
+                <div class="screenshot-card" style="border: 3px solid #3b82f6;">
+                    <a href="screenshots/1_TermLens-in-Trados-Studio-2024.png" class="screenshot-link" target="_blank">
+                        <img src="screenshots/1_TermLens-in-Trados-Studio-2024.png"
+                            alt="TermLens in Trados Studio 2024" loading="lazy">
+                        <div class="screenshot-overlay">
+                            <span class="zoom-icon">Click to enlarge</span>
+                        </div>
+                    </a>
+                    <div class="screenshot-caption">
+                        <h3>TermLens in Trados Studio</h3>
+                        <p>Inline terminology display with color-coded term chips, Alt+1&ndash;9 insertion, and full glossary context.</p>
+                    </div>
+                </div>
+
+                <div class="screenshot-card" style="border: 3px solid #8b5cf6;">
+                    <a href="screenshots/Supervertaler-for-Trados-context-sensitive-help.png" class="screenshot-link" target="_blank">
+                        <img src="screenshots/Supervertaler-for-Trados-context-sensitive-help.png"
+                            alt="Context-sensitive help in Trados" loading="lazy">
+                        <div class="screenshot-overlay">
+                            <span class="zoom-icon">Click to enlarge</span>
+                        </div>
+                    </a>
+                    <div class="screenshot-caption">
+                        <h3>Context-Sensitive Help</h3>
+                        <p>Press F1 or use the ? menu for instant access to documentation for any feature.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Pricing Section -->
+    <section id="pricing" class="features" style="background: var(--bg-secondary);">
+        <div class="container">
+            <h2 class="section-title">Pricing</h2>
+            <p class="section-subtitle">Source-available plugin with free and premium tiers</p>
+
+            <div class="pricing-grid">
+                <div class="pricing-card">
+                    <div class="pricing-tier">Free</div>
+                    <div class="pricing-price">$0</div>
+                    <div class="pricing-period">forever</div>
+                    <ul class="pricing-features">
+                        <li>TermLens inline terminology</li>
+                        <li>Unlimited termbases</li>
+                        <li>MultiTerm .sdltb support</li>
+                        <li>Quick-add &amp; keyboard shortcuts</li>
+                        <li>Term Picker &amp; context menu</li>
+                        <li>Non-translatable term management</li>
+                        <li>Context-sensitive help</li>
+                        <li class="disabled">AI Assistant</li>
+                        <li class="disabled">Batch Translate</li>
+                        <li class="disabled">Prompt Library</li>
+                    </ul>
+                    <a href="https://github.com/michaelbeijer/Supervertaler-for-Trados/releases" class="btn btn-secondary" target="_blank" style="width: 100%; justify-content: center;">
+                        Download Free
+                    </a>
+                </div>
+
+                <div class="pricing-card featured">
+                    <div class="pricing-tier" style="color: var(--primary);">Pro</div>
+                    <div class="pricing-price">TBD</div>
+                    <div class="pricing-period">coming soon</div>
+                    <ul class="pricing-features">
+                        <li>Everything in Free</li>
+                        <li>AI Assistant (dockable panel)</li>
+                        <li>Batch Translate (multi-provider)</li>
+                        <li>Prompt Library (14 built-in prompts)</li>
+                        <li>Multimodal image support</li>
+                        <li>TM match injection</li>
+                        <li>Priority support</li>
+                    </ul>
+                    <a href="https://github.com/michaelbeijer/Supervertaler-for-Trados/discussions" class="btn btn-primary" target="_blank" style="width: 100%; justify-content: center;">
+                        Join Waitlist
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Install Section -->
+    <section id="install" class="download">
+        <div class="container">
+            <h2 class="section-title">Installation</h2>
+            <p class="section-subtitle">Get up and running in under a minute</p>
+
+            <div class="install-steps">
+                <div class="install-step">
+                    <div class="step-number">1</div>
+                    <h4>Download</h4>
+                    <p>Download the latest <code>.sdlplugin</code> file from the <a href="https://github.com/michaelbeijer/Supervertaler-for-Trados/releases" target="_blank">GitHub Releases</a> page.</p>
+                </div>
+                <div class="install-step">
+                    <div class="step-number">2</div>
+                    <h4>Install</h4>
+                    <p>Double-click the <code>.sdlplugin</code> file. Trados will install it automatically.</p>
+                </div>
+                <div class="install-step">
+                    <div class="step-number">3</div>
+                    <h4>Restart &amp; Use</h4>
+                    <p>Restart Trados Studio. The Supervertaler panel appears in the Editor view.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-brand">
+                    <span class="logo">&#127760;</span>
+                    <span class="brand-name">Supervertaler</span>
+                    <p class="footer-tagline">AI-Enhanced Translation for Professionals</p>
+                </div>
+                <div class="footer-links">
+                    <div class="footer-column">
+                        <h4>Products</h4>
+                        <ul>
+                            <li><a href="desktop.html">Supervertaler Desktop</a></li>
+                            <li><a href="trados.html">Supervertaler for Trados</a></li>
+                        </ul>
+                    </div>
+                    <div class="footer-column">
+                        <h4>Documentation</h4>
+                        <ul>
+                            <li><a href="https://supervertaler.gitbook.io/trados" target="_blank">Trados Plugin Help</a></li>
+                            <li><a href="https://supervertaler.gitbook.io/supervertaler" target="_blank">Desktop Help</a></li>
+                        </ul>
+                    </div>
+                    <div class="footer-column">
+                        <h4>Community</h4>
+                        <ul>
+                            <li><a href="https://github.com/michaelbeijer/Supervertaler-for-Trados/discussions" target="_blank">Discussions</a></li>
+                            <li><a href="https://github.com/michaelbeijer/Supervertaler-for-Trados" target="_blank">GitHub</a></li>
+                            <li><a href="https://github.com/michaelbeijer/Supervertaler-for-Trados/issues" target="_blank">Issues</a></li>
+                        </ul>
+                    </div>
+                    <div class="footer-column">
+                        <h4>About</h4>
+                        <ul>
+                            <li><a href="https://michaelbeijer.co.uk" target="_blank">Author's Website</a></li>
+                            <li><a href="https://github.com/michaelbeijer/Supervertaler-for-Trados" target="_blank">View Source Code</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2025 Michael Beijer. Source-available license.</p>
+                <p class="footer-tech">Built with love for translators</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Back to Top Button -->
+    <button id="backToTop" class="back-to-top" aria-label="Back to top">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd"
+                d="M3.293 9.707a1 1 0 010-1.414l6-6a1 1 0 011.414 0l6 6a1 1 0 01-1.414 1.414L11 5.414V15a1 1 0 11-2 0V5.414L4.707 9.707a1 1 0 01-1.414 0z"
+                clip-rule="evenodd" />
+        </svg>
+    </button>
+
+    <script src="script.js?v=2.0.0"></script>
+</body>
+
+</html>

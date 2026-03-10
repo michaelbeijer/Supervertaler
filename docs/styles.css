@@ -1402,13 +1402,228 @@ body {
     .hero-title {
         font-size: 2rem;
     }
-    
+
     .hero-buttons {
         flex-direction: column;
     }
-    
+
     .btn {
         width: 100%;
         justify-content: center;
+    }
+
+    .product-cards {
+        grid-template-columns: 1fr;
+    }
+
+    .pricing-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ===== Landing Page: Product Cards ===== */
+
+.product-cards {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-md);
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.product-card {
+    background: var(--bg-primary);
+    border: 2px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg) var(--spacing-md);
+    text-align: center;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.product-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-xl);
+    border-color: var(--primary);
+}
+
+.product-card .product-icon {
+    font-size: 3rem;
+    margin-bottom: var(--spacing-sm);
+}
+
+.product-card h3 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: var(--spacing-sm);
+    color: var(--text-primary);
+}
+
+.product-card p {
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-md);
+    line-height: 1.7;
+}
+
+.product-badge {
+    display: inline-block;
+    padding: 6px 16px;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin-bottom: var(--spacing-md);
+}
+
+.product-badge.free {
+    background: linear-gradient(135deg, #d1fae5, #a7f3d0);
+    color: #065f46;
+}
+
+.product-badge.plugin {
+    background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+    color: #1e40af;
+}
+
+/* ===== Trados Page: Pricing Cards ===== */
+
+.pricing-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-md);
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.pricing-card {
+    background: var(--bg-primary);
+    border: 2px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md);
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.pricing-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-xl);
+}
+
+.pricing-card.featured {
+    border-color: var(--primary);
+    background: linear-gradient(135deg, #ffffff 0%, #f0f9ff 100%);
+    position: relative;
+}
+
+.pricing-card .pricing-tier {
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-light);
+    margin-bottom: var(--spacing-xs);
+}
+
+.pricing-card .pricing-price {
+    font-size: 2.5rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-xs);
+}
+
+.pricing-card .pricing-period {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-md);
+}
+
+.pricing-card .pricing-features {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 var(--spacing-md);
+    text-align: left;
+}
+
+.pricing-card .pricing-features li {
+    padding: 8px 0;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    border-bottom: 1px solid var(--border-light);
+    padding-left: 24px;
+    position: relative;
+}
+
+.pricing-card .pricing-features li::before {
+    content: "\2713";
+    color: var(--success);
+    position: absolute;
+    left: 0;
+    font-weight: 700;
+}
+
+.pricing-card .pricing-features li.disabled {
+    color: var(--text-light);
+    text-decoration: line-through;
+}
+
+.pricing-card .pricing-features li.disabled::before {
+    content: "\2717";
+    color: var(--text-light);
+}
+
+/* ===== Install Steps ===== */
+
+.install-steps {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--spacing-md);
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.install-step {
+    text-align: center;
+    padding: var(--spacing-md);
+}
+
+.install-step .step-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    color: white;
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin-bottom: var(--spacing-sm);
+}
+
+.install-step h4 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+    color: var(--text-primary);
+}
+
+.install-step p {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    line-height: 1.6;
+}
+
+@media (max-width: 768px) {
+    .product-cards {
+        grid-template-columns: 1fr;
+    }
+    .pricing-grid {
+        grid-template-columns: 1fr;
+    }
+    .install-steps {
+        grid-template-columns: 1fr;
     }
 }

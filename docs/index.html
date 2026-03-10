@@ -5,19 +5,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description"
-        content="Supervertaler - The Ultimate Translation Workbench. AI-enhanced prompt manager, specialized modules, and features that work alongside your CAT tool.">
+        content="Supervertaler - AI-enhanced translation tools for professionals. Desktop translation workbench and Trados Studio plugin.">
     <meta name="keywords"
-        content="translation, translation workbench, AI translation, GPT-4, Claude, Gemini, prompt manager, memoQ, Trados, professional translation">
+        content="translation, AI translation, GPT-4, Claude, Gemini, translation workbench, Trados plugin, TermLens, professional translation">
     <meta name="author" content="Michael Beijer">
 
-    <title>Supervertaler - AI-Enhanced Translation Tool</title>
+    <title>Supervertaler - AI-Enhanced Translation Tools</title>
 
     <!-- Favicons -->
     <link rel="icon" type="image/x-icon" href="favicon.ico">
     <link rel="apple-touch-icon" href="apple-touch-icon.png">
     <link rel="manifest" href="site.webmanifest">
 
-    <link rel="stylesheet" href="styles.css?v=1.9.220">
+    <link rel="stylesheet" href="styles.css?v=2.0.0">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
@@ -26,10 +26,9 @@
 
 <body>
     <!-- Navigation -->
-    <!-- Pages rebuild trigger: 2026-01-13 -->
     <nav class="navbar" id="top">
         <div class="container">
-            <a href="#top" class="nav-brand">
+            <a href="index.html" class="nav-brand">
                 <img src="sv-icon.svg" alt="Supervertaler" class="logo-img" width="40" height="40">
                 <span class="brand-name">Supervertaler</span>
             </a>
@@ -39,18 +38,12 @@
                 <span></span>
             </button>
             <ul class="nav-menu">
-                <li><a href="#about" title="Learn what Supervertaler is and how it works">About</a></li>
-                <li><a href="#features" title="Explore Supervertaler's key features">Features</a></li>
-                <li><a href="https://github.com/michaelbeijer/Supervertaler-for-Trados" target="_blank" title="Supervertaler for Trados is a Trados Studio plugin (.sdlplugin) that brings inline contextual terminology display (TermLens) and AI-powered translation features into the Trados ecosystem">Supervertaler for Trados</a></li>
-                <li><a href="https://supervertaler.gitbook.io/help" title="Read the Supervertaler documentation and user guide">Help</a></li>
-                <li><a href="#screenshots" title="See Supervertaler in action">Screenshots</a></li>
-                <li><a href="https://github.com/michaelbeijer/Supervertaler/blob/main/CHANGELOG.md"
-                        target="_blank" title="View the full list of changes and updates">Changelog</a></li>
-                <li class="nav-action"><a href="https://github.com/michaelbeijer/Supervertaler/discussions" target="_blank"
-                        class="nav-discussions" title="Join the community discussion on GitHub">💬 Discussions</a></li>
+                <li><a href="desktop.html">Desktop</a></li>
+                <li><a href="trados.html">Trados Plugin</a></li>
+                <li><a href="https://supervertaler.gitbook.io/supervertaler" target="_blank">Help</a></li>
                 <li class="nav-action">
                     <a href="https://github.com/michaelbeijer/Supervertaler" target="_blank" class="nav-icon-link"
-                        aria-label="GitHub Repository" title="GitHub">
+                        aria-label="GitHub">
                         <svg class="nav-icon" width="18" height="18" viewBox="0 0 16 16" fill="currentColor"
                             aria-hidden="true" focusable="false">
                             <path
@@ -63,1103 +56,44 @@
     </nav>
 
     <!-- Hero Section -->
-    <section class="hero">
-        <div class="container">
-            <div class="hero-content">
-                <h1 class="hero-title">
-                    Supervertaler
-                    <span class="gradient-text">The Ultimate Translation Workbench</span>
-                </h1>
-                <p class="version-badge">v1.9.352</p>
-                <p class="hero-subtitle">
-                    AI-enhanced translation workbench. Work with ChatGPT, Claude, and Gemini simultaneously.
-                    Built by translators, for translators and writers.
-                </p>
-                <div class="hero-buttons">
-                    <a href="#download" class="btn btn-primary">Download Free</a>
-                    <a href="https://github.com/michaelbeijer/Supervertaler" class="btn btn-secondary" target="_blank">
-                        <span>View on GitHub</span>
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                            <path
-                                d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
-                        </svg>
-                    </a>
-                </div>
-                <div class="hero-badges">
-                    <span class="badge badge-cat">Multi-LLM: GPT-4 • Claude • Gemini • Ollama</span>
-                    <span class="badge badge-cat">Translation Memory</span>
-                    <span class="badge badge-cat">Terminology Management</span>
-                    <span class="badge badge-cat">CAT Tool Integration</span>
-                    <span class="badge badge-cat" style="background: linear-gradient(135deg, #059669, #10b981); border-color: #059669;">Okapi File Filters</span>
-                    <span class="badge badge-cat">Voice Commands</span>
-                    <span class="badge badge-cat">Cross-Platform</span>
-                </div>
-            </div>
-            <div class="hero-visual">
-                <div class="feature-card-preview">
-                    <div class="preview-header">
-                        <span class="preview-dot"></span>
-                        <span class="preview-dot"></span>
-                        <span class="preview-dot"></span>
-                    </div>
-                    <div class="preview-content">
-                        <div class="preview-segment">
-                            <span class="preview-label">Source</span>
-                            <span class="preview-text">Figure 1 shows the dowel rod and...</span>
-                        </div>
-                        <div class="preview-segment">
-                            <span class="preview-label">Target</span>
-                            <span class="preview-text">Figuur 1 toont de deuvelstaaf en...</span>
-                        </div>
-                        <div class="preview-image">
-                            <img src="assets/patent-drawing-1951.jpg" alt="Patent Drawing - Technical Design"
-                                style="width: 100%; border-radius: 4px; margin-top: 8px;">
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Okapi Sidecar Announcement Banner -->
-    <section style="background: linear-gradient(135deg, #059669 0%, #0d9488 50%, #0891b2 100%); padding: 70px 0; color: white;">
-        <div class="container">
-            <div style="text-align: center; margin-bottom: 40px;">
-                <span style="display: inline-block; background: rgba(255,255,255,0.2); color: white; padding: 6px 18px; border-radius: 20px; font-size: 0.85em; font-weight: 600; letter-spacing: 1px; margin-bottom: 16px;">NEW IN v1.9.352</span>
-                <h2 style="font-size: 2.2em; margin: 10px 0 10px; color: white;">Okapi Framework File Filters &mdash; Built In</h2>
-                <p style="font-size: 1.15em; opacity: 0.92; max-width: 700px; margin: 0 auto;">
-                    A battle-tested open-source localization toolkit with deep roots in professional CAT tooling, now integrated directly into Supervertaler.
-                </p>
-            </div>
-            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 30px; max-width: 960px; margin: 0 auto;">
-                <div style="background: rgba(255,255,255,0.12); border-radius: 12px; padding: 28px; backdrop-filter: blur(10px);">
-                    <div style="font-size: 1.8em; margin-bottom: 10px;">&#128218;</div>
-                    <h3 style="color: white; font-size: 1.15em; margin-bottom: 10px;">What It Is</h3>
-                    <p style="opacity: 0.9; font-size: 0.95em; line-height: 1.6;">
-                        The <strong>Okapi Framework</strong> is the open-source standard for localization file processing. Its thoroughly battle-tested filters handle DOCX, XLSX, PPTX, HTML, XML, IDML, and dozens more formats with proper inline formatting, segmentation, and round-trip fidelity.
-                    </p>
-                </div>
-                <div style="background: rgba(255,255,255,0.12); border-radius: 12px; padding: 28px; backdrop-filter: blur(10px);">
-                    <div style="font-size: 1.8em; margin-bottom: 10px;">&#9881;&#65039;</div>
-                    <h3 style="color: white; font-size: 1.15em; margin-bottom: 10px;">How It Works</h3>
-                    <p style="opacity: 0.9; font-size: 0.95em; line-height: 1.6;">
-                        A lightweight Java <strong>sidecar</strong> process starts automatically in the background. Supervertaler communicates with it over a local REST API &mdash; sending files for extraction and translations for merging. You never have to interact with it; it just works.
-                    </p>
-                </div>
-                <div style="background: rgba(255,255,255,0.12); border-radius: 12px; padding: 28px; backdrop-filter: blur(10px);">
-                    <div style="font-size: 1.8em; margin-bottom: 10px;">&#10024;</div>
-                    <h3 style="color: white; font-size: 1.15em; margin-bottom: 10px;">What You Get</h3>
-                    <p style="opacity: 0.9; font-size: 0.95em; line-height: 1.6;">
-                        Exported documents that are <strong>exact replicas</strong> of the original &mdash; bold, italic, colored text, heading styles, fonts, lists, everything preserved faithfully. Plus semantic formatting tags (<code style="background: rgba(255,255,255,0.2); padding: 2px 6px; border-radius: 3px;">&lt;b&gt;</code>, <code style="background: rgba(255,255,255,0.2); padding: 2px 6px; border-radius: 3px;">&lt;i&gt;</code>) visible while you translate.
-                    </p>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- About Section -->
-    <section id="about" class="about">
-        <div class="container">
-            <h2 class="section-title">What is Supervertaler?</h2>
-            <p class="section-subtitle">The Ultimate Translation Workbench</p>
-
-            <div class="about-content">
-                <div class="about-story">
-                    <div class="about-card">
-                        <div class="about-icon">🌱</div>
-                        <h3>Where It Started</h3>
-                        <p>Supervertaler began as a simple tool: export your bilingual document from memoQ, manually
-                            copy the source column into a text file, let Supervertaler translate it using AI with custom
-                            prompts, then paste it back and reimport into memoQ.</p>
-                        <p class="about-highlight">It worked, but it was manual. Tedious. Limited.</p>
-                    </div>
-
-                    <div class="about-card">
-                        <div class="about-icon">🚀</div>
-                        <h3>Where It's Going</h3>
-                        <p>The new Supervertaler is now <strong>the ultimate translation workbench</strong>—working seamlessly
-                            alongside your CAT tool with specialized features:</p>
-                        <ul class="about-list">
-                            <li>✅ Import bilingual files from memoQ, Trados, CafeTran</li>
-                            <li>✅ AI-enhance with powerful prompt architecture</li>
-                            <li>✅ Review and refine in grid interface</li>
-                            <li>✅ Export back to your CAT tool</li>
-                        </ul>
-                    </div>
-
-                    <div class="about-card highlight-card">
-                        <div class="about-icon">🤖</div>
-                        <h3>What Makes It Different</h3>
-                        <p>Here's what <strong>no other translation tool currently offers</strong>:</p>
-                        <div class="about-unique">
-                            <p class="about-feature-title">2-Layer Prompt Architecture + AI Assistant</p>
-                            <p>Not only can you create, store, and manage translation prompts—Supervertaler includes an
-                                <strong>AI Assistant with conversational interface</strong> that analyzes your documents
-                                and helps generate custom prompts. Plus specialized modules like PDF Rescue (AI OCR),
-                                TMX Editor, Supercleaner, and Superlookup.
-                            </p>
-                        </div>
-                    </div>
-
-                    <div class="about-card vision-card">
-                        <div class="about-icon">💭</div>
-                        <h3>The Vision</h3>
-                        <p>Imagine this conversation:</p>
-                        <div class="about-dialogue">
-                            <div class="dialogue-ai">
-                                <strong>Supervertaler:</strong> "Hmm, what kind of document are you translating?"
-                            </div>
-                            <div class="dialogue-ai">
-                                <strong>Supervertaler:</strong> "I see. Well, in that case, I recommend you use the
-                                following:"
-                                <ul>
-                                    <li>✨ System prompt (domain-specific strategy)</li>
-                                    <li>✨ Custom instructions (project-specific rules)</li>
-                                </ul>
-                            </div>
-                            <div class="dialogue-ai">
-                                <strong>Supervertaler:</strong> "Please allow me to create them for you—and then use
-                                them to actually translate your project, while you sit back and make tea." ☕
-                            </div>
-                        </div>
-                        <p class="about-cta">That's the future. And it's almost here.</p>
-                    </div>
-                </div>
-
-                <div class="about-meta">
-                    <p><strong>Built by a translator, for translators.</strong></p>
-                    <p>Open source, transparent, and designed to make AI-enhanced translation actually useful.</p>
-                    <p class="about-name-note">🇳🇱 <em>Supervertaler</em> = Dutch for "super translator" (because
-                        straightforward names are the best kind)</p>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- 2-Layer Prompt Architecture Section -->
-    <section id="architecture" class="architecture-section"
-        style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 80px 0; color: white;">
-        <div class="container">
-            <h2 class="section-title" style="color: white; margin-bottom: 15px;">🎯 The 2-Layer Prompt Architecture</h2>
-            <p class="section-subtitle" style="color: rgba(255,255,255,0.95); margin-bottom: 50px; font-size: 1.2em;">
-                Simple, Powerful, and Intuitive Translation Control<br>
-                <em style="font-size: 0.9em; opacity: 0.9;">Simplified from 4-layer to a more intuitive 2-layer system +
-                    AI Assistant</em>
+    <section class="hero" style="padding: 120px 0 80px;">
+        <div class="container" style="display: block; text-align: center;">
+            <h1 class="hero-title" style="margin-bottom: 16px;">
+                <span class="gradient-text">Supervertaler</span>
+            </h1>
+            <p class="hero-subtitle" style="max-width: 600px; margin: 0 auto 16px; font-size: 1.3rem;">
+                AI-Enhanced Translation Tools
+            </p>
+            <p style="color: var(--text-secondary); max-width: 550px; margin: 0 auto 60px; font-size: 1rem; line-height: 1.7;">
+                Professional translation software built by a translator, for translators.
+                Choose the tool that fits your workflow.
             </p>
 
-            <!-- Architecture Diagram -->
-            <div class="architecture-diagram"
-                style="max-width: 900px; margin: 0 auto 60px; background: rgba(255,255,255,0.1); border-radius: 20px; padding: 40px; backdrop-filter: blur(10px);">
-                <div style="display: flex; flex-direction: column; gap: 20px;">
-
-                    <!-- Layer 1: System Prompts (Infrastructure) -->
-                    <div class="layer-card"
-                        style="background: rgba(255,255,255,0.95); color: #333; border-radius: 15px; padding: 25px; border-left: 6px solid #1976D2; box-shadow: 0 5px 20px rgba(0,0,0,0.2);">
-                        <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 10px;">
-                            <div
-                                style="background: #1976D2; color: white; width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: bold;">
-                                1</div>
-                            <div>
-                                <h3 style="margin: 0; color: #1976D2; font-size: 1.4em;">⚙️ Layer 1: System Prompts</h3>
-                                <p style="margin: 5px 0 0; color: #666; font-size: 0.95em;"><em>Infrastructure - Always
-                                        Applied</em></p>
-                            </div>
-                        </div>
-                        <p style="margin-top: 15px; line-height: 1.7; color: #444;">
-                            Core infrastructure prompts that <strong>always</strong> run. Contains critical instructions
-                            for:
-                        </p>
-                        <ul style="margin-top: 10px; padding-left: 20px; line-height: 2; color: #555;">
-                            <li>🔧 CAT tool tag preservation (memoQ, Trados, CafeTran)</li>
-                            <li>📐 Formatting rules and output standards</li>
-                            <li>🌍 Language-specific conventions (numbers, dates, typography)</li>
-                            <li>✅ UICONTROL tag handling</li>
-                            <li>📝 Basic translation guidelines</li>
-                        </ul>
-                        <div
-                            style="margin-top: 15px; padding: 12px; background: #E3F2FD; border-radius: 8px; border-left: 4px solid #1976D2;">
-                            <strong style="color: #1976D2;">✨ Always Active:</strong> Ensures consistent, professional
-                            output across all translations.
-                        </div>
-                    </div>
-
-                    <!-- Layer 2: Custom Prompts (Unified: Domain + Project + Style) -->
-                    <div class="layer-card"
-                        style="background: rgba(255,255,255,0.95); color: #333; border-radius: 15px; padding: 25px; border-left: 6px solid #FF6B35; box-shadow: 0 5px 20px rgba(0,0,0,0.2);">
-                        <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 10px;">
-                            <div
-                                style="background: #FF6B35; color: white; width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: bold;">
-                                2</div>
-                            <div>
-                                <h3 style="margin: 0; color: #FF6B35; font-size: 1.4em;">🎯 Layer 2: Custom Prompts</h3>
-                                <p style="margin: 5px 0 0; color: #666; font-size: 0.95em;"><em>Optional - Unified
-                                        Domain, Project & Style</em></p>
-                            </div>
-                        </div>
-                        <p style="margin-top: 15px; line-height: 1.7; color: #444;">
-                            <strong>One flexible custom prompt layer</strong> where you can combine:
-                        </p>
-                        <ul style="margin-top: 10px; padding-left: 20px; line-height: 2; color: #555;">
-                            <li>🎯 <strong>Domain expertise</strong> - Legal, medical, technical, financial</li>
-                            <li>📋 <strong>Project-specific rules</strong> - Client terminology, target audience</li>
-                            <li>🎨 <strong>Style guidelines</strong> - Formatting, typography, locale conventions</li>
-                            <li>👤 <strong>Client preferences</strong> - Branding, tone, specific requirements</li>
-                            <li>✨ <strong>Custom instructions</strong> - Anything you need!</li>
-                            <li>📖 <strong>Glossary injection</strong> - Automatically send terminology to the AI</li>
-                        </ul>
-                        <div
-                            style="margin-top: 15px; padding: 12px; background: #FFF3E0; border-radius: 8px; border-left: 4px solid #FF6B35;">
-                            <strong style="color: #FF6B35;">📚 Maximum Flexibility:</strong> Organize your custom
-                            prompts however you like—mix and match domain, project, and style elements in one place.
-                        </div>
-                    </div>
-
-                    <!-- Bonus: AI Assistant -->
-                    <div class="layer-card"
-                        style="background: rgba(255,255,255,0.2); color: white; border-radius: 15px; padding: 25px; border: 2px dashed rgba(255,255,255,0.5); box-shadow: 0 5px 20px rgba(0,0,0,0.2);">
-                        <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 10px;">
-                            <div
-                                style="background: rgba(255,255,255,0.3); color: white; width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: bold;">
-                                ✨</div>
-                            <div>
-                                <h3 style="margin: 0; font-size: 1.4em;">🤖 AI Assistant</h3>
-                                <p style="margin: 5px 0 0; color: rgba(255,255,255,0.9); font-size: 0.95em;">
-                                    <em>Conversational Interface</em>
-                                </p>
-                            </div>
-                        </div>
-                        <p style="margin-top: 15px; line-height: 1.7; color: rgba(255,255,255,0.95);">
-                            <strong>Chat with your AI Assistant!</strong> Modern conversational interface with beautiful
-                            chat bubbles, markdown formatting, and intelligent document analysis. <span
-                                style="background: rgba(76,175,80,0.3); padding: 2px 8px; border-radius: 4px; font-weight: bold;">Persistent file attachments</span>
-                        </p>
-                        <ul
-                            style="margin-top: 10px; padding-left: 20px; line-height: 2; color: rgba(255,255,255,0.95);">
-                            <li>💬 <strong>Natural conversation</strong> - Chat bubbles with markdown support</li>
-                            <li>📎 <strong>Persistent file attachments</strong> - Attach PDFs, DOCX files that persist
-                                across sessions (v1.3.1)</li>
-                            <li>👁️ <strong>File viewer</strong> - View attached files anytime with markdown preview and
-                                copy to clipboard (v1.3.1)</li>
-                            <li>📄 <strong>Document analysis</strong> - Upload and analyze your project documents</li>
-                            <li>🎯 <strong>Prompt generation</strong> - AI helps create custom prompts based on your
-                                needs</li>
-                            <li>✨ <strong>Context-aware</strong> - Understands your project and makes intelligent
-                                suggestions</li>
-                        </ul>
-                        <div
-                            style="margin-top: 15px; padding: 12px; background: rgba(255,255,255,0.2); border-radius: 8px; border-left: 4px solid white;">
-                            <strong>🌟 Game Changer:</strong> No prompt engineering expertise needed—just describe what
-                            you need in plain language!
-                        </div>
-                    </div>
-
-                </div>
-            </div>
-
-            <!-- How It Works Together -->
-            <div
-                style="max-width: 900px; margin: 60px auto 0; background: rgba(255,255,255,0.15); border-radius: 20px; padding: 40px; backdrop-filter: blur(10px);">
-                <h3 style="color: white; font-size: 1.8em; margin-bottom: 25px; text-align: center;">🚀 How It All Works
-                    Together</h3>
-
-                <div
-                    style="background: rgba(255,255,255,0.95); color: #333; border-radius: 15px; padding: 30px; margin-bottom: 30px;">
-                    <h4 style="color: #667eea; margin-bottom: 20px; font-size: 1.3em;">The Complete Context-Aware System
-                    </h4>
-                    <p style="line-height: 1.8; color: #444; margin-bottom: 20px;">
-                        The 2-Layer Prompt Architecture works seamlessly with Supervertaler's <strong>multi-context
-                            system</strong>. When you translate, the AI receives:
+            <!-- Product Cards -->
+            <div class="product-cards">
+                <!-- Desktop Card -->
+                <a href="desktop.html" class="product-card" style="text-decoration: none; color: inherit;">
+                    <div class="product-icon">&#128187;</div>
+                    <h3>Supervertaler Desktop</h3>
+                    <span class="product-badge free">Free &amp; Open Source</span>
+                    <p>
+                        Standalone AI translation workbench with multi-LLM support, translation memory,
+                        terminology management, and Okapi file filters. Works alongside memoQ, Trados, and CafeTran.
                     </p>
-                    <div
-                        style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-top: 25px;">
-                        <div
-                            style="background: #f8f9fa; padding: 20px; border-radius: 10px; border-left: 4px solid #667eea;">
-                            <strong style="color: #667eea;">📄 Full Document Context</strong>
-                            <p style="margin-top: 8px; font-size: 0.9em; color: #666;">Every sentence translated with
-                                awareness of the entire document</p>
-                        </div>
-                        <div
-                            style="background: #f8f9fa; padding: 20px; border-radius: 10px; border-left: 4px solid #667eea;">
-                            <strong style="color: #667eea;">🎯 2-Layer Prompts</strong>
-                            <p style="margin-top: 8px; font-size: 0.9em; color: #666;">System infrastructure + custom
-                                prompts combined intelligently</p>
-                        </div>
-                        <div
-                            style="background: #f8f9fa; padding: 20px; border-radius: 10px; border-left: 4px solid #667eea;">
-                            <strong style="color: #667eea;">🤖 AI Assistant</strong>
-                            <p style="margin-top: 8px; font-size: 0.9em; color: #666;">Conversational interface for
-                                document analysis and prompt generation</p>
-                        </div>
-                        <div
-                            style="background: #f8f9fa; padding: 20px; border-radius: 10px; border-left: 4px solid #667eea;">
-                            <strong style="color: #667eea;">🖼️ Figures & Images</strong>
-                            <p style="margin-top: 8px; font-size: 0.9em; color: #666;">Visual context for technical
-                                documents (GPT-4 Vision, Claude, Gemini)</p>
-                        </div>
-                        <div
-                            style="background: #f8f9fa; padding: 20px; border-radius: 10px; border-left: 4px solid #667eea;">
-                            <strong style="color: #667eea;">💾 Translation Memories</strong>
-                            <p style="margin-top: 8px; font-size: 0.9em; color: #666;">Fuzzy matching with your existing
-                                translations</p>
-                        </div>
-                        <div
-                            style="background: #f8f9fa; padding: 20px; border-radius: 10px; border-left: 4px solid #667eea;">
-                            <strong style="color: #667eea;">🏷️ Termbases</strong>
-                            <p style="margin-top: 8px; font-size: 0.9em; color: #666;">Glossary integration for
-                                consistency</p>
-                        </div>
-                    </div>
-                </div>
+                    <span class="btn btn-primary" style="margin-top: auto;">Learn More &rarr;</span>
+                </a>
 
-                <div
-                    style="background: rgba(255,255,255,0.2); border-radius: 15px; padding: 25px; border: 2px solid rgba(255,255,255,0.3);">
-                    <h4 style="color: white; margin-bottom: 15px; font-size: 1.2em;">💡 Why This Matters</h4>
-                    <p style="line-height: 1.8; color: rgba(255,255,255,0.95); margin-bottom: 15px;">
-                        Most translation tools send simple, static prompts to AI. Supervertaler sends
-                        <strong>intelligent, layered instructions</strong> that adapt to:
+                <!-- Trados Card -->
+                <a href="trados.html" class="product-card" style="text-decoration: none; color: inherit;">
+                    <div class="product-icon">&#128268;</div>
+                    <h3>Supervertaler for Trados</h3>
+                    <span class="product-badge plugin">Trados Studio 2024 Plugin</span>
+                    <p>
+                        TermLens inline terminology, AI Assistant, and Batch Translate &mdash;
+                        built directly into Trados Studio. MultiTerm support included.
                     </p>
-                    <ul style="line-height: 2.2; color: rgba(255,255,255,0.95); padding-left: 20px;">
-                        <li>✅ Your document type (medical, legal, technical)</li>
-                        <li>✅ Your specific project requirements</li>
-                        <li>✅ Your target language formatting rules</li>
-                        <li>✅ Full document context (not just isolated sentences)</li>
-                    </ul>
-                    <p
-                        style="margin-top: 20px; padding: 15px; background: rgba(255,255,255,0.2); border-radius: 10px; color: white; font-weight: 600; text-align: center;">
-                        🎯 Result: More accurate, context-aware translations that require less post-editing.
-                    </p>
-                </div>
-            </div>
-
-        </div>
-    </section>
-
-    <!-- Features Section -->
-    <section id="features" class="features">
-        <div class="container">
-            <h2 class="section-title">Features</h2>
-            <p class="section-subtitle">Everything you need for professional translation work</p>
-
-            <div class="features-grid">
-                <div class="feature-card" style="border: 3px solid #059669; background: linear-gradient(135deg, rgba(5,150,105,0.04), rgba(16,185,129,0.08));">
-                    <div class="feature-icon">&#128218;</div>
-                    <h3>Okapi Framework File Filters <span class="badge-new" style="background: #059669;">v1.9.352</span></h3>
-                    <p>The battle-tested Okapi Framework localization filters &mdash; the closest thing the industry has to a
-                        universal standard for file filter technology &mdash; run as an automatic background sidecar.</p>
-                    <ul class="feature-list">
-                        <li>Full round-trip DOCX import and export</li>
-                        <li>Exported files are exact replicas of the original</li>
-                        <li>Semantic formatting tags (&lt;b&gt;, &lt;i&gt;, &lt;u&gt;, etc.)</li>
-                        <li>SRX segmentation and proper paragraph detection</li>
-                        <li>Automatic Java sidecar &mdash; starts and stops silently</li>
-                        <li>More formats coming: XLSX, PPTX, HTML, IDML, XML</li>
-                    </ul>
-                </div>
-
-                <div class="feature-card" style="border: 2px solid #3b82f6;">
-                    <div class="feature-icon">🌐</div>
-                    <h3>Superbrowser - Multi-Chat AI Browser <span class="badge-new">v1.6.4</span></h3>
-                    <p>Interact with ChatGPT, Claude, and Gemini simultaneously in one window. Compare AI responses,
-                        maintain multiple project contexts, and research efficiently—all side-by-side.</p>
-                    <ul class="feature-list">
-                        <li>Three-column layout with resizable dividers</li>
-                        <li>Persistent sessions - stay logged in</li>
-                        <li>Collapsible configuration panel</li>
-                        <li>Individual navigation controls per column</li>
-                        <li>Custom URL support for specific chats</li>
-                        <li>Isolated storage for each AI service</li>
-                    </ul>
-                </div>
-
-                <div class="feature-card" style="border: 2px solid #4CAF50;">
-                    <div class="feature-icon">⌨️</div>
-                    <h3>Tab Cycling for Termbase Workflow <span class="badge-new">v1.5.1</span></h3>
-                    <p>Press Tab to cycle focus between Source and Target cells, perfect for building termbase entries.
-                        Select terms in both cells and send to termbase.</p>
-                    <ul class="feature-list">
-                        <li>Tab key cycles: Target → Source → Target</li>
-                        <li>Ctrl+Tab: Insert actual tab character</li>
-                        <li>Text selection with keyboard (Shift+arrows)</li>
-                        <li>Arrow keys navigate within cells</li>
-                        <li>Optimized for termbase workflow</li>
-                        <li>Future: dual selection tracking</li>
-                    </ul>
-                </div>
-
-                <div class="feature-card">
-                    <div class="feature-icon">🎯</div>
-                    <h3>Translation Results Enhancement <span class="badge-new">v1.5.0</span></h3>
-                    <p>Progressive match loading shows all translation sources simultaneously with powerful keyboard
-                        shortcuts for quick insertion.</p>
-                    <ul class="feature-list">
-                        <li>Progressive loading (termbase + TM + MT + LLM)</li>
-                        <li>Ctrl+1-9: Quick insert matches</li>
-                        <li>Ctrl+Up/Down: Navigate matches</li>
-                        <li>Ctrl+Space: Insert selected match</li>
-                        <li>Optional tag display control</li>
-                        <li>Smart status management</li>
-                    </ul>
-                </div>
-
-                <div class="feature-card">
-                    <div class="feature-icon">🎤</div>
-                    <h3>Supervoice Voice Dictation <span class="badge-new">v1.4.0</span></h3>
-                    <p>AI-enhanced hands-free dictation using OpenAI Whisper. Press F9 to start/stop recording in any
-                        language.</p>
-                    <ul class="feature-list">
-                        <li>100+ languages supported</li>
-                        <li>F9 global hotkey (start/stop)</li>
-                        <li>5 model sizes (tiny to large)</li>
-                        <li>Future: voice workflow commands</li>
-                    </ul>
-                </div>
-
-                <div class="feature-card">
-                    <div class="feature-icon">🖼</div>
-                    <h3>Image Context (Multimodal AI)</h3>
-                    <p>Automatically includes images when translating technical documents. Supports GPT-4 Vision, Claude
-                        Vision, and Gemini Vision.</p>
-                    <ul class="feature-list">
-                        <li>Auto-detects figure references</li>
-                        <li>Visual context for technical translations</li>
-                        <li>Project persistence</li>
-                    </ul>
-                </div>
-
-                <div class="feature-card" style="border: 2px solid #4CAF50;">
-                    <div class="feature-icon">🖼️</div>
-                    <h3>Image Extractor (Superimage) <span class="badge-new">v1.6.2</span></h3>
-                    <p>Extract all images from DOCX files with preview and batch processing. Auto-folder mode creates
-                        organized output structure.</p>
-                    <ul class="feature-list">
-                        <li>Extract images from DOCX files</li>
-                        <li>Sequential PNG naming (Fig. 1.png, etc.)</li>
-                        <li>Auto-folder: Images subfolder next to DOCX</li>
-                        <li>Click-to-preview with navigation</li>
-                        <li>Batch processing multiple files</li>
-                        <li>Resizable preview panel</li>
-                    </ul>
-                </div>
-
-                <div class="feature-card">
-                    <div class="feature-icon">🤖</div>
-                    <h3>Multiple AI Providers</h3>
-                    <p>Choose from the best AI models for your translation needs.</p>
-                    <ul class="feature-list">
-                        <li>OpenAI GPT-4o & GPT-4 Turbo</li>
-                        <li>Anthropic Claude Opus 4.6, Sonnet 4.5, Haiku 4.5</li>
-                        <li>Google Gemini 2.5 Pro/Flash</li>
-                    </ul>
-                </div>
-
-                <div class="feature-card">
-                    <div class="feature-icon">💾</div>
-                    <h3>Translation Memory</h3>
-                    <p>Lightning-fast batch pre-translation with fuzzy matching and TMX import/export. Never translate the same sentence twice.</p>
-                    <ul class="feature-list">
-                        <li>Batch pre-translation (30x faster)</li>
-                        <li>Fuzzy + exact matching</li>
-                        <li>TMX format support</li>
-                    </ul>
-                </div>
-
-                <div class="feature-card">
-                    <div class="feature-icon">🎯</div>
-                    <h3>2-Layer Prompt Architecture</h3>
-                    <p>Simplified prompt system: System Prompts (auto-selected by mode) + Unified Prompt Library with
-                        folders, favorites, and multi-attach, plus AI-enhanced Assistant. <a href="#architecture"
-                            style="color: #3b82f6; text-decoration: underline;">Learn more →</a> <span
-                            class="badge-new">v1.3.0-Qt</span></p>
-                    <ul class="feature-list">
-                        <li>⚙️ Layer 1: System Prompts (CAT tags, auto-selected)</li>
-                        <li>📚 Layer 2: Prompt Library (unlimited folders & multi-attach)</li>
-                        <li>⭐ Favorites & Quick Run for instant access</li>
-                        <li>🤖 AI Assistant (conversational prompt refinement)</li>
-                    </ul>
-                </div>
-
-                <div class="feature-card">
-                    <div class="feature-icon">📊</div>
-                    <h3>Bilingual Review Interface</h3>
-                    <p>Grid, List, and Document views for reviewing AI translations. Professional CAT tool interface.
-                    </p>
-                    <ul class="feature-list">
-                        <li>Status tracking (✗/~/✓/✓✓/🔒)</li>
-                        <li>Multi-selection (Ctrl/Shift)</li>
-                        <li>Grid pagination (10x faster)</li>
-                    </ul>
-                </div>
-
-                <div class="feature-card">
-                    <div class="feature-icon">🔄</div>
-                    <h3>CAT Tool Integration</h3>
-                    <p>Import/export bilingual tables from memoQ, CafeTran, and Trados Studio.</p>
-                    <ul class="feature-list">
-                        <li>memoQ DOCX support</li>
-                        <li>CafeTran pipe formatting</li>
-                        <li>Trados bilingual tables</li>
-                    </ul>
-                </div>
-
-                <div class="feature-card">
-                    <div class="feature-icon">📄</div>
-                    <h3>PDF Rescue (AI OCR)</h3>
-                    <p>Transform badly-formatted PDFs into clean, editable documents with GPT-4 Vision OCR.</p>
-                    <ul class="feature-list">
-                        <li>One-click PDF import</li>
-                        <li>Smart redaction/stamp handling</li>
-                        <li>Professional DOCX export</li>
-                    </ul>
-                </div>
-
-                <div class="feature-card">
-                    <div class="feature-icon">🔄</div>
-                    <h3>Flexible Import/Export</h3>
-                    <p>Work with DOCX, TXT, TSV, TMX, XLIFF, and Excel formats.</p>
-                    <ul class="feature-list">
-                        <li>Monolingual TXT auto-segmentation</li>
-                        <li>Supervertaler project data (DOCX/TSV)</li>
-                        <li>Session reports (MD/HTML)</li>
-                    </ul>
-                </div>
-
-                <div class="feature-card">
-                    <div class="feature-icon">⚡</div>
-                    <h3>Performance Optimised</h3>
-                    <p>Grid pagination for instant loading. Handle thousands of segments smoothly.</p>
-                    <ul class="feature-list">
-                        <li>50 segments per page</li>
-                        <li>10x faster than full grid</li>
-                        <li>Responsive UI</li>
-                    </ul>
-                </div>
-
-                <div class="feature-card">
-                    <div class="feature-icon">🎨</div>
-                    <h3>Modern Interface</h3>
-                    <p>Clean, professional UI with semantic colour coding and intuitive navigation.</p>
-                    <ul class="feature-list">
-                        <li>Start Screen with project management</li>
-                        <li>Three view modes</li>
-                        <li>Custom tab overflow</li>
-                    </ul>
-                </div>
-
-                <div class="feature-card">
-                    <div class="feature-icon">🧩</div>
-                    <h3>Text Repair Tool</h3>
-                    <p>Fix encoding issues, mojibake, and text corruption with AI-enhanced detection and repair. <span
-                            class="badge-new">v3.7.7</span></p>
-                    <ul class="feature-list">
-                        <li>Auto-detect encoding problems</li>
-                        <li>Smart repair suggestions</li>
-                        <li>Batch processing support</li>
-                        <li>Standalone or embedded mode</li>
-                    </ul>
-                </div>
-
-                <div class="feature-card">
-                    <div class="feature-icon">🎨</div>
-                    <h3>Style Guide Library</h3>
-                    <p>Professional formatting rules and guidelines for multiple languages. Integrated into the prompt
-                        hierarchy. <span class="badge-new">v3.7.7</span></p>
-                    <ul class="feature-list">
-                        <li>Language-specific style guides</li>
-                        <li>Numbers, dates, typography rules</li>
-                        <li>Auto-appended to AI prompts</li>
-                        <li>Create & edit custom guides</li>
-                    </ul>
-                </div>
-
-                <div class="feature-card">
-                    <div class="feature-icon">📝</div>
-                    <h3>TMX Editor</h3>
-                    <p>Professional translation memory editor with database-backed large file support. Inspired by
-                        Heartsome TMX Editor 8. <span class="badge-new">v1.1.3-Qt</span></p>
-                    <ul class="feature-list">
-                        <li>Handle massive files (1GB+) with SQLite backend</li>
-                        <li>Dual loading modes: RAM (fast) or Database (huge files)</li>
-                        <li>Inline editing with real-time search highlighting</li>
-                        <li>Heartsome-inspired three-panel layout</li>
-                        <li>Auto mode intelligently selects best loading method</li>
-                    </ul>
-                </div>
-
-                <div class="feature-card" style="border: 2px solid #FFD700;">
-                    <div class="feature-icon">📊</div>
-                    <h3>Superbench <span class="badge-new">v1.4.1</span></h3>
-                    <p>LLM Translation Quality Benchmarking System - Compare translation quality, speed, and cost across
-                        multiple LLM providers (OpenAI, Claude, Gemini). Benchmark on YOUR actual projects with adaptive
-                        sampling.</p>
-                    <ul class="feature-list">
-                        <li>Adaptive project benchmarking - Test on your actual work</li>
-                        <li>Smart sampling methods - Random, evenly-spaced, or smart</li>
-                        <li>40+ language support - Automatic code-to-name conversion</li>
-                        <li>chrF++ quality scoring (industry standard)</li>
-                        <li>Professional Excel reports with model comparisons</li>
-                    </ul>
-                </div>
-
-                <div class="feature-card">
-                    <div class="feature-icon">✋</div>
-                    <h3>AutoFingers</h3>
-                    <p>Automated translation pasting for memoQ from TMX files. Reads translations from TMX and pastes
-                        them automatically into your CAT tool. Includes TagCleaner module for removing memoQ index tags
-                        on-the-fly.</p>
-                    <ul class="feature-list">
-                        <li>Automatic TMX-to-memoQ pasting</li>
-                        <li>Fuzzy matching support</li>
-                        <li>NEW: Tag cleaning on-the-fly</li>
-                        <li>Global hotkeys (Ctrl+Alt+P, Ctrl+Shift+L)</li>
-                        <li>Loop mode for batch processing</li>
-                    </ul>
-                </div>
-
-                <div class="feature-card" style="border: 2px solid #2196F3;">
-                    <div class="feature-icon">🧹</div>
-                    <h3>Supercleaner <span class="badge-new">v1.4.2</span></h3>
-                    <p>Document cleaning tool for DOCX files - removes formatting issues, excessive tags, and OCR
-                        artifacts. Integrated into DOCX import workflow and available as standalone tool. Inspired by
-                        TransTools Document Cleaner, Unbreaker, and CodeZapper.</p>
-                    <ul class="feature-list">
-                        <li>Remove text shading, highlighting, and formatting issues</li>
-                        <li>Normalize fonts, colors, and sizes</li>
-                        <li>Fix incorrect line breaks (Unbreaker)</li>
-                        <li>Remove excessive spaces for better TM matching</li>
-                        <li>Optional: Simplify curly quotes and em-dashes to ASCII</li>
-                        <li>Integrated: DOCX import dialog (checkbox)</li>
-                        <li>Standalone: Interactive UI in Tools tab</li>
-                    </ul>
-                </div>
-
-                <div class="feature-card">
-                    <div class="feature-icon">✅</div>
-                    <h3>Quality Checker <span class="badge-new" style="background: #FF9800;">PLANNED</span></h3>
-                    <p>Post-translation quality analysis and validation. Automated checks for consistency, terminology
-                        compliance, and formatting issues.</p>
-                    <ul class="feature-list">
-                        <li>Terminology consistency checks</li>
-                        <li>Number & date format validation</li>
-                        <li>Tag integrity verification</li>
-                        <li>Comprehensive QA reports</li>
-                    </ul>
-                </div>
-
-            </div>
-        </div>
-    </section>
-
-    <!-- Download Section -->
-    <section id="download" class="download">
-        <div class="container">
-            <h2 class="section-title">Get Supervertaler</h2>
-            <p class="section-subtitle">Professional AI-enhanced translation tool built with PyQt6</p>
-
-            <!-- Main Download Card -->
-            <div style="text-align: center; margin: 40px 0;">
-                <div class="download-card featured"
-                    style="border: 3px solid #6366F1; max-width: 700px; margin: 0 auto;">
-                    <div class="download-badge" style="background: #6366F1;">v1.9.352</div>
-                    <h3>🎨 Supervertaler</h3>
-                    <p class="download-description" style="font-weight: 600; color: #6366F1; margin-bottom: 10px;">
-                        Modern Professional Interface
-                    </p>
-                    <p class="download-description">
-                        Filter highlighting, termbase display customization, auto-backup, AI Assistant, Supervoice
-                        dictation, Superlookup, TMX Editor, and more. Built with PyQt6 for modern UI and performance.
-                    </p>
-                    <div class="feature-highlights" style="text-align: left; font-size: 0.9em;">
-                        <div class="highlight-item" style="color: #059669; font-weight: 600;">&#128218; Okapi Framework file filters - Industry-standard round-trip document processing</div>
-                        <div class="highlight-item">🔍 Filter highlighting - Search terms highlighted in yellow</div>
-                        <div class="highlight-item">🎯 Termbase display customization - Sort & filter matches</div>
-                        <div class="highlight-item">💾 Auto-backup system - Never lose your work</div>
-                        <div class="highlight-item">📚 Project termbases - Dedicated terminology per project</div>
-                        <div class="highlight-item">🎤 Supervoice - AI voice dictation (100+ languages)</div>
-                        <div class="highlight-item">🤖 AI Assistant - Conversational prompt generation</div>
-                        <div class="highlight-item">✅ Complete CAT tool integration</div>
-                    </div>
-                    <div style="display: flex; gap: 10px; margin-top: 15px;">
-                        <a href="https://pypi.org/project/Supervertaler/" class="btn btn-download" target="_blank"
-                            style="background: #3B82F6; flex: 1; text-align: center;">
-                            📦 pip install supervertaler
-                        </a>
-                        <a href="https://github.com/michaelbeijer/Supervertaler" class="btn btn-download" target="_blank"
-                            style="background: #6366F1; flex: 1; text-align: center;">
-                            View on GitHub
-                        </a>
-                    </div>
-                    <p class="download-note" style="color: #666; font-size: 0.85em; margin-top: 10px;">
-                        <strong>Easiest:</strong> <code style="background: #f0f0f0; padding: 2px 6px; border-radius: 3px;">pip install supervertaler</code> then run <code style="background: #f0f0f0; padding: 2px 6px; border-radius: 3px;">supervertaler</code>
-                    </p>
-                    <p class="download-note" style="color: #666; font-size: 0.75em;"><a
-                            href="https://github.com/michaelbeijer/Supervertaler/blob/main/CHANGELOG.md"
-                            target="_blank">View Changelog</a> | <a
-                            href="https://github.com/michaelbeijer/Supervertaler/blob/main/legacy_versions/LEGACY_VERSIONS.md"
-                            target="_blank">Legacy Versions</a></p>
-                </div>
-            </div>
-
-            <!-- Installation Methods -->
-            <div style="margin-top: 50px;">
-                <h3 style="text-align: center; margin-bottom: 25px;">Installation</h3>
-                <div class="download-grid" style="grid-template-columns: repeat(3, 1fr); gap: 25px;">
-
-                    <!-- Method 1: pip (RECOMMENDED) -->
-                    <div class="download-card" style="border: 2px solid #3B82F6; position: relative;">
-                        <div style="position: absolute; top: -10px; left: 50%; transform: translateX(-50%); background: #3B82F6; color: white; padding: 2px 12px; border-radius: 10px; font-size: 0.75em; font-weight: bold;">⭐ RECOMMENDED</div>
-                        <h4>📦 PyPI Package (pip)</h4>
-                        <p class="download-description">
-                            One command installation with easy updates.
-                        </p>
-                        <div class="feature-highlights" style="text-align: left; font-size: 0.85em;">
-                            <div class="highlight-item">✅ <code
-                                    style="background: #f5f5f5;">pip install supervertaler</code></div>
-                            <div class="highlight-item">✅ Then run: <code style="background: #f5f5f5;">supervertaler</code></div>
-                            <div class="highlight-item">✅ Cross-platform (Win/Mac/Linux)</div>
-                        </div>
-                        <a href="https://pypi.org/project/Supervertaler/" class="btn btn-download" target="_blank"
-                            style="display: inline-block; width: 100%; text-align: center; margin-top: 10px; background: #3B82F6;">
-                            View on PyPI
-                        </a>
-                    </div>
-
-                    <!-- Method 2: Windows Exe -->
-                    <div class="download-card">
-                        <h4>🪟 Windows Executable</h4>
-                        <p class="download-description">
-                            No Python needed. Download, extract, and run.
-                        </p>
-                        <div class="feature-highlights" style="text-align: left; font-size: 0.85em;">
-                            <div class="highlight-item">✅ No Python required</div>
-                            <div class="highlight-item">✅ All-in-one package</div>
-                            <div class="highlight-item">✅ Windows 10+</div>
-                        </div>
-                        <a href="https://github.com/michaelbeijer/Supervertaler/releases" class="btn btn-download"
-                            target="_blank"
-                            style="display: inline-block; width: 100%; text-align: center; margin-top: 10px;">
-                            Download ZIP
-                        </a>
-                    </div>
-
-                    <!-- Method 3: From Source -->
-                    <div class="download-card">
-                        <h4>👨‍💻 From Source (Git)</h4>
-                        <p class="download-description">
-                            Full source access for developers.
-                        </p>
-                        <div class="feature-highlights" style="text-align: left; font-size: 0.85em;">
-                            <div class="highlight-item">✅ Full source code</div>
-                            <div class="highlight-item">✅ Latest features</div>
-                            <div class="highlight-item">✅ Contribute to development</div>
-                        </div>
-                        <a href="https://github.com/michaelbeijer/Supervertaler" class="btn btn-download"
-                            target="_blank"
-                            style="display: inline-block; width: 100%; text-align: center; margin-top: 10px;">
-                            Clone from GitHub
-                        </a>
-                    </div>
-
-                </div>
-            </div>
-
-        </div>
-    </section>
-
-    <!-- Screenshots Section -->
-    <section id="screenshots" class="screenshots">
-        <div class="container">
-            <h2 class="section-title">Screenshots</h2>
-            <p class="section-subtitle">See Supervertaler in action</p>
-
-            <div class="screenshots-grid">
-                <div class="screenshot-card" style="border: 3px solid #10B981;">
-                    <a href="screenshots/Supervertaler_v1.9.329_Term_and_NT_insert_popup.png" class="screenshot-link" target="_blank">
-                        <img src="screenshots/Supervertaler_v1.9.329_Term_and_NT_insert_popup.png"
-                            alt="Supervertaler v1.9.334 Term and NT insert popup" loading="lazy">
-                        <div class="screenshot-overlay">
-                            <span class="zoom-icon">🔍 Click to enlarge</span>
-                        </div>
-                    </a>
-                    <div class="screenshot-caption">
-                        <h3>🔤 Term &amp; NT Insert Popup <span class="badge"
-                                style="background: #10B981; color: white; padding: 3px 8px; border-radius: 12px; font-size: 11px; margin-left: 5px;">v1.9.334</span>
-                        </h3>
-                        <p>Press Ctrl once to open a memoQ-style floating popup listing all glossary matches and non-translatables for the current segment. Pick with a number key, ↑↓+Enter, or Esc to dismiss. <a href="https://www.youtube.com/watch?v=O-4q4uDF9q0" target="_blank" style="color: #10B981; font-weight: 600;">▶ Watch screencast</a></p>
-                    </div>
-                </div>
-
-                <div class="screenshot-card" style="border: 3px solid #6366F1;">
-                    <a href="screenshots/Supervertaler_QuickTrans.png" class="screenshot-link" target="_blank">
-                        <img src="screenshots/Supervertaler_QuickTrans.png"
-                            alt="Supervertaler QuickTrans" loading="lazy">
-                        <div class="screenshot-overlay">
-                            <span class="zoom-icon">🔍 Click to enlarge</span>
-                        </div>
-                    </a>
-                    <div class="screenshot-caption">
-                        <h3>⚡ QuickTrans & Modern UI <span class="badge"
-                                style="background: #6366F1; color: white; padding: 3px 8px; border-radius: 12px; font-size: 11px; margin-left: 5px;">v1.9.202</span>
-                        </h3>
-                        <p>QuickTrans instant translation popup with MT engines and LLMs. Global hotkey (Ctrl+Alt+M) works from any application.</p>
-                    </div>
-                </div>
-
-                <div class="screenshot-card" style="border: 3px solid #4CAF50;">
-                    <a href="screenshots/Superlookup_Web_resources.jpg" class="screenshot-link" target="_blank">
-                        <img src="screenshots/Superlookup_Web_resources.jpg"
-                            alt="Superlookup Web Resources Tab" loading="lazy">
-                        <div class="screenshot-overlay">
-                            <span class="zoom-icon">🔍 Click to enlarge</span>
-                        </div>
-                    </a>
-                    <div class="screenshot-caption">
-                        <h3>🌐 Web Resources <span class="badge"
-                                style="background: #4CAF50; color: white; padding: 3px 8px; border-radius: 12px; font-size: 11px; margin-left: 5px;">v1.9.52</span>
-                        </h3>
-                        <p>14 web resources in Superlookup: IATE, Linguee, ProZ, Reverso, Google, Wikipedia, BabelNet, Wiktionary and more. Persistent login sessions keep you logged in.</p>
-                    </div>
-                </div>
-
-                <div class="screenshot-card" style="border: 3px solid #1E1E1E;">
-                    <a href="screenshots/Supervertaler_dark_mode_2025-12-17.jpg" class="screenshot-link" target="_blank">
-                        <img src="screenshots/Supervertaler_dark_mode_2025-12-17.jpg"
-                            alt="Supervertaler Dark Mode" loading="lazy">
-                        <div class="screenshot-overlay">
-                            <span class="zoom-icon">🔍 Click to enlarge</span>
-                        </div>
-                    </a>
-                    <div class="screenshot-caption">
-                        <h3>🌙 Dark Mode <span class="badge"
-                                style="background: #1E1E1E; color: white; padding: 3px 8px; border-radius: 12px; font-size: 11px; margin-left: 5px;">v1.9.41</span>
-                        </h3>
-                        <p>Complete dark theme with properly styled compare boxes, TermLens, and all UI panels. Easy on the eyes for late-night translation sessions.</p>
-                    </div>
-                </div>
-
-                <div class="screenshot-card" style="border: 3px solid #FF6B6B;">
-                    <a href="screenshots/Supervertaler_AI-Assistant.jpg" class="screenshot-link" target="_blank">
-                        <img src="screenshots/Supervertaler_AI-Assistant.jpg"
-                            alt="Supervertaler v1.5.0 with Translation Results" loading="lazy">
-                        <div class="screenshot-overlay">
-                            <span class="zoom-icon">🔍 Click to enlarge</span>
-                        </div>
-                    </a>
-                    <div class="screenshot-caption">
-                        <h3>🤖 AI Assistant & Chat Interface <span class="badge"
-                                style="background: #9E9E9E; color: white; padding: 3px 8px; border-radius: 12px; font-size: 11px; margin-left: 5px;">v1.3.4+</span>
-                        </h3>
-                        <p>Conversational AI assistant with file attachments, prompt generation, and segment-level
-                            queries. Enhanced in v1.3.4 with ChatGPT-quality automatic prompt creation.</p>
-                    </div>
-                </div>
-
-
-                <div class="screenshot-card">
-                    <a href="screenshots/Supervertaler_Prompt_Manager_2026-01-14.png" class="screenshot-link" target="_blank">
-                        <img src="screenshots/Supervertaler_Prompt_Manager_2026-01-14.png"
-                            alt="Prompt Manager" loading="lazy">
-                        <div class="screenshot-overlay">
-                            <span class="zoom-icon">🔍 Click to enlarge</span>
-                        </div>
-                    </a>
-                    <div class="screenshot-caption">
-                        <h3>📝 Prompt Manager</h3>
-                        <p>Create, edit, and organize prompts, including QuickMenu actions for the Grid.</p>
-                    </div>
-                </div>
-
-                <div class="screenshot-card">
-                    <a href="screenshots/Supervertaler_Qt_LLM_Leaderboard_2025-11-12.jpg" class="screenshot-link"
-                        target="_blank">
-                        <img src="screenshots/Supervertaler_Qt_LLM_Leaderboard_2025-11-12.jpg"
-                            alt="Superbench - Translation Quality Benchmarking" loading="lazy">
-                        <div class="screenshot-overlay">
-                            <span class="zoom-icon">🔍 Click to enlarge</span>
-                        </div>
-                    </a>
-                    <div class="screenshot-caption">
-                        <h3>📊 Superbench <span class="badge"
-                                style="background: #FFD700; color: #333; padding: 3px 8px; border-radius: 12px; font-size: 11px; margin-left: 5px;">v1.4.1</span>
-                        </h3>
-                        <p>LLM translation quality benchmarking with adaptive project sampling and chrF++ scoring.
-                            Compare OpenAI, Claude, and Gemini models on YOUR actual work. Professional Excel reports
-                            included.</p>
-                    </div>
-                </div>
-
-                <div class="screenshot-card">
-                    <a href="screenshots/Supervertaler_Qt_LLM_LeaderboardResults_2025-11-12.jpg" class="screenshot-link"
-                        target="_blank">
-                        <img src="screenshots/Supervertaler_Qt_LLM_LeaderboardResults_2025-11-12.jpg"
-                            alt="Superbench - Benchmark Results" loading="lazy">
-                        <div class="screenshot-overlay">
-                            <span class="zoom-icon">🔍 Click to enlarge</span>
-                        </div>
-                    </a>
-                    <div class="screenshot-caption">
-                        <h3>📊 Superbench Results</h3>
-                        <p>Real-time translation quality comparison showing chrF++ scores, speed, and cost metrics for
-                            each model. Export to professional Excel reports.</p>
-                    </div>
-                </div>
-
-                <div class="screenshot-card" style="border: 3px solid #9c27b0;">
-                    <a href="screenshots/Supervertaler_Superbrowser.jpg" class="screenshot-link" target="_blank">
-                        <img src="screenshots/Supervertaler_Superbrowser.jpg"
-                            alt="Superbrowser - Multi-Chat AI Interface" loading="lazy">
-                        <div class="screenshot-overlay">
-                            <span class="zoom-icon">🔍 Click to enlarge</span>
-                        </div>
-                    </a>
-                    <div class="screenshot-caption">
-                        <h3>🌐 Superbrowser <span class="badge"
-                                style="background: #9c27b0; color: white; padding: 3px 8px; border-radius: 12px; font-size: 11px; margin-left: 5px;">v1.6.4</span>
-                        </h3>
-                        <p>Multi-chat AI browser with ChatGPT, Claude, and Gemini side-by-side in one window. Compare
-                            responses, switch providers instantly, and work with multiple AI assistants simultaneously.
-                        </p>
-                    </div>
-                </div>
-            </div>
-
-            <div class="screenshot-note">
-                <p>📸 More screenshots coming soon! Want to contribute? <a
-                        href="https://github.com/michaelbeijer/Supervertaler/issues" target="_blank">Open an issue</a>
-                    or send your screenshots.</p>
-            </div>
-        </div>
-    </section>
-
-    <!-- Data Privacy & Security Section -->
-    <section class="privacy-section" id="privacy">
-        <div class="container">
-            <h2 class="section-title">Data Privacy & Security</h2>
-            <p class="section-subtitle">Honest, transparent information about how your data is handled</p>
-
-            <div class="privacy-content">
-                <div class="privacy-card privacy-card-highlight">
-                    <div class="privacy-icon">🔒</div>
-                    <h3>Your Data, Your Control</h3>
-                    <p><strong>Supervertaler runs on YOUR computer.</strong> There is no Supervertaler company server.
-                        Your documents, translation memory, and glossaries never leave your machine unless you choose to
-                        send them to an AI provider for translation.</p>
-                </div>
-
-                <div class="privacy-card">
-                    <div class="privacy-icon">🌐</div>
-                    <h3>What Happens When You Use AI Translation</h3>
-                    <p><strong>Reality:</strong> When you click "Translate," the text you select is sent to the LLM
-                        provider's servers (OpenAI, Anthropic, or Google). This is how AI translation works—the AI
-                        models run on their infrastructure. Supervertaler does NOT process translations locally.</p>
-                    <p style="margin-top: 1rem; font-size: 0.9rem; color: #666;"><strong>Important:</strong> This means
-                        your document content temporarily reaches these providers' systems.</p>
-                </div>
-
-                <div class="privacy-card">
-                    <div class="privacy-icon">✅</div>
-                    <h3>Data Protection: Default Terms</h3>
-                    <ul style="margin-top: 1rem; margin-left: 1.5rem;">
-                        <li><strong>OpenAI:</strong> Does NOT use API data for model training (by default). Enterprise
-                            plans available with zero-retention guarantees.</li>
-                        <li><strong>Anthropic (Claude):</strong> Does NOT use API data for training. Has explicit
-                            no-retention policy.</li>
-                        <li><strong>Google Generative AI:</strong> Similar policies with SOC 2 compliance available.
-                        </li>
-                    </ul>
-                    <p style="margin-top: 1rem; font-size: 0.9rem;"><em>All providers offer data processing agreements
-                            (DPAs) and enterprise plans with enhanced privacy.</em></p>
-                </div>
-
-                <div class="privacy-card">
-                    <div class="privacy-icon">🔐</div>
-                    <h3>For Confidential / NDA Work</h3>
-                    <p><strong>Recommended approach:</strong></p>
-                    <ul style="margin-top: 1rem; margin-left: 1.5rem;">
-                        <li>Use <strong>enterprise/business plans</strong> from your chosen LLM provider</li>
-                        <li>Ensure <strong>Data Processing Agreement (DPA)</strong> is in place</li>
-                        <li>Confirm <strong>zero data retention</strong> guarantee</li>
-                        <li>Verify <strong>SOC 2 Type II compliance</strong></li>
-                        <li>Check <strong>GDPR/regional compliance</strong> with your provider</li>
-                    </ul>
-                    <p style="margin-top: 1rem; font-size: 0.9rem;"><em>Most enterprise plans explicitly prohibit data
-                            use beyond your specific requests.</em></p>
-                </div>
-
-                <div class="privacy-card">
-                    <div class="privacy-icon">💾</div>
-                    <h3>What You Control</h3>
-                    <ul style="margin-top: 1rem; margin-left: 1.5rem;">
-                        <li>✓ Choose which AI provider(s) to use</li>
-                        <li>✓ Your API keys (never stored by Supervertaler)</li>
-                        <li>✓ What gets sent: Only text you explicitly translate</li>
-                        <li>✓ Which documents to work with locally vs. via AI</li>
-                        <li>✓ Translation memory stays 100% local</li>
-                        <li>✓ Glossaries and custom instructions stay local</li>
-                    </ul>
-                </div>
-
-                <div class="privacy-card privacy-card-highlight">
-                    <div class="privacy-icon">🔍</div>
-                    <h3>Open Source = Transparent</h3>
-                    <p>Supervertaler is <strong>fully open source</strong> on GitHub. You can audit the code yourself to
-                        verify exactly how your data is handled. No hidden data collection, no telemetry, no
-                        analytics—just the code you can review.</p>
-                </div>
-            </div>
-
-            <div class="privacy-footer">
-                <p><strong>Bottom Line:</strong> Using Supervertaler with external LLM APIs involves a tradeoff: You get
-                    powerful AI translation capabilities, but your content temporarily reaches the provider's servers.
-                    For confidential work, use enterprise plans with proper data agreements in place.</p>
-                <p><a href="https://github.com/michaelbeijer/Supervertaler/blob/main/FAQ.md#data-privacy--confidentiality"
-                        target="_blank" style="color: #3b82f6; text-decoration: none;">Read full privacy &
-                        confidentiality FAQ →</a></p>
-            </div>
-        </div>
-    </section>
-
-    <!-- Why Supervertaler Section -->
-    <section class="why-section">
-        <div class="container">
-            <h2 class="section-title">Why Supervertaler?</h2>
-            <div class="why-grid">
-                <div class="why-card">
-                    <h3>🎯 Built by a Translator</h3>
-                    <p>Designed with real translation workflows in mind. No unnecessary complexity,
-                        just the features professionals actually need.</p>
-                </div>
-                <div class="why-card">
-                    <h3>🔓 Free & Open Source</h3>
-                    <p>No subscriptions, no licences, no hidden costs. Download, use, modify.
-                        Your translation work, your control.</p>
-                </div>
-                <div class="why-card">
-                    <h3>🤖 AI-First Approach</h3>
-                    <p>Leverage cutting-edge AI models from OpenAI, Anthropic, and Google.
-                        Multiple providers for flexibility and reliability.</p>
-                </div>
-                <div class="why-card">
-                    <h3>🔄 CAT Tool Compatible</h3>
-                    <p>Works seamlessly with memoQ, CafeTran, and Trados Studio.
-                        Import bilingual tables, translate, export back.</p>
-                </div>
-                <div class="why-card">
-                    <h3>📈 Constantly Evolving</h3>
-                    <p>Active development with regular updates. New features based on
-                        real translator feedback and needs.</p>
-                </div>
-                <div class="why-card">
-                    <h3>💡 Context-Aware & Layered Prompts</h3>
-                    <p>4-Layer Prompt Architecture + full document context, translation memory, figures, glossaries, and
-                        AI summaries.
-                        Multiple context sources for maximum translation precision. <a href="#architecture"
-                            style="color: #3b82f6; text-decoration: underline;">See how it works →</a></p>
-                </div>
-                <div class="why-card">
-                    <h3>⚡ Three Easy Installation Methods</h3>
-                    <p>Windows Exe (no Python required), pip package for developers, or from source.
-                        Choose what works best for your setup in seconds.</p>
-                </div>
+                    <span class="btn btn-primary" style="margin-top: auto;">Learn More &rarr;</span>
+                </a>
             </div>
         </div>
     </section>
@@ -1169,82 +103,49 @@
         <div class="container">
             <div class="footer-content">
                 <div class="footer-brand">
-                    <span class="logo">🌐</span>
+                    <span class="logo">&#127760;</span>
                     <span class="brand-name">Supervertaler</span>
                     <p class="footer-tagline">AI-Enhanced Translation for Professionals</p>
                 </div>
                 <div class="footer-links">
                     <div class="footer-column">
-                        <h4>Product</h4>
+                        <h4>Products</h4>
                         <ul>
-                            <li><a href="#features">Features</a></li>
-                            <li><a href="#screenshots">Screenshots</a></li>
-                            <li><a href="#download">Download</a></li>
-                            <li><a href="https://github.com/michaelbeijer/Supervertaler/blob/main/CHANGELOG.md"
-                                    target="_blank">Changelog</a></li>
-                            <li><a href="https://github.com/michaelbeijer/Supervertaler/blob/main/legacy_versions/LEGACY_VERSIONS.md"
-                                    target="_blank">Legacy Versions</a></li>
-                            <li><a href="https://github.com/michaelbeijer/Supervertaler-for-Trados" target="_blank">Supervertaler for Trados</a></li>
+                            <li><a href="desktop.html">Supervertaler Desktop</a></li>
+                            <li><a href="trados.html">Supervertaler for Trados</a></li>
                         </ul>
                     </div>
                     <div class="footer-column">
                         <h4>Documentation</h4>
                         <ul>
-                            <li><a href="https://github.com/michaelbeijer/Supervertaler/blob/main/README.md"
-                                    target="_blank">Getting Started</a></li>
-                                <li><a href="https://supervertaler.gitbook.io/help/"
-                                    target="_blank">Supervertaler Help</a></li>
-                            <li><a href="https://github.com/michaelbeijer/Supervertaler/blob/main/docs/PROJECT_CONTEXT.md"
-                                    target="_blank">Project Context</a></li>
-                            <li><a href="https://github.com/michaelbeijer/Supervertaler/discussions" target="_blank">FAQ
-                                    & Discussions</a></li>
+                            <li><a href="https://supervertaler.gitbook.io/supervertaler" target="_blank">Desktop Help</a></li>
+                            <li><a href="https://supervertaler.gitbook.io/trados" target="_blank">Trados Help</a></li>
                         </ul>
                     </div>
                     <div class="footer-column">
                         <h4>Community</h4>
                         <ul>
-                            <li><a href="https://github.com/michaelbeijer/Supervertaler/discussions" target="_blank">💬
-                                    Discussions</a></li>
-                            <li><a href="https://github.com/michaelbeijer/Supervertaler" target="_blank">GitHub</a></li>
-                            <li><a href="https://github.com/michaelbeijer/Supervertaler/blob/main/CONTRIBUTING.md"
-                                target="_blank">Contributing</a></li>
-                            <li><a href="https://github.com/michaelbeijer/Supervertaler/issues"
-                                    target="_blank">Issues</a></li>
-                            <li><a href="https://github.com/users/michaelbeijer/projects/3/views/2"
-                                    target="_blank">Project</a></li>
-                            <li><a href="https://michaelbeijer.co.uk" target="_blank">Author's Website</a></li>
+                            <li><a href="https://github.com/michaelbeijer/Supervertaler" target="_blank">Desktop GitHub</a></li>
+                            <li><a href="https://github.com/michaelbeijer/Supervertaler-for-Trados" target="_blank">Trados GitHub</a></li>
+                            <li><a href="https://github.com/michaelbeijer/Supervertaler/discussions" target="_blank">Discussions</a></li>
                         </ul>
                     </div>
                     <div class="footer-column">
-                        <h4>Trust & Security</h4>
+                        <h4>About</h4>
                         <ul>
-                            <li><a href="#privacy">Data Privacy</a></li>
-                            <li><a href="https://github.com/michaelbeijer/Supervertaler/blob/main/FAQ.md#data-privacy--confidentiality"
-                                    target="_blank">Privacy FAQ</a></li>
-                            <li><a href="https://github.com/michaelbeijer/Supervertaler" target="_blank">View Source
-                                    Code</a></li>
+                            <li><a href="https://michaelbeijer.co.uk" target="_blank">Author's Website</a></li>
                         </ul>
                     </div>
                 </div>
             </div>
             <div class="footer-bottom">
-                <p>&copy; 2025 Michael Beijer. Open source under MIT License.</p>
-                <p class="footer-tech">Built with ❤️ for translators</p>
+                <p>&copy; 2025 Michael Beijer</p>
+                <p class="footer-tech">Built with love for translators</p>
             </div>
         </div>
     </footer>
 
-    <!-- Back to Top Button -->
-    <button id="backToTop" class="back-to-top" aria-label="Back to top">
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd"
-                d="M3.293 9.707a1 1 0 010-1.414l6-6a1 1 0 011.414 0l6 6a1 1 0 01-1.414 1.414L11 5.414V15a1 1 0 11-2 0V5.414L4.707 9.707a1 1 0 01-1.414 0z"
-                clip-rule="evenodd" />
-        </svg>
-    </button>
-
-    <script src="script.js?v=1.9.205"></script>
+    <script src="script.js?v=2.0.0"></script>
 </body>
 
 </html>
-
