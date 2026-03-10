@@ -9,11 +9,11 @@ When you select a segment in the Trados editor, TermLens analyses the source tex
 * **Matched words** appear with their glossary translation underneath, on a colored background
 * **Unmatched words** are shown in light grey text so you can read the full source sentence in context
 
-This gives you an at-a-glance overview of every term in the segment that has a termbase entry — without having to hover or click anything.
+This gives you an at-a-glance overview of every term in the segment that has a termbase entry – without hovering or clicking anything.
 
-## Color Coding
+## Colour Coding
 
-TermLens uses four background colors to distinguish term types:
+TermLens uses four background colours to distinguish term types:
 
 | Color      | Hex       | Meaning                                  |
 | ---------- | --------- | ---------------------------------------- |
@@ -27,7 +27,7 @@ Designate one termbase as the **Project termbase** in settings to make its terms
 {% endhint %}
 
 {% hint style="success" %}
-**MultiTerm termbases** attached to your Trados project appear automatically as green chips. They are read-only — to edit MultiTerm terms, use Trados's built-in MultiTerm interface. See [MultiTerm Support](multiterm-support.md) for details.
+**MultiTerm termbases** attached to your Trados project appear automatically as green chips. They are read-only – to edit MultiTerm terms, use Trados's built-in MultiTerm interface. See [MultiTerm Support](multiterm-support.md) for details.
 {% endhint %}
 
 ## Inserting Terms
