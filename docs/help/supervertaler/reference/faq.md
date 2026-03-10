@@ -101,7 +101,7 @@ Think of it as a **professional CAT tool** that specializes in AI integration an
 
 **Michael Beijer** - Professional translator and language technology enthusiast  
 **Website**: [michaelbeijer.co.uk](https://michaelbeijer.co.uk/)  
-**GitHub**: [github.com/michaelbeijer/Supervertaler](https://github.com/michaelbeijer/Supervertaler)
+**GitHub**: [github.com/Supervertaler/Supervertaler-Workbench](https://github.com/Supervertaler/Supervertaler-Workbench)
 
 Developed with assistance from **Claude AI** (Anthropic) using collaborative human-AI coding:
 - Michael: Translation expertise, workflow design, feature requirements
@@ -173,7 +173,7 @@ Developed with assistance from **Claude AI** (Anthropic) using collaborative hum
 **Installation:**
 ```bash
 # Clone or download from GitHub
-git clone https://github.com/michaelbeijer/Supervertaler.git
+git clone https://github.com/Supervertaler/Supervertaler-Workbench.git
 cd Supervertaler
 
 # Install dependencies
@@ -212,7 +212,7 @@ See [Installation](../get-started/installation.md) for detailed instructions.
 # 1. Install Python 3.10+ from python.org
 
 # 2. Download Supervertaler
-git clone https://github.com/michaelbeijer/Supervertaler.git
+git clone https://github.com/Supervertaler/Supervertaler-Workbench.git
 cd Supervertaler
 
 # 3. Install dependencies
@@ -741,7 +741,7 @@ This is a **known false positive** that affects applications built with PyInstal
 
 2. **Whitelist the application**
    - Add an exception in your antivirus settings
-   - The application is safe - you can verify by checking the [source code on GitHub](https://github.com/michaelbeijer/Supervertaler)
+   - The application is safe - you can verify by checking the [source code on GitHub](https://github.com/Supervertaler/Supervertaler-Workbench)
 
 3. **Report as false positive**
    - Norton: https://submit.norton.com/
@@ -1049,7 +1049,7 @@ See: [Prompt Manager](../ai-translation/prompt-library.md) for full details
 ### How do I report a bug?
 
 **Before Reporting:**
-1. Check if issue is already known: [GitHub Issues](https://github.com/michaelbeijer/Supervertaler/issues)
+1. Check if issue is already known: [GitHub Issues](https://github.com/Supervertaler/Supervertaler-Workbench/issues)
 2. Update to latest version (current: v1.7.8)
 3. Update Python libraries: `pip install -r requirements.txt --upgrade`
 
@@ -1069,7 +1069,7 @@ See: [Prompt Manager](../ai-translation/prompt-library.md) for full details
    - File formats involved (DOCX, TMX, XLIFF, etc.)
    - Any relevant settings or configuration
 
-**Submit to:** [github.com/michaelbeijer/Supervertaler/issues](https://github.com/michaelbeijer/Supervertaler/issues)
+**Submit to:** [github.com/Supervertaler/Supervertaler-Workbench/issues](https://github.com/Supervertaler/Supervertaler-Workbench/issues)
 
 **Response time:** Typically 1-3 days depending on complexity
 
@@ -1338,19 +1338,19 @@ The Superlookup Web Resources tab includes an **embedded browser** that lets you
 - [Changelog](changelog.md)
 
 **Repository Docs (GitHub):**
-- https://github.com/michaelbeijer/Supervertaler
-- https://github.com/michaelbeijer/Supervertaler/blob/main/README.md
-- https://github.com/michaelbeijer/Supervertaler/blob/main/CHANGELOG.md
-- https://github.com/michaelbeijer/Supervertaler/blob/main/AGENTS.md
+- https://github.com/Supervertaler/Supervertaler-Workbench
+- https://github.com/Supervertaler/Supervertaler-Workbench/blob/main/README.md
+- https://github.com/Supervertaler/Supervertaler-Workbench/blob/main/CHANGELOG.md
+- https://github.com/Supervertaler/Supervertaler-Workbench/blob/main/AGENTS.md
 
 **Feature Guides:**
 - [Prompt Manager](../ai-translation/prompt-library.md)
 - [Voice Commands](../tools/voice-commands.md)
 
 **Online:**
-- **GitHub:** [github.com/michaelbeijer/Supervertaler](https://github.com/michaelbeijer/Supervertaler)
+- **GitHub:** [github.com/Supervertaler/Supervertaler-Workbench](https://github.com/Supervertaler/Supervertaler-Workbench)
 - **Website:** [Supervertaler Documentation](https://michaelbeijer.github.io/Supervertaler/)
-- **Issues:** [Report bugs / Request features](https://github.com/michaelbeijer/Supervertaler/issues)
+- **Issues:** [Report bugs / Request features](https://github.com/Supervertaler/Supervertaler-Workbench/issues)
 
 ### What's next for Supervertaler?
 
@@ -1399,13 +1399,13 @@ The Superlookup Web Resources tab includes an **embedded browser** that lets you
 4. 🤝 **GitHub Discussions** - Community tips and workflows
 
 **Found a Bug?**  
-→ [Report it on GitHub](https://github.com/michaelbeijer/Supervertaler/issues)
+→ [Report it on GitHub](https://github.com/Supervertaler/Supervertaler-Workbench/issues)
 
 **Want a Feature?**  
-→ [Request it on GitHub](https://github.com/michaelbeijer/Supervertaler/issues)
+→ [Request it on GitHub](https://github.com/Supervertaler/Supervertaler-Workbench/issues)
 
 **Want to Contribute?**  
-→ [Fork the repository](https://github.com/michaelbeijer/Supervertaler) and submit a Pull Request!
+→ [Fork the repository](https://github.com/Supervertaler/Supervertaler-Workbench) and submit a Pull Request!
 
 ---
 

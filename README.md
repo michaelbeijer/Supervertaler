@@ -20,7 +20,7 @@ supervertaler
 Or run from source:
 
 ```bash
-git clone https://github.com/michaelbeijer/Supervertaler.git
+git clone https://github.com/Supervertaler/Supervertaler-Workbench.git
 cd Supervertaler
 pip install -r requirements.txt
 python Supervertaler.py
@@ -72,8 +72,8 @@ macOS will block the app on first launch because it is not signed with an Apple 
 
 ## Contributing
 
-- [Report bugs](https://github.com/michaelbeijer/Supervertaler/issues)
-- [Request features](https://github.com/michaelbeijer/Supervertaler/discussions)
+- [Report bugs](https://github.com/Supervertaler/Supervertaler-Workbench/issues)
+- [Request features](https://github.com/Supervertaler/Supervertaler-Workbench/discussions)
 - [Contributing guide](CONTRIBUTING.md)
 
 ---
@@ -82,7 +82,7 @@ macOS will block the app on first launch because it is not signed with an Apple 
 
 **Supervertaler** is maintained by [Michael Beijer](https://michaelbeijer.co.uk), a professional translator with 30 years of experience in technical and patent translation.
 
-- [Stargazers](https://github.com/michaelbeijer/Supervertaler/stargazers) - See who's starred the project
+- [Stargazers](https://github.com/Supervertaler/Supervertaler-Workbench/stargazers) - See who's starred the project
 - [Gitstalk](https://gitstalk.netlify.app/michaelbeijer) - See what I'm up to on GitHub
 
 **License:** MIT - Free for personal and commercial use.

@@ -6,7 +6,7 @@ Supervertaler is a professional desktop translation application built with **Pyt
 
 ## Quick links
 
-- Issues: https://github.com/michaelbeijer/Supervertaler/issues
+- Issues: https://github.com/Supervertaler/Supervertaler-Workbench/issues
 - Documentation: https://supervertaler.gitbook.io/help/
 
 ## Bug reports
@@ -87,7 +87,7 @@ Semantic-style prefixes are preferred:
 ### Clone
 
 ```bash
-git clone https://github.com/michaelbeijer/Supervertaler.git
+git clone https://github.com/Supervertaler/Supervertaler-Workbench.git
 cd Supervertaler
 ```
 

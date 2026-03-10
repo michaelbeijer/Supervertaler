@@ -5,7 +5,7 @@
 ## What's New (v1.9.272)
 
 ### Bug Fixes
-- **Fixed Trados return package with missing `<target>` elements** — Trados Studio 2024 creates SDLXLIFF files where untranslated segments have no `<target>` element at all. The export engine now creates `<target>` by cloning the `<seg-source>` structure with translations inserted. Also handles targets without `<mrk>` tags. Resolves [#161](https://github.com/michaelbeijer/Supervertaler/issues/161).
+- **Fixed Trados return package with missing `<target>` elements** — Trados Studio 2024 creates SDLXLIFF files where untranslated segments have no `<target>` element at all. The export engine now creates `<target>` by cloning the `<seg-source>` structure with translations inserted. Also handles targets without `<mrk>` tags. Resolves [#161](https://github.com/Supervertaler/Supervertaler-Workbench/issues/161).
 - **Fixed XML entity escaping in SDLXLIFF export** — Source text containing `&`, `<`, or `>` characters was written unescaped, causing Trados Studio to reject the return package. Now properly escaped in XML output.
 - **`conf="Translated"` attribute now added when missing** — Ensures Trados Studio recognizes segments as translated even when the original SDLXLIFF had no `conf` attribute.
 - **Grid-to-segment sync now reverses invisible characters** — Display characters (middle dots, arrows) are converted back to actual whitespace before export. Stripped outer wrapping tags are also restored.
@@ -29,7 +29,7 @@
 
 ## Links
 
-- [Changelog](https://github.com/michaelbeijer/Supervertaler/blob/main/CHANGELOG.md)
+- [Changelog](https://github.com/Supervertaler/Supervertaler-Workbench/blob/main/CHANGELOG.md)
 - [Online Manual](https://supervertaler.gitbook.io/help/)
 - [Website](https://supervertaler.com)
 - [PyPI](https://pypi.org/project/supervertaler/)

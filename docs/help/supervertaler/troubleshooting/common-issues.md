@@ -223,7 +223,7 @@ Go to **Settings → View Settings** and select your preferred font family.
 
 ## Still Having Issues?
 
-1. Check the [GitHub Issues](https://github.com/michaelbeijer/Supervertaler/issues) for known bugs
+1. Check the [GitHub Issues](https://github.com/Supervertaler/Supervertaler-Workbench/issues) for known bugs
 2. Open a new issue with:
    - Your OS and Python version
    - Steps to reproduce the problem

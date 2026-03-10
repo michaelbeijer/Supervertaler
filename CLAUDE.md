@@ -19,7 +19,7 @@ Supervertaler is a desktop CAT (Computer-Assisted Translation) tool built with P
 | Website (Trados page) | `docs/trados.html` |
 | Website CSS | `docs/styles.css` |
 | Help — Desktop (GitBook) | `docs/help/supervertaler/` |
-| Help — Trados (GitBook) | `docs/help/supervertaler-for-trados/` |
+| Help — Trados (GitBook) | Moved to `Supervertaler-for-Trados` repo `docs/` |
 | Help — Desktop (old, git-synced) | `docs/superdocs/` |
 | Tests | `tests/` |
 | Settings | `settings/settings.json` |

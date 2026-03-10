@@ -2,7 +2,7 @@
 
 This page is the GitBook version of the original PDF Rescue guide.
 
-If you prefer the repository copy, see: https://github.com/michaelbeijer/Supervertaler/blob/main/docs/guides/PDF_RESCUE.md
+If you prefer the repository copy, see: https://github.com/Supervertaler/Supervertaler-Workbench/blob/main/docs/guides/PDF_RESCUE.md
 
 ---
 

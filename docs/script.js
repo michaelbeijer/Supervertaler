@@ -111,7 +111,7 @@ function toggleMobileMenu() {
 // Console message for developers
 console.log('%c🌐 Supervertaler Website', 'font-size: 20px; font-weight: bold; color: #3b82f6;');
 console.log('%cBuilt with ❤️ for translators', 'font-size: 14px; color: #6b7280;');
-console.log('%cRepository: https://github.com/michaelbeijer/Supervertaler', 'font-size: 12px; color: #8b5cf6;');
+console.log('%cRepository: https://github.com/Supervertaler/Supervertaler-Workbench', 'font-size: 12px; color: #8b5cf6;');
 
 // Back to Top Button
 document.addEventListener('DOMContentLoaded', () => {

@@ -2,7 +2,7 @@
 
 This page documents the **Supervertaler Project Data Format** (Universal Data Exchange Standard).
 
-If you prefer the repository copy, see: https://github.com/michaelbeijer/Supervertaler/blob/main/docs/specifications/SUPERVERTALER_DATA_FORMAT.md
+If you prefer the repository copy, see: https://github.com/Supervertaler/Supervertaler-Workbench/blob/main/docs/specifications/SUPERVERTALER_DATA_FORMAT.md
 
 ---
 

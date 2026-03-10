@@ -4,7 +4,7 @@
 
 ### Option 1: Download Release (Easiest)
 
-1. Go to [GitHub Releases](https://github.com/michaelbeijer/Supervertaler/releases)
+1. Go to [GitHub Releases](https://github.com/Supervertaler/Supervertaler-Workbench/releases)
 2. Download the latest `.zip` file
 3. Extract to a folder of your choice
 4. Run `Supervertaler.exe`
@@ -15,7 +15,7 @@ If you want the latest development version or want to contribute:
 
 ```bash
 # Clone the repository
-git clone https://github.com/michaelbeijer/Supervertaler.git
+git clone https://github.com/Supervertaler/Supervertaler-Workbench.git
 cd Supervertaler
 
 # Create virtual environment
@@ -35,7 +35,7 @@ Supervertaler is compatible with Linux, though Windows is the primary developmen
 
 ```bash
 # Clone the repository
-git clone https://github.com/michaelbeijer/Supervertaler.git
+git clone https://github.com/Supervertaler/Supervertaler-Workbench.git
 cd Supervertaler
 
 # Create virtual environment

@@ -28,7 +28,7 @@ python3 --version   # Should be 3.11+
 
 ```bash
 cd ~/Dev
-git clone https://github.com/michaelbeijer/Supervertaler.git
+git clone https://github.com/Supervertaler/Supervertaler-Workbench.git
 cd Supervertaler
 ```
 

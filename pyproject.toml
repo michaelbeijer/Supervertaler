@@ -134,10 +134,10 @@ all = []
 
 [project.urls]
 Homepage = "https://supervertaler.com"
-Repository = "https://github.com/michaelbeijer/Supervertaler.git"
-"Bug Tracker" = "https://github.com/michaelbeijer/Supervertaler/issues"
-Changelog = "https://github.com/michaelbeijer/Supervertaler/blob/main/CHANGELOG.md"
-Documentation = "https://github.com/michaelbeijer/Supervertaler/blob/main/AGENTS.md"
+Repository = "https://github.com/Supervertaler/Supervertaler-Workbench.git"
+"Bug Tracker" = "https://github.com/Supervertaler/Supervertaler-Workbench/issues"
+Changelog = "https://github.com/Supervertaler/Supervertaler-Workbench/blob/main/CHANGELOG.md"
+Documentation = "https://github.com/Supervertaler/Supervertaler-Workbench/blob/main/AGENTS.md"
 "Author Website" = "https://michaelbeijer.co.uk"
 
 [project.scripts]

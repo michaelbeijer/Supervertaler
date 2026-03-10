@@ -16,7 +16,7 @@ Welcome to the help center for **Supervertaler Workbench** — a free, open-sour
 | **OS** | Windows 10/11, macOS, Linux |
 | **Python** | 3.10 or higher |
 | **License** | Free and open source (MIT) |
-| **Source** | [github.com/michaelbeijer/Supervertaler](https://github.com/michaelbeijer/Supervertaler) |
+| **Source** | [github.com/Supervertaler/Supervertaler-Workbench](https://github.com/Supervertaler/Supervertaler-Workbench) |
 
 Start here: [Quick Start Guide](get-started/quick-start.md)
 
@@ -35,6 +35,6 @@ Both tools share the same SQLite-based termbase format (`.db`) — termbases cre
 ## Getting Help
 
 - Browse this help center using the sidebar
-- Report issues on [GitHub](https://github.com/michaelbeijer/Supervertaler/issues)
-- Join [GitHub Discussions](https://github.com/michaelbeijer/Supervertaler/discussions)
+- Report issues on [GitHub](https://github.com/Supervertaler/Supervertaler-Workbench/issues)
+- Join [GitHub Discussions](https://github.com/Supervertaler/Supervertaler-Workbench/discussions)
 - Visit [supervertaler.com](https://supervertaler.com)

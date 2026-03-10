@@ -9894,7 +9894,7 @@ class SupervertalerQt(QMainWindow):
         help_menu.addAction(shortcuts_action)
 
         changelog_action = QAction("📝 Changelog", self)
-        changelog_action.triggered.connect(lambda: self._open_url("https://github.com/michaelbeijer/Supervertaler/blob/main/CHANGELOG.md"))
+        changelog_action.triggered.connect(lambda: self._open_url("https://github.com/Supervertaler/Supervertaler-Workbench/blob/main/CHANGELOG.md"))
         help_menu.addAction(changelog_action)
 
         update_check_action = QAction("🔄 Check for Updates...", self)
@@ -9910,7 +9910,7 @@ class SupervertalerQt(QMainWindow):
         help_menu.addSeparator()
 
         github_action = QAction("🔗 GitHub Repository", self)
-        github_action.triggered.connect(lambda: self._open_url("https://github.com/michaelbeijer/Supervertaler"))
+        github_action.triggered.connect(lambda: self._open_url("https://github.com/Supervertaler/Supervertaler-Workbench"))
         help_menu.addAction(github_action)
 
         help_menu.addSeparator()
@@ -21995,7 +21995,7 @@ class SupervertalerQt(QMainWindow):
                 "# This portable EXE does not support installing extras via pip inside the app.\n"
                 "# To add Local Whisper: Download the FULL Windows build from GitHub releases.\n"
                 "#\n"
-                "# Releases: https://github.com/michaelbeijer/Supervertaler/releases/latest\n\n"
+                "# Releases: https://github.com/Supervertaler/Supervertaler-Workbench/releases/latest\n\n"
             )
         else:
             pypi_prefix = "# If you installed via: pip install supervertaler\n\n"
@@ -47043,7 +47043,7 @@ class SupervertalerQt(QMainWindow):
         # environments (seen as QNetworkReply "Unknown error"). Until this is revisited, open the
         # GitHub releases page directly.
         try:
-            self._open_url("https://github.com/michaelbeijer/Supervertaler/releases/latest")
+            self._open_url("https://github.com/Supervertaler/Supervertaler-Workbench/releases/latest")
         except Exception as e:
             QMessageBox.warning(self, "Check for Updates", f"Could not open releases page: {e}")
         return
@@ -47092,8 +47092,8 @@ class SupervertalerQt(QMainWindow):
         if not hasattr(self, "_update_check_net_mgr") or self._update_check_net_mgr is None:
             self._update_check_net_mgr = QNetworkAccessManager(self)
 
-        api_url = QUrl("https://api.github.com/repos/michaelbeijer/Supervertaler/releases/latest")
-        fallback_url = QUrl("https://github.com/michaelbeijer/Supervertaler/releases/latest")
+        api_url = QUrl("https://api.github.com/repos/Supervertaler/Supervertaler-Workbench/releases/latest")
+        fallback_url = QUrl("https://github.com/Supervertaler/Supervertaler-Workbench/releases/latest")
         timeout_ms = 15000
 
         self._update_check_fallback_attempted = False
@@ -47244,7 +47244,7 @@ class SupervertalerQt(QMainWindow):
                 QMessageBox.StandardButton.Yes,
             )
             if choice == QMessageBox.StandardButton.Yes:
-                self._open_url("https://github.com/michaelbeijer/Supervertaler/releases")
+                self._open_url("https://github.com/Supervertaler/Supervertaler-Workbench/releases")
 
         def start_python_fallback(reason: str = ""):
             """Fallback that uses Python's HTTPS stack (urllib) instead of QtNetwork."""
@@ -47382,7 +47382,7 @@ class SupervertalerQt(QMainWindow):
             except Exception:
                 pass
             latest_version_text = (latest_version_text or "").strip()
-            latest_url = (latest_url or "").strip() or "https://github.com/michaelbeijer/Supervertaler/releases"
+            latest_url = (latest_url or "").strip() or "https://github.com/Supervertaler/Supervertaler-Workbench/releases"
 
             current = self._normalize_version_tuple(__version__)
             latest = self._normalize_version_tuple(latest_version_text)
@@ -47492,7 +47492,7 @@ class SupervertalerQt(QMainWindow):
 
                 if kind == "fallback":
                     # Try to read the redirect location (preferred) because /releases/latest usually 302's.
-                    latest_url_text = "https://github.com/michaelbeijer/Supervertaler/releases"
+                    latest_url_text = "https://github.com/Supervertaler/Supervertaler-Workbench/releases"
                     latest_version_text = ""
 
                     try:
@@ -47531,7 +47531,7 @@ class SupervertalerQt(QMainWindow):
                 tag = (data.get("tag_name") or "").strip()
                 name = (data.get("name") or "").strip()
                 latest_version_text = tag or name
-                latest_url = (data.get("html_url") or "").strip() or "https://github.com/michaelbeijer/Supervertaler/releases"
+                latest_url = (data.get("html_url") or "").strip() or "https://github.com/Supervertaler/Supervertaler-Workbench/releases"
 
                 handle_latest(latest_version_text, latest_url)
             except Exception as e:
@@ -47550,7 +47550,7 @@ class SupervertalerQt(QMainWindow):
         """
         import urllib.request
 
-        api_url = "https://api.github.com/repos/michaelbeijer/Supervertaler/releases/latest"
+        api_url = "https://api.github.com/repos/Supervertaler/Supervertaler-Workbench/releases/latest"
         req = urllib.request.Request(
             api_url,
             headers={
@@ -47565,7 +47565,7 @@ class SupervertalerQt(QMainWindow):
         tag = (data.get("tag_name") or "").strip()
         name = (data.get("name") or "").strip()
         version = tag or name
-        url = (data.get("html_url") or "").strip() or "https://github.com/michaelbeijer/Supervertaler/releases"
+        url = (data.get("html_url") or "").strip() or "https://github.com/Supervertaler/Supervertaler-Workbench/releases"
 
         return {"version": version, "url": url}
 
