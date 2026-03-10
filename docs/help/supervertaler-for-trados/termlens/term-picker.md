@@ -12,10 +12,10 @@ Each row in the Term Picker is color-coded by termbase type:
 
 | Color | Meaning |
 |-------|---------|
-| **Pink** | Project termbase term |
-| **Blue** | Regular Supervertaler termbase term |
-| **Yellow** | Non-translatable term |
-| **Green** | MultiTerm termbase term (`.sdltb`) |
+| <mark style="background-color:#E6D7D8;">**Pink**</mark> | Project termbase term |
+| <mark style="background-color:#C8E6F5;">**Blue**</mark> | Regular Supervertaler termbase term |
+| <mark style="background-color:#FFF3D0;">**Yellow**</mark> | Non-translatable term |
+| <mark style="background-color:#D4EDDA;">**Green**</mark> | MultiTerm termbase term (`.sdltb`) |
 
 This lets you instantly see where each term comes from and how it should be handled.
 
