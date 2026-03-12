@@ -1517,22 +1517,27 @@ body {
 }
 
 .pricing-group-heading {
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 1.5px;
-    color: #c0392b;
     text-align: center;
     padding: 10px 20px;
     margin-bottom: var(--spacing-sm);
-    border: 2px solid #c0392b;
     border-radius: 999px;
-    background: var(--bg-primary);
+    border: none;
 }
 
-.pricing-group-wide .pricing-group-heading {
-    color: #0d9488;
-    border-color: #0d9488;
+.pricing-heading-workbench {
+    color: #7c3aed;
+    background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+    border: 1px solid #ddd6fe;
+}
+
+.pricing-heading-trados {
+    color: #0d7377;
+    background: linear-gradient(135deg, #f0fdfa 0%, #ccfbf1 100%);
+    border: 1px solid #99f6e4;
 }
 
 .pricing-group-cards {
