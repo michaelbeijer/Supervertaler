@@ -108,6 +108,25 @@ function toggleMobileMenu() {
     menu.classList.toggle('active');
 }
 
+// GitHub dropdown
+document.addEventListener('DOMContentLoaded', () => {
+    const btn = document.getElementById('github-btn');
+    const menu = document.getElementById('github-menu');
+    const chevron = document.getElementById('github-chevron');
+    if (!btn || !menu) return;
+    btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const open = menu.classList.toggle('open');
+        btn.setAttribute('aria-expanded', open);
+        if (chevron) chevron.style.transform = open ? 'rotate(180deg)' : '';
+    });
+    document.addEventListener('click', () => {
+        menu.classList.remove('open');
+        btn.setAttribute('aria-expanded', 'false');
+        if (chevron) chevron.style.transform = '';
+    });
+});
+
 // Console message for developers
 console.log('%c🌐 Supervertaler Website', 'font-size: 20px; font-weight: bold; color: #3b82f6;');
 console.log('%cBuilt with ❤️ for translators', 'font-size: 14px; color: #6b7280;');
