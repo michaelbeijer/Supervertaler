@@ -1275,6 +1275,7 @@ body {
 .footer-brand .logo {
     font-size: 2.5rem;
 }
+.footer-brand .logo-img {    vertical-align: middle;    margin-right: 6px;}
 
 .footer-tagline {
     color: var(--text-light);
