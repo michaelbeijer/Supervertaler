@@ -8795,11 +8795,15 @@ class SupervertalerQt(QMainWindow):
                 self.raise_()
                 self.activateWindow()
 
-            # Switch to AI tab (index 2)
+            # Switch to Grid tab (index 0) so the right panel is visible
             if hasattr(self, 'main_tabs'):
-                self.main_tabs.setCurrentIndex(2)
+                self.main_tabs.setCurrentIndex(0)
 
-            # Switch to Supervertaler Assistant sub-tab and insert text
+            # Switch the right panel to the AI Assistant tab
+            if hasattr(self, 'right_tabs') and hasattr(self, '_assistant_tab_index'):
+                self.right_tabs.setCurrentIndex(self._assistant_tab_index)
+
+            # Insert text into the assistant chat input
             if hasattr(self, 'prompt_manager_qt') and self.prompt_manager_qt:
                 self.prompt_manager_qt.receive_text_for_assistant(
                     initial_text or "", from_external=external_mode
@@ -10193,6 +10197,14 @@ class SupervertalerQt(QMainWindow):
         self.prompt_manager_qt.create_tab(prompt_widget)
         set_help_topic(prompt_widget, HelpTopics.AI_PROMPT_MANAGER)
         self.main_tabs.addTab(prompt_widget, "✨ AI")
+
+        # Add AI Assistant to the right panel at position 1 (right after Match Panel)
+        if hasattr(self, 'right_tabs') and hasattr(self.prompt_manager_qt, 'assistant_tab'):
+            self.right_tabs.insertTab(1, self.prompt_manager_qt.assistant_tab, "💬 AI Assistant")
+            self._assistant_tab_index = 1
+            # Bump stored indices that were shifted by the insert
+            if hasattr(self, '_preview_tab_index'):
+                self._preview_tab_index += 1
         
         # Keep backward compatibility reference
         self.document_views_widget = self.main_tabs
@@ -23948,13 +23960,24 @@ class SupervertalerQt(QMainWindow):
         # Tab 6: Scratchpad (private translator notes for the whole project)
         right_tabs.addTab(self._scratchpad_widget_for_right_panel, "📝 Scratchpad")
         tab_index += 1
-        
+
+        # Note: AI Assistant tab is added later (after prompt_manager_qt is created)
+        # via _add_assistant_to_right_panel(), since the grid is built before the AI tab.
+        self._right_panel_next_tab_index = tab_index
+
         # Set default selected tab to Match Panel (always show Match Panel first)
         right_tabs.setCurrentIndex(match_panel_tab_index)
         
         # Store reference for later use
         self.right_tabs = right_tabs
-        
+
+        # Update AI Assistant context sidebar when its tab becomes visible
+        def _on_right_tab_changed(index):
+            if hasattr(self, '_assistant_tab_index') and index == self._assistant_tab_index:
+                if hasattr(self, 'prompt_manager_qt') and self.prompt_manager_qt:
+                    self.prompt_manager_qt._on_assistant_shown()
+        right_tabs.currentChanged.connect(_on_right_tab_changed)
+
         # Allow right panel to expand larger for better splitter flexibility
         right_tabs.setMinimumWidth(250)  # Prevent complete collapse
         right_tabs.setMaximumWidth(16777215)  # Remove maximum width constraint (Qt max = 16777215)

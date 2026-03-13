@@ -1031,23 +1031,19 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER.'''
         library_tab = self._create_prompt_library_tab()
         self.sub_tabs.addTab(library_tab, "📋 Prompt Manager")
 
-        # Tab 2: Supervertaler Assistant
-        assistant_tab = self._create_ai_assistant_tab()
-        self.sub_tabs.addTab(assistant_tab, "💬 Supervertaler Assistant")
-
-        # Tab 3: Variables Reference (was Placeholders)
+        # Tab 2: Variables Reference (was Placeholders)
         variables_tab = self._create_placeholders_tab()
         self.sub_tabs.addTab(variables_tab, "📝 Variables")
 
-        # Connect tab change signal to update context
-        self.sub_tabs.currentChanged.connect(self._on_tab_changed)
+        # Supervertaler Assistant — created here but added to the right panel
+        # in Supervertaler.py so it's visible alongside the translation grid.
+        self.assistant_tab = self._create_ai_assistant_tab()
 
         main_layout.addWidget(self.sub_tabs, 1)  # 1 = stretch
 
-    def _on_tab_changed(self, index):
-        """Handle tab change - update context when switching to AI Assistant"""
-        if index == 1:  # AI Assistant tab
-            self._update_context_sidebar()
+    def _on_assistant_shown(self):
+        """Handle AI Assistant becoming visible — update context sidebar"""
+        self._update_context_sidebar()
 
     def receive_text_for_assistant(self, text: str, from_external: bool = False):
         """
@@ -1060,8 +1056,7 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER.'''
         # Remember where to return on Escape
         self._assistant_return_external = from_external
 
-        # Switch to the Supervertaler Assistant sub-tab
-        self.sub_tabs.setCurrentIndex(1)
+        # Switch to the Assistant tab in the right panel (handled by caller in Supervertaler.py)
 
         # Insert text into the chat input (append if there's already text)
         if text and text.strip():
@@ -1098,7 +1093,9 @@ OUTPUT ONLY THE SEGMENT MARKERS. DO NOT ADD EXPLANATIONS BEFORE OR AFTER.'''
             except Exception as e:
                 print(f"[Assistant] Could not reactivate external app: {e}")
 
-        # Default: switch back to Grid tab
+        # Default: switch right panel back to Match Panel and ensure Grid is visible
+        if hasattr(pa, 'right_tabs'):
+            pa.right_tabs.setCurrentIndex(0)  # Match Panel
         if hasattr(pa, 'main_tabs'):
             pa.main_tabs.setCurrentIndex(0)
             print("[Assistant] Returned to Grid tab")

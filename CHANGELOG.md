@@ -2,8 +2,16 @@
 
 All notable changes to Supervertaler Workbench are documented in this file.
 
-**Current Version:** v1.9.352 (March 7, 2026)
+**Current Version:** v1.9.353 (March 13, 2026)
 
+
+## v1.9.353 - March 13, 2026
+
+### Improvements
+
+- **AI Assistant moved to the right panel** — The Supervertaler Assistant is now available as a tab in the right-side panel (next to Match Panel), so you can chat with the AI while working in the translation grid. Previously it was tucked away under the AI tab, requiring a full tab switch. The Prompt Manager and Variables tabs remain under the AI tab.
+
+---
 
 ## v1.9.352 - March 7, 2026
 
