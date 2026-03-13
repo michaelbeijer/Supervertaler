@@ -2,8 +2,16 @@
 
 All notable changes to Supervertaler Workbench are documented in this file.
 
-**Current Version:** v1.9.353 (March 13, 2026)
+**Current Version:** v1.9.354 (March 13, 2026)
 
+
+## v1.9.354 - March 13, 2026
+
+### New Features
+
+- **Auto-confirm 100% TM matches ([#138](https://github.com/Supervertaler/Supervertaler-Workbench/issues/138))** — New checkbox in the batch pre-translation dialog: "Auto-confirm 100% TM matches". When enabled, segments with exact TM matches are automatically set to Confirmed status instead of TM 100%, so you can skip manual review of trusted TM content. The option is only available when TM is selected as the translation provider. The completion log and dialog show how many segments were auto-confirmed.
+
+---
 
 ## v1.9.353 - March 13, 2026
 

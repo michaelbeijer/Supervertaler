@@ -6,7 +6,7 @@
 
 **Professional AI-enhanced translation workbench** with multi-LLM support (GPT-4, Claude, Gemini, Ollama), translation memory, glossary management, and seamless CAT tool integration (memoQ, Trados, CafeTran, Phrase, Déjà Vu).
 
-**Latest release:** v1.9.353 - AI Assistant moved to the right panel for side-by-side use with the translation grid.
+**Latest release:** v1.9.354 - Auto-confirm 100% TM matches during batch pre-translation.
 
 ---
 
