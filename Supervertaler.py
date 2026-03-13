@@ -48966,7 +48966,27 @@ class SupervertalerQt(QMainWindow):
             )
             retry_checkbox.setChecked(True)  # Default to enabled
             options_layout.addWidget(retry_checkbox)
-        
+
+            # Auto-confirm TM matches option
+            auto_confirm_checkbox = CheckmarkCheckBox("✔ Auto-confirm 100% TM matches")
+            auto_confirm_checkbox.setToolTip(
+                "Automatically set 100% TM matches to 'Confirmed' status\n"
+                "instead of the default 'TM 100%' status.\n\n"
+                "This is useful when you trust your TM and want to skip\n"
+                "manual review of exact matches."
+            )
+            auto_confirm_checkbox.setChecked(False)
+            auto_confirm_checkbox.setEnabled(False)  # Only enabled when TM is selected
+            options_layout.addWidget(auto_confirm_checkbox)
+
+            # Enable/disable auto-confirm based on TM selection
+            def on_tm_autoconfirm_toggle(checked):
+                auto_confirm_checkbox.setEnabled(checked)
+                if not checked:
+                    auto_confirm_checkbox.setChecked(False)
+
+            tm_checkbox.toggled.connect(on_tm_autoconfirm_toggle)
+
             options_group.setLayout(options_layout)
             dialog_layout.addWidget(options_group)
 
@@ -48995,11 +49015,13 @@ class SupervertalerQt(QMainWindow):
             use_tm = tm_checkbox.isChecked()
             use_mt = mt_checkbox.isChecked()
             retry_until_complete = retry_checkbox.isChecked()
-            tm_exact_only = tm_exact_only_checkbox.isChecked()  # NEW: Get exact-only setting
+            tm_exact_only = tm_exact_only_checkbox.isChecked()
+            auto_confirm_tm = auto_confirm_checkbox.isChecked()
         
             # Store retry setting for recursive calls
             self._batch_retry_enabled = retry_until_complete
             self._batch_tm_exact_only = tm_exact_only  # Store for retry passes
+            self._batch_auto_confirm_tm = auto_confirm_tm  # Store for auto-confirm
             
             # Initialize model variable (will be set to actual model if LLM is selected)
             model = None
@@ -49018,7 +49040,8 @@ class SupervertalerQt(QMainWindow):
                     return
             
                 mode_str = " (Exact matches only)" if tm_exact_only else " (with fuzzy matching)"
-                self.log(f"📖 Using Translation Memory for batch pre-translation{mode_str}")
+                confirm_str = ", auto-confirm 100%" if auto_confirm_tm else ""
+                self.log(f"📖 Using Translation Memory for batch pre-translation{mode_str}{confirm_str}")
             
             elif use_mt:
                 # Use MT provider
@@ -49213,6 +49236,7 @@ class SupervertalerQt(QMainWindow):
 
             success_count = 0
             no_match_count = 0
+            auto_confirmed_count = 0
 
             for search_source, seg_list in source_to_segments.items():
                 match = match_results.get(search_source)
@@ -49221,7 +49245,10 @@ class SupervertalerQt(QMainWindow):
                         segment.target = match['target']
                         match_pct = match.get('match_pct', 100)
                         segment.match_percent = match_pct
-                        if match_pct >= 100:
+                        if match_pct >= 100 and getattr(self, '_batch_auto_confirm_tm', False):
+                            segment.status = "confirmed"
+                            auto_confirmed_count += 1
+                        elif match_pct >= 100:
                             segment.status = "tm_100"
                         else:
                             segment.status = "tm_fuzzy"
@@ -49261,15 +49288,18 @@ class SupervertalerQt(QMainWindow):
             # Show completion message
             self.log(f"═══════════════════════════════════════════════════════════")
             self.log(f"✓ TM Pre-Translation Complete ({elapsed_str})")
-            self.log(f"   Translated: {success_count} | No match: {no_match_count}")
+            confirm_note = f" ({auto_confirmed_count} auto-confirmed)" if auto_confirmed_count > 0 else ""
+            self.log(f"   Translated: {success_count}{confirm_note} | No match: {no_match_count}")
             self.log(f"   Unique sources: {unique_count} | Total segments: {total_segments}")
             self.log(f"═══════════════════════════════════════════════════════════")
 
+            confirm_msg = f"\n✔ Auto-confirmed: {auto_confirmed_count}" if auto_confirmed_count > 0 else ""
             QMessageBox.information(
                 self, "TM Pre-Translation Complete",
                 f"Pre-translation from TM complete in {elapsed_str}.\n\n"
                 f"✓ Translated: {success_count}\n"
                 f"⊘ No match: {no_match_count}"
+                f"{confirm_msg}"
             )
 
             self.project_modified = True
