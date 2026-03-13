@@ -86,6 +86,19 @@ A curated list of translation tools and AI-powered assistants that offer similar
 - **Pricing:** From $40/user/month; free trial available
 - **Open Source:** ❌
 
+### Wordplay
+- **Website:** [wordplay.icu](https://wordplay.icu/en)
+- **Type:** Web-based AI translation platform
+- **Description:** Suite of AI-powered translation and localisation tools designed for professional translators and localisation teams. Focuses on context-aware translation that goes beyond single-segment approaches, with tools for CAT tool integration, automated workflows, and corpus alignment.
+- **Key Features:**
+  - XLee — context-aware AI translation for XLIFF files, integrates with CAT tools
+  - XTrans — automated translation workflow (file conversion → AI translation → target file → review)
+  - XAligner — multilingual sentence alignment for building parallel corpora and TMs
+  - Preserves formatting in translated files
+  - English–Chinese translation and post-editing services also available
+- **Pricing:** Free
+- **Open Source:** ❌
+
 ### TWAS Suite / TWAS Assistant
 - **Website:** [twas.info](https://twas-all-apps.netlify.app/)
 - **Type:** Desktop application
@@ -117,21 +130,21 @@ A curated list of translation tools and AI-powered assistants that offer similar
 
 ## 📊 How They Compare
 
-| Feature | Supervertaler | GT4T | TransAIde | OpenAI Provider | CotranslatorAI | Wordscope | Bureau Works | TWAS Suite |
-|---------|---------------|------|-----------|-----------------|----------------|-----------|--------------|------------|
-| Multi-LLM Support | ✅ GPT, Claude, Gemini, Ollama | ➖ MT engines + ChatGPT | ✅ Any AI model | ❌ (OpenAI only) | ❌ | ✅ ChatGPT | ✅ AI-augmented | ❓ |
-| Global hotkey popup | ✅ QuickTrans (Ctrl+Alt+M) | ✅ Ctrl+J / Cmd+J | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Standalone App | ✅ Desktop | ✅ Desktop | ❌ (Trados plugin) | ❌ (Trados plugin) | ✅ Desktop | ✅ Web | ✅ Web | ✅ Desktop |
-| Local/Offline Mode | ✅ Ollama | ✅ local-first | ✅ (via local model) | ❌ | ❌ | ❌ | ❌ | ✅ |
-| Trados Integration | ✅ SDLPPX/SDLRPX | ✅ SDLXLIFF batch | ✅ Native plugin | ✅ Native plugin | ✅ | ❌ | ❓ | ✅ |
-| memoQ Integration | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ❓ | ✅ |
-| CafeTran Integration | ✅ | ❌ | ❌ | ❌ | ❓ | ❌ | ❌ | ✅ |
-| Full Context Translation | ✅ | ❌ | ✅ (entire documents) | ❌ (segment-by-seg) | ❓ | ❌ | ❌ | ❓ |
-| Translation Memory | ✅ SQLite + TMX | ❌ | ➖ (uses Trados TM) | ➖ (uses Trados TM) | ✅ | ✅ | ✅ | ✅ |
-| Terminology Management | ✅ | ❌ | ➖ (exports from Trados) | ➖ (uses Trados TB) | ✅ | ✅ | ✅ | ✅ |
-| Voice Dictation | ✅ Whisper | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Open Source | ✅ MIT License | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Free | ✅ | Freemium (pay-per-char) | Freemium (500 words) | ✅ (API costs) | ❓ | From $40/mo | Custom/Enterprise | Paid |
+| Feature | Supervertaler | GT4T | TransAIde | OpenAI Provider | CotranslatorAI | Wordscope | Bureau Works | Wordplay | TWAS Suite |
+|---------|---------------|------|-----------|-----------------|----------------|-----------|--------------|----------|------------|
+| Multi-LLM Support | ✅ GPT, Claude, Gemini, Ollama | ➖ MT engines + ChatGPT | ✅ Any AI model | ❌ (OpenAI only) | ❌ | ✅ ChatGPT | ✅ AI-augmented | ✅ AI-powered | ❓ |
+| Global hotkey popup | ✅ QuickTrans (Ctrl+Alt+M) | ✅ Ctrl+J / Cmd+J | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Standalone App | ✅ Desktop | ✅ Desktop | ❌ (Trados plugin) | ❌ (Trados plugin) | ✅ Desktop | ✅ Web | ✅ Web | ✅ Web | ✅ Desktop |
+| Local/Offline Mode | ✅ Ollama | ✅ local-first | ✅ (via local model) | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Trados Integration | ✅ SDLPPX/SDLRPX | ✅ SDLXLIFF batch | ✅ Native plugin | ✅ Native plugin | ✅ | ❌ | ❓ | ✅ (via XLIFF) | ✅ |
+| memoQ Integration | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ❓ | ✅ (via XLIFF) | ✅ |
+| CafeTran Integration | ✅ | ❌ | ❌ | ❌ | ❓ | ❌ | ❌ | ✅ (via XLIFF) | ✅ |
+| Full Context Translation | ✅ | ❌ | ✅ (entire documents) | ❌ (segment-by-seg) | ❓ | ❌ | ❌ | ✅ (context-aware) | ❓ |
+| Translation Memory | ✅ SQLite + TMX | ❌ | ➖ (uses Trados TM) | ➖ (uses Trados TM) | ✅ | ✅ | ✅ | ✅ (XAligner) | ✅ |
+| Terminology Management | ✅ | ❌ | ➖ (exports from Trados) | ➖ (uses Trados TB) | ✅ | ✅ | ✅ | ❓ | ✅ |
+| Voice Dictation | ✅ Whisper | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Open Source | ✅ MIT License | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Free | ✅ | Freemium (pay-per-char) | Freemium (500 words) | ✅ (API costs) | ❓ | From $40/mo | Custom/Enterprise | ✅ Free | Paid |
 
 ---
 
