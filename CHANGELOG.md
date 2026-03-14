@@ -2,8 +2,20 @@
 
 All notable changes to Supervertaler Workbench are documented in this file.
 
-**Current Version:** v1.9.354 (March 13, 2026)
+**Current Version:** v1.9.355 (March 14, 2026)
 
+
+## v1.9.355 - March 14, 2026
+
+### New Features
+
+- **Optional Status column position** — New checkbox in View Settings > Grid Display Options: "Show Status column before Target column". When enabled, the Status column appears between Source and Target instead of after Target. Uses Qt's visual column reorder so all existing code continues to work unchanged.
+
+### Performance
+
+- **Save View Settings is now instant** — Previously, clicking "Save View Settings" could freeze the UI for 30+ seconds. Root cause: `apply_theme()` was called on every save regardless of whether the UI scale changed, forcing Qt to restyle every widget in the application. Now only runs when the scale actually changes. Additionally, five expensive grid loops (invisible char color, focus border, tag colors, alternating row colors, source column refresh) now use change-detection guards and only run when their respective setting was modified.
+
+---
 
 ## v1.9.354 - March 13, 2026
 

@@ -20047,6 +20047,18 @@ class SupervertalerQt(QMainWindow):
         hide_wrapping_tags_layout.addStretch()
         grid_display_layout.addLayout(hide_wrapping_tags_layout)
 
+        # Status column position checkbox
+        status_col_layout = QHBoxLayout()
+        status_before_target_check = CheckmarkCheckBox("Show Status column before Target column")
+        status_before_target_check.setChecked(font_settings.get('status_column_before_target', False))
+        status_before_target_check.setToolTip(
+            "When enabled, the Status column appears between Source and Target.\n"
+            "When disabled (default), Status appears after Target."
+        )
+        status_col_layout.addWidget(status_before_target_check)
+        status_col_layout.addStretch()
+        grid_display_layout.addLayout(status_col_layout)
+
         grid_display_group.setLayout(grid_display_layout)
         layout.addWidget(grid_display_group)
 
@@ -20712,19 +20724,22 @@ class SupervertalerQt(QMainWindow):
         save_btn.setStyleSheet("font-weight: bold; padding: 8px;")
         
         def save_view_settings_with_scale():
-            # Save the UI scale setting first
+            # Save the UI scale setting first (only if scale actually changed)
             if hasattr(self, '_ui_scale_spin'):
-                self._apply_global_ui_font_scale(self._ui_scale_spin.value())
+                new_scale = self._ui_scale_spin.value()
+                current_scale = self._get_global_ui_font_scale()
+                if new_scale != current_scale:
+                    self._apply_global_ui_font_scale(new_scale)
             # Then save other view settings
             self._save_view_settings_from_ui(
                 grid_font_spin, match_font_spin, compare_font_spin, show_tags_check, tag_color_btn,
                 alt_colors_check, even_color_btn, odd_color_btn, invisible_char_color_btn, grid_font_family_combo,
                 termlens_font_family_combo, termlens_font_spin, termlens_bold_check,
                 border_color_btn, border_thickness_spin, badge_text_color_btn, tabs_above_check,
-                hide_wrapping_tags_check,
+                hide_wrapping_tags_check, status_before_target_check,
                 mp_font_family_combo=mp_font_family_combo, mp_font_spin=mp_font_spin, mp_bold_check=mp_bold_check
             )
-        
+
         save_btn.clicked.connect(save_view_settings_with_scale)
         layout.addWidget(save_btn)
         
@@ -22780,7 +22795,7 @@ class SupervertalerQt(QMainWindow):
                                      alt_colors_check=None, even_color_btn=None, odd_color_btn=None, invisible_char_color_btn=None,
                                      grid_font_family_combo=None, termlens_font_family_combo=None, termlens_font_spin=None, termlens_bold_check=None,
                                      border_color_btn=None, border_thickness_spin=None, badge_text_color_btn=None, tabs_above_check=None,
-                                     hide_wrapping_tags_check=None,
+                                     hide_wrapping_tags_check=None, status_before_target_check=None,
                                      mp_font_family_combo=None, mp_font_spin=None, mp_bold_check=None):
         """Save view settings from UI"""
         # CRITICAL: Suppress TM saves during view settings update
@@ -22795,7 +22810,7 @@ class SupervertalerQt(QMainWindow):
                 alt_colors_check, even_color_btn, odd_color_btn, invisible_char_color_btn,
                 grid_font_family_combo, termlens_font_family_combo, termlens_font_spin, termlens_bold_check,
                 border_color_btn, border_thickness_spin, badge_text_color_btn, tabs_above_check,
-                hide_wrapping_tags_check,
+                hide_wrapping_tags_check, status_before_target_check,
                 mp_font_family_combo=mp_font_family_combo, mp_font_spin=mp_font_spin, mp_bold_check=mp_bold_check
             )
         finally:
@@ -22805,11 +22820,22 @@ class SupervertalerQt(QMainWindow):
                                      alt_colors_check=None, even_color_btn=None, odd_color_btn=None, invisible_char_color_btn=None,
                                      grid_font_family_combo=None, termlens_font_family_combo=None, termlens_font_spin=None, termlens_bold_check=None,
                                      border_color_btn=None, border_thickness_spin=None, badge_text_color_btn=None, tabs_above_check=None,
-                                     hide_wrapping_tags_check=None,
+                                     hide_wrapping_tags_check=None, status_before_target_check=None,
                                      mp_font_family_combo=None, mp_font_spin=None, mp_bold_check=None):
         """Implementation of save view settings (called with TM saves suppressed)"""
         # Load existing settings first to preserve all values, then update with new ones
         general_settings = self.load_general_settings()
+
+        # Snapshot old values for change detection — only run expensive grid loops
+        # when the relevant setting actually changed
+        _old_tag_color = getattr(EditableGridTextEditor, 'tag_highlight_color', '#7f0001')
+        _old_invisible_color = getattr(self, 'invisible_char_color', '#999999')
+        _old_border_color = getattr(EditableGridTextEditor, 'focus_border_color', '')
+        _old_border_thickness = getattr(EditableGridTextEditor, 'focus_border_thickness', 2)
+        _old_alt_colors = getattr(self, 'enable_alternating_row_colors', True)
+        _old_even_color = getattr(self, 'even_row_color', '#FFFFFF')
+        _old_odd_color = getattr(self, 'odd_row_color', '#F0F0F0')
+        _old_hide_tags = getattr(self, 'hide_outer_wrapping_tags', False)
         general_settings.update({
             'auto_propagate_exact_matches': self.auto_propagate_exact_matches,
             'grid_font_size': grid_spin.value(),
@@ -22871,6 +22897,21 @@ class SupervertalerQt(QMainWindow):
             general_settings['hide_outer_wrapping_tags'] = hide_tags_value
             self.hide_outer_wrapping_tags = hide_tags_value
 
+        # Add status column position setting if provided
+        if status_before_target_check is not None:
+            status_before = status_before_target_check.isChecked()
+            general_settings['status_column_before_target'] = status_before
+            self.status_column_before_target = status_before
+            # Apply column reorder immediately
+            if hasattr(self, 'table') and self.table is not None:
+                header = self.table.horizontalHeader()
+                if status_before:
+                    # Move Status (logical 4) to visual position 3 (before Target)
+                    header.moveSection(header.visualIndex(4), 3)
+                else:
+                    # Move Status (logical 4) back to visual position 4 (after Target)
+                    header.moveSection(header.visualIndex(4), 4)
+
         # Add focus border settings if provided
         if border_color_btn is not None:
             border_color = border_color_btn.property('selected_color')
@@ -22923,7 +22964,7 @@ class SupervertalerQt(QMainWindow):
                 self.termbase_dotted_color = dotted_color
         
         self.save_general_settings(general_settings)
-        
+
         # Apply termlens font settings immediately to BOTH termlens widgets
         if hasattr(self, 'termlens_widget') and self.termlens_widget is not None:
             termlens_family = general_settings.get('termlens_font_family', 'Segoe UI')
@@ -22950,6 +22991,7 @@ class SupervertalerQt(QMainWindow):
         if mp_font_spin is not None or mp_font_family_combo is not None or mp_bold_check is not None:
             self._apply_match_panel_font_size()
 
+
         # Apply font family and size immediately
         font_changed = False
         if grid_font_family_combo is not None and self.default_font_family != grid_font_family_combo.currentText():
@@ -22962,6 +23004,7 @@ class SupervertalerQt(QMainWindow):
             self.apply_font_to_grid()
             self.auto_resize_rows()
         
+
         # Apply results pane font sizes to all panels
         if hasattr(self, 'results_panels'):
             from modules.translation_results_panel import CompactMatchItem
@@ -23001,11 +23044,15 @@ class SupervertalerQt(QMainWindow):
                 from modules.translation_results_panel import CompactMatchItem
                 CompactMatchItem.badge_text_color = badge_text_color
 
-        # Apply invisible char color to grid cells
-        if invisible_char_color_btn and hasattr(self, 'table') and self.table is not None:
+
+        # --- Expensive grid loops: only run when the relevant setting changed ---
+
+        _has_table = hasattr(self, 'table') and self.table is not None
+
+        # Apply invisible char color to grid cells (only if color changed)
+        if invisible_char_color_btn and _has_table:
             invisible_char_color = invisible_char_color_btn.property('selected_color')
-            if invisible_char_color:
-                # Update all cell highlighters (with processEvents to keep UI responsive)
+            if invisible_char_color and invisible_char_color != _old_invisible_color:
                 for row in range(self.table.rowCount()):
                     if row % 50 == 0:
                         QApplication.processEvents()
@@ -23014,42 +23061,50 @@ class SupervertalerQt(QMainWindow):
                         if widget and hasattr(widget, 'highlighter'):
                             widget.highlighter.set_invisible_char_color(invisible_char_color)
 
-        # Apply focus border settings to all grid cells
-        if (border_color_btn is not None or border_thickness_spin is not None) and hasattr(self, 'table') and self.table is not None:
-            # Refresh all EditableGridTextEditor widgets with new border settings
+        # Apply focus border settings to all grid cells (only if border settings changed)
+        if (border_color_btn is not None or border_thickness_spin is not None) and _has_table:
             border_color = EditableGridTextEditor.focus_border_color
             border_thickness = EditableGridTextEditor.focus_border_thickness
-            self.log(f"Applying focus border: color={border_color}, thickness={border_thickness}px")
+            if border_color != _old_border_color or border_thickness != _old_border_thickness:
+                self.log(f"Applying focus border: color={border_color}, thickness={border_thickness}px")
+                for row in range(self.table.rowCount()):
+                    if row % 50 == 0:
+                        QApplication.processEvents()
+                    widget = self.table.cellWidget(row, 3)  # Target column
+                    if widget and isinstance(widget, EditableGridTextEditor):
+                        widget.setStyleSheet(f"""
+                            QTextEdit {{
+                                border: none;
+                                padding: 0px 4px 0px 0px;
+                            }}
+                            QTextEdit:focus {{
+                                border: {border_thickness}px solid {border_color};
+                            }}
+                            QTextEdit::selection {{
+                                background-color: #D0E7FF;
+                                color: black;
+                            }}
+                        """)
 
-            for row in range(self.table.rowCount()):
-                if row % 50 == 0:
-                    QApplication.processEvents()
-                widget = self.table.cellWidget(row, 3)  # Target column
-                if widget and isinstance(widget, EditableGridTextEditor):
-                    # Update the stylesheet with new border settings
-                    widget.setStyleSheet(f"""
-                        QTextEdit {{
-                            border: none;
-                            padding: 0px 4px 0px 0px;
-                        }}
-                        QTextEdit:focus {{
-                            border: {border_thickness}px solid {border_color};
-                        }}
-                        QTextEdit::selection {{
-                            background-color: #D0E7FF;
-                            color: black;
-                        }}
-                    """)
+        # Refresh tag colors (only if tag color changed)
+        if _has_table:
+            new_tag_color = general_settings.get('tag_highlight_color', '#7f0001')
+            if new_tag_color != _old_tag_color:
+                self.refresh_grid_tag_colors()
 
-        # Refresh grid to apply tag colors
-        if hasattr(self, 'table') and self.table is not None:
-            self.refresh_grid_tag_colors()
-            # Also refresh row colors
-            self.apply_alternating_row_colors()
+        # Refresh alternating row colors (only if row color settings changed)
+        if _has_table:
+            new_alt = general_settings.get('enable_alternating_row_colors', True)
+            new_even = general_settings.get('even_row_color', '')
+            new_odd = general_settings.get('odd_row_color', '')
+            if new_alt != _old_alt_colors or new_even != _old_even_color or new_odd != _old_odd_color:
+                self.apply_alternating_row_colors()
 
         # Refresh source column if hide_outer_wrapping_tags setting changed
-        if hide_wrapping_tags_check is not None and hasattr(self, 'table') and self.table is not None:
-            self._refresh_source_column_display()
+        if hide_wrapping_tags_check is not None and _has_table:
+            if hide_wrapping_tags_check.isChecked() != _old_hide_tags:
+                self._refresh_source_column_display()
+
 
         self.log("✓ View settings saved and applied")
         # Use explicit QMessageBox instance to ensure proper dialog closing
@@ -24428,6 +24483,14 @@ class SupervertalerQt(QMainWindow):
         header.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)  # Target - stretch to fill space
         header.setSectionResizeMode(4, QHeaderView.ResizeMode.Interactive)  # Status - allow resizing
         header.setStretchLastSection(False)  # Don't auto-stretch last section (we use Stretch mode for Source/Target)
+
+        # Optional: show Status column before Target
+        # moveSection reorders the display without changing logical indices,
+        # so all code referencing column 3 (Target) and 4 (Status) still works.
+        settings = self.load_general_settings()
+        self.status_column_before_target = settings.get('status_column_before_target', False)
+        if self.status_column_before_target:
+            header.moveSection(4, 3)  # Move Status (logical 4) to visual position 3
 
         # Recalculate row heights when columns are resized (text reflows to new width)
         header.sectionResized.connect(self._on_column_resized)
