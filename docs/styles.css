@@ -1181,10 +1181,10 @@ body {
 }
 
 .privacy-content {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-    gap: var(--spacing-md);
-    margin: var(--spacing-lg) 0;
+    display: block;
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 140px 20px 80px;
 }
 
 .privacy-card {
