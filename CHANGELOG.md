@@ -5,6 +5,21 @@ All notable changes to Supervertaler Workbench are documented in this file.
 **Current Version:** v1.10.372 (September 29, 2026)
 
 
+## Unreleased
+
+### Changed (AI · OpenAI's three current models)
+
+The OpenAI models offered in Settings, the AI Assistant's model menu, QuickTrans and PDF Rescue are now OpenAI's three current ones, one per tier:
+- **GPT-6 Astra**, OpenAI's most capable model, for the hardest work: $10 / $50 per million tokens.
+- **GPT-6.1 Sol**, close to Astra's quality at a fifth of its price: $2 / $10. It is the new default.
+- **GPT-6 Luna**, the cheapest, for high-volume work: $0.10 / $0.50.
+
+They replace GPT-5.5 and GPT-5.4 Mini (GPT-5.4 and GPT-5.4 Mini on OpenRouter). If you have one of those selected, nothing changes for you: it stays selected, shown as "your current model", keeps working and is still costed. All three accept images. They are the same three Supervertaler for Trados and Supervertaler for memoQ offer.
+
+Any GPT-6 model is now treated as a reasoning model, as GPT-5 models already were: it gets the 10-minute time limit, room for its reasoning in the reply, and no temperature setting. Before, a GPT-6 model typed in by hand was handled like an older model, with a 2-minute limit.
+
+The cost of AI calls is counted at the prices OpenAI and OpenRouter charge today: GPT-5.6 Sol, Terra and Luna had been costed at their launch prices, above what OpenAI charges now, the GPT-6 models had no price, and several OpenRouter models were missing or out of date. Cached input on the GPT-6 and GPT-5.6 models is counted at a tenth of the input price (a twentieth on GPT-6.1 Sol), not half. The price list is again the same as Supervertaler for Trados's.
+
 ## v1.10.372 - September 29, 2026
 
 ### Added (Settings · inline codes and placeholders treated like tags)

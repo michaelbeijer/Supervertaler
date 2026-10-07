@@ -651,10 +651,7 @@ class ChatViewWidget(QWidget):
         # Provider → models mapping
         providers = [
             ("claude", "Anthropic", LLMClient.CLAUDE_MODELS),
-            ("openai", "OpenAI", {
-                "gpt-5.5": {"name": "GPT-5.5", "description": "Flagship, advanced reasoning"},
-                "gpt-5.4-mini": {"name": "GPT-5.4 Mini", "description": "Fast & economical"},
-            }),
+            ("openai", "OpenAI", LLMClient.OPENAI_MODELS),
             ("gemini", "Google", {
                 "gemini-3.1-flash-lite": {"name": "Gemini 3.1 Flash-Lite", "description": "Fast & economical"},
                 "gemini-2.5-pro": {"name": "Gemini 2.5 Pro", "description": "High quality"},

@@ -6,7 +6,7 @@ Specialized independent module for interacting with various LLM providers.
 Can be used standalone or imported by other applications.
 
 Supported Providers:
-- OpenAI (GPT-5.5, GPT-5.4 Mini)
+- OpenAI (GPT-6 Astra, GPT-6.1 Sol, GPT-6 Luna)
 - Anthropic (Claude Sonnet 5.5, Opus 5.5, Fable 5.1)
 - Google (Gemini 3.1 Flash-Lite, 2.5 Pro, 3.1 Pro Preview, Gemma 4 26B MoE)
 - Mistral AI (Mistral Large, Mistral Small)
@@ -18,7 +18,7 @@ Claude Models:
 - Opus 4.8: Most capable - complex legal/technical translation, 1M context ($5/$25 per MTok)
 
 Temperature Handling:
-- Reasoning models (GPT-5, o1, o3): temperature parameter OMITTED (not supported)
+- Reasoning models (GPT-5, GPT-6, o1, o3): temperature parameter OMITTED (not supported)
 - Standard models: temperature=0.3
 
 Usage:
@@ -195,7 +195,7 @@ class LLMClient:
 
     # Default models for each provider
     DEFAULT_MODELS = {
-        "openai": "gpt-5.5",  # GPT-5.5 (flagship)
+        "openai": "gpt-6.1-sol",  # GPT-6.1 Sol - the middle of OPENAI_MODELS, not its first
         "claude": "claude-sonnet-5-5",  # Claude Sonnet 5.5 (older IDs still selectable)
         "gemini": "gemini-3.1-flash-lite",  # Gemini 3.1 Flash-Lite
         "mistral": "mistral-large-latest",  # Mistral Large (flagship)
@@ -252,15 +252,21 @@ class LLMClient:
             "strengths": ["Legal translation", "Technical documents", "Complex reasoning", "1M context"],
             "use_case": "Specialised legal/technical translation, long-context jobs"
         },
-        "openai/gpt-5.4": {
-            "name": "GPT 5.4",
-            "description": "OpenAI flagship – advanced reasoning",
-            "strengths": ["Complex reasoning", "Multilingual", "High accuracy"],
-            "use_case": "Complex translation tasks"
+        "openai/gpt-6-astra": {
+            "name": "GPT-6 Astra",
+            "description": "OpenAI's most capable model – 1M context",
+            "strengths": ["Complex reasoning", "Multilingual", "Highest accuracy"],
+            "use_case": "The hardest work, when cost is secondary"
         },
-        "openai/gpt-5.4-mini": {
-            "name": "GPT 5.4 Mini",
-            "description": "OpenAI fast & economical",
+        "openai/gpt-6.1-sol": {
+            "name": "GPT-6.1 Sol",
+            "description": "Close to Astra's quality at a fifth of its price – 1M context",
+            "strengths": ["Complex reasoning", "Multilingual", "High accuracy"],
+            "use_case": "Recommended OpenAI model for most translation tasks"
+        },
+        "openai/gpt-6-luna": {
+            "name": "GPT-6 Luna",
+            "description": "OpenAI's cheapest – for high-volume work",
             "strengths": ["Fast", "Cost-effective", "Multilingual"],
             "use_case": "High-volume translation"
         },
@@ -372,11 +378,14 @@ class LLMClient:
     
     # Vision-capable models (support image inputs)
     VISION_MODELS = {
+        # Superseded models stay here: a saved choice keeps its image support.
         "openai": [
+            "gpt-6-astra",
+            "gpt-6.1-sol",
+            "gpt-6-luna",
             "gpt-5.5",
             "gpt-5.4-mini"
         ],
-        # Superseded models stay here: a saved choice keeps its image support.
         "claude": [
             "claude-sonnet-5-5",
             "claude-opus-5-5",
@@ -392,6 +401,39 @@ class LLMClient:
             "gemini-2.5-pro",
             "gemini-3.1-pro-preview"
         ]
+    }
+
+    # OpenAI's three current tiers, most capable to cheapest - the three OpenAI
+    # itself offers as its main choices (developers.openai.com/api/docs/models,
+    # checked 2026-10-07). Michael's rule (2026-10-07): the best and latest three,
+    # most expensive first, the middle one the default - as in the Trados and memoQ
+    # plugins. All are reasoning models, sent no temperature. A saved older model
+    # (GPT-5.5, GPT-5.4 Mini) still runs and is still costed (pricing.json keeps it).
+    OPENAI_MODELS = {
+        "gpt-6-astra": {
+            "name": "GPT-6 Astra",
+            "description": "OpenAI's most capable model ($10/$50), 1M context",
+            "released": "2026-09-04",
+            "strengths": ["Hardest translation problems", "Complex reasoning", "Highest accuracy", "1M context"],
+            "pricing": {"input": 10, "output": 50},  # USD per million tokens
+            "use_case": "For the hardest work, when cost is secondary"
+        },
+        "gpt-6.1-sol": {
+            "name": "GPT-6.1 Sol",
+            "description": "Close to Astra's quality at a fifth of its price ($2/$10), 1M context",
+            "released": "2026-09-29",
+            "strengths": ["General translation", "Complex reasoning", "Multilingual", "1M context"],
+            "pricing": {"input": 2, "output": 10},  # USD per million tokens
+            "use_case": "Recommended for most translation tasks"
+        },
+        "gpt-6-luna": {
+            "name": "GPT-6 Luna",
+            "description": "OpenAI's cheapest ($0.10/$0.50), 1M context",
+            "released": "2026-09-22",
+            "strengths": ["Fast", "Cost-effective", "Multilingual"],
+            "pricing": {"input": 0.10, "output": 0.50},  # USD per million tokens
+            "use_case": "High-volume work where cost matters most"
+        }
     }
 
     # Available Claude models with descriptions - the chat's model menu. The newest
@@ -425,8 +467,10 @@ class LLMClient:
         }
     }
 
-    # Reasoning models that don't support temperature parameter (must be omitted)
-    REASONING_MODELS = ["gpt-5", "o1", "o3"]
+    # Reasoning models: sent no temperature, given the long timeout and a large
+    # output budget (their thinking is drawn from it). GPT-6 reasons on every
+    # request; 6.1 Sol and Astra cannot turn it off at all.
+    REASONING_MODELS = ["gpt-5", "gpt-6", "o1", "o3"]
 
     @classmethod
     def get_claude_model_info(cls, model_id: Optional[str] = None) -> Dict:
@@ -906,7 +950,7 @@ class LLMClient:
             raise ImportError("OpenAI library not installed. Install with: pip install openai")
 
         model_lower = self.model.lower()
-        is_reasoning_model = any(x in model_lower for x in ["gpt-5", "o1", "o3"])
+        is_reasoning_model = any(x in model_lower for x in self.REASONING_MODELS)
         timeout_seconds = 600.0 if is_reasoning_model else 120.0
 
         client_kwargs = {"api_key": self.api_key, "timeout": timeout_seconds}
@@ -1193,9 +1237,9 @@ class LLMClient:
                 "OpenAI library not installed. Install with: pip install openai"
             )
 
-        # Detect if this is a reasoning model (GPT-5, o1, o3)
+        # Detect if this is a reasoning model (GPT-5, GPT-6, o1, o3)
         model_lower = self.model.lower()
-        is_reasoning_model = any(x in model_lower for x in ["gpt-5", "o1", "o3"])
+        is_reasoning_model = any(x in model_lower for x in self.REASONING_MODELS)
 
         # Reasoning models need MUCH longer timeout (they can take 5-10 minutes for large prompts)
         timeout_seconds = 600.0 if is_reasoning_model else 120.0  # 10 min vs 2 min

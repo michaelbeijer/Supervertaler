@@ -199,14 +199,14 @@ class PDFRescueQt:
         self.model_combo = QComboBox()
         # Organize models by provider with separators
         self.model_combo.addItem("--- OpenAI ---")
-        self.model_combo.addItems(["gpt-5.5", "gpt-5.4-mini"])
+        self.model_combo.addItems(["gpt-6-astra", "gpt-6.1-sol", "gpt-6-luna"])
         self.model_combo.addItem("--- Claude (Anthropic) ---")
         self.model_combo.addItems(["claude-sonnet-5-5", "claude-opus-5-5", "claude-fable-5-1"])
         self.model_combo.addItem("--- Gemini (Google) ---")
         self.model_combo.addItems(["gemini-3.1-flash-lite", "gemini-2.5-pro", "gemini-3.1-pro-preview"])
 
         # Set default and style separator items
-        self.model_combo.setCurrentText("gpt-5.5")
+        self.model_combo.setCurrentText("gpt-6.1-sol")
         
         # Make separator items non-selectable by disabling them
         combo_model = self.model_combo.model()
@@ -243,8 +243,9 @@ class PDFRescueQt:
         self.model_descriptions_text.setFont(QFont("Segoe UI", 9))
         self.model_descriptions_text.setReadOnly(True)
         # Size naturally to content - no fixed max height to eliminate wasted space below
-        model_descriptions = """• gpt-5.5 (Recommended): OpenAI flagship; advanced reasoning, excellent for most documents including complex tables
-• gpt-5.4-mini: Fast and economical; good for simple documents; may struggle with complex layouts
+        model_descriptions = """• gpt-6-astra: OpenAI's most capable model; for the hardest pages when cost is secondary
+• gpt-6.1-sol (Recommended): close to Astra's quality at a fifth of its price; excellent for most documents including complex tables
+• gpt-6-luna: OpenAI's cheapest; good for simple, high-volume pages
 • claude-sonnet-5-5: Newest Sonnet; strong reasoning, reliable on structured layouts and tables
 • claude-opus-5-5: Anthropic's newest Opus; best for dense, complex or technical documents
 • claude-fable-5-1: Anthropic's most capable model; for the hardest pages when cost is secondary
@@ -822,7 +823,7 @@ Please:
         }
         
         # Use appropriate token parameter based on model
-        if model.startswith("gpt-5") or model.startswith("o1"):
+        if model.startswith("gpt-5") or model.startswith("gpt-6") or model.startswith("o1"):
             api_params["max_completion_tokens"] = 4000
         else:
             api_params["max_tokens"] = 4000

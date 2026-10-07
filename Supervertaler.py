@@ -11228,7 +11228,7 @@ class SupervertalerQt(QMainWindow):
         self._setup_ollama_keepwarm()
         self._apply_ollama_timeout_setting()
 
-    def _resolve_provider_model(self, settings, provider, default='gpt-5.5'):
+    def _resolve_provider_model(self, settings, provider, default='gpt-6.1-sol'):
         """Resolve the model name for a provider.
 
         For ``custom_openai`` the active profile's model is the single source
@@ -11296,7 +11296,7 @@ class SupervertalerQt(QMainWindow):
         try:
             settings = self.load_llm_settings()
             provider = settings.get('provider', 'openai')
-            model = self._resolve_provider_model(settings, provider, 'gpt-5.5')
+            model = self._resolve_provider_model(settings, provider, 'gpt-6.1-sol')
             
             # Format nicely
             if provider == 'ollama':
@@ -24442,19 +24442,28 @@ class SupervertalerQt(QMainWindow):
         model_layout.addWidget(openai_model_label)
         
         openai_combo = QComboBox()
+        # OpenAI's three current tiers, most capable first; GPT-6.1 Sol is the
+        # default (Michael, 2026-10-07), as in the Trados and memoQ plugins.
         openai_combo.addItems([
-            "gpt-5.5 (Recommended - Flagship)",
-            "gpt-5.4-mini (Fast & Economical)"
+            "gpt-6-astra (Premium)",
+            "gpt-6.1-sol (Recommended)",
+            "gpt-6-luna (Budget)"
         ])
         openai_combo.setToolTip(
-            "GPT-5.5: OpenAI's flagship – advanced reasoning, excellent for complex translation.\n"
-            "GPT-5.4 Mini: Faster and cheaper, great quality for routine, high-volume work."
+            "GPT-6 Astra: OpenAI's most capable model, for the hardest work ($10/$50 per million tokens).\n"
+            "GPT-6.1 Sol: close to Astra's quality at a fifth of its price ($2/$10).\n"
+            "GPT-6 Luna: the cheapest, for high-volume work ($0.10/$0.50)."
         )
-        current_openai_model = settings.get('openai_model', 'gpt-5.5')
-        for i in range(openai_combo.count()):
-            if current_openai_model in openai_combo.itemText(i).lower():
-                openai_combo.setCurrentIndex(i)
-                break
+        current_openai_model = settings.get('openai_model', 'gpt-6.1-sol')
+        # A saved model that has left the list is shown rather than replaced: the
+        # combo cannot be typed in, so falling back to the first entry meant the
+        # next save switched the user to Astra, the dearest.
+        openai_idx = next((i for i in range(openai_combo.count())
+                           if openai_combo.itemText(i).split()[0] == current_openai_model), -1)
+        if openai_idx < 0 and current_openai_model:
+            openai_combo.addItem(f"{current_openai_model} (your current model)")
+            openai_idx = openai_combo.count() - 1
+        openai_combo.setCurrentIndex(max(openai_idx, 0))
         openai_combo.setEnabled(openai_radio.isChecked())
         model_layout.addWidget(openai_combo)
         
@@ -24582,8 +24591,9 @@ class SupervertalerQt(QMainWindow):
         openrouter_combo.addItems([
             "anthropic/claude-sonnet-5 (Recommended)",
             "anthropic/claude-opus-5 (Premium)",
-            "openai/gpt-5.4 (Advanced Reasoning)",
-            "openai/gpt-5.4-mini (Fast & Economical)",
+            "openai/gpt-6-astra (OpenAI's most capable)",
+            "openai/gpt-6.1-sol (OpenAI recommended)",
+            "openai/gpt-6-luna (OpenAI's cheapest)",
             "google/gemini-3.1-pro-preview (Latest Gemini)",
             "google/gemini-3-flash-preview (Fast Gemini)",
             "mistralai/mistral-small-2603 (European Languages)",
@@ -24804,9 +24814,10 @@ class SupervertalerQt(QMainWindow):
 
         # Helper to extract friendly model name from combo text and update radio label
         def _friendly_model_name(combo_text: str) -> str:
-            """Extract model ID from combo text like 'gpt-5.5 (Recommended)' → 'GPT-5.5'"""
+            """Extract model ID from combo text like 'gpt-6.1-sol (Recommended)' → 'GPT-6.1 Sol'"""
             model_id = combo_text.split()[0] if combo_text else ""
             friendly = {
+                "gpt-6-astra": "GPT-6 Astra", "gpt-6.1-sol": "GPT-6.1 Sol", "gpt-6-luna": "GPT-6 Luna",
                 "gpt-5.5": "GPT-5.5", "gpt-5.4-mini": "GPT-5.4 Mini",
                 "claude-sonnet-5-5": "Claude Sonnet 5.5", "claude-opus-5-5": "Claude Opus 5.5", "claude-fable-5-1": "Claude Fable 5.1",
                 "claude-sonnet-5": "Claude Sonnet 5", "claude-opus-5": "Claude Opus 5", "claude-fable-5": "Claude Fable 5",
@@ -25796,8 +25807,9 @@ class SupervertalerQt(QMainWindow):
                 ("claude-fable-5-1", "Claude Fable 5.1 (Maximum)"),
             ]),
             ("openai", "OpenAI", "openai", [
-                ("gpt-5.5", "GPT-5.5 (Recommended)"),
-                ("gpt-5.4-mini", "GPT-5.4 Mini (Fast)"),
+                ("gpt-6-astra", "GPT-6 Astra (Premium)"),
+                ("gpt-6.1-sol", "GPT-6.1 Sol (Recommended)"),
+                ("gpt-6-luna", "GPT-6 Luna (Budget)"),
             ]),
             ("gemini", "Gemini (Google AI)", "gemini", [
                 ("gemini-3.1-flash-lite", "Gemini 3.1 Flash-Lite (Recommended)"),
@@ -25816,8 +25828,9 @@ class SupervertalerQt(QMainWindow):
             ("openrouter", "OpenRouter (200+ models)", "openrouter", [
                 ("anthropic/claude-sonnet-5", "Claude Sonnet 5 (Recommended)"),
                 ("anthropic/claude-opus-5", "Claude Opus 5 (Premium)"),
-                ("openai/gpt-5.4", "GPT-5.4 (Advanced Reasoning)"),
-                ("openai/gpt-5.4-mini", "GPT-5.4 Mini (Fast & Economical)"),
+                ("openai/gpt-6-astra", "GPT-6 Astra (OpenAI's most capable)"),
+                ("openai/gpt-6.1-sol", "GPT-6.1 Sol (OpenAI recommended)"),
+                ("openai/gpt-6-luna", "GPT-6 Luna (OpenAI's cheapest)"),
                 ("google/gemini-3.1-pro-preview", "Gemini 3.1 Pro (Latest Gemini)"),
                 ("google/gemini-3-flash-preview", "Gemini 3 Flash (Fast Gemini)"),
                 ("mistralai/mistral-small-2603", "Mistral Small (European Languages)"),
@@ -51689,7 +51702,7 @@ class SupervertalerQt(QMainWindow):
         settings = self.load_llm_settings()
         llm_provider = settings.get('provider', 'openai')
         model_key = f'{llm_provider}_model'
-        llm_model = settings.get(model_key, 'gpt-5.5')
+        llm_model = settings.get(model_key, 'gpt-6.1-sol')
         
         llm_info = QLabel(f"📊 Using: {llm_provider.title()} ({llm_model})")
         llm_info.setStyleSheet("color: #666; font-size: 9pt; padding: 5px 0;")
@@ -55845,7 +55858,7 @@ class SupervertalerQt(QMainWindow):
             import html as _html
             llm_settings = self.load_llm_settings()
             provider = llm_settings.get('provider', 'openai')
-            model = self._resolve_provider_model(llm_settings, provider, 'gpt-5.5')
+            model = self._resolve_provider_model(llm_settings, provider, 'gpt-6.1-sol')
             provider_names = {
                 'openai': "OpenAI", 'claude': "Anthropic Claude", 'gemini': "Google Gemini",
                 'mistral': "Mistral AI", 'deepseek': "DeepSeek", 'openrouter': "OpenRouter",
@@ -62367,7 +62380,7 @@ class SupervertalerQt(QMainWindow):
         """Load LLM settings from user preferences"""
         defaults = {
             'provider': 'openai',
-            'openai_model': 'gpt-5.5',
+            'openai_model': 'gpt-6.1-sol',
             'claude_model': 'claude-sonnet-5-5',
             'gemini_model': 'gemini-3.1-flash-lite',
             'ollama_model': 'translategemma:12b',
@@ -63939,7 +63952,7 @@ class SupervertalerQt(QMainWindow):
         provider = settings.get('provider', 'openai')
         
         # Get model based on provider (active profile wins for custom_openai)
-        model = self._resolve_provider_model(settings, provider, 'gpt-5.5')
+        model = self._resolve_provider_model(settings, provider, 'gpt-6.1-sol')
 
         # Ollama and custom_openai don't strictly need API keys
         if provider == 'ollama':
@@ -64521,7 +64534,7 @@ class SupervertalerQt(QMainWindow):
         # Resolve provider/model/keys (same approach as translate_current_segment)
         settings = self.load_llm_settings()
         provider = settings.get('provider', 'openai')
-        model = self._resolve_provider_model(settings, provider, 'gpt-5.5')
+        model = self._resolve_provider_model(settings, provider, 'gpt-6.1-sol')
         if provider == 'ollama':
             api_keys = {'ollama': 'not-needed'}
         else:
@@ -65127,7 +65140,7 @@ class SupervertalerQt(QMainWindow):
         # Resolve LLM provider/model/keys
         settings = self.load_llm_settings()
         provider = settings.get('provider', 'openai')
-        model = self._resolve_provider_model(settings, provider, 'gpt-5.5')
+        model = self._resolve_provider_model(settings, provider, 'gpt-6.1-sol')
         if provider == 'ollama':
             api_keys = {'ollama': 'not-needed'}
         else:
@@ -65299,7 +65312,7 @@ class SupervertalerQt(QMainWindow):
             # Use stored settings from previous pass - skip dialog entirely
             translation_provider_type = getattr(self, '_batch_provider_type', 'LLM')
             translation_provider_name = getattr(self, '_batch_provider_name', 'openai')
-            model = getattr(self, '_batch_model', 'gpt-5.5')
+            model = getattr(self, '_batch_model', 'gpt-6.1-sol')
             tm_exact_only = getattr(self, '_batch_tm_exact_only', False)  # Retrieve TM exact-only setting
             api_keys = self.load_api_keys()
             settings = self.load_llm_settings()
@@ -65424,7 +65437,7 @@ class SupervertalerQt(QMainWindow):
             settings = self.load_llm_settings()
             llm_provider = settings.get('provider', 'openai')
             model_key = f'{llm_provider}_model'
-            llm_model = settings.get(model_key, 'gpt-5.5')
+            llm_model = settings.get(model_key, 'gpt-6.1-sol')
 
             if llm_provider == 'custom_openai':
                 profile = self._get_active_custom_profile(settings)
@@ -66116,7 +66129,7 @@ class SupervertalerQt(QMainWindow):
             api_key_value = profile_key or api_key_value or 'not-needed'
 
         # Get model based on provider (active profile wins for custom_openai)
-        model = self._resolve_provider_model(settings, provider, 'gpt-5.5')
+        model = self._resolve_provider_model(settings, provider, 'gpt-6.1-sol')
 
         # Get languages
         source_lang = getattr(self.current_project, 'source_lang', 'en')
@@ -67634,7 +67647,7 @@ class SupervertalerQt(QMainWindow):
                         self.log("🧠 PROGRESSIVE LLM: Attempting OpenAI translation...")
                         from modules.llm_clients import LLMClient
                         
-                        openai_model = settings.get('openai_model', 'gpt-5.5')
+                        openai_model = settings.get('openai_model', 'gpt-6.1-sol')
                         client = LLMClient(
                             api_key=api_keys['openai'],
                             provider='openai',
@@ -67789,7 +67802,7 @@ class SupervertalerQt(QMainWindow):
                         from modules.llm_clients import LLMClient
                         self.log("🧠 DIRECT LLM SEARCH: LLMClient imported for OpenAI")
                         
-                        openai_model = settings.get('openai_model', 'gpt-5.5')
+                        openai_model = settings.get('openai_model', 'gpt-6.1-sol')
                         self.log(f"🧠 DIRECT LLM SEARCH: Using OpenAI model: {openai_model}")
                         client = LLMClient(
                             api_key=api_keys['openai'],
