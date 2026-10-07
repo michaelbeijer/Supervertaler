@@ -37,3 +37,29 @@ M = 1_000_000
 def test_claude_costs_match_the_published_prices(model, regular, read, write, output, expected):
     cost = compute_actual_cost("claude", model, regular, read, write, output)
     assert cost == pytest.approx(expected), f"{model}: {cost} != {expected}"
+
+
+# OpenAI, as its model pages give it, checked 2026-10-07; pinned identically in
+# Supervertaler for Trados's core tests (OpenAiModelTests). GPT-5.6 Sol's price
+# is promotional, "available at least through November 21, 2026".
+@pytest.mark.parametrize("model, regular, read, output, expected", [
+    ("gpt-6-astra", M, 0, 0, 10.00),       # input $10/MTok
+    ("gpt-6-astra", 0, 0, M, 50.00),       # output $50/MTok
+    ("gpt-6-astra", 0, M, 0, 1.00),        # cached input, 0.1x
+    ("gpt-6.1-sol", M, 0, 0, 2.00),        # input $2/MTok
+    ("gpt-6.1-sol", 0, 0, M, 10.00),       # output $10/MTok
+    ("gpt-6.1-sol", 0, M, 0, 0.10),        # cached input, 0.05x
+    ("gpt-6-luna", M, 0, 0, 0.10),         # input $0.10/MTok
+    ("gpt-6-luna", 0, 0, M, 0.50),         # output $0.50/MTok
+    ("gpt-6-luna", 0, M, 0, 0.01),         # cached input, 0.1x
+    ("gpt-5.6-sol", M, 0, M, 24.00),       # $4 / $20, no longer $5 / $30
+    ("gpt-5.6-sol", 0, M, 0, 0.40),        # cached input, 0.1x
+    ("gpt-5.6-terra", M, 0, M, 14.00),     # $2 / $12, no longer $2.50 / $15
+    ("gpt-5.6-terra", 0, M, 0, 0.20),      # cached input, 0.1x
+    ("gpt-5.6-luna", M, 0, M, 1.40),       # $0.20 / $1.20, no longer $1 / $6
+    ("gpt-5.6-luna", 0, M, 0, 0.02),       # cached input, 0.1x
+    ("gpt-5.4-mini", 0, M, 0, 0.375),      # older models keep 0.5x
+])
+def test_openai_costs_match_the_published_prices(model, regular, read, output, expected):
+    cost = compute_actual_cost("openai", model, regular, read, 0, output)
+    assert cost == pytest.approx(expected), f"{model}: {cost} != {expected}"

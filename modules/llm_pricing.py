@@ -53,9 +53,14 @@ def _load_pricing() -> Dict[str, Tuple[float, float]]:
             continue
     # Minimal safety net — only reached if both files fail to load.
     return {
-        "gpt-5.6-sol": (5.0, 30.0),
-        "gpt-5.6-terra": (2.5, 15.0),
-        "gpt-5.6-luna": (1.0, 6.0),
+        "gpt-6-astra": (10.0, 50.0),
+        "gpt-6.1-sol": (2.0, 10.0),
+        "gpt-6-luna": (0.10, 0.50),
+        # GPT-5.6 as OpenAI's model pages gave it on 2026-10-07. Sol's is a
+        # promotional price, "available at least through November 21, 2026".
+        "gpt-5.6-sol": (4.0, 20.0),
+        "gpt-5.6-terra": (2.0, 12.0),
+        "gpt-5.6-luna": (0.20, 1.20),
         "gpt-5.5": (5.0, 30.0),
         "claude-fable-5-1": (10.0, 50.0),
         "claude-fable-5": (10.0, 50.0),
@@ -111,6 +116,14 @@ def _cache_multipliers(model: str) -> Tuple[float, float]:
         return (0.1, 1.25)
 
     # OpenAI auto-cache: 50% off cache reads, no separate cache-write surcharge.
+    # The GPT-6 and GPT-5.6 models read for much less (OpenAI's model pages,
+    # checked 2026-10-07): 0.05x on GPT-6.1 Sol ($0.10 against $2), 0.1x on
+    # Astra, Luna, GPT-6 Sol and all three GPT-5.6. Their 1.25x cache writes are
+    # left out: Chat Completions reports no write count to apply them to.
+    if "gpt-6.1-sol" in lc:
+        return (0.05, 1.0)
+    if "gpt-6" in lc or "gpt-5.6" in lc:
+        return (0.1, 1.0)
     if lc.startswith("gpt-") or lc.startswith("openai/") or lc.startswith("o4-"):
         return (0.5, 1.0)
 
