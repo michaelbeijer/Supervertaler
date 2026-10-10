@@ -69097,7 +69097,7 @@ class SuperlookupTab(QWidget):
             },
             {
                 'id': 'beijerterm',  # internal id kept so existing user settings still resolve
-                'name': 'Beijerdictionary',
+                'name': 'Beijer Dictionary',
                 'icon': '📚',
                 'description': 'Curated multilingual terminology database (Dutch ↔ English)',
                 'url_template': 'https://beijerdictionary.com/?q={query}&from={sl}&to={tl}',
@@ -70412,7 +70412,7 @@ class SuperlookupTab(QWidget):
             ('📖 Wikipedia (Source)', 'Wikipedia in source language'),
             ('📖 Wikipedia (Target)', 'Wikipedia in target language'),
             ('⚖️ Juremy', 'Legal terminology database'),
-            ('📚 Beijerdictionary', 'Dutch-English terminology database (1.9M+ entries)'),
+            ('📚 Beijer Dictionary', 'Dutch-English terminology database (1.9M+ entries)'),
             ('🔤 AcronymFinder', 'Acronym and abbreviation dictionary'),
             ('🌐 BabelNet', 'Multilingual encyclopedic dictionary'),
             ('📓 Wiktionary (Source)', 'Wiktionary in source language'),

@@ -513,7 +513,7 @@ class VoiceTab(QWidget):
         vocab_layout.addWidget(vocab_dict_hint)
         self._vocab_dict_edit = QPlainTextEdit()
         self._vocab_dict_edit.setPlaceholderText(
-            "e.g. Acme Corp, Beijerdictionary, polyurethane, embodiment"
+            "e.g. Acme Corp, Beijer Dictionary, polyurethane, embodiment"
         )
         self._vocab_dict_edit.setFixedHeight(70)
         vocab_layout.addWidget(self._vocab_dict_edit)
