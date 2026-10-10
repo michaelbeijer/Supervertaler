@@ -32,4 +32,4 @@ Optional below) – prefer the docs for feature-level questions.
 - [MCP Server docs](https://docs.supervertaler.com/trados/mcp-server/): connect your AI assistant to Trados Studio – setup, tools, prompt cookbook
 - [GitHub – Supervertaler for Trados](https://github.com/Supervertaler/Supervertaler-for-Trados): source-available; issues and releases
 - [beijer.uk](https://beijer.uk/llms.txt): the author's personal site
-- [Beijerterm](https://beijerterm.com/llms.txt): the author's Dutch–English terminology site
+- [Beijerdictionary](https://beijerdictionary.com/llms.txt): the author's Dutch–English terminology site

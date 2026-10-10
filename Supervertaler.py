@@ -69097,10 +69097,10 @@ class SuperlookupTab(QWidget):
             },
             {
                 'id': 'beijerterm',  # internal id kept so existing user settings still resolve
-                'name': 'Beijerterm',
+                'name': 'Beijerdictionary',
                 'icon': '📚',
                 'description': 'Curated multilingual terminology database (Dutch ↔ English)',
-                'url_template': 'https://beijerterm.com/?q={query}&from={sl}&to={tl}',
+                'url_template': 'https://beijerdictionary.com/?q={query}&from={sl}&to={tl}',
                 'lang_format': 'iso2',  # nl, en — Beijerterm deep-link expects ISO 639-1
                 'bidirectional': True,
             },
@@ -70412,7 +70412,7 @@ class SuperlookupTab(QWidget):
             ('📖 Wikipedia (Source)', 'Wikipedia in source language'),
             ('📖 Wikipedia (Target)', 'Wikipedia in target language'),
             ('⚖️ Juremy', 'Legal terminology database'),
-            ('📚 Beijerterm', 'Dutch-English terminology database (1.9M+ entries)'),
+            ('📚 Beijerdictionary', 'Dutch-English terminology database (1.9M+ entries)'),
             ('🔤 AcronymFinder', 'Acronym and abbreviation dictionary'),
             ('🌐 BabelNet', 'Multilingual encyclopedic dictionary'),
             ('📓 Wiktionary (Source)', 'Wiktionary in source language'),
